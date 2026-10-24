@@ -102,40 +102,53 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
     </select>
   </section>
 
-  <section class="card" aria-labelledby="h-so">
-    <h2 id="h-so">So nimmst du auf</h2>
-    <ol class="schritte">
-      <li>Einstellungen → Sprachmemos → Audioqualität „Verlustfrei“.</li>
-      <li>Messsignal über die Anlage abspielen (AirPlay, Apple TV), am besten von einem zweiten Gerät.</li>
-      <li>Gleichzeitig aufnehmen (unten direkt hier, oder mit Sprachmemos): iPhone auf Ohrhöhe, Unterseite nach vorne, still sein.</li>
-      <li>3 bis 4 Plätze: Hörplatz, 30 cm links, rechts, davor. Bei Kino auch die anderen Sofaplätze.</li>
-      <li>Sprachmemos-Aufnahmen in „Dateien“ sichern und unten auswählen. Die erste ist dein Hauptplatz.</li>
-    </ol>
-    <span class="klein">Messsignal (21 Sekunden, mit Prüfton am Anfang)</span>
-    <audio src="raumcheck.wav" controls preload="none"></audio>
-  </section>
-
   <section class="card" aria-labelledby="h-runde">
-    <h2 id="h-runde">Neue Messrunde</h2>
+    <h2 id="h-runde">Messen</h2>
     <label class="klein" for="anlage">Anlage</label>
     <input type="text" id="anlage" value="KEF LS50 Meta (passiv) + REL" list="vorschlaege">
     <datalist id="vorschlaege">
       <option value="KEF LS50 Meta (passiv) + REL"></option><option value="Sonos ohne Trueplay"></option><option value="Sonos mit Trueplay"></option>
     </datalist>
-    <div id="rekorder" hidden style="display: grid; gap: 10px;">
-      <label class="klein" for="platz">Direkt hier aufnehmen: Platz</label>
+
+    <div id="schritt-quelle" style="display: grid; gap: 10px;">
+      <span class="klein"><b>1</b> · Woher kommt das Messsignal?</span>
+      <div class="wahl" role="group" aria-label="Wiedergabe">
+        <button type="button" id="q-airplay" aria-pressed="true">Von diesem iPhone<small>per AirPlay an die Anlage</small></button>
+        <button type="button" id="q-extern" aria-pressed="false">Von anderem Gerät<small>Apple TV, Mac, iPad</small></button>
+      </div>
+      <div id="airplay-zeile" style="display: grid; gap: 8px;">
+        <button type="button" id="airplay" class="zweit">AirPlay-Lautsprecher wählen</button>
+        <div id="ziel" class="klein" aria-live="polite"></div>
+      </div>
+      <div id="extern-zeile" class="klein" hidden>Das Messsignal auf dem anderen Gerät bereitlegen. Nach „Platz messen“ hast du 5 Sekunden, um es dort zu starten.
+        <a href="raumcheck.m4a" download>Messsignal (.m4a)</a> · <a href="raumcheck.wav" download>(.wav)</a></div>
+    </div>
+
+    <div style="display: grid; gap: 10px;">
+      <span class="klein"><b>2</b> · iPhone auf Ohrhöhe, Unterseite nach vorne, still sein</span>
+      <label class="klein" for="platz">Platz</label>
       <select id="platz"><option>Hörplatz</option><option>30 cm links</option><option>30 cm rechts</option><option>30 cm davor</option>
         <option>Sofa links</option><option>Sofa rechts</option><option>Sessel</option></select>
-      <div class="knoepfe"><button type="button" id="rec-start">Aufnahme starten</button><button type="button" id="rec-stop" class="zweit" disabled>Beenden</button></div>
+      <button type="button" id="messen">Platz messen</button>
+      <button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button>
       <div class="balken" aria-hidden="true"><div id="pegel"></div></div>
       <div id="filter" class="klein"></div>
     </div>
-    <label class="knopf zweit" for="datei">Aufnahmen aus Dateien (Sprachmemos)
-      <input id="datei" type="file" accept="audio/*,.m4a,.wav,.aac,.caf" multiple hidden>
-    </label>
+
     <ul class="dateien" id="dateien"></ul>
     <button id="auswerten" disabled>Auswerten</button>
     <div id="status" class="klein" aria-live="polite"></div>
+    <details><summary>Ohne Mikrofon-Freigabe: Sprachmemos-Dateien</summary>
+      <ol class="schritte klein">
+        <li>Einstellungen → Sprachmemos → Audioqualität „Verlustfrei“.</li>
+        <li>Aufnahme starten, Messsignal abspielen, nach dem Ende stoppen. 3 bis 4 Plätze.</li>
+        <li>Aufnahmen in „Dateien“ sichern und hier auswählen. Die erste ist der Hauptplatz.</li>
+      </ol>
+      <label class="knopf zweit" for="datei">Aufnahmen auswählen
+        <input id="datei" type="file" accept="audio/*,.m4a,.wav,.aac,.caf" multiple hidden>
+      </label>
+    </details>
+    <audio id="signal" src="raumcheck.wav" preload="auto" x-webkit-airplay="allow" playsinline></audio>
   </section>
 
   <section class="card" id="vergleich-karte" hidden aria-labelledby="h-vergleich">
@@ -156,7 +169,7 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
 "use strict";
 
 const FS = 48000;
-const PRUEF_STUFEN_DB = [-12, -22, -32, -42, -52];
+const PRUEF_STUFEN_DB = [-52, -42, -32, -22, -12];  // leise → laut: der Nachhall stört die nächste Stufe nicht
 const PRUEF_STUFE_S = 0.6;
 const FOLGE = { lead: 1.0, markerToSweep: 0.5, sweepS: 4.0, tail: 1.5, sweepLevel: 0.25, kanaele: ["FL", "FR"] };
 FOLGE.pruefDauer = PRUEF_STUFEN_DB.length * PRUEF_STUFE_S + 0.7;
@@ -330,8 +343,10 @@ function laufzeit(ir, zero) {
   const schwelle = Math.min(Math.max(0.2 * env[p], 20 * noise), env[p]);
   const lo = Math.max(early, p - Math.floor(0.03 * FS));
   let q = lo; while (q < p && env[q] < schwelle) q++;
-  while (q + 1 < env.length && env[q + 1] >= env[q]) q++;
-  return (q + parabel(env, q) - zero) / FS;
+  // Gipfel des Direktschalls: Maximum der nächsten 0,5 ms (Dellen in der Flanke stören nicht,
+  // die erste Reflexion kommt frühestens ~1 ms später)
+  let g = q; for (let i = q; i <= Math.min(env.length - 1, q + Math.floor(0.0005 * FS)); i++) if (env[i] > env[g]) g = i;
+  return (g + parabel(env, g) - zero) / FS;
 }
 
 function pruefeAufnahme(rec, a, markerPegel) {
@@ -346,13 +361,14 @@ function pruefeAufnahme(rec, a, markerPegel) {
     return 10 * Math.log10(s / (i1 - i0) + 1e-24);
   };
   const stufen = PRUEF_STUFEN_DB.map((_, k) => pegel(k * PRUEF_STUFE_S + 0.15, (k + 1) * PRUEF_STUFE_S - 0.1));
-  const L = PRUEF_STUFEN_DB.length * PRUEF_STUFE_S, ruhe = pegel(L + 0.15, L + 0.6);
-  if (stufen.every((v) => v !== null) && ruhe !== null && stufen[0] > ruhe + 25) {
-    const erwartet = PRUEF_STUFEN_DB.map((lv) => stufen[0] - (PRUEF_STUFEN_DB[0] - lv));
+  const ruhe = pegel(-0.6, -0.15);  // Stille vor der Treppe (dahinter klingt die lauteste Stufe nach)
+  const k0 = PRUEF_STUFEN_DB.indexOf(Math.max(...PRUEF_STUFEN_DB));  // lauteste Stufe ist der Bezug
+  if (stufen.every((v) => v !== null) && ruhe !== null && stufen[k0] > ruhe + 25) {
+    const erwartet = PRUEF_STUFEN_DB.map((lv) => stufen[k0] - (PRUEF_STUFEN_DB[k0] - lv));
     const abw = [];
-    for (let k = 1; k < stufen.length; k++) if (erwartet[k] > ruhe + 12) abw.push(stufen[k] - erwartet[k]);
+    for (let k = 0; k < stufen.length; k++) if (k !== k0 && erwartet[k] > ruhe + 12) abw.push(stufen[k] - erwartet[k]);
     erg.treppe_vorhanden = true;
-    erg.treppe_stufen_db = stufen.map((v) => Math.round((v - stufen[0]) * 10) / 10);
+    erg.treppe_stufen_db = stufen.map((v) => Math.round((v - stufen[k0]) * 10) / 10);
     erg.treppe_fehler_db = abw.length ? Math.max(...abw.map(Math.abs)) : 0;
     erg.leise_verschluckt = abw.some((x) => x < -6);
   } else erg.treppe_vorhanden = false;
@@ -366,6 +382,16 @@ function pruefeAufnahme(rec, a, markerPegel) {
   erg.probleme = probleme;
   erg.sauber = probleme.length === 0;
   return erg;
+}
+
+// Wächter gegen Störgeräusche während der Messung (Klopfen, Husten, Tür, Lüfter)
+function stoerProbleme(stoer) {
+  const werte = Object.values(stoer), min = Math.min(...werte), out = [];
+  for (const [ch, v] of Object.entries(stoer)) {
+    if (v > -45) out.push(`Zu viel Störgeräusch während der Messung von ${ch}. Bitte ruhig sein und wiederholen.`);
+    else if (werte.length > 1 && v - min > 12 && v > -60) out.push(`Ein Geräusch (Klopfen, Husten?) während der Messung von ${ch}. Bitte wiederholen.`);
+  }
+  return out;
 }
 
 function analysiere(rec0) {
@@ -382,7 +408,7 @@ function analysiere(rec0) {
   const pre = Math.floor(0.05 * FS), n = Math.floor((FOLGE.sweepS + FOLGE.tail - 0.15) * FS), nfft = naechste2(n + pre);
   const X = spektrum(sw, nfft);
   let maxX = 0; for (let k = 0; k < nfft; k++) maxX = Math.max(maxX, X.re[k] ** 2 + X.im[k] ** 2);
-  const messungen = {};
+  const messungen = {}, stoer = {};
   FOLGE.kanaele.forEach((ch, i) => {
     const start = Math.round(a + sweepZeit(i) * FS) - pre, seg = new Float64Array(nfft);
     for (let j = 0; j < n + pre; j++) { const q = start + j; if (q >= 0 && q < rec.length) seg[j] = rec[q]; }
@@ -396,18 +422,27 @@ function analysiere(rec0) {
       re[k] = S.re[k] * ir - S.im[k] * ii; im[k] = S.re[k] * ii + S.im[k] * ir;
     }
     fft(re, im, true);
+    // Störgeräusch-Wächter: weit hinter dem Nachhall (und zyklisch vor dem Direktschall) nur Grundrauschen
+    let spitze = 0, rs = 0; const r0 = pre + Math.floor(1.6 * FS), r1 = nfft - Math.floor(1.2 * FS);
+    for (let k = 0; k < nfft; k++) spitze = Math.max(spitze, re[k] * re[k]);
+    for (let k = r0; k < r1; k++) rs += re[k] * re[k];
+    stoer[ch] = 10 * Math.log10(rs / (r1 - r0) / (spitze + 1e-30) + 1e-30);
     // 1,2 s Impulsantwort: genug für das Nachklingen im Bass. Laufzeit aus den ersten 0,6 s.
     const ir = re.slice(0, pre + Math.floor(1.2 * FS));
     messungen[ch] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
   });
-  return { messungen, drift_ppm: (b - 1) * 1e6, pruefung: pruefeAufnahme(rec, a, markerPegel) };
+  const pruefung = pruefeAufnahme(rec, a, markerPegel);
+  pruefung.stoer_db = Object.fromEntries(Object.entries(stoer).map(([k, v]) => [k, Math.round(v * 10) / 10]));
+  for (const t of stoerProbleme(stoer)) { pruefung.probleme.push(t); pruefung.sauber = false; }
+  return { messungen, drift_ppm: (b - 1) * 1e6, pruefung };
 }
 
 // --- Frequenzgänge -----------------------------------------------------------------------
 const NF = 1200, F = new Float64Array(NF);
 for (let i = 0; i < NF; i++) F[i] = Math.pow(10, Math.log10(15) + (Math.log10(20000) - Math.log10(15)) * i / (NF - 1));
 function antwort(m) {  // komplex auf F, Zeitbasis wie Python
-  const start = Math.max(0, m.zero - Math.floor(0.002 * FS)), n = Math.floor(0.5 * FS);
+  // 2 ms vor der Ankunft dieser Box (sie kann früher ankommen als der Zeitmarker der linken Box)
+  const start = Math.max(0, m.zero + Math.round(Math.min(0, m.delay) * FS) - Math.floor(0.002 * FS)), n = Math.floor(0.5 * FS);
   const seg = m.ir.slice(start, start + n), taper = Math.floor(0.1 * FS);
   for (let i = 0; i < taper; i++) seg[seg.length - taper + i] *= 0.5 - 0.5 * Math.cos(2 * Math.PI * (taper + i) / (2 * taper - 1));
   const nfft = naechste2(seg.length * 4), s = spektrum(seg, nfft), re = new Float64Array(NF), im = new Float64Array(NF);
@@ -480,30 +515,55 @@ function sicherPeq(p) {
 const rms = (arr) => arr.length ? Math.sqrt(arr.reduce((s, v) => s + v * v, 0) / arr.length) : 0;
 function summeDb(filter) { const c = new Float64Array(NF); for (const p of filter) { const d = peqDb(p); for (let i = 0; i < NF; i++) c[i] += d[i]; } return c; }
 
-function fitEq(r, ziel, lo, hi, posDev) {
-  const sel = Array.from(F, (f) => f >= lo && f <= hi);
-  if (!sel.some(Boolean)) return [];
-  const filter = [], korr = new Float64Array(NF);
+// Filter für Filter das Paar (Frequenz, Güte, Pegel) suchen, das die mittlere Abweichung über alle
+// Messpunkte am stärksten senkt (wie fit_eq in klangbox/einmessung.py): kein Punkt wird schlechter,
+// tiefe Löcher höchstens 2 dB tiefer, Anheben nur breit, nur wo alle Punkte unten liegen, zusammen
+// höchstens +3 dB, nie unter 35 Hz; jeder Filter muss mindestens 0,05 dB bringen.
+const EQ_QS = [0.7, 1.0, 1.4, 2.0, 3.0, 4.5, 7.0, 10.0];
+const EQ_GAINS = []; for (let g = -12; g <= 3.001; g += 0.5) if (Math.abs(g) > 1e-9) EQ_GAINS.push(g);
+function peqDbAuf(f0, q, gain, f) {
+  const A = Math.pow(10, gain / 40), w0 = 2 * Math.PI * f0 / FS, al = Math.sin(w0) / (2 * q), c = Math.cos(w0);
+  const b0 = 1 + al * A, b1 = -2 * c, b2 = 1 - al * A, a0 = 1 + al / A, a1 = -2 * c, a2 = 1 - al / A, out = new Float64Array(f.length);
+  for (let i = 0; i < f.length; i++) {
+    const w = 2 * Math.PI * f[i] / FS, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+    const nr = b0 + b1 * c1 + b2 * c2, ni = -b1 * s1 - b2 * s2, dr = a0 + a1 * c1 + a2 * c2, di = -a1 * s1 - a2 * s2;
+    out[i] = 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di));
+  }
+  return out;
+}
+function fitEq(posDb, ziel, sel) {
+  const idx = []; for (let i = 0; i < NF; i++) if (sel[i]) idx.push(i);
+  if (idx.length < 8) return [];
+  const f = idx.map((i) => F[i]), N = f.length, P = posDb.length;
+  const E = posDb.map((r) => idx.map((i) => r[i] - ziel[i]));
+  const kand = [];
+  for (let j = 0; j < N; j += 5) for (const q of EQ_QS) for (const g of EQ_GAINS) {
+    if (g > 0 && (q > 3 || f[j] < 35)) continue;
+    kand.push({ f0: f[j], q, g, i0: j, D: peqDbAuf(f[j], q, g, f) });
+  }
+  const loch = Array.from({ length: N }, (_, i) => E.some((e) => e[i] < -6));
+  const rmsVon = (e, c, D) => { let s = 0; for (let i = 0; i < N; i++) { const v = e[i] + c[i] + (D ? D[i] : 0); s += v * v; } return Math.sqrt(s / N); };
+  const corr = new Float64Array(N), rms0 = E.map((e) => rmsVon(e, corr, null)), filter = [];
+  let jetzt = rms0.reduce((a, b) => a + b) / P;
   for (let it = 0; it < 8; it++) {
-    const e = Array.from(F, (_, i) => sel[i] ? r[i] + korr[i] - ziel[i] : 0);
-    let i = 0; for (let j = 1; j < NF; j++) if (e[j] > e[i]) i = j;
-    let gain;
-    if (e[i] > 1.5) gain = -e[i];
-    else {
-      i = 0; for (let j = 1; j < NF; j++) if (e[j] < e[i]) i = j;
-      const konsistent = posDev.every((d) => d[i] + korr[i] < -2);
-      if (e[i] < -3 && konsistent) gain = -e[i] * 0.7; else break;
+    let best = null;
+    for (const k of kand) {
+      if (k.g > 0 && !E.every((e) => e[k.i0] + corr[k.i0] < -2)) continue;
+      let zuviel = false, zuTief = false;
+      for (let i = 0; i < N; i++) { const v = corr[i] + k.D[i]; if (v > 3 + 1e-9) { zuviel = true; break; } if (loch[i] && v < -2) { zuTief = true; break; } }
+      if (zuviel || zuTief) continue;
+      let J = 0, gut = true;
+      for (let p = 0; p < P; p++) { const r = rmsVon(E[p], corr, k.D); if (r > rms0[p] + 1e-9) { gut = false; break; } J += r; }
+      if (!gut) continue;
+      J /= P;
+      if (!best || J < best.J) best = { J, k };
     }
-    const halb = e[i] / 2, sg = Math.sign(e[i]);
-    let a = i; while (a > 0 && sel[a - 1] && Math.sign(e[a - 1]) === sg && Math.abs(e[a - 1]) > Math.abs(halb)) a--;
-    let b = i; while (b < NF - 1 && sel[b + 1] && Math.sign(e[b + 1]) === sg && Math.abs(e[b + 1]) > Math.abs(halb)) b++;
-    const breite = Math.max(F[b] - F[a], F[i] * 0.05);
-    let q = Math.min(10, Math.max(0.5, F[i] / breite));
-    if (gain > 0) q = Math.min(q, 3);
-    const p = sicherPeq({ freq: F[i], gain, q });
+    if (!best || best.J > jetzt - 0.05) break;
+    const p = sicherPeq({ freq: best.k.f0, gain: best.k.g, q: best.k.q });
     if (!p) break;
     filter.push(p);
-    const d = peqDb(p); for (let j = 0; j < NF; j++) korr[j] += d[j];
+    const d = peqDbAuf(p.freq, p.q, p.gain, f); for (let i = 0; i < N; i++) corr[i] += d[i];
+    jetzt = best.J;
   }
   return filter;
 }
@@ -552,12 +612,16 @@ function einmessen(punkte, hausDb) {
   const cals = {}, notizen = [], vor = [], nach = [];
   for (const ch of kan) {
     const g = gains[ch], lo = Math.max(grenze[ch] * 1.1, 20), hi = 350;
-    const rAvg = dbArr(glaetten(pAvg[ch], 12)).map((v) => v + g);
     const posDb = H[ch].map(({ h }) => dbArr(glaetten(leistung(h), 12)).map((v) => v + g));
-    const posDev = posDb.map((r) => r.map((v, i) => v - ziel[i]));
     const sel = Array.from(F, (f) => f >= lo && f <= hi);
-    let fl = fitEq(rAvg, ziel, lo, hi, posDev);
-    fl = pruefen(fl, posDb, ziel, sel, notizen, ch);
+    let fl = fitEq(posDb, ziel, sel);
+    // Wächter: auch zusammen dürfen die Filter nirgends mehr als +3 dB anheben
+    while (fl.length && Math.max(...summeDb(fl)) > 3.05) {
+      let w = 0; fl.forEach((p, j) => { if (p.gain > fl[w].gain) w = j; });
+      notizen.push(`${ch}: Filter ${fl[w].freq.toFixed(0)} Hz +${fl[w].gain.toFixed(1)} dB entfernt (zusammen zu viel Anhebung)`);
+      fl.splice(w, 1);
+    }
+    fl = pruefen(fl, posDb, ziel, sel, notizen, ch);  // Wächter: prüft genau den Satz, der bleibt
     cals[ch] = { gain_db: Math.round(g * 100) / 100, eq: fl, delay_ms: 0 };
     const c = summeDb(fl);
     vor.push(posDb.reduce((s, r) => { const v = []; for (let i = 0; i < NF; i++) if (sel[i]) v.push(r[i] - ziel[i]); return s + rms(v); }, 0) / posDb.length);
@@ -693,10 +757,19 @@ function reflexionDb(m) {
   return 20 * Math.log10(refl / (direkt + 1e-30) + 1e-30);
 }
 
+function zielkurve(hausDb) { const sh = biquadDb(biquad("Lowshelf", 100, 0.7, hausDb)); return F.map((f, i) => NEIGUNG * Math.log2(f / 1000) + sh[i]); }
+// Kennzahl 1: RMS-Abweichung von der Zielkurve bis 250 Hz, Spitzen zählen doppelt so stark wie Löcher
+function bassAbweichung(pGlatt, ziel) {
+  const e = dbArr(pGlatt).map((v, i) => v - ziel[i]); let m = 0, n = 0;
+  for (let i = 0; i < NF; i++) if (F[i] >= 500 && F[i] <= 2000) { m += e[i]; n++; }
+  m /= n; let s = 0, k = 0;
+  for (let i = 0; i < NF; i++) if (F[i] >= F_LO && F[i] <= 250) { const v = e[i] - m, w = v > 0 ? v : 0.5 * v; s += w * w; k++; }
+  return Math.sqrt(s / k);
+}
 function rechner(hausDb) {
   const cache = new Map();
   const c = (m, key, fn) => { let e = cache.get(m); if (!e) cache.set(m, e = {}); if (!(key in e)) e[key] = fn(); return e[key]; };
-  const zielKurve = (() => { const sh = biquadDb(biquad("Lowshelf", 100, 0.7, hausDb)); return F.map((f, i) => NEIGUNG * Math.log2(f / 1000) + sh[i]); })();
+  const zielKurve = zielkurve(hausDb);
   const r = {
     ziel: zielKurve,
     leistung: (m) => c(m, "p", () => leistung(antwort(m))),
@@ -745,11 +818,7 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
   const imBand = (arr, lo, hi) => arr.filter((_, i) => F[i] >= lo && F[i] <= hi);
 
   // 1 Bass-Glätte
-  const dB = mean(bassCh.map((ch) => {
-    const e = dbArr(pmittel(ch, 6)).map((v, i) => v - r.ziel[i]), m = mean(imBand(e, 500, 2000));
-    const ew = imBand(e.map((v) => v - m).map((v) => v > 0 ? v : 0.5 * v), F_LO, 250);
-    return Math.sqrt(mean(ew.map((v) => v * v)));
-  }));
+  const dB = mean(bassCh.map((ch) => bassAbweichung(pmittel(ch, 6), r.ziel)));
   setze("bass_glaette", dB, punkte(dB, 6, 3, 1.5), `${f1(dB)} dB Abweichung`,
     dB <= 3 ? "Bass gleichmäßig, kein Dröhnen." : `Der Bass ist ungleichmäßig (${f1(dB)} dB von der Zielkurve), einzelne Töne dröhnen.`);
 
@@ -864,7 +933,57 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
 function mitte(m) {  // Phantom-Mitte: beide Boxen zusammen
   const n = Math.min(m.FL.ir.length, m.FR.ir.length), ir = new Float64Array(n);
   for (let i = 0; i < n; i++) ir[i] = m.FL.ir[i] + m.FR.ir[i];
-  return { ir, zero: m.FL.zero, delay: 0 };
+  return { ir, zero: m.FL.zero, delay: Math.min(m.FL.delay, m.FR.delay) };
+}
+
+function biquadH(bq) {  // komplexer Frequenzgang auf F
+  const re = new Float64Array(NF), im = new Float64Array(NF);
+  for (let i = 0; i < NF; i++) {
+    const w = 2 * Math.PI * F[i] / FS, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+    const nr = bq.b[0] + bq.b[1] * c1 + bq.b[2] * c2, ni = -bq.b[1] * s1 - bq.b[2] * s2;
+    const dr = 1 + bq.a[1] * c1 + bq.a[2] * c2, di = -bq.a[1] * s1 - bq.a[2] * s2, d = dr * dr + di * di;
+    re[i] = (nr * dr + ni * di) / d; im[i] = (ni * dr - nr * di) / d;
+  }
+  return { re, im };
+}
+// Bass-Abweichung (Kennzahl 1) an jedem Platz für eine Einstellung, im Frequenzbereich gerechnet
+function bassJePlatz(H, cals, modus) {
+  const ziel = zielkurve(HAUSKURVE[modus]);
+  return H.map((h) => {
+    const k = {};
+    for (const ch of ["FL", "FR"]) {
+      const c = cals[ch], g = Math.pow(10, c.gain_db / 20), re = new Float64Array(NF), im = new Float64Array(NF);
+      for (let i = 0; i < NF; i++) { const ph = -2 * Math.PI * F[i] * c.delay_ms / 1000, cs = Math.cos(ph), sn = Math.sin(ph);
+        re[i] = g * (h[ch].re[i] * cs - h[ch].im[i] * sn); im[i] = g * (h[ch].re[i] * sn + h[ch].im[i] * cs); }
+      for (const q of c.eq) { const b = biquadH(biquad("Peaking", q.freq, q.q, q.gain));
+        for (let i = 0; i < NF; i++) { const r0 = re[i]; re[i] = r0 * b.re[i] - im[i] * b.im[i]; im[i] = r0 * b.im[i] + im[i] * b.re[i]; } }
+      k[ch] = { re, im };
+    }
+    const kan = [k.FL, k.FR];
+    if (modus === "kino") kan.push({ re: k.FL.re.map((v, i) => v + k.FR.re[i]), im: k.FL.im.map((v, i) => v + k.FR.im[i]) });
+    return mean(kan.map((x) => bassAbweichung(glaetten(leistung(x), 6), ziel)));
+  });
+}
+// Wächter: Kein Platz darf im Bass schlechter werden. Solange einer schlechter wird, fliegt der Filter
+// raus, dessen Wegfall am meisten hilft.
+function waechterEq(punkte, cals, modus, toleranz = 0.1) {
+  const H = punkte.map((p) => ({ FL: antwort(p.messungen.FL), FR: antwort(p.messungen.FR) }));
+  const aus = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
+  const vorher = bassJePlatz(H, aus, modus), schlimm = (c) => Math.max(...bassJePlatz(H, c, modus).map((v, i) => v - vorher[i]));
+  const hinweise = [];
+  for (;;) {
+    const jetzt = schlimm(cals);
+    if (jetzt <= toleranz) break;
+    let best = null;
+    for (const ch of ["FL", "FR"]) cals[ch].eq.forEach((q, i) => {
+      const v = { FL: cals.FL, FR: cals.FR }; v[ch] = { ...cals[ch], eq: cals[ch].eq.filter((_, j) => j !== i) };
+      const w = schlimm(v); if (!best || w < best.w) best = { w, v, ch, q };
+    });
+    if (!best) { hinweise.push(`Wächter: Ein Platz bleibt im Bass ${jetzt.toFixed(1)} dB schlechter (Laufzeit/Pegel für die Bühne).`); break; }
+    hinweise.push(`Wächter: Filter ${best.ch} ${best.q.freq.toFixed(0)} Hz ${best.q.gain >= 0 ? "+" : ""}${best.q.gain.toFixed(1)} dB entfernt, er hätte einen Platz verschlechtert.`);
+    cals = best.v;
+  }
+  return { cals, hinweise };
 }
 
 function korrigiert(m, cal) {
@@ -897,13 +1016,51 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null) {
   const mDb = (ch) => mean(dbArr(glaetten(leistung(antwort(punkte[0].messungen[ch])), 3)).filter((_, i) => F[i] >= 500 && F[i] <= 2000));
   const dLR = mDb("FL") - mDb("FR");
   ein.cals.FL.gain_db = -Math.max(dLR, 0); ein.cals.FR.gain_db = -Math.max(-dLR, 0);
+  // ... und gleichzeitig: die frühere Box wartet auf die spätere
+  const dt = (punkte[0].messungen.FR.delay - punkte[0].messungen.FL.delay) * 1000;
+  ein.cals.FL.delay_ms = Math.max(dt, 0); ein.cals.FR.delay_ms = Math.max(-dt, 0);
+  const wa = waechterEq(punkte, ein.cals, modus);
+  ein.cals = wa.cals; ein.zeilen = ein.zeilen.concat(wa.hinweise);
   const vorher = punkte.map((p) => ({ FL: p.messungen.FL, FR: p.messungen.FR, C: mitte(p.messungen) }));
   const nachher = punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, ein.cals.FL), FR: korrigiert(p.messungen.FR, ein.cals.FR) }; m.C = mitte(m); return m; });
   const sh = score(vorher, modus, raumM3), sn = score(nachher, modus, raumM3, null, true, true);
   const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C);
   Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, bericht: ein.zeilen, tipps: ein.tipps,
                        kurve: { f: kh.f, heute: kh.v, prognose: kn.v }, einstellungen: ein.cals });
+  // Nie verschlimmbessern: bringt die Raumanpassung insgesamt nichts, bleibt die Box neutral
+  if (sn.gesamt < sh.gesamt) {
+    erg.score_prognose = { ...sh }; erg.kurve.prognose = kh.v;
+    erg.einstellungen = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
+    erg.bericht.push("Wächter: Die Raumanpassung würde hier insgesamt nichts verbessern. Die Box bleibt neutral.");
+  }
+  // Wächter: lieber kein Ergebnis als ein falsches
+  const v = waechterErgebnis(erg);
+  if (v.length) return { aufnahmen: erg.aufnahmen, modus, score_name: erg.score_name, fehler: "Ergebnis zurückgehalten, es wäre nicht verlässlich: " + v.join("; ") };
   return erg;
+}
+
+// Wächter (wie klangbox/waechter.py): was physikalisch und nach unseren Regeln nie vorkommen darf
+function waechterErgebnis(e) {
+  if (e.fehler) return [];
+  const v = [], ok = (x) => typeof x === "number" && isFinite(x);
+  for (const k of ["score_heute", "score_prognose"]) {
+    const s = e[k] || {};
+    if (!ok(s.gesamt) || s.gesamt < 0 || s.gesamt > 100) v.push(`${k}: Gesamtwert ungültig`);
+    for (const [kk, p] of Object.entries(s.teile || {})) if (!ok(p) || p < 0 || p > 100) v.push(`${k}: ${kk} ungültig`);
+    for (const [kk, w] of Object.entries(s.werte || {})) if (!ok(w)) v.push(`${k}: Messwert ${kk} ungültig`);
+  }
+  if (!v.length && e.score_prognose.gesamt < e.score_heute.gesamt) v.push("Prognose schlechter als heute");
+  const w = (e.score_heute || {}).werte || {};
+  if ("laufzeit" in w && w.laufzeit > 30) v.push("Laufzeitunterschied über 30 ms (über 10 m) ist unplausibel");
+  if ("raum" in w && !(w.raum >= 0.05 && w.raum <= 3)) v.push("Nachhallzeit unplausibel");
+  for (const [ch, c] of Object.entries(e.einstellungen || {})) {
+    if (!ok(c.gain_db) || c.gain_db > 1e-6 || c.gain_db < -20) v.push(`${ch}: Pegel ${c.gain_db} außerhalb 0 bis -20 dB`);
+    if (!ok(c.delay_ms) || c.delay_ms < 0 || c.delay_ms > 30) v.push(`${ch}: Laufzeit ${c.delay_ms} ms außerhalb 0 bis 30 ms`);
+    if (c.eq.length > 10) v.push(`${ch}: zu viele Filter`);
+    for (const p of c.eq) { const s = sicherPeq(p); if (!s || s.gain !== p.gain || s.q !== p.q) v.push(`${ch}: Filter ${Math.round(p.freq)} Hz außerhalb der Leitplanken`); }
+    if (c.eq.length && Math.max(...summeDb(c.eq)) > 3.05) v.push(`${ch}: Filter heben zusammen mehr als 3 dB an`);
+  }
+  return v;
 }
 
 if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS };
@@ -948,7 +1105,7 @@ $("datei").addEventListener("change", async (ev) => {
     try {
       const buf = await ac.decodeAudioData(await f.arrayBuffer());
       if (buf.sampleRate !== 48000) throw new Error("Abtastrate");
-      dateien.push({ name: f.name.replace(/\.[^.]+$/, ""), daten: new Float32Array(buf.getChannelData(0)) });
+      await neueAufnahme(f.name.replace(/\.[^.]+$/, ""), new Float32Array(buf.getChannelData(0)));
     } catch (e) {
       $("status").innerHTML = `<span class="warn">${esc(f.name)} ließ sich nicht lesen.</span>`;
     }
@@ -958,75 +1115,138 @@ $("datei").addEventListener("change", async (ev) => {
   zeigeDateien();
 });
 
-// Direkt aufnehmen (nur wo der Browser das Mikrofon erlaubt, z. B. Safari auf der Mess-Webseite)
-let rec = null;
-if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext) $("rekorder").hidden = false;
-$("rec-start").addEventListener("click", async () => {
+// --- Ein-Knopf-Messung: aufnehmen, Messsignal abspielen (AirPlay), automatisch stoppen, sofort prüfen ---
+const sig = $("signal");
+let quelle = "airplay", laeuft = null;
+try { quelle = localStorage.getItem("raumcheck-quelle") || "airplay"; } catch (e) {}
+const kannAirplay = !!sig.webkitShowPlaybackTargetPicker;
+const kannAufnehmen = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext);
+const drahtlos = () => !!sig.webkitCurrentPlaybackTargetIsWireless;
+function setzeQuelle(q) {
+  quelle = q;
+  $("q-airplay").setAttribute("aria-pressed", q === "airplay"); $("q-extern").setAttribute("aria-pressed", q === "extern");
+  $("airplay-zeile").hidden = q !== "airplay"; $("extern-zeile").hidden = q !== "extern";
+  try { localStorage.setItem("raumcheck-quelle", q); } catch (e) {}
+  zeigeZiel();
+}
+function zeigeZiel() {
+  if (!kannAirplay) { $("ziel").innerHTML = `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Hier: „Von anderem Gerät“ wählen oder in Safari öffnen.</span>`; return; }
+  $("ziel").innerHTML = drahtlos() ? `<span class="ok">✓ Wiedergabe über AirPlay</span>` : `Noch kein AirPlay-Lautsprecher gewählt (sonst spielt das iPhone selbst).`;
+}
+$("q-airplay").addEventListener("click", () => setzeQuelle("airplay"));
+$("q-extern").addEventListener("click", () => setzeQuelle("extern"));
+$("airplay").addEventListener("click", () => { if (kannAirplay) sig.webkitShowPlaybackTargetPicker(); else zeigeZiel(); });
+sig.addEventListener("webkitcurrentplaybacktargetiswirelesschanged", zeigeZiel);
+setzeQuelle(quelle);
+if (!kannAufnehmen) { $("messen").disabled = true; $("filter").innerHTML = `<span class="warn">Aufnehmen geht hier nicht (nur über https in Safari/Chrome). Unten Sprachmemos-Dateien nutzen.</span>`; }
+
+const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+async function platzMessen() {
+  // Wächter vor dem Start: das Signal darf nicht aus dem iPhone selbst kommen
+  if (quelle === "airplay" && kannAirplay && !drahtlos()) {
+    $("status").innerHTML = `<span class="warn">Erst einen AirPlay-Lautsprecher wählen. Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`;
+    return;
+  }
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
   } catch (e) {
-    $("rekorder").hidden = true;
-    $("status").innerHTML = `<span class="warn">Aufnehmen geht hier nicht. Bitte mit Sprachmemos aufnehmen und die Dateien auswählen.</span>`;
+    $("status").innerHTML = `<span class="warn">Kein Zugriff aufs Mikrofon. Bitte erlauben (aA-Menü → Website-Einstellungen) oder Sprachmemos nutzen.</span>`;
     return;
   }
-  const s = stream.getAudioTracks()[0].getSettings();
+  const st = stream.getAudioTracks()[0].getSettings();
   const z = (n, v) => `${n}: <b class="${v === false ? "ok" : v === true ? "warn" : ""}">${v === false ? "aus" : v === true ? "AN" : "unbekannt"}</b>`;
-  $("filter").innerHTML = [z("Echo-Unterdrückung", s.echoCancellation), z("Störfilter", s.noiseSuppression), z("Lautstärke-Automatik", s.autoGainControl)].join(" · ");
+  $("filter").innerHTML = [z("Echo-Unterdrückung", st.echoCancellation), z("Störfilter", st.noiseSuppression), z("Lautstärke-Automatik", st.autoGainControl)].join(" · ");
   const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC({ sampleRate: 48000 });
-  const quelle = ctx.createMediaStreamSource(stream), knoten = ctx.createScriptProcessor(4096, 1, 1), stumm = ctx.createGain();
+  const q = ctx.createMediaStreamSource(stream), knoten = ctx.createScriptProcessor(4096, 1, 1), stumm = ctx.createGain();
   stumm.gain.value = 0;
-  rec = { ctx, stream, quelle, knoten, puffer: [] };
+  const puffer = [];
+  let spitze = 0;
   knoten.onaudioprocess = (ev) => {
-    const d = ev.inputBuffer.getChannelData(0); rec.puffer.push(new Float32Array(d));
+    const d = ev.inputBuffer.getChannelData(0); puffer.push(new Float32Array(d));
     let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i]));
-    $("pegel").style.width = Math.min(100, m * 100) + "%";
+    spitze = Math.max(spitze, m); $("pegel").style.width = Math.min(100, m * 100) + "%";
   };
-  quelle.connect(knoten); knoten.connect(stumm); stumm.connect(ctx.destination);
-  $("rec-start").disabled = true; $("rec-stop").disabled = false;
-  $("status").textContent = "Nimmt auf. Jetzt das Messsignal über die Anlage abspielen, danach „Beenden“.";
-});
-$("rec-stop").addEventListener("click", () => {
-  if (!rec) return;
-  rec.knoten.disconnect(); rec.quelle.disconnect(); rec.stream.getTracks().forEach((t) => t.stop());
-  const n = rec.puffer.reduce((s, b) => s + b.length, 0), daten = new Float32Array(n); let o = 0;
-  for (const b of rec.puffer) { daten.set(b, o); o += b.length; }
-  const rate = rec.ctx.sampleRate; rec.ctx.close(); rec = null;
-  $("rec-start").disabled = false; $("rec-stop").disabled = true; $("pegel").style.width = "0%";
-  if (rate !== 48000) { $("status").innerHTML = `<span class="warn">Abtastrate ${rate} Hz statt 48000 Hz, bitte Sprachmemos verwenden.</span>`; return; }
-  dateien.push({ name: $("platz").value, daten });
+  q.connect(knoten); knoten.connect(stumm); stumm.connect(ctx.destination);
+  laeuft = { abbruch: false };
+  $("messen").disabled = true; $("abbrechen").hidden = false;
+  const ende = () => { knoten.disconnect(); q.disconnect(); stream.getTracks().forEach((t) => t.stop()); ctx.close(); $("pegel").style.width = "0%"; $("messen").disabled = false; $("abbrechen").hidden = true; };
+  let hinweis = "";
+  if (quelle === "airplay") {
+    $("status").innerHTML = `<span class="laeuft">Misst… bitte still sein (etwa 25 Sekunden)</span>`;
+    sig.currentTime = 0;
+    try { await sig.play(); } catch (e) { ende(); $("status").innerHTML = `<span class="warn">Wiedergabe ließ sich nicht starten.</span>`; return; }
+    await warte(800);
+    // Wächter: iOS kann AirPlay beenden, sobald das Mikrofon läuft
+    if (kannAirplay && !drahtlos()) { sig.pause(); ende(); setzeQuelle("extern");
+      $("status").innerHTML = `<span class="warn">iOS hat AirPlay beim Aufnehmen abgeschaltet. Bitte das Messsignal von einem anderen Gerät abspielen (umgestellt).</span>`; return; }
+    await new Promise((r) => { const t = setInterval(() => { if (sig.ended || laeuft.abbruch) { clearInterval(t); r(); } }, 200); });
+    await warte(3000);  // AirPlay spielt verzögert: Ende abwarten
+  } else {
+    for (let n = 5; n > 0 && !laeuft.abbruch; n--) { $("status").innerHTML = `<b>Jetzt das Messsignal am anderen Gerät starten</b> · ${n}`; await warte(1000); }
+    const t0 = Date.now();
+    while (!laeuft.abbruch && Date.now() - t0 < 26000) { $("status").innerHTML = `<span class="laeuft">Misst… noch ${Math.ceil((26000 - (Date.now() - t0)) / 1000)} s</span>`; await warte(250); }
+  }
+  const rate = ctx.sampleRate;
+  ende();
+  if (laeuft.abbruch) { laeuft = null; $("status").textContent = "Abgebrochen."; return; }
+  laeuft = null;
+  if (rate !== 48000) { $("status").innerHTML = `<span class="warn">Abtastrate ${rate} Hz statt 48000 Hz. Bitte Sprachmemos nutzen.</span>`; return; }
+  const n = puffer.reduce((s, b) => s + b.length, 0), daten = new Float32Array(n); let o = 0;
+  for (const b of puffer) { daten.set(b, o); o += b.length; }
+  if (spitze < 0.003) { $("status").innerHTML = `<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`; return; }
+  await neueAufnahme($("platz").value, daten);
+}
+$("messen").addEventListener("click", platzMessen);
+$("abbrechen").addEventListener("click", () => { if (laeuft) { laeuft.abbruch = true; sig.pause(); } });
+
+// Jede Aufnahme sofort prüfen (Wächter): nur saubere Aufnahmen kommen in die Liste
+async function neueAufnahme(name, daten) {
+  $("status").innerHTML = `<span class="laeuft">Prüfe die Aufnahme…</span>`;
+  const p = await imWorker({ art: "pruefen", daten });
+  if (!p.ok) { $("status").innerHTML = `<span class="warn">${esc(name)}: Prüfung fehlgeschlagen (${esc(p.fehler)}).</span>`; return; }
+  const pr = p.ergebnis;
+  if (!pr.sauber) {
+    $("status").innerHTML = `<span class="warn">${esc(name)} nicht verwendet: ${esc(pr.probleme.join(" "))} Bitte diesen Platz noch einmal messen.</span>`;
+    return;
+  }
+  dateien.push({ name, daten, gepruef: true });
   $("platz").selectedIndex = Math.min($("platz").options.length - 1, $("platz").selectedIndex + 1);
-  $("status").innerHTML = `<span class="ok">Gespeichert. Nächster Platz oder „Auswerten“.</span>`;
+  $("status").innerHTML = `<span class="ok">✓ ${esc(name)}: Aufnahme sauber.</span> Nächster Platz oder „Auswerten“.`;
   zeigeDateien();
-});
+}
 
 // Rechnen im Hintergrund (Web Worker), damit die Seite flüssig bleibt
 const workerCode = $("analyse-src").textContent + `
 self.onmessage = (ev) => {
   try {
+    if (ev.data.art === "pruefen") { self.postMessage({ ok: true, ergebnis: analysiere(new Float64Array(ev.data.daten)).pruefung }); return; }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
     self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3) });
   } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
 };`;
 const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
+function imWorker(nachricht) {
+  return new Promise((fertig) => {
+    const w = new Worker(workerUrl);
+    w.onmessage = (ev) => { w.terminate(); fertig(ev.data); };
+    w.onerror = (e) => { w.terminate(); fertig({ ok: false, fehler: e.message || "Fehler" }); };
+    w.postMessage(nachricht);
+  });
+}
 
-$("auswerten").addEventListener("click", () => {
+$("auswerten").addEventListener("click", async () => {
   $("auswerten").disabled = true;
   $("status").innerHTML = `<span class="laeuft">Rechnet, etwa 10 bis 30 Sekunden…</span>`;
-  const w = new Worker(workerUrl);
-  w.onmessage = (ev) => {
-    w.terminate();
-    $("auswerten").disabled = false;
-    if (!ev.data.ok) { $("status").innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(ev.data.fehler)}</span>`; return; }
-    const runde = { anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: ev.data.ergebnis };
-    runden.unshift(runde);
-    try { localStorage.setItem("raumcheck-runden", JSON.stringify(runden.slice(0, 12))); } catch (e) {}
-    dateien = []; zeigeDateien();
-    $("status").innerHTML = `<span class="ok">Fertig. Ergebnis unten. Für den Vergleich die nächste Anlage messen.</span>`;
-    zeigeAlles();
-  };
-  w.onerror = (e) => { w.terminate(); $("auswerten").disabled = false; $("status").innerHTML = `<span class="warn">Auswertung fehlgeschlagen.</span>`; };
-  w.postMessage({ dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), modus, raumM3: +$("raum").value || null });
+  const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), modus, raumM3: +$("raum").value || null });
+  $("auswerten").disabled = false;
+  if (!r.ok) { $("status").innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
+  const runde = { anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis };
+  runden.unshift(runde);
+  try { localStorage.setItem("raumcheck-runden", JSON.stringify(runden.slice(0, 12))); } catch (e) {}
+  dateien = []; zeigeDateien();
+  $("status").innerHTML = `<span class="ok">Fertig. Ergebnis unten. Für den Vergleich die nächste Anlage messen.</span>`;
+  zeigeAlles();
 });
 
 const zahl = (v, e) => v.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " " + e;

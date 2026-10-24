@@ -77,6 +77,16 @@ audio { width: 100%; }
 .hebel b { color: var(--prog); }
 details summary { cursor: pointer; color: var(--ink2); font-size: 14px; min-height: 32px; display: flex; align-items: center; }
 .note { font-size: 13px; font-weight: 700; }
+.schritt[hidden], [hidden] { display: none !important; }
+.fortschritt { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.fortschritt > div { height: 6px; background: var(--prog); width: 0%; transition: width .3s; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 40px; border-radius: 20px; background: var(--panel2); color: var(--ink); font-weight: 600; font-size: 14px; padding: 0 14px; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.haken { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.haken label { display: flex; gap: 10px; align-items: flex-start; background: var(--panel2); border-radius: 12px; padding: 12px; font-size: 15px; cursor: pointer; }
+.haken input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--ok); }
+.haltung { margin: 0; padding-left: 18px; }
 .felder { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
 .felder label { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink2); min-width: 0; }
 .felder input { min-height: 42px; border-radius: 10px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 10px; width: 100%; font-size: 16px; }
@@ -86,18 +96,34 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
 </style>
 
 <main>
-  <header style="display: grid; gap: 8px;">
+  <header style="display: grid; gap: 10px;">
     <h1>Raum-Check</h1>
-    <p>Miss deine Anlage mit dem iPhone und sieh, wie gut sie in deinem Raum spielt, und was die Klang-Box daraus machen würde. Mehrere Anlagen lassen sich vergleichen, zum Beispiel Sonos mit und ohne Trueplay.</p>
+    <div class="fortschritt" aria-hidden="true"><div id="fortschritt-balken"></div></div>
+    <span class="klein" id="schritt-text"></span>
   </header>
 
-  <section class="card" aria-labelledby="h-modus">
+  <!-- Schritt 1: Kino oder Stereo -->
+  <section class="card schritt" data-s="1" aria-labelledby="h-modus">
     <h2 id="h-modus">Was willst du messen?</h2>
+    <p>Die Messung dauert etwa 5 Minuten. Ich führe dich Schritt für Schritt.</p>
     <div class="wahl" role="group" aria-label="Modus">
       <button type="button" id="m-kino" aria-pressed="true">Kino<small>Filme, alle Plätze, mehr Wucht</small></button>
       <button type="button" id="m-stereo" aria-pressed="false">Stereo<small>Musik, Bühne am Hörplatz</small></button>
     </div>
-    <label class="klein" for="raum">Raumgröße (für den Nachhall-Sollwert)</label>
+    <button type="button" class="weiter" data-zu="2">Weiter</button>
+  </section>
+
+  <!-- Schritt 2: Anlage und Raum -->
+  <section class="card schritt" data-s="2" hidden aria-labelledby="h-anlage">
+    <h2 id="h-anlage">Welche Anlage, welcher Raum?</h2>
+    <div class="chips" role="group" aria-label="Anlage wählen">
+      <button type="button" class="chip" data-anlage="KEF LS50 + REL">KEF LS50 + REL</button>
+      <button type="button" class="chip" data-anlage="Sonos ohne Trueplay">Sonos ohne Trueplay</button>
+      <button type="button" class="chip" data-anlage="Sonos mit Trueplay">Sonos mit Trueplay</button>
+    </div>
+    <label class="klein" for="anlage">Name der Anlage (für den Vergleich)</label>
+    <input type="text" id="anlage" value="KEF LS50 + REL">
+    <label class="klein" for="raum">Wie groß ist der Raum?</label>
     <select id="raum">
       <option value="">Weiß nicht (typisches Wohnzimmer)</option>
       <option value="40">Klein, bis 16 m²</option>
@@ -105,67 +131,88 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
       <option value="110">Groß, 30 bis 45 m²</option>
       <option value="160">Sehr groß, über 45 m²</option>
     </select>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="1">Zurück</button><button type="button" class="weiter" data-zu="3">Weiter</button></div>
   </section>
 
-  <section class="card" aria-labelledby="h-runde">
-    <h2 id="h-runde">Messen</h2>
-    <label class="klein" for="anlage">Anlage</label>
-    <input type="text" id="anlage" value="KEF LS50 Meta (passiv) + REL" list="vorschlaege">
-    <datalist id="vorschlaege">
-      <option value="KEF LS50 Meta (passiv) + REL"></option><option value="Sonos ohne Trueplay"></option><option value="Sonos mit Trueplay"></option>
-    </datalist>
-
-    <div id="schritt-quelle" style="display: grid; gap: 10px;">
-      <span class="klein"><b>1</b> · Woher kommt das Messsignal?</span>
-      <div class="wahl" role="group" aria-label="Wiedergabe">
-        <button type="button" id="q-airplay" aria-pressed="true">Von diesem iPhone<small>per AirPlay an die Anlage</small></button>
-        <button type="button" id="q-extern" aria-pressed="false">Von anderem Gerät<small>Apple TV, Mac, iPad</small></button>
-      </div>
-      <div id="airplay-zeile" style="display: grid; gap: 8px;">
-        <button type="button" id="airplay" class="zweit">AirPlay-Lautsprecher wählen</button>
-        <div id="ziel" class="klein" aria-live="polite"></div>
-      </div>
-      <div id="extern-zeile" class="klein" hidden>Das Messsignal auf dem anderen Gerät bereitlegen. Nach „Platz messen“ hast du 5 Sekunden, um es dort zu starten.
-        <a href="raumcheck.m4a" download>Messsignal (.m4a)</a> · <a href="raumcheck.wav" download>(.wav)</a></div>
+  <!-- Schritt 3: Vorbereitung -->
+  <section class="card schritt" data-s="3" hidden aria-labelledby="h-vorb">
+    <h2 id="h-vorb">Vorbereiten</h2>
+    <p>Hake ab, was erledigt ist. Erst dann geht es weiter.</p>
+    <ul class="haken">
+      <li><label><input type="checkbox" class="pflicht"> Lautstärke wie beim normalen Hören (Gespräch gut möglich, nicht laut)</label></li>
+      <li><label><input type="checkbox" class="pflicht"> Ruhe im Raum: Fenster zu, Lüfter, Spülmaschine, Waschmaschine aus</label></li>
+      <li><label><input type="checkbox" class="pflicht"> Türen, Vorhänge und Möbel so wie beim Hören</label></li>
+      <li><label><input type="checkbox" class="pflicht"> Klangeinstellungen der Boxen so lassen wie im Alltag (für den Sonos-Vergleich: Trueplay wie im Namen angegeben)</label></li>
+    </ul>
+    <h2 style="font-size: 17px;">Woher kommt das Messsignal?</h2>
+    <div class="wahl" role="group" aria-label="Wiedergabe">
+      <button type="button" id="q-airplay" aria-pressed="true">Von diesem iPhone<small>per AirPlay an die Anlage</small></button>
+      <button type="button" id="q-extern" aria-pressed="false">Von anderem Gerät<small>Apple TV, Mac, iPad</small></button>
     </div>
-
-    <div style="display: grid; gap: 10px;">
-      <span class="klein"><b>2</b> · iPhone auf Ohrhöhe, Unterseite nach vorne, still sein</span>
-      <label class="klein" for="platz">Platz</label>
-      <select id="platz"><option>Hörplatz</option><option>30 cm links</option><option>30 cm rechts</option><option>30 cm davor</option>
-        <option>Sofa links</option><option>Sofa rechts</option><option>Sessel</option></select>
-      <button type="button" id="messen">Platz messen</button>
-      <button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button>
-      <div class="balken" aria-hidden="true"><div id="pegel"></div></div>
-      <div id="filter" class="klein"></div>
+    <div id="airplay-zeile" style="display: grid; gap: 8px;">
+      <button type="button" id="airplay" class="zweit">AirPlay-Lautsprecher wählen</button>
+      <div id="ziel" class="klein" aria-live="polite"></div>
     </div>
+    <div id="extern-zeile" class="klein" hidden>Lade das Messsignal auf das andere Gerät:
+      <a href="raumcheck.m4a" download>Messsignal (.m4a)</a> · <a href="raumcheck.wav" download>(.wav)</a>.
+      Beim Messen zählt die Seite 5 Sekunden herunter, dann startest du es dort.</div>
+    <div id="vorb-status" class="klein" aria-live="polite"></div>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="2">Zurück</button><button type="button" id="vorb-weiter">Weiter</button></div>
+  </section>
 
-    <ul class="dateien" id="dateien"></ul>
-    <button id="auswerten" disabled>Auswerten</button>
+  <!-- Schritt 4: Messen, Platz für Platz -->
+  <section class="card schritt" data-s="4" hidden aria-labelledby="h-platz">
+    <h2 id="h-platz">Platz 1 von 3</h2>
+    <div id="platz-bild"></div>
+    <p id="platz-text"></p>
+    <ul class="klein haltung">
+      <li>iPhone auf Ohrhöhe halten, Unterseite (Mikrofon) zeigt zu den Boxen</li>
+      <li>Ruhig halten, nicht sprechen, bis die Messung fertig ist (etwa 25 Sekunden)</li>
+    </ul>
+    <button type="button" id="messen">Messen</button>
+    <button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button>
+    <div class="balken" aria-hidden="true"><div id="pegel"></div></div>
     <div id="status" class="klein" aria-live="polite"></div>
+    <div id="filter" class="klein"></div>
+    <ul class="dateien" id="dateien"></ul>
+    <button type="button" id="auswerten" disabled>Auswerten</button>
+    <button type="button" id="noch-ein-platz" class="zweit" hidden>Noch einen Platz messen</button>
     <details><summary>Ohne Mikrofon-Freigabe: Sprachmemos-Dateien</summary>
       <ol class="schritte klein">
         <li>Einstellungen → Sprachmemos → Audioqualität „Verlustfrei“.</li>
-        <li>Aufnahme starten, Messsignal abspielen, nach dem Ende stoppen. 3 bis 4 Plätze.</li>
+        <li>Aufnahme starten, Messsignal abspielen, nach dem Ende stoppen. 3 Plätze wie oben.</li>
         <li>Aufnahmen in „Dateien“ sichern und hier auswählen. Die erste ist der Hauptplatz.</li>
       </ol>
       <label class="knopf zweit" for="datei">Aufnahmen auswählen
         <input id="datei" type="file" accept="audio/*,.m4a,.wav,.aac,.caf" multiple hidden>
       </label>
     </details>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="3">Zurück</button><span></span></div>
     <audio id="signal" src="raumcheck.wav" preload="auto" x-webkit-airplay="allow" playsinline></audio>
   </section>
 
-  <section class="card" id="vergleich-karte" hidden aria-labelledby="h-vergleich">
-    <h2 id="h-vergleich">Vergleich</h2>
-    <div class="tabelle"><table>
-      <thead><tr><th>Anlage</th><th>Modus</th><th class="n">heute</th><th class="n">mit Klang-Box</th></tr></thead>
-      <tbody id="vergleich"></tbody>
-    </table></div>
-    <p class="klein">„Mit Klang-Box“ ist eine Prognose: die Raumanpassung der Klang-Box auf genau diese Messungen gerechnet. Bei Sonos vergleicht das die Rechenverfahren, denn die Box kann Sonos-Lautsprecher nicht selbst ansteuern.</p>
+  <!-- Schritt 5: Ergebnis -->
+  <section class="schritt" data-s="5" hidden style="display: grid; gap: 18px;">
+    <div id="ergebnisse" style="display: grid; gap: 18px;"></div>
+    <div class="card">
+      <h2>Wie weiter?</h2>
+      <button type="button" data-zu="6">Aufstellung verbessern (Sweetspot-Finder)</button>
+      <button type="button" class="zweit" id="naechste-anlage">Andere Anlage messen und vergleichen</button>
+      <button type="button" class="zweit" id="neu-messen">Diese Anlage noch einmal messen</button>
+    </div>
+    <section class="card" id="vergleich-karte" hidden aria-labelledby="h-vergleich">
+      <h2 id="h-vergleich">Vergleich</h2>
+      <div class="tabelle"><table>
+        <thead><tr><th>Anlage</th><th>Modus</th><th class="n">heute</th><th class="n">mit Klang-Box</th></tr></thead>
+        <tbody id="vergleich"></tbody>
+      </table></div>
+      <p class="klein">„Mit Klang-Box“ ist eine Prognose: die Raumanpassung der Klang-Box auf genau diese Messungen gerechnet. Bei Sonos vergleicht das die Rechenverfahren, denn die Box kann Sonos-Lautsprecher nicht selbst ansteuern.</p>
+    </section>
   </section>
 
-  <section class="card" aria-labelledby="h-sweet">
+  <!-- Schritt 6: Sweetspot -->
+  <section class="schritt" data-s="6" hidden style="display: grid; gap: 18px;">
+  <div class="card" aria-labelledby="h-sweet">
     <h2 id="h-sweet">Sweetspot-Finder</h2>
     <p class="klein">Rechnet aus Raummaßen und Nachhall, wo Hörplatz, Boxen und Sub am besten stehen (Raummoden-Modell). Maße in Metern, gemessen ab der Wand hinter den Boxen und ab der linken Wand (vom Hörplatz aus gesehen).</p>
     <div class="felder">
@@ -187,9 +234,10 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
     <button type="button" id="s-rechnen">Beste Aufstellung berechnen</button>
     <div id="s-status" class="klein" aria-live="polite"></div>
     <div id="s-ergebnis" style="display: grid; gap: 12px;"></div>
-  </section>
+  </div>
 
-  <div id="ergebnisse" style="display: grid; gap: 18px;"></div>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="5">Zurück zum Ergebnis</button><span></span></div>
+  </section>
 </main>
 
 <script type="text/plain" id="analyse-src">// Raum-Check-Auswertung in JavaScript: dieselben Schritte wie klangbox/messung.py,
@@ -1334,6 +1382,71 @@ $("m-kino").addEventListener("click", () => setzeModus("kino"));
 $("m-stereo").addEventListener("click", () => setzeModus("stereo"));
 setzeModus(modus);
 
+// --- Geführter Ablauf ------------------------------------------------------------------------
+const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Messen", "Ergebnis", "Aufstellung"];
+function zeigeSchritt(n) {
+  document.querySelectorAll(".schritt").forEach((el) => { el.hidden = +el.dataset.s !== n; });
+  $("fortschritt-balken").style.width = Math.min(100, (n - 1) / 4 * 100) + "%";
+  $("schritt-text").textContent = n <= 5 ? `Schritt ${n} von 5 · ${SCHRITTE[n]}` : SCHRITTE[n];
+  if (n === 4) zeigePlatz();
+  window.scrollTo(0, 0);
+}
+document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zu]"); if (b) zeigeSchritt(+b.dataset.zu); });
+// Anlage per Chip
+function zeigeChips() { document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", c.dataset.anlage === $("anlage").value)); }
+document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { $("anlage").value = c.dataset.anlage; zeigeChips(); }));
+$("anlage").addEventListener("input", zeigeChips);
+// Wächter Vorbereitung: alles abgehakt und eine gültige Signalquelle
+$("vorb-weiter").addEventListener("click", () => {
+  const offen = [...document.querySelectorAll(".pflicht")].filter((c) => !c.checked).length;
+  if (offen) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst alle Punkte abhaken (${offen} offen).</span>`; return; }
+  if (!kannAufnehmen) { $("vorb-status").innerHTML = `<span class="warn">Dieser Browser darf hier nicht aufnehmen. Bitte in Safari öffnen, oder im nächsten Schritt Sprachmemos-Dateien nutzen.</span>`; }
+  else if (quelle === "airplay" && kannAirplay && !drahtlos()) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst „AirPlay-Lautsprecher wählen“ und deine Anlage antippen. Sonst misst du den iPhone-Lautsprecher.</span>`; return; }
+  else if (quelle === "airplay" && !kannAirplay) { $("vorb-status").innerHTML = `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Wähle „Von anderem Gerät“ oder öffne die Seite in Safari.</span>`; return; }
+  $("vorb-status").textContent = "";
+  zeigeSchritt(4);
+});
+// Plätze: wo das iPhone gehalten wird (Draufsicht)
+function plaetze() {
+  return modus === "kino"
+    ? [{ name: "Hörplatz (Mitte Sofa)", text: "Setz dich auf deinen Hauptplatz.", dx: 0, dy: 0 },
+       { name: "Sofaplatz links", text: "Setz dich auf den Platz links daneben.", dx: -0.6, dy: 0 },
+       { name: "Sofaplatz rechts", text: "Setz dich auf den Platz rechts daneben.", dx: 0.6, dy: 0 }]
+    : [{ name: "Hörplatz", text: "Setz dich auf deinen Hörplatz, Kopf genau in der Mitte zwischen den Boxen.", dx: 0, dy: 0 },
+       { name: "30 cm links", text: "Halte das iPhone 30 cm links von der Stelle, wo sonst dein Kopf ist.", dx: -0.3, dy: 0 },
+       { name: "30 cm rechts", text: "Halte das iPhone 30 cm rechts von der Stelle, wo sonst dein Kopf ist.", dx: 0.3, dy: 0 }];
+}
+let zusatzPlatz = false;
+function aktuellerPlatz() {
+  const l = plaetze(), i = dateien.length;
+  return i < l.length ? l[i] : { name: `Weiterer Platz ${i - l.length + 1}`, text: "Halte das iPhone an einen weiteren Platz, an dem gehört wird.", dx: 0, dy: 0.4 };
+}
+function platzBild(aktiv) {
+  const l = plaetze(), X = (dx) => 160 + dx * 110, Y = (dy) => 150 + dy * 60;
+  let g = `<rect x="14" y="10" width="292" height="190" rx="10" fill="none" stroke="#2a3038" stroke-width="2"/>`;
+  g += `<rect x="70" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/><rect x="232" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/>`;
+  g += `<text x="160" y="38" text-anchor="middle">Boxen</text>`;
+  g += `<rect x="80" y="${modus === "kino" ? 160 : 165}" width="160" height="26" rx="8" fill="#232830"/><text x="160" y="196" text-anchor="middle">Sofa</text>`;
+  l.forEach((p, i) => {
+    const fertig = i < dateien.length, jetzt = i === aktiv;
+    g += `<circle cx="${X(p.dx)}" cy="${Y(p.dy)}" r="${jetzt ? 11 : 8}" fill="${fertig ? "#79c98a" : jetzt ? "#7fb0ff" : "#2a3038"}"/>`;
+    g += `<text x="${X(p.dx)}" y="${Y(p.dy) + 4}" text-anchor="middle" style="fill:#0d0f12; font-weight:700">${fertig ? "✓" : i + 1}</text>`;
+  });
+  return `<svg viewBox="0 0 320 210" width="100%" role="img" aria-label="Draufsicht: wo das iPhone gehalten wird">${g}</svg>`;
+}
+function zeigePlatz() {
+  const l = plaetze(), i = dateien.length, p = aktuellerPlatz();
+  $("h-platz").textContent = i < l.length ? `Platz ${i + 1} von ${l.length}: ${p.name}` : (zusatzPlatz ? p.name : "Alle Plätze gemessen");
+  $("platz-text").textContent = i < l.length || zusatzPlatz ? p.text : "Fertig gemessen. Du kannst auswerten oder noch einen Platz dazunehmen.";
+  $("platz-bild").innerHTML = platzBild(Math.min(i, l.length));
+  $("messen").hidden = !(i < l.length || zusatzPlatz);
+  $("noch-ein-platz").hidden = !(i >= l.length && !zusatzPlatz);
+  $("auswerten").hidden = i === 0;
+}
+$("noch-ein-platz").addEventListener("click", () => { zusatzPlatz = true; zeigePlatz(); });
+$("naechste-anlage").addEventListener("click", () => { dateien = []; zusatzPlatz = false; zeigeDateien(); $("anlage").value = ""; zeigeChips(); zeigeSchritt(2); });
+$("neu-messen").addEventListener("click", () => { dateien = []; zusatzPlatz = false; zeigeDateien(); zeigeSchritt(4); });
+
 function zeigeDateien() {
   $("dateien").innerHTML = dateien.map((d, i) => `<li><span>${i === 0 ? "<b>Hauptplatz</b> · " : ""}${esc(d.name)} (${(d.daten.length / 48000).toFixed(0)} s)</span>
     <span style="display:flex; gap:6px; flex: none;">${i > 0 ? `<button class="klein zweit" type="button" data-haupt="${i}">Hauptplatz</button>` : ""}
@@ -1375,6 +1488,7 @@ function setzeQuelle(q) {
   $("q-airplay").setAttribute("aria-pressed", q === "airplay"); $("q-extern").setAttribute("aria-pressed", q === "extern");
   $("airplay-zeile").hidden = q !== "airplay"; $("extern-zeile").hidden = q !== "extern";
   try { localStorage.setItem("raumcheck-quelle", q); } catch (e) {}
+  if ($("vorb-status")) $("vorb-status").textContent = "";
   zeigeZiel();
 }
 function zeigeZiel() {
@@ -1443,7 +1557,7 @@ async function platzMessen() {
   const n = puffer.reduce((s, b) => s + b.length, 0), daten = new Float32Array(n); let o = 0;
   for (const b of puffer) { daten.set(b, o); o += b.length; }
   if (spitze < 0.003) { $("status").innerHTML = `<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`; return; }
-  await neueAufnahme($("platz").value, daten);
+  await neueAufnahme(aktuellerPlatz().name, daten);
 }
 $("messen").addEventListener("click", platzMessen);
 $("abbrechen").addEventListener("click", () => { if (laeuft) { laeuft.abbruch = true; sig.pause(); } });
@@ -1459,9 +1573,11 @@ async function neueAufnahme(name, daten) {
     return;
   }
   dateien.push({ name, daten, gepruef: true });
-  $("platz").selectedIndex = Math.min($("platz").options.length - 1, $("platz").selectedIndex + 1);
-  $("status").innerHTML = `<span class="ok">✓ ${esc(name)}: Aufnahme sauber.</span> Nächster Platz oder „Auswerten“.`;
   zeigeDateien();
+  const fertig = dateien.length >= plaetze().length;
+  $("status").innerHTML = `<span class="ok">✓ ${esc(name)}: Aufnahme sauber.</span>` + (fertig ? " Alle Plätze gemessen, ich werte aus…" : "");
+  zeigePlatz();
+  if (fertig && !zusatzPlatz) $("auswerten").click();
 }
 
 // Rechnen im Hintergrund (Web Worker), damit die Seite flüssig bleibt
@@ -1493,10 +1609,11 @@ $("auswerten").addEventListener("click", async () => {
   const runde = { anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis };
   runden.unshift(runde);
   try { localStorage.setItem("raumcheck-runden", JSON.stringify(runden.slice(0, 12))); } catch (e) {}
-  dateien = []; zeigeDateien();
-  $("status").innerHTML = `<span class="ok">Fertig. Ergebnis unten. Für den Vergleich die nächste Anlage messen.</span>`;
+  dateien = []; zusatzPlatz = false; zeigeDateien();
+  $("status").innerHTML = "";
   zeigeAlles();
   nachhallUebernehmen();
+  zeigeSchritt(5);
 });
 
 const zahl = (v, e) => v.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " " + e;
@@ -1627,6 +1744,8 @@ $("ergebnisse").addEventListener("click", (ev) => {
 zeigeAlles();
 zeigeDateien();
 nachhallUebernehmen();
+zeigeChips();
+zeigeSchritt(runden.length ? 5 : 1);
 </script>
 
 </body>

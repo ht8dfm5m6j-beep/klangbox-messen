@@ -87,6 +87,10 @@ details summary { cursor: pointer; color: var(--ink2); font-size: 14px; min-heig
 .haken label { display: flex; gap: 10px; align-items: flex-start; background: var(--panel2); border-radius: 12px; padding: 12px; font-size: 15px; cursor: pointer; }
 .haken input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--ok); }
 .haltung { margin: 0; padding-left: 18px; }
+.bewegen-bild { position: relative; }
+.ring { position: absolute; left: 50%; top: 26%; width: 84px; height: 84px; transform: translate(-50%, -50%) rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 6; }
+#ring { transition: stroke-dashoffset .3s linear; }
 .felder { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
 .felder label { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink2); min-width: 0; }
 .felder input { min-height: 42px; border-radius: 10px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 10px; width: 100%; font-size: 16px; }
@@ -160,14 +164,25 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
     <div class="knoepfe"><button type="button" class="zweit" data-zu="2">Zurück</button><button type="button" id="vorb-weiter">Weiter</button></div>
   </section>
 
-  <!-- Schritt 4: Messen, Platz für Platz -->
-  <section class="card schritt" data-s="4" hidden aria-labelledby="h-platz">
-    <h2 id="h-platz">Platz 1 von 3</h2>
+  <!-- Schritt 4: Ruhe und Lautstärke prüfen -->
+  <section class="card schritt" data-s="4" hidden aria-labelledby="h-check">
+    <h2 id="h-check">Ruhe und Lautstärke prüfen</h2>
+    <p>Setz dich auf deinen Hörplatz. Ein kurzer Rauschton läuft, das iPhone hört zu. Danach weißt du, ob es zu leise, zu laut oder genau richtig ist.</p>
+    <button type="button" id="check-start">Prüfen</button>
+    <button type="button" id="check-abbrechen" class="zweit" hidden>Abbrechen</button>
+    <div class="balken" aria-hidden="true"><div id="check-pegel"></div></div>
+    <div id="check-status" class="klein" aria-live="polite"></div>
+    <div id="check-filter" class="klein"></div>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="3">Zurück</button><button type="button" class="zweit" id="check-ueberspringen">Überspringen</button></div>
+  </section>
+
+  <!-- Schritt 5: Am Hörplatz messen -->
+  <section class="card schritt" data-s="5" hidden aria-labelledby="h-platz">
+    <h2 id="h-platz">Am Hörplatz messen</h2>
     <div id="platz-bild"></div>
-    <p id="platz-text"></p>
     <ul class="klein haltung">
-      <li>iPhone auf Ohrhöhe halten, Unterseite (Mikrofon) zeigt zu den Boxen</li>
-      <li>Ruhig halten, nicht sprechen, bis die Messung fertig ist (etwa 25 Sekunden)</li>
+      <li>Sitz auf deinem Hörplatz, iPhone auf Ohrhöhe, Kopf genau zwischen den Boxen</li>
+      <li>Unterseite (Mikrofon) zeigt zu den Boxen. Ruhig halten, nicht sprechen (etwa 25 Sekunden)</li>
     </ul>
     <button type="button" id="messen">Messen</button>
     <button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button>
@@ -175,28 +190,52 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
     <div id="status" class="klein" aria-live="polite"></div>
     <div id="filter" class="klein"></div>
     <ul class="dateien" id="dateien"></ul>
-    <button type="button" id="auswerten" disabled>Auswerten</button>
-    <button type="button" id="noch-ein-platz" class="zweit" hidden>Noch einen Platz messen</button>
     <details><summary>Ohne Mikrofon-Freigabe: Sprachmemos-Dateien</summary>
       <ol class="schritte klein">
         <li>Einstellungen → Sprachmemos → Audioqualität „Verlustfrei“.</li>
-        <li>Aufnahme starten, Messsignal abspielen, nach dem Ende stoppen. 3 Plätze wie oben.</li>
+        <li>Aufnahme starten, Messsignal abspielen, nach dem Ende stoppen. Hörplatz und 2 Plätze daneben.</li>
         <li>Aufnahmen in „Dateien“ sichern und hier auswählen. Die erste ist der Hauptplatz.</li>
       </ol>
       <label class="knopf zweit" for="datei">Aufnahmen auswählen
         <input id="datei" type="file" accept="audio/*,.m4a,.wav,.aac,.caf" multiple hidden>
       </label>
+      <button type="button" id="auswerten" class="zweit" disabled>Diese Dateien auswerten</button>
     </details>
-    <div class="knoepfe"><button type="button" class="zweit" data-zu="3">Zurück</button><span></span></div>
-    <audio id="signal" src="raumcheck.wav" preload="auto" x-webkit-airplay="allow" playsinline></audio>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="4">Zurück</button><span></span></div>
+  </section>
+
+  <!-- Schritt 6: Bewegen (wie Trueplay) -->
+  <section class="card schritt" data-s="6" hidden aria-labelledby="h-bewegen">
+    <h2 id="h-bewegen">Langsam durch den Hörbereich gehen</h2>
+    <div class="bewegen-bild">
+      <svg viewBox="0 0 320 220" width="100%" role="img" aria-label="So bewegst du das iPhone: langsam um das Sofa gehen und auf und ab bewegen">
+        <rect x="14" y="10" width="292" height="200" rx="10" fill="none" stroke="#2a3038" stroke-width="2"/>
+        <rect x="70" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/><rect x="232" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/>
+        <rect x="90" y="150" width="140" height="28" rx="8" fill="#232830"/><text x="160" y="198" text-anchor="middle">Sofa</text>
+        <path id="weg" d="M90,130 C120,95 200,95 230,130 C250,160 230,190 160,190 C90,190 70,160 90,130 Z" fill="none" stroke="#2a3038" stroke-dasharray="4 5"/>
+        <g><rect x="-6" y="-10" width="12" height="20" rx="3" fill="#7fb0ff"><animateTransform attributeName="transform" type="translate" values="0,-6;0,6;0,-6" dur="1.6s" repeatCount="indefinite"/></rect>
+          <animateMotion dur="14s" repeatCount="indefinite"><mpath href="#weg"/></animateMotion></g>
+      </svg>
+      <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" stroke="#2a3038"/><circle id="ring" cx="30" cy="30" r="26" stroke="#7fb0ff" stroke-dasharray="163.4" stroke-dashoffset="163.4"/></svg>
+    </div>
+    <ul class="klein haltung">
+      <li>Geh langsam um die Sitzplätze herum (etwa eine Minute), dort wo gehört wird</li>
+      <li>Beweg das iPhone dabei langsam auf und ab, zwischen Brust- und Kopfhöhe</li>
+      <li>Nicht sprechen. Ein kurzes Geräusch ist nicht schlimm, dieser Teil wird weggelassen</li>
+    </ul>
+    <button type="button" id="bewegen-start">Start</button>
+    <button type="button" id="bewegen-abbrechen" class="zweit" hidden>Abbrechen</button>
+    <div class="balken" aria-hidden="true"><div id="bewegen-pegel"></div></div>
+    <div id="bewegen-status" class="klein" aria-live="polite"></div>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="5">Zurück</button><button type="button" class="zweit" id="ohne-bewegen">Ohne Bewegen auswerten</button></div>
   </section>
 
   <!-- Schritt 5: Ergebnis -->
-  <section class="schritt" data-s="5" hidden style="display: grid; gap: 18px;">
+  <section class="schritt" data-s="7" hidden style="display: grid; gap: 18px;">
     <div id="ergebnisse" style="display: grid; gap: 18px;"></div>
     <div class="card">
       <h2>Wie weiter?</h2>
-      <button type="button" data-zu="6">Aufstellung verbessern (Sweetspot-Finder)</button>
+      <button type="button" data-zu="8">Aufstellung verbessern (Sweetspot-Finder)</button>
       <button type="button" class="zweit" id="naechste-anlage">Andere Anlage messen und vergleichen</button>
       <button type="button" class="zweit" id="neu-messen">Diese Anlage noch einmal messen</button>
     </div>
@@ -211,7 +250,7 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
   </section>
 
   <!-- Schritt 6: Sweetspot -->
-  <section class="schritt" data-s="6" hidden style="display: grid; gap: 18px;">
+  <section class="schritt" data-s="8" hidden style="display: grid; gap: 18px;">
   <div class="card" aria-labelledby="h-sweet">
     <h2 id="h-sweet">Sweetspot-Finder</h2>
     <p class="klein">Rechnet aus Raummaßen und Nachhall, wo Hörplatz, Boxen und Sub am besten stehen (Raummoden-Modell). Maße in Metern, gemessen ab der Wand hinter den Boxen und ab der linken Wand (vom Hörplatz aus gesehen).</p>
@@ -236,8 +275,9 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
     <div id="s-ergebnis" style="display: grid; gap: 12px;"></div>
   </div>
 
-    <div class="knoepfe"><button type="button" class="zweit" data-zu="5">Zurück zum Ergebnis</button><span></span></div>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="7">Zurück zum Ergebnis</button><span></span></div>
   </section>
+  <audio id="signal" src="raumcheck.wav" preload="auto" x-webkit-airplay="allow" playsinline></audio>
 </main>
 
 <script type="text/plain" id="analyse-src">// Raum-Check-Auswertung in JavaScript: dieselben Schritte wie klangbox/messung.py,
@@ -248,11 +288,20 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
 const FS = 48000;
 const PRUEF_STUFEN_DB = [-52, -42, -32, -22, -12];  // leise → laut: der Nachhall stört die nächste Stufe nicht
 const PRUEF_STUFE_S = 0.6;
-const FOLGE = { lead: 1.0, markerToSweep: 0.5, sweepS: 4.0, tail: 1.5, sweepLevel: 0.25, kanaele: ["FL", "FR"] };
-FOLGE.pruefDauer = PRUEF_STUFEN_DB.length * PRUEF_STUFE_S + 0.7;
-FOLGE.periode = FOLGE.markerToSweep + FOLGE.sweepS + FOLGE.tail;
-const markerZeit = (i) => FOLGE.lead + FOLGE.pruefDauer + i * FOLGE.periode;
-const sweepZeit = (i) => markerZeit(i) + FOLGE.markerToSweep;
+// Messfolgen wie klangbox/messung.py: am Hörplatz (mit Prüfton) und bewegt (wie Trueplay)
+function folgeAus(cfg) {
+  const f = { lead: 1.0, markerToSweep: 0.5, sweepS: 4.0, tail: 1.5, sweepLevel: 0.25, pruefton: true, bewegt: false, ...cfg };
+  f.pruefDauer = f.pruefton ? PRUEF_STUFEN_DB.length * PRUEF_STUFE_S + 0.7 : 0;
+  f.periode = f.markerToSweep + f.sweepS + f.tail;
+  return f;
+}
+const FOLGE = folgeAus({ lead: 1.0, kanaele: ["FL", "FR"] });
+const FOLGE_BEWEGT = folgeAus({ lead: 2.0, sweepS: 2.5, tail: 1.5, pruefton: false, bewegt: true,
+                                kanaele: ["FL", "FR", "C", "FL", "FR", "C", "FL", "FR", "C", "FL", "FR", "C"] });
+const markerZeit = (i, f = FOLGE) => f.lead + f.pruefDauer + i * f.periode;
+const sweepZeit = (i, f = FOLGE) => markerZeit(i, f) + f.markerToSweep;
+// Name der i-ten Messung: Kanal beim ersten Mal, danach "FL#2", "FL#3", ...
+function kanalSchluessel(kanaele, i) { const n = kanaele.slice(0, i + 1).filter((c) => c === kanaele[i]).length; return n === 1 ? kanaele[i] : `${kanaele[i]}#${n}`; }
 
 // --- FFT (radix 2, in place) ------------------------------------------------------
 function naechste2(n) { let p = 1; while (p < n) p <<= 1; return p; }
@@ -355,7 +404,7 @@ function median(a) { const s = Float64Array.from(a).sort(); return s.length ? s[
 const db10 = (p) => 10 * Math.log10(Math.max(p, 1e-20));
 
 // --- Marker finden, Takt korrigieren, Impulsantworten -----------------------------------
-function findeMarker(rec) {
+function findeMarker(rec, f = FOLGE) {
   const mk = marker(), n = naechste2(rec.length + mk.length);
   const R = spektrum(rec, n), M = spektrum(mk, n);
   const re = new Float64Array(n), im = new Float64Array(n);
@@ -369,7 +418,7 @@ function findeMarker(rec) {
   for (let i = 0; i < N; i++) corr[i] = Math.hypot(re[i], im[i]);
   const lokal = gleitMittel(corr, Math.floor(0.1 * FS)), scharf = new Float64Array(N);
   for (let i = 0; i < N; i++) scharf[i] = corr[i] / (lokal[i] + 1e-12);
-  const sched = FOLGE.kanaele.map((_, i) => Math.round((markerZeit(i) - markerZeit(0)) * FS));
+  const sched = f.kanaele.map((_, i) => Math.round((markerZeit(i, f) - markerZeit(0, f)) * FS));
   const nOff = N - sched[sched.length - 1] - 1;
   if (nOff <= 0) throw new Error("Aufnahme zu kurz für das Messsignal");
   const tol = gleitMax(scharf, 2 * Math.floor(0.02 * FS) + 1), kamm = new Float64Array(nOff).fill(Infinity);
@@ -426,9 +475,9 @@ function laufzeit(ir, zero) {
   return (g + parabel(env, g) - zero) / FS;
 }
 
-function pruefeAufnahme(rec, a, markerPegel) {
+function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE) {
   const erg = { marker_schwankung_db: Math.max(...markerPegel) - Math.min(...markerPegel) };
-  const start = a + FOLGE.lead * FS;
+  const start = a + fo.lead * FS;
   const pegel = (t0, t1) => {
     const i0 = Math.floor(start + t0 * FS), i1 = Math.floor(start + t1 * FS);
     if (i0 < 0 || i1 > rec.length || i1 <= i0) return null;
@@ -440,7 +489,7 @@ function pruefeAufnahme(rec, a, markerPegel) {
   const stufen = PRUEF_STUFEN_DB.map((_, k) => pegel(k * PRUEF_STUFE_S + 0.15, (k + 1) * PRUEF_STUFE_S - 0.1));
   const ruhe = pegel(-0.6, -0.15);  // Stille vor der Treppe (dahinter klingt die lauteste Stufe nach)
   const k0 = PRUEF_STUFEN_DB.indexOf(Math.max(...PRUEF_STUFEN_DB));  // lauteste Stufe ist der Bezug
-  if (stufen.every((v) => v !== null) && ruhe !== null && stufen[k0] > ruhe + 25) {
+  if (fo.pruefton && stufen.every((v) => v !== null) && ruhe !== null && stufen[k0] > ruhe + 25) {
     const erwartet = PRUEF_STUFEN_DB.map((lv) => stufen[k0] - (PRUEF_STUFEN_DB[k0] - lv));
     const abw = [];
     for (let k = 0; k < stufen.length; k++) if (k !== k0 && erwartet[k] > ruhe + 12) abw.push(stufen[k] - erwartet[k]);
@@ -450,12 +499,12 @@ function pruefeAufnahme(rec, a, markerPegel) {
     erg.leise_verschluckt = abw.some((x) => x < -6);
   } else erg.treppe_vorhanden = false;
   const probleme = [];
-  if (erg.marker_schwankung_db > 1.0) probleme.push(`Gleich laute Zeitmarker schwanken um ${erg.marker_schwankung_db.toFixed(1)} dB: das Handy regelt die Lautstärke automatisch nach.`);
+  if (erg.marker_schwankung_db > 1.0 && !fo.bewegt) probleme.push(`Gleich laute Zeitmarker schwanken um ${erg.marker_schwankung_db.toFixed(1)} dB: das Handy regelt die Lautstärke automatisch nach.`);
   if (erg.leise_verschluckt) probleme.push("Leise Prüftöne fehlen: ein Störgeräuschfilter ist aktiv.");
   else if ((erg.treppe_fehler_db || 0) > 1.5) probleme.push(`Die 10-dB-Stufen des Prüftons weichen bis ${erg.treppe_fehler_db.toFixed(1)} dB ab: die Aufnahme wird komprimiert oder nachgeregelt.`);
   let mx = 0; for (let i = 0; i < rec.length; i++) mx = Math.max(mx, Math.abs(rec[i]));
   if (mx > 0.99) probleme.push("Die Aufnahme übersteuert: leiser abspielen.");
-  if (!erg.treppe_vorhanden) probleme.push("Prüfton nicht gefunden: bitte die neue Raum-Check-Datei verwenden.");
+  if (fo.pruefton && !erg.treppe_vorhanden) probleme.push("Prüfton nicht gefunden: bitte die neue Raum-Check-Datei verwenden.");
   erg.probleme = probleme;
   erg.sauber = probleme.length === 0;
   return erg;
@@ -471,9 +520,15 @@ function stoerProbleme(stoer) {
   return out;
 }
 
-function analysiere(rec0) {
-  const { zeiten, corr } = findeMarker(rec0);
-  const sched = FOLGE.kanaele.map((_, i) => markerZeit(i) * FS);
+// Bewegte Messung: welche einzelnen Sweeps hatten ein Geräusch? (Nur diese fallen weg.)
+function stoerEinzeln(stoer) {
+  const werte = Object.values(stoer).sort((a, b) => a - b), mitte = werte[Math.floor(werte.length / 2)];
+  return Object.keys(stoer).filter((k) => stoer[k] > -45 || (stoer[k] - mitte > 12 && stoer[k] > -60));
+}
+
+function analysiere(rec0, fo = FOLGE) {
+  const { zeiten, corr } = findeMarker(rec0, fo);
+  const sched = fo.kanaele.map((_, i) => markerZeit(i, fo) * FS);
   const mx = sched.reduce((s, v) => s + v, 0) / sched.length, my = zeiten.reduce((s, v) => s + v, 0) / zeiten.length;
   let sxy = 0, sxx = 0; for (let i = 0; i < sched.length; i++) { sxy += (sched[i] - mx) * (zeiten[i] - my); sxx += (sched[i] - mx) ** 2; }
   const b = sched.length > 1 ? sxy / sxx : 1, a0 = my - b * mx;
@@ -481,13 +536,14 @@ function analysiere(rec0) {
   const a = a0 / b;
   const markerPegel = zeiten.map((t) => 20 * Math.log10(corr[Math.round(t)] + 1e-12));
 
-  const sw = logSweep(20, 20000, FOLGE.sweepS).map((v) => v * FOLGE.sweepLevel);
-  const pre = Math.floor(0.05 * FS), n = Math.floor((FOLGE.sweepS + FOLGE.tail - 0.15) * FS), nfft = naechste2(n + pre);
+  const sw = logSweep(20, 20000, fo.sweepS).map((v) => v * fo.sweepLevel);
+  const pre = Math.floor(0.05 * FS), n = Math.floor((fo.sweepS + fo.tail - 0.15) * FS), nfft = naechste2(n + pre);
   const X = spektrum(sw, nfft);
   let maxX = 0; for (let k = 0; k < nfft; k++) maxX = Math.max(maxX, X.re[k] ** 2 + X.im[k] ** 2);
   const messungen = {}, stoer = {};
-  FOLGE.kanaele.forEach((ch, i) => {
-    const start = Math.round(a + sweepZeit(i) * FS) - pre, seg = new Float64Array(nfft);
+  fo.kanaele.forEach((ch, i) => {
+    const key = kanalSchluessel(fo.kanaele, i);
+    const start = Math.round(a + sweepZeit(i, fo) * FS) - pre, seg = new Float64Array(nfft);
     for (let j = 0; j < n + pre; j++) { const q = start + j; if (q >= 0 && q < rec.length) seg[j] = rec[q]; }
     const S = spektrum(seg, nfft), re = new Float64Array(nfft), im = new Float64Array(nfft);
     for (let k = 0; k < nfft; k++) {
@@ -503,14 +559,15 @@ function analysiere(rec0) {
     let spitze = 0, rs = 0; const r0 = pre + Math.floor(1.6 * FS), r1 = nfft - Math.floor(1.2 * FS);
     for (let k = 0; k < nfft; k++) spitze = Math.max(spitze, re[k] * re[k]);
     for (let k = r0; k < r1; k++) rs += re[k] * re[k];
-    stoer[ch] = 10 * Math.log10(rs / (r1 - r0) / (spitze + 1e-30) + 1e-30);
+    stoer[key] = 10 * Math.log10(rs / (r1 - r0) / (spitze + 1e-30) + 1e-30);
     // 1,2 s Impulsantwort: genug für das Nachklingen im Bass. Laufzeit aus den ersten 0,6 s.
     const ir = re.slice(0, pre + Math.floor(1.2 * FS));
-    messungen[ch] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
+    messungen[key] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
   });
-  const pruefung = pruefeAufnahme(rec, a, markerPegel);
+  const pruefung = pruefeAufnahme(rec, a, markerPegel, fo);
   pruefung.stoer_db = Object.fromEntries(Object.entries(stoer).map(([k, v]) => [k, Math.round(v * 10) / 10]));
-  for (const t of stoerProbleme(stoer)) { pruefung.probleme.push(t); pruefung.sauber = false; }
+  if (fo.bewegt) pruefung.gestoert = stoerEinzeln(stoer).sort();
+  else for (const t of stoerProbleme(stoer)) { pruefung.probleme.push(t); pruefung.sauber = false; }
   return { messungen, drift_ppm: (b - 1) * 1e6, pruefung };
 }
 
@@ -1024,6 +1081,12 @@ function biquadH(bq) {  // komplexer Frequenzgang auf F
   return { re, im };
 }
 // Bass-Abweichung (Kennzahl 1) an jedem Platz für eine Einstellung, im Frequenzbereich gerechnet
+function kettenH(c) {  // Pegel und EQ eines Kanals (ohne Laufzeit), komplex auf F
+  const g = Math.pow(10, c.gain_db / 20), re = new Float64Array(NF).fill(g), im = new Float64Array(NF);
+  for (const q of c.eq) { const b = biquadH(biquad("Peaking", q.freq, q.q, q.gain));
+    for (let i = 0; i < NF; i++) { const r0 = re[i]; re[i] = r0 * b.re[i] - im[i] * b.im[i]; im[i] = r0 * b.im[i] + im[i] * b.re[i]; } }
+  return { re, im };
+}
 function bassJePlatz(H, cals, modus) {
   const ziel = zielkurve(HAUSKURVE[modus]);
   return H.map((h) => {
@@ -1037,14 +1100,23 @@ function bassJePlatz(H, cals, modus) {
       k[ch] = { re, im };
     }
     const kan = [k.FL, k.FR];
-    if (modus === "kino") kan.push({ re: k.FL.re.map((v, i) => v + k.FR.re[i]), im: k.FL.im.map((v, i) => v + k.FR.im[i]) });
+    if (modus === "kino") {
+      if (h.C) {  // gemessene Mitte: EQ/Pegel beider Kanäle gemittelt, Laufzeit einmal (wie _korrigiert_mitte)
+        const kl = kettenH(cals.FL), kr = kettenH(cals.FR), tau = 0.5 * (cals.FL.delay_ms + cals.FR.delay_ms) / 1000, re = new Float64Array(NF), im = new Float64Array(NF);
+        for (let i = 0; i < NF; i++) {
+          const mr = 0.5 * (kl.re[i] + kr.re[i]), mi = 0.5 * (kl.im[i] + kr.im[i]), ph = -2 * Math.PI * F[i] * tau, cr = mr * Math.cos(ph) - mi * Math.sin(ph), ci = mr * Math.sin(ph) + mi * Math.cos(ph);
+          re[i] = h.C.re[i] * cr - h.C.im[i] * ci; im[i] = h.C.re[i] * ci + h.C.im[i] * cr;
+        }
+        kan.push({ re, im });
+      } else kan.push({ re: k.FL.re.map((v, i) => v + k.FR.re[i]), im: k.FL.im.map((v, i) => v + k.FR.im[i]) });
+    }
     return mean(kan.map((x) => bassAbweichung(glaetten(leistung(x), 6), ziel)));
   });
 }
 // Wächter: Kein Platz darf im Bass schlechter werden. Solange einer schlechter wird, fliegt der Filter
 // raus, dessen Wegfall am meisten hilft.
 function waechterEq(punkte, cals, modus, toleranz = 0.1) {
-  const H = punkte.map((p) => ({ FL: antwort(p.messungen.FL), FR: antwort(p.messungen.FR) }));
+  const H = punkte.map((p) => ({ FL: antwort(p.messungen.FL), FR: antwort(p.messungen.FR), C: p.messungen.C ? antwort(p.messungen.C) : null }));
   const aus = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
   const vorher = bassJePlatz(H, aus, modus), schlimm = (c) => Math.max(...bassJePlatz(H, c, modus).map((v, i) => v - vorher[i]));
   const hinweise = [];
@@ -1063,6 +1135,29 @@ function waechterEq(punkte, cals, modus, toleranz = 0.1) {
   return { cals, hinweise };
 }
 
+// Gemessene Mitte (beide Boxen zusammen): EQ/Pegel beider Kanäle gemittelt, Laufzeit einmal (gemittelt)
+function korrigiertMitte(m, calL, calR) {
+  const a = korrigiert(m, { ...calL, delay_ms: 0 }), b = korrigiert(m, { ...calR, delay_ms: 0 }), ir = new Float64Array(m.ir.length);
+  for (let i = 0; i < ir.length; i++) ir[i] = 0.5 * (a.ir[i] + b.ir[i]);
+  return korrigiert({ ir, zero: m.zero, delay: m.delay }, { gain_db: 0, eq: [], delay_ms: 0.5 * (calL.delay_ms + calR.delay_ms) });
+}
+// Bewegte Messung (wie Trueplay) in Messpunkte zerlegen: je Dreiergruppe links/rechts/Mitte einer
+function bewegtePunkte(daten) {
+  let a;
+  try { a = analysiere(daten, FOLGE_BEWEGT); }
+  catch (e) { return { punkte: [], info: { platz: "Bewegt", sauber: false, probleme: [`Messsignal nicht gefunden (${e.message}). Lief es während der Aufnahme?`] } }; }
+  const gestoert = new Set(a.pruefung.gestoert || []), punkte = [], k = FOLGE_BEWEGT.kanaele;
+  for (let g = 0; g < k.length / 3; g++) {
+    const keys = [0, 1, 2].map((j) => kanalSchluessel(k, 3 * g + j));
+    if (keys.some((x) => gestoert.has(x))) continue;
+    punkte.push({ name: `Bewegt ${g + 1}`, messungen: { FL: a.messungen[keys[0]], FR: a.messungen[keys[1]], C: a.messungen[keys[2]] } });
+  }
+  const probleme = a.pruefung.probleme.slice();
+  if (punkte.length < 2) probleme.push("Zu viele Störgeräusche beim Bewegen. Bitte ruhig sein und die Bewegung wiederholen.");
+  return { punkte: probleme.length ? [] : punkte, info: { platz: "Bewegt durch den Hörbereich", sauber: !probleme.length, probleme,
+    drift_ppm: Math.round(a.drift_ppm * 10) / 10, punkte: punkte.length, verworfen: gestoert.size } };
+}
+
 function korrigiert(m, cal) {
   let ir = m.ir;
   for (const p of cal.eq) ir = biquadFilter(ir, biquad("Peaking", p.freq, p.q, p.gain));
@@ -1077,7 +1172,7 @@ function kurve(C) {
 }
 
 // --- Raum-Check: Aufnahmen rein, Ergebnis raus ------------------------------------------
-function raumcheck(aufnahmen, modus = "kino", raumM3 = null) {
+function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null) {
   const erg = { aufnahmen: [], fehler: null, modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
   const punkte = [];
   for (const { name, daten } of aufnahmen) {
@@ -1088,6 +1183,7 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null) {
     if (a.pruefung.sauber) punkte.push({ name, messungen: a.messungen });
   }
   if (!punkte.length) { erg.fehler = "Keine saubere Aufnahme dabei. Bitte ohne Filter aufnehmen (Sprachmemos „Verlustfrei“) und wiederholen."; return erg; }
+  if (bewegt) { const b = bewegtePunkte(bewegt); erg.aufnahmen.push(b.info); punkte.push(...b.punkte); }
   const ein = einmessen(punkte, HAUSKURVE[modus]);
   // Bühne: links/rechts genau am Hauptplatz gleich laut (die Einmessung mittelt über alle Plätze)
   const mDb = (ch) => mean(dbArr(glaetten(leistung(antwort(punkte[0].messungen[ch])), 3)).filter((_, i) => F[i] >= 500 && F[i] <= 2000));
@@ -1098,8 +1194,9 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null) {
   ein.cals.FL.delay_ms = Math.max(dt, 0); ein.cals.FR.delay_ms = Math.max(-dt, 0);
   const wa = waechterEq(punkte, ein.cals, modus);
   ein.cals = wa.cals; ein.zeilen = ein.zeilen.concat(wa.hinweise);
-  const vorher = punkte.map((p) => ({ FL: p.messungen.FL, FR: p.messungen.FR, C: mitte(p.messungen) }));
-  const nachher = punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, ein.cals.FL), FR: korrigiert(p.messungen.FR, ein.cals.FR) }; m.C = mitte(m); return m; });
+  const vorher = punkte.map((p) => ({ FL: p.messungen.FL, FR: p.messungen.FR, C: p.messungen.C || mitte(p.messungen) }));
+  const nachher = punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, ein.cals.FL), FR: korrigiert(p.messungen.FR, ein.cals.FR) };
+    m.C = p.messungen.C ? korrigiertMitte(p.messungen.C, ein.cals.FL, ein.cals.FR) : mitte(m); return m; });
   const sh = score(vorher, modus, raumM3), sn = score(nachher, modus, raumM3, null, true, true);
   const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C);
   Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, bericht: ein.zeilen, tipps: ein.tipps,
@@ -1140,7 +1237,7 @@ function waechterErgebnis(e) {
   return v;
 }
 
-if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS };
+if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS, FOLGE_BEWEGT };
 </script>
 <script type="text/plain" id="sweetspot-src">// Sweetspot-Finder in JavaScript: dieselben Schritte wie klangbox/sweetspot.py (Modalsumme für den
 // Rechteckraum, Dämpfung je Mode nach Kuttruff, Zielfunktion, Rastersuche, Wächter).
@@ -1382,17 +1479,16 @@ $("m-kino").addEventListener("click", () => setzeModus("kino"));
 $("m-stereo").addEventListener("click", () => setzeModus("stereo"));
 setzeModus(modus);
 
-// --- Geführter Ablauf ------------------------------------------------------------------------
-const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Messen", "Ergebnis", "Aufstellung"];
+// --- Geführter Ablauf (wie die Sonos-Einmessung: die App führt, Schritt für Schritt) ------------
+const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Ruhe und Lautstärke", "Hörplatz", "Bewegen", "Ergebnis", "Aufstellung"];
 function zeigeSchritt(n) {
   document.querySelectorAll(".schritt").forEach((el) => { el.hidden = +el.dataset.s !== n; });
-  $("fortschritt-balken").style.width = Math.min(100, (n - 1) / 4 * 100) + "%";
-  $("schritt-text").textContent = n <= 5 ? `Schritt ${n} von 5 · ${SCHRITTE[n]}` : SCHRITTE[n];
-  if (n === 4) zeigePlatz();
+  $("fortschritt-balken").style.width = Math.min(100, (n - 1) / 6 * 100) + "%";
+  $("schritt-text").textContent = n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
+  if (n === 5) $("platz-bild").innerHTML = platzBild();
   window.scrollTo(0, 0);
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zu]"); if (b) zeigeSchritt(+b.dataset.zu); });
-// Anlage per Chip
 function zeigeChips() { document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", c.dataset.anlage === $("anlage").value)); }
 document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { $("anlage").value = c.dataset.anlage; zeigeChips(); }));
 $("anlage").addEventListener("input", zeigeChips);
@@ -1400,52 +1496,23 @@ $("anlage").addEventListener("input", zeigeChips);
 $("vorb-weiter").addEventListener("click", () => {
   const offen = [...document.querySelectorAll(".pflicht")].filter((c) => !c.checked).length;
   if (offen) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst alle Punkte abhaken (${offen} offen).</span>`; return; }
-  if (!kannAufnehmen) { $("vorb-status").innerHTML = `<span class="warn">Dieser Browser darf hier nicht aufnehmen. Bitte in Safari öffnen, oder im nächsten Schritt Sprachmemos-Dateien nutzen.</span>`; }
-  else if (quelle === "airplay" && kannAirplay && !drahtlos()) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst „AirPlay-Lautsprecher wählen“ und deine Anlage antippen. Sonst misst du den iPhone-Lautsprecher.</span>`; return; }
+  if (!kannAufnehmen) { $("vorb-status").innerHTML = `<span class="warn">Dieser Browser darf hier nicht aufnehmen. Bitte in Safari öffnen, oder am Hörplatz Sprachmemos-Dateien nutzen.</span>`; }
   else if (quelle === "airplay" && !kannAirplay) { $("vorb-status").innerHTML = `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Wähle „Von anderem Gerät“ oder öffne die Seite in Safari.</span>`; return; }
+  else if (quelle === "airplay" && !drahtlos()) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst „AirPlay-Lautsprecher wählen“ und deine Anlage antippen. Sonst misst du den iPhone-Lautsprecher.</span>`; return; }
   $("vorb-status").textContent = "";
   zeigeSchritt(4);
 });
-// Plätze: wo das iPhone gehalten wird (Draufsicht)
-function plaetze() {
-  return modus === "kino"
-    ? [{ name: "Hörplatz (Mitte Sofa)", text: "Setz dich auf deinen Hauptplatz.", dx: 0, dy: 0 },
-       { name: "Sofaplatz links", text: "Setz dich auf den Platz links daneben.", dx: -0.6, dy: 0 },
-       { name: "Sofaplatz rechts", text: "Setz dich auf den Platz rechts daneben.", dx: 0.6, dy: 0 }]
-    : [{ name: "Hörplatz", text: "Setz dich auf deinen Hörplatz, Kopf genau in der Mitte zwischen den Boxen.", dx: 0, dy: 0 },
-       { name: "30 cm links", text: "Halte das iPhone 30 cm links von der Stelle, wo sonst dein Kopf ist.", dx: -0.3, dy: 0 },
-       { name: "30 cm rechts", text: "Halte das iPhone 30 cm rechts von der Stelle, wo sonst dein Kopf ist.", dx: 0.3, dy: 0 }];
-}
-let zusatzPlatz = false;
-function aktuellerPlatz() {
-  const l = plaetze(), i = dateien.length;
-  return i < l.length ? l[i] : { name: `Weiterer Platz ${i - l.length + 1}`, text: "Halte das iPhone an einen weiteren Platz, an dem gehört wird.", dx: 0, dy: 0.4 };
-}
-function platzBild(aktiv) {
-  const l = plaetze(), X = (dx) => 160 + dx * 110, Y = (dy) => 150 + dy * 60;
+function platzBild() {
   let g = `<rect x="14" y="10" width="292" height="190" rx="10" fill="none" stroke="#2a3038" stroke-width="2"/>`;
-  g += `<rect x="70" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/><rect x="232" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/>`;
-  g += `<text x="160" y="38" text-anchor="middle">Boxen</text>`;
-  g += `<rect x="80" y="${modus === "kino" ? 160 : 165}" width="160" height="26" rx="8" fill="#232830"/><text x="160" y="196" text-anchor="middle">Sofa</text>`;
-  l.forEach((p, i) => {
-    const fertig = i < dateien.length, jetzt = i === aktiv;
-    g += `<circle cx="${X(p.dx)}" cy="${Y(p.dy)}" r="${jetzt ? 11 : 8}" fill="${fertig ? "#79c98a" : jetzt ? "#7fb0ff" : "#2a3038"}"/>`;
-    g += `<text x="${X(p.dx)}" y="${Y(p.dy) + 4}" text-anchor="middle" style="fill:#0d0f12; font-weight:700">${fertig ? "✓" : i + 1}</text>`;
-  });
-  return `<svg viewBox="0 0 320 210" width="100%" role="img" aria-label="Draufsicht: wo das iPhone gehalten wird">${g}</svg>`;
+  g += `<rect x="70" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/><rect x="232" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/><text x="160" y="38" text-anchor="middle">Boxen</text>`;
+  g += `<line x1="79" y1="42" x2="160" y2="150" stroke="#2a3038" stroke-dasharray="3 3"/><line x1="241" y1="42" x2="160" y2="150" stroke="#2a3038" stroke-dasharray="3 3"/>`;
+  g += `<rect x="80" y="162" width="160" height="26" rx="8" fill="#232830"/><text x="160" y="196" text-anchor="middle">Sofa</text>`;
+  g += `<circle cx="160" cy="150" r="11" fill="${hauptDaten ? "#79c98a" : "#7fb0ff"}"/><text x="160" y="154" text-anchor="middle" style="fill:#0d0f12; font-weight:700">${hauptDaten ? "✓" : "1"}</text>`;
+  return `<svg viewBox="0 0 320 210" width="100%" role="img" aria-label="Draufsicht: iPhone am Hörplatz">${g}</svg>`;
 }
-function zeigePlatz() {
-  const l = plaetze(), i = dateien.length, p = aktuellerPlatz();
-  $("h-platz").textContent = i < l.length ? `Platz ${i + 1} von ${l.length}: ${p.name}` : (zusatzPlatz ? p.name : "Alle Plätze gemessen");
-  $("platz-text").textContent = i < l.length || zusatzPlatz ? p.text : "Fertig gemessen. Du kannst auswerten oder noch einen Platz dazunehmen.";
-  $("platz-bild").innerHTML = platzBild(Math.min(i, l.length));
-  $("messen").hidden = !(i < l.length || zusatzPlatz);
-  $("noch-ein-platz").hidden = !(i >= l.length && !zusatzPlatz);
-  $("auswerten").hidden = i === 0;
-}
-$("noch-ein-platz").addEventListener("click", () => { zusatzPlatz = true; zeigePlatz(); });
-$("naechste-anlage").addEventListener("click", () => { dateien = []; zusatzPlatz = false; zeigeDateien(); $("anlage").value = ""; zeigeChips(); zeigeSchritt(2); });
-$("neu-messen").addEventListener("click", () => { dateien = []; zusatzPlatz = false; zeigeDateien(); zeigeSchritt(4); });
+let hauptDaten = null;  // saubere Aufnahme am Hörplatz
+$("naechste-anlage").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); $("anlage").value = ""; zeigeChips(); zeigeSchritt(2); });
+$("neu-messen").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); zeigeSchritt(4); });
 
 function zeigeDateien() {
   $("dateien").innerHTML = dateien.map((d, i) => `<li><span>${i === 0 ? "<b>Hauptplatz</b> · " : ""}${esc(d.name)} (${(d.daten.length / 48000).toFixed(0)} s)</span>
@@ -1503,81 +1570,124 @@ setzeQuelle(quelle);
 if (!kannAufnehmen) { $("messen").disabled = true; $("filter").innerHTML = `<span class="warn">Aufnehmen geht hier nicht (nur über https in Safari/Chrome). Unten Sprachmemos-Dateien nutzen.</span>`; }
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
-async function platzMessen() {
-  // Wächter vor dem Start: das Signal darf nicht aus dem iPhone selbst kommen
-  if (quelle === "airplay" && kannAirplay && !drahtlos()) {
-    $("status").innerHTML = `<span class="warn">Erst einen AirPlay-Lautsprecher wählen. Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`;
-    return;
-  }
+// Eine Aufnahme: Mikrofon ohne Filter öffnen, Signal abspielen (AirPlay) oder Countdown fürs andere
+// Gerät, automatisch stoppen. Gibt die Aufnahme zurück (oder null mit Hinweis im Status).
+async function aufnehmen(ui, src, sekundenExtern, tick) {
+  const status = (h) => { $(ui.status).innerHTML = h; };
+  if (quelle === "airplay" && kannAirplay && !drahtlos()) { status(`<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`); return null; }
   let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
-  } catch (e) {
-    $("status").innerHTML = `<span class="warn">Kein Zugriff aufs Mikrofon. Bitte erlauben (aA-Menü → Website-Einstellungen) oder Sprachmemos nutzen.</span>`;
-    return;
-  }
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }); }
+  catch (e) { status(`<span class="warn">Kein Zugriff aufs Mikrofon. Bitte erlauben (aA-Menü → Website-Einstellungen).</span>`); return null; }
   const st = stream.getAudioTracks()[0].getSettings();
   const z = (n, v) => `${n}: <b class="${v === false ? "ok" : v === true ? "warn" : ""}">${v === false ? "aus" : v === true ? "AN" : "unbekannt"}</b>`;
-  $("filter").innerHTML = [z("Echo-Unterdrückung", st.echoCancellation), z("Störfilter", st.noiseSuppression), z("Lautstärke-Automatik", st.autoGainControl)].join(" · ");
+  if (ui.filter) $(ui.filter).innerHTML = [z("Echo-Unterdrückung", st.echoCancellation), z("Störfilter", st.noiseSuppression), z("Lautstärke-Automatik", st.autoGainControl)].join(" · ");
   const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC({ sampleRate: 48000 });
   const q = ctx.createMediaStreamSource(stream), knoten = ctx.createScriptProcessor(4096, 1, 1), stumm = ctx.createGain();
   stumm.gain.value = 0;
-  const puffer = [];
-  let spitze = 0;
+  const puffer = []; let spitze = 0;
   knoten.onaudioprocess = (ev) => {
     const d = ev.inputBuffer.getChannelData(0); puffer.push(new Float32Array(d));
     let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i]));
-    spitze = Math.max(spitze, m); $("pegel").style.width = Math.min(100, m * 100) + "%";
+    spitze = Math.max(spitze, m); if (ui.pegel) $(ui.pegel).style.width = Math.min(100, m * 100) + "%";
   };
   q.connect(knoten); knoten.connect(stumm); stumm.connect(ctx.destination);
   laeuft = { abbruch: false };
-  $("messen").disabled = true; $("abbrechen").hidden = false;
-  const ende = () => { knoten.disconnect(); q.disconnect(); stream.getTracks().forEach((t) => t.stop()); ctx.close(); $("pegel").style.width = "0%"; $("messen").disabled = false; $("abbrechen").hidden = true; };
-  let hinweis = "";
+  $(ui.start).disabled = true; $(ui.abbrechen).hidden = false;
+  const ende = () => { knoten.disconnect(); q.disconnect(); stream.getTracks().forEach((t) => t.stop()); ctx.close(); if (ui.pegel) $(ui.pegel).style.width = "0%"; $(ui.start).disabled = false; $(ui.abbrechen).hidden = true; };
+  const t0 = Date.now();
   if (quelle === "airplay") {
-    $("status").innerHTML = `<span class="laeuft">Misst… bitte still sein (etwa 25 Sekunden)</span>`;
+    if (!sig.src.endsWith(src)) { sig.src = src; sig.load(); }
     sig.currentTime = 0;
-    try { await sig.play(); } catch (e) { ende(); $("status").innerHTML = `<span class="warn">Wiedergabe ließ sich nicht starten.</span>`; return; }
+    try { await sig.play(); } catch (e) { ende(); status(`<span class="warn">Wiedergabe ließ sich nicht starten.</span>`); return null; }
     await warte(800);
-    // Wächter: iOS kann AirPlay beenden, sobald das Mikrofon läuft
     if (kannAirplay && !drahtlos()) { sig.pause(); ende(); setzeQuelle("extern");
-      $("status").innerHTML = `<span class="warn">iOS hat AirPlay beim Aufnehmen abgeschaltet. Bitte das Messsignal von einem anderen Gerät abspielen (umgestellt).</span>`; return; }
-    await new Promise((r) => { const t = setInterval(() => { if (sig.ended || laeuft.abbruch) { clearInterval(t); r(); } }, 200); });
-    await warte(3000);  // AirPlay spielt verzögert: Ende abwarten
+      status(`<span class="warn">iOS hat AirPlay beim Aufnehmen abgeschaltet. Ich habe auf „Von anderem Gerät“ umgestellt: bitte das Messsignal dort abspielen.</span>`); return null; }
+    const gesamt = (sig.duration || sekundenExtern) + 3;
+    await new Promise((r) => { const t = setInterval(() => { if (tick) tick((Date.now() - t0) / 1000 / gesamt);
+      if (sig.ended || laeuft.abbruch) { clearInterval(t); r(); } }, 250); });
+    const e0 = Date.now();
+    while (!laeuft.abbruch && Date.now() - e0 < 3000) { if (tick) tick((Date.now() - t0) / 1000 / gesamt); await warte(250); }  // AirPlay spielt verzögert
   } else {
-    for (let n = 5; n > 0 && !laeuft.abbruch; n--) { $("status").innerHTML = `<b>Jetzt das Messsignal am anderen Gerät starten</b> · ${n}`; await warte(1000); }
-    const t0 = Date.now();
-    while (!laeuft.abbruch && Date.now() - t0 < 26000) { $("status").innerHTML = `<span class="laeuft">Misst… noch ${Math.ceil((26000 - (Date.now() - t0)) / 1000)} s</span>`; await warte(250); }
+    for (let n = 5; n > 0 && !laeuft.abbruch; n--) { status(`<b>Jetzt am anderen Gerät „${src.replace(/\.wav$/, "")}“ starten</b> · ${n}`); await warte(1000); }
+    const t1 = Date.now();
+    while (!laeuft.abbruch && Date.now() - t1 < sekundenExtern * 1000) { const r = (Date.now() - t1) / 1000 / sekundenExtern;
+      if (tick) tick(r); status(`<span class="laeuft">Misst… noch ${Math.ceil(sekundenExtern * (1 - r))} s</span>`); await warte(250); }
   }
-  const rate = ctx.sampleRate;
-  ende();
-  if (laeuft.abbruch) { laeuft = null; $("status").textContent = "Abgebrochen."; return; }
-  laeuft = null;
-  if (rate !== 48000) { $("status").innerHTML = `<span class="warn">Abtastrate ${rate} Hz statt 48000 Hz. Bitte Sprachmemos nutzen.</span>`; return; }
+  const rate = ctx.sampleRate, abgebrochen = laeuft.abbruch;
+  ende(); laeuft = null; if (tick) tick(1);
+  if (abgebrochen) { status("Abgebrochen."); return null; }
+  if (rate !== 48000) { status(`<span class="warn">Abtastrate ${rate} Hz statt 48000 Hz. Bitte Sprachmemos nutzen.</span>`); return null; }
   const n = puffer.reduce((s, b) => s + b.length, 0), daten = new Float32Array(n); let o = 0;
   for (const b of puffer) { daten.set(b, o); o += b.length; }
-  if (spitze < 0.003) { $("status").innerHTML = `<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`; return; }
-  await neueAufnahme(aktuellerPlatz().name, daten);
+  if (spitze < 0.003) { status(`<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`); return null; }
+  return daten;
 }
-$("messen").addEventListener("click", platzMessen);
-$("abbrechen").addEventListener("click", () => { if (laeuft) { laeuft.abbruch = true; sig.pause(); } });
+const abbrechen = () => { if (laeuft) { laeuft.abbruch = true; sig.pause(); } };
+["abbrechen", "check-abbrechen", "bewegen-abbrechen"].forEach((id) => $(id).addEventListener("click", abbrechen));
 
-// Jede Aufnahme sofort prüfen (Wächter): nur saubere Aufnahmen kommen in die Liste
+// Schritt 4: Ruhe und Lautstärke. Rauschton (2 s Stille, 3 s Rauschen) aufnehmen und bewerten:
+// Abstand Ton zu Raumrauschen mindestens 30 dB, Spitze unter -3 dBFS [eigene Festlegung, aus dem
+// Prüfstand: damit bleibt das Grundrauschen der Impulsantwort sicher unter -45 dB].
+function pegelBewerten(d) {
+  const fr = 2400, werte = []; let y = 0, x0 = 0, spitze = 0;
+  const a = Math.exp(-2 * Math.PI * 100 / 48000);  // Hochpass 100 Hz (Trittschall, Lüfterbrummen)
+  const h = new Float32Array(d.length);
+  for (let i = 0; i < d.length; i++) { y = a * (y + d[i] - x0); x0 = d[i]; h[i] = y; spitze = Math.max(spitze, Math.abs(d[i])); }
+  for (let i = 0; i + fr <= h.length; i += fr) { let s = 0; for (let j = i; j < i + fr; j++) s += h[j] * h[j]; werte.push(10 * Math.log10(s / fr + 1e-20)); }
+  werte.sort((p, q) => p - q);
+  const rausch = werte[Math.floor(werte.length * 0.1)], ton = werte[Math.floor(werte.length * 0.95)];
+  return { rausch, ton, abstand: ton - rausch, spitze_db: 20 * Math.log10(spitze + 1e-12) };
+}
+$("check-start").addEventListener("click", async () => {
+  const d = await aufnehmen({ status: "check-status", pegel: "check-pegel", filter: "check-filter", start: "check-start", abbrechen: "check-abbrechen" }, "pegel.wav", 11);
+  if (!d) return;
+  const p = pegelBewerten(d), st = (h) => { $("check-status").innerHTML = h; };
+  if (p.spitze_db > -3) return st(`<span class="warn">Zu laut, das Mikrofon übersteuert. Bitte etwas leiser drehen und noch einmal prüfen.</span>`);
+  if (p.abstand < 30) {
+    if (p.rausch > -50) return st(`<span class="warn">Im Raum ist es zu laut (${Math.round(p.abstand)} dB Abstand). Fenster zu, Geräte aus, still sein – dann noch einmal.</span>`);
+    return st(`<span class="warn">Etwas zu leise (${Math.round(p.abstand)} dB Abstand, nötig 30 dB). Bitte lauter drehen und noch einmal prüfen.</span>`);
+  }
+  st(`<span class="ok">✓ Passt: ${Math.round(p.abstand)} dB Abstand zum Raumrauschen.</span>`);
+  await warte(1200); zeigeSchritt(5);
+});
+$("check-ueberspringen").addEventListener("click", () => zeigeSchritt(5));
+
+// Schritt 5: Hörplatz
+$("messen").addEventListener("click", async () => {
+  const d = await aufnehmen({ status: "status", pegel: "pegel", filter: "filter", start: "messen", abbrechen: "abbrechen" }, "raumcheck.wav", 26);
+  if (!d) return;
+  if (await neueAufnahme("Hörplatz", d)) { hauptDaten = d; $("platz-bild").innerHTML = platzBild(); await warte(1200); zeigeSchritt(6); }
+});
+
+// Schritt 6: Bewegen (wie Trueplay)
+const ring = (r) => { $("ring").setAttribute("stroke-dashoffset", (163.4 * (1 - Math.min(1, Math.max(0, r)))).toFixed(1)); };
+$("bewegen-start").addEventListener("click", async () => {
+  ring(0);
+  $("bewegen-status").innerHTML = `<span class="laeuft">Jetzt langsam gehen und das iPhone auf und ab bewegen…</span>`;
+  const d = await aufnehmen({ status: "bewegen-status", pegel: "bewegen-pegel", start: "bewegen-start", abbrechen: "bewegen-abbrechen" }, "bewegen.wav", 63, ring);
+  if (!d) return;
+  $("bewegen-status").innerHTML = `<span class="laeuft">Prüfe die Bewegungs-Messung…</span>`;
+  const p = await imWorker({ art: "bewegtPruefen", daten: d });
+  if (!p.ok || !p.ergebnis.sauber) {
+    $("bewegen-status").innerHTML = `<span class="warn">Nicht verwendbar: ${esc(p.ok ? p.ergebnis.probleme.join(" ") : p.fehler)} Bitte noch einmal.</span>`; return;
+  }
+  $("bewegen-status").innerHTML = `<span class="ok">✓ ${p.ergebnis.punkte} Messpunkte im Hörbereich${p.ergebnis.verworfen ? `, ${p.ergebnis.verworfen} gestörte Sweeps weggelassen` : ""}.</span> Ich werte aus…`;
+  await auswerten(d);
+});
+$("ohne-bewegen").addEventListener("click", () => auswerten(null));
+
+// Jede Aufnahme sofort prüfen (Wächter): nur saubere Aufnahmen zählen
 async function neueAufnahme(name, daten) {
   $("status").innerHTML = `<span class="laeuft">Prüfe die Aufnahme…</span>`;
   const p = await imWorker({ art: "pruefen", daten });
-  if (!p.ok) { $("status").innerHTML = `<span class="warn">${esc(name)}: Prüfung fehlgeschlagen (${esc(p.fehler)}).</span>`; return; }
+  if (!p.ok) { $("status").innerHTML = `<span class="warn">${esc(name)}: Prüfung fehlgeschlagen (${esc(p.fehler)}).</span>`; return false; }
   const pr = p.ergebnis;
-  if (!pr.sauber) {
-    $("status").innerHTML = `<span class="warn">${esc(name)} nicht verwendet: ${esc(pr.probleme.join(" "))} Bitte diesen Platz noch einmal messen.</span>`;
-    return;
-  }
-  dateien.push({ name, daten, gepruef: true });
+  if (!pr.sauber) { $("status").innerHTML = `<span class="warn">${esc(name)} nicht verwendet: ${esc(pr.probleme.join(" "))} Bitte noch einmal messen.</span>`; return false; }
+  if (name === "Hörplatz") dateien = [];
+  dateien.push({ name, daten });
   zeigeDateien();
-  const fertig = dateien.length >= plaetze().length;
-  $("status").innerHTML = `<span class="ok">✓ ${esc(name)}: Aufnahme sauber.</span>` + (fertig ? " Alle Plätze gemessen, ich werte aus…" : "");
-  zeigePlatz();
-  if (fertig && !zusatzPlatz) $("auswerten").click();
+  $("status").innerHTML = `<span class="ok">✓ ${esc(name)}: Aufnahme sauber.</span>`;
+  return true;
 }
 
 // Rechnen im Hintergrund (Web Worker), damit die Seite flüssig bleibt
@@ -1586,8 +1696,9 @@ self.onmessage = (ev) => {
   try {
     if (ev.data.art === "sweetspot") { self.postMessage({ ok: true, ergebnis: SS.empfehlen(ev.data.raum, ev.data.start, ev.data.modus) }); return; }
     if (ev.data.art === "pruefen") { self.postMessage({ ok: true, ergebnis: analysiere(new Float64Array(ev.data.daten)).pruefung }); return; }
+    if (ev.data.art === "bewegtPruefen") { self.postMessage({ ok: true, ergebnis: bewegtePunkte(new Float64Array(ev.data.daten)).info }); return; }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
-    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3) });
+    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null) });
   } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
 };`;
 const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
@@ -1600,21 +1711,21 @@ function imWorker(nachricht) {
   });
 }
 
-$("auswerten").addEventListener("click", async () => {
+async function auswerten(bewegt) {
+  if (!dateien.length) { zeigeSchritt(5); $("status").innerHTML = `<span class="warn">Erst am Hörplatz messen.</span>`; return; }
+  const ziel = bewegt ? "bewegen-status" : "status";
+  $(ziel).innerHTML = `<span class="laeuft">Rechnet, etwa 10 bis 40 Sekunden…</span>`;
   $("auswerten").disabled = true;
-  $("status").innerHTML = `<span class="laeuft">Rechnet, etwa 10 bis 30 Sekunden…</span>`;
-  const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), modus, raumM3: +$("raum").value || null });
-  $("auswerten").disabled = false;
-  if (!r.ok) { $("status").innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
+  const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null });
+  $("auswerten").disabled = !dateien.length;
+  if (!r.ok) { $(ziel).innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
   const runde = { anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis };
   runden.unshift(runde);
   try { localStorage.setItem("raumcheck-runden", JSON.stringify(runden.slice(0, 12))); } catch (e) {}
-  dateien = []; zusatzPlatz = false; zeigeDateien();
-  $("status").innerHTML = "";
-  zeigeAlles();
-  nachhallUebernehmen();
-  zeigeSchritt(5);
-});
+  dateien = []; hauptDaten = null; zeigeDateien(); $(ziel).innerHTML = "";
+  zeigeAlles(); nachhallUebernehmen(); zeigeSchritt(7);
+}
+$("auswerten").addEventListener("click", () => auswerten(null));
 
 const zahl = (v, e) => v.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " " + e;
 
@@ -1745,7 +1856,7 @@ zeigeAlles();
 zeigeDateien();
 nachhallUebernehmen();
 zeigeChips();
-zeigeSchritt(runden.length ? 5 : 1);
+zeigeSchritt(runden.length ? 7 : 1);
 </script>
 
 </body>

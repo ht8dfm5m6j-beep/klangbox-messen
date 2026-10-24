@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Klang-Box Raum-Check</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Raum-Check: Aufnahmen aus Sprachmemos auswerten, Messrunden vergleichen (Sonos, KEF, ...).
+   Eine Spalte wie eine iPhone-App, dunkel wie die Klang-Box-App. */
+:root { --bg: #0d0f12; --panel: #171a1f; --panel2: #232830; --line: #2a3038; --ink: #f2f4f7; --ink2: #9aa3ad;
+  --heute: #eb6834; --prog: #7fb0ff; --ok: #79c98a; --warn: #f0b35a; color-scheme: dark; }
+*, *::before, *::after { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+main { max-width: 560px; margin: 0 auto; padding-block: 24px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+h1 { font-size: 30px; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { font-size: 19px; margin: 0; }
+p { margin: 0; color: var(--ink2); }
+.card { background: var(--panel); border-radius: 18px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+button, select, input { font: inherit; }
+button, .knopf { min-height: 50px; border: 0; border-radius: 14px; background: var(--ink); color: var(--bg); font-weight: 700; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0 16px; text-align: center; }
+button.zweit, .knopf.zweit { background: var(--panel2); color: var(--ink); }
+button.klein { min-height: 36px; font-size: 13.5px; border-radius: 10px; padding: 0 10px; }
+button:disabled { opacity: .4; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible, .knopf:focus-within { outline: 2px solid var(--prog); outline-offset: 2px; }
+input[type="text"] { min-height: 46px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 12px; width: 100%; }
+.wahl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.wahl button { display: grid; gap: 2px; justify-items: start; text-align: left; padding: 12px 14px; min-height: 76px; background: var(--panel2); color: var(--ink); }
+.wahl button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.wahl small { font-size: 12.5px; font-weight: 500; opacity: .75; }
+ol.schritte { margin: 0; padding-left: 20px; color: var(--ink2); display: grid; gap: 4px; }
+.klein { font-size: 13px; color: var(--ink2); }
+.ok { color: var(--ok); } .warn { color: var(--warn); }
+.dateien { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.dateien li { display: flex; gap: 8px; align-items: center; justify-content: space-between; background: var(--panel2); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.dateien li span { min-width: 0; overflow-wrap: anywhere; }
+.score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; text-align: center; }
+.score .zahl { font-size: 46px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.score .lbl { font-size: 13px; color: var(--ink2); }
+.krit { display: grid; gap: 6px; }
+.krit .kopf { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.krit .kopf span:last-child { color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.doppel { position: relative; height: 10px; border-radius: 5px; background: var(--line); }
+.doppel .h, .doppel .p { position: absolute; left: 0; height: 4px; border-radius: 2px; }
+.doppel .h { top: 0; background: var(--heute); } .doppel .p { bottom: 0; background: var(--prog); }
+.legende { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--ink2); }
+.legende i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+svg text { fill: var(--ink2); font-size: 10px; }
+.tabelle { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+th { color: var(--ink2); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+td.n { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+th.n { text-align: right; }
+.laeuft { display: flex; align-items: center; gap: 10px; color: var(--ink2); }
+.laeuft::before { content: ""; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--prog); animation: dreh 0.9s linear infinite; }
+@keyframes dreh { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .laeuft::before { animation: none; } }
+audio { width: 100%; }
+.balken { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.balken > div { height: 8px; background: var(--prog); width: 0%; }
+.knoepfe { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+select { min-height: 46px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 12px; }
+</style>
+
+<main>
+  <header style="display: grid; gap: 8px;">
+    <h1>Raum-Check</h1>
+    <p>Miss deine Anlage mit dem iPhone und sieh, wie gut sie in deinem Raum spielt, und was die Klang-Box daraus machen würde. Mehrere Anlagen lassen sich vergleichen, zum Beispiel Sonos mit und ohne Trueplay.</p>
+  </header>
+
+  <section class="card" aria-labelledby="h-modus">
+    <h2 id="h-modus">Was willst du messen?</h2>
+    <div class="wahl" role="group" aria-label="Modus">
+      <button type="button" id="m-kino" aria-pressed="true">Kino<small>Filme, alle Plätze, mehr Wucht</small></button>
+      <button type="button" id="m-stereo" aria-pressed="false">Stereo<small>Musik, Bühne am Hörplatz</small></button>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-so">
+    <h2 id="h-so">So nimmst du auf</h2>
+    <ol class="schritte">
+      <li>Einstellungen → Sprachmemos → Audioqualität „Verlustfrei“.</li>
+      <li>Messsignal über die Anlage abspielen (AirPlay, Apple TV), am besten von einem zweiten Gerät.</li>
+      <li>Gleichzeitig aufnehmen (unten direkt hier, oder mit Sprachmemos): iPhone auf Ohrhöhe, Unterseite nach vorne, still sein.</li>
+      <li>3 bis 4 Plätze: Hörplatz, 30 cm links, rechts, davor. Bei Kino auch die anderen Sofaplätze.</li>
+      <li>Sprachmemos-Aufnahmen in „Dateien“ sichern und unten auswählen. Die erste ist dein Hauptplatz.</li>
+    </ol>
+    <span class="klein">Messsignal (21 Sekunden, mit Prüfton am Anfang)</span>
+    <audio src="raumcheck.wav" controls preload="none"></audio>
+  </section>
+
+  <section class="card" aria-labelledby="h-runde">
+    <h2 id="h-runde">Neue Messrunde</h2>
+    <label class="klein" for="anlage">Anlage</label>
+    <input type="text" id="anlage" value="KEF LS50 Meta (passiv) + REL" list="vorschlaege">
+    <datalist id="vorschlaege">
+      <option value="KEF LS50 Meta (passiv) + REL"></option><option value="Sonos ohne Trueplay"></option><option value="Sonos mit Trueplay"></option>
+    </datalist>
+    <div id="rekorder" hidden style="display: grid; gap: 10px;">
+      <label class="klein" for="platz">Direkt hier aufnehmen: Platz</label>
+      <select id="platz"><option>Hörplatz</option><option>30 cm links</option><option>30 cm rechts</option><option>30 cm davor</option>
+        <option>Sofa links</option><option>Sofa rechts</option><option>Sessel</option></select>
+      <div class="knoepfe"><button type="button" id="rec-start">Aufnahme starten</button><button type="button" id="rec-stop" class="zweit" disabled>Beenden</button></div>
+      <div class="balken" aria-hidden="true"><div id="pegel"></div></div>
+      <div id="filter" class="klein"></div>
+    </div>
+    <label class="knopf zweit" for="datei">Aufnahmen aus Dateien (Sprachmemos)
+      <input id="datei" type="file" accept="audio/*,.m4a,.wav,.aac,.caf" multiple hidden>
+    </label>
+    <ul class="dateien" id="dateien"></ul>
+    <button id="auswerten" disabled>Auswerten</button>
+    <div id="status" class="klein" aria-live="polite"></div>
+  </section>
+
+  <section class="card" id="vergleich-karte" hidden aria-labelledby="h-vergleich">
+    <h2 id="h-vergleich">Vergleich</h2>
+    <div class="tabelle"><table>
+      <thead><tr><th>Anlage</th><th>Modus</th><th class="n">heute</th><th class="n">mit Klang-Box</th></tr></thead>
+      <tbody id="vergleich"></tbody>
+    </table></div>
+    <p class="klein">„Mit Klang-Box“ ist eine Prognose: die Raumanpassung der Klang-Box auf genau diese Messungen gerechnet. Bei Sonos vergleicht das die Rechenverfahren, denn die Box kann Sonos-Lautsprecher nicht selbst ansteuern.</p>
+  </section>
+
+  <div id="ergebnisse" style="display: grid; gap: 18px;"></div>
+</main>
+
+<script type="text/plain" id="analyse-src">// Raum-Check-Auswertung in JavaScript: dieselben Schritte wie klangbox/messung.py,
+// klangbox/einmessung.py, klangbox/bewertung.py und klangbox/raumcheck.py (Stereo-Messung, 2.0).
+// Läuft im Browser und in Node (für den Abgleich mit der Python-Fassung).
+"use strict";
+
+const FS = 48000;
+const PRUEF_STUFEN_DB = [-12, -22, -32, -42, -52];
+const PRUEF_STUFE_S = 0.6;
+const FOLGE = { lead: 1.0, markerToSweep: 0.5, sweepS: 4.0, tail: 1.5, sweepLevel: 0.25, kanaele: ["FL", "FR"] };
+FOLGE.pruefDauer = PRUEF_STUFEN_DB.length * PRUEF_STUFE_S + 0.7;
+FOLGE.periode = FOLGE.markerToSweep + FOLGE.sweepS + FOLGE.tail;
+const markerZeit = (i) => FOLGE.lead + FOLGE.pruefDauer + i * FOLGE.periode;
+const sweepZeit = (i) => markerZeit(i) + FOLGE.markerToSweep;
+
+// --- FFT (radix 2, in place) ------------------------------------------------------
+function naechste2(n) { let p = 1; while (p < n) p <<= 1; return p; }
+function fft(re, im, invers) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const w = (invers ? 2 : -2) * Math.PI / len, wr = Math.cos(w), wi = Math.sin(w), h = len >> 1;
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      for (let k = 0; k < h; k++) {
+        const a = i + k, b = a + h;
+        const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+        const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+      }
+    }
+  }
+  if (invers) for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
+}
+function spektrum(x, n) {
+  const re = new Float64Array(n), im = new Float64Array(n);
+  re.set(x.length > n ? x.subarray(0, n) : x);
+  fft(re, im, false);
+  return { re, im };
+}
+
+// Nullphasiger Butterworth-Filter wie sosfiltfilt (Betrag zum Quadrat), im Frequenzbereich
+function filtfilt(x, gewicht) {
+  const n = naechste2(x.length * 2), s = spektrum(x, n);
+  for (let k = 0; k <= n / 2; k++) {
+    const g = gewicht(k * FS / n);
+    s.re[k] *= g; s.im[k] *= g;
+    if (k > 0 && k < n / 2) { s.re[n - k] *= g; s.im[n - k] *= g; }
+  }
+  fft(s.re, s.im, true);
+  return s.re.slice(0, x.length);
+}
+const hochpass = (fc, ord) => (f) => f <= 0 ? 0 : 1 / (1 + Math.pow(fc / f, 2 * ord));
+const tiefpass = (fc, ord) => (f) => 1 / (1 + Math.pow(f / fc, 2 * ord));
+const bandpass = (f1, f2, ord) => { const f0 = Math.sqrt(f1 * f2), bw = f2 - f1;
+  return (f) => f <= 0 ? 0 : 1 / (1 + Math.pow((f / f0 - f0 / f) * f0 / bw, 2 * ord)); };
+
+function huellkurve(x) {  // |hilbert(x)|
+  const n = naechste2(x.length), s = spektrum(x, n);
+  for (let k = 1; k < n / 2; k++) { s.re[k] *= 2; s.im[k] *= 2; }
+  for (let k = n / 2 + 1; k < n; k++) { s.re[k] = 0; s.im[k] = 0; }
+  fft(s.re, s.im, true);
+  const e = new Float64Array(x.length);
+  for (let i = 0; i < x.length; i++) e[i] = Math.hypot(s.re[i], s.im[i]);
+  return e;
+}
+
+// --- Signale --------------------------------------------------------------------------
+function logSweep(f1, f2, sek) {
+  const n = Math.floor(sek * FS), k = sek / Math.log(f2 / f1), x = new Float64Array(n), fade = Math.floor(0.02 * FS);
+  for (let i = 0; i < n; i++) {
+    const t = i / FS;
+    let w = 1;
+    if (i < fade) w = 0.5 - 0.5 * Math.cos(Math.PI * i / fade);
+    else if (i >= n - fade) w = 0.5 - 0.5 * Math.cos(Math.PI * (n - 1 - i) / fade);
+    x[i] = Math.sin(2 * Math.PI * f1 * k * (Math.exp(t / k) - 1)) * w;
+  }
+  return x;
+}
+function marker() {
+  const s = logSweep(1500, 12000, 0.06), n = s.length, m = new Float64Array(n);
+  for (let i = 0; i < n; i++) m[i] = s[n - 1 - i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1)));
+  return m;
+}
+
+// --- Hilfen ---------------------------------------------------------------------------
+function gleitMittel(x, breite) {
+  const n = x.length, h = Math.floor(breite / 2), c = new Float64Array(n + 1), out = new Float64Array(n);
+  for (let i = 0; i < n; i++) c[i + 1] = c[i] + x[i];
+  for (let i = 0; i < n; i++) { const a = Math.max(0, i - h), b = Math.min(n, i + h + 1); out[i] = (c[b] - c[a]) / (b - a); }
+  return out;
+}
+function gleitMax(x, breite) {  // van Herk / Gil-Werman, zentriert
+  const n = x.length, w = breite, h = Math.floor(w / 2), g = new Float64Array(n), r = new Float64Array(n), out = new Float64Array(n);
+  for (let i = 0; i < n; i++) g[i] = i % w === 0 ? x[i] : Math.max(g[i - 1], x[i]);
+  for (let i = n - 1; i >= 0; i--) r[i] = (i % w === w - 1 || i === n - 1) ? x[i] : Math.max(r[i + 1], x[i]);
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - h), b = Math.min(n - 1, i + h);
+    out[i] = Math.max(r[a], g[b]);
+  }
+  return out;
+}
+function parabel(y, p) {
+  if (p <= 0 || p >= y.length - 1) return 0;
+  const d = y[p - 1] - 2 * y[p] + y[p + 1];
+  return d !== 0 ? 0.5 * (y[p - 1] - y[p + 1]) / d : 0;
+}
+function median(a) { const s = Float64Array.from(a).sort(); return s.length ? s[Math.floor(s.length / 2)] : 0; }
+const db10 = (p) => 10 * Math.log10(Math.max(p, 1e-20));
+
+// --- Marker finden, Takt korrigieren, Impulsantworten -----------------------------------
+function findeMarker(rec) {
+  const mk = marker(), n = naechste2(rec.length + mk.length);
+  const R = spektrum(rec, n), M = spektrum(mk, n);
+  const re = new Float64Array(n), im = new Float64Array(n);
+  for (let k = 0; k < n; k++) {  // Kreuzkorrelation, gleich mit Hilbert-Hülle
+    const h = k === 0 || k === n / 2 ? 1 : k < n / 2 ? 2 : 0;
+    re[k] = (R.re[k] * M.re[k] + R.im[k] * M.im[k]) * h;
+    im[k] = (R.im[k] * M.re[k] - R.re[k] * M.im[k]) * h;
+  }
+  fft(re, im, true);
+  const N = rec.length, corr = new Float64Array(N);
+  for (let i = 0; i < N; i++) corr[i] = Math.hypot(re[i], im[i]);
+  const lokal = gleitMittel(corr, Math.floor(0.1 * FS)), scharf = new Float64Array(N);
+  for (let i = 0; i < N; i++) scharf[i] = corr[i] / (lokal[i] + 1e-12);
+  const sched = FOLGE.kanaele.map((_, i) => Math.round((markerZeit(i) - markerZeit(0)) * FS));
+  const nOff = N - sched[sched.length - 1] - 1;
+  if (nOff <= 0) throw new Error("Aufnahme zu kurz für das Messsignal");
+  const tol = gleitMax(scharf, 2 * Math.floor(0.02 * FS) + 1), kamm = new Float64Array(nOff).fill(Infinity);
+  for (const s of sched) for (let o = 0; o < nOff; o++) kamm[o] = Math.min(kamm[o], tol[s + o]);
+  let off = 0; for (let o = 1; o < nOff; o++) if (kamm[o] > kamm[off]) off = o;
+  const back = Math.max(0, off - Math.floor(0.6 * FS));
+  for (let o = back; o < off; o++) if (kamm[o] >= 0.5 * kamm[off]) {
+    let best = o; for (let q = o; q < Math.min(nOff, o + Math.floor(0.05 * FS)); q++) if (kamm[q] > kamm[best]) best = q;
+    off = best; break;
+  }
+  let p0 = off;
+  for (let o = 0; o < nOff; o++) if (kamm[o] >= kamm[off] * 0.999) { p0 = o; break; }
+  const zeiten = [], suche = Math.floor(0.025 * FS);
+  for (const s of sched) {
+    const c = p0 + s + Math.floor(0.02 * FS), lo = Math.max(1, c - suche), hi = Math.min(N - 1, c + suche);
+    let p = lo; for (let i = lo; i < hi; i++) if (scharf[i] > scharf[p]) p = i;
+    zeiten.push(p + parabel(corr, p));
+  }
+  return { zeiten, corr };
+}
+
+function interpoliert(rec, b) {  // Aufnahme auf die Uhr der Wiedergabe umrechnen (kubisch)
+  const n = Math.round(rec.length / b), out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = i * b, j = Math.floor(x), t = x - j;
+    const y0 = rec[Math.max(0, j - 1)], y1 = rec[j] || 0, y2 = rec[j + 1] || 0, y3 = rec[j + 2] || 0;
+    out[i] = y1 + 0.5 * t * (y2 - y0 + t * (2 * y0 - 5 * y1 + 4 * y2 - y3 + t * (3 * (y1 - y2) + y3 - y0)));
+  }
+  return out;
+}
+
+function laufzeit(ir, zero) {
+  const env = huellkurve(filtfilt(ir, hochpass(400, 4)));
+  const early = Math.max(0, zero - Math.floor(0.02 * FS));
+  let p = early; for (let i = early; i < env.length; i++) if (env[i] > env[p]) p = i;
+  const noise = early > 10 ? median(env.subarray(0, early)) : 0;
+  const schwelle = Math.min(Math.max(0.2 * env[p], 20 * noise), env[p]);
+  const lo = Math.max(early, p - Math.floor(0.03 * FS));
+  let q = lo; while (q < p && env[q] < schwelle) q++;
+  while (q + 1 < env.length && env[q + 1] >= env[q]) q++;
+  return (q + parabel(env, q) - zero) / FS;
+}
+
+function pruefeAufnahme(rec, a, markerPegel) {
+  const erg = { marker_schwankung_db: Math.max(...markerPegel) - Math.min(...markerPegel) };
+  const start = a + FOLGE.lead * FS;
+  const pegel = (t0, t1) => {
+    const i0 = Math.floor(start + t0 * FS), i1 = Math.floor(start + t1 * FS);
+    if (i0 < 0 || i1 > rec.length || i1 <= i0) return null;
+    const m = 2400, seg = rec.slice(Math.max(0, i0 - m), Math.min(rec.length, i1 + m));
+    const f = filtfilt(seg, bandpass(900, 1100, 4)), off = i0 - Math.max(0, i0 - m);
+    let s = 0; for (let i = off; i < off + (i1 - i0); i++) s += f[i] * f[i];
+    return 10 * Math.log10(s / (i1 - i0) + 1e-24);
+  };
+  const stufen = PRUEF_STUFEN_DB.map((_, k) => pegel(k * PRUEF_STUFE_S + 0.15, (k + 1) * PRUEF_STUFE_S - 0.1));
+  const L = PRUEF_STUFEN_DB.length * PRUEF_STUFE_S, ruhe = pegel(L + 0.15, L + 0.6);
+  if (stufen.every((v) => v !== null) && ruhe !== null && stufen[0] > ruhe + 25) {
+    const erwartet = PRUEF_STUFEN_DB.map((lv) => stufen[0] - (PRUEF_STUFEN_DB[0] - lv));
+    const abw = [];
+    for (let k = 1; k < stufen.length; k++) if (erwartet[k] > ruhe + 12) abw.push(stufen[k] - erwartet[k]);
+    erg.treppe_vorhanden = true;
+    erg.treppe_stufen_db = stufen.map((v) => Math.round((v - stufen[0]) * 10) / 10);
+    erg.treppe_fehler_db = abw.length ? Math.max(...abw.map(Math.abs)) : 0;
+    erg.leise_verschluckt = abw.some((x) => x < -6);
+  } else erg.treppe_vorhanden = false;
+  const probleme = [];
+  if (erg.marker_schwankung_db > 1.0) probleme.push(`Gleich laute Zeitmarker schwanken um ${erg.marker_schwankung_db.toFixed(1)} dB: das Handy regelt die Lautstärke automatisch nach.`);
+  if (erg.leise_verschluckt) probleme.push("Leise Prüftöne fehlen: ein Störgeräuschfilter ist aktiv.");
+  else if ((erg.treppe_fehler_db || 0) > 1.5) probleme.push(`Die 10-dB-Stufen des Prüftons weichen bis ${erg.treppe_fehler_db.toFixed(1)} dB ab: die Aufnahme wird komprimiert oder nachgeregelt.`);
+  let mx = 0; for (let i = 0; i < rec.length; i++) mx = Math.max(mx, Math.abs(rec[i]));
+  if (mx > 0.99) probleme.push("Die Aufnahme übersteuert: leiser abspielen.");
+  if (!erg.treppe_vorhanden) probleme.push("Prüfton nicht gefunden: bitte die neue Raum-Check-Datei verwenden.");
+  erg.probleme = probleme;
+  erg.sauber = probleme.length === 0;
+  return erg;
+}
+
+function analysiere(rec0) {
+  const { zeiten, corr } = findeMarker(rec0);
+  const sched = FOLGE.kanaele.map((_, i) => markerZeit(i) * FS);
+  const mx = sched.reduce((s, v) => s + v, 0) / sched.length, my = zeiten.reduce((s, v) => s + v, 0) / zeiten.length;
+  let sxy = 0, sxx = 0; for (let i = 0; i < sched.length; i++) { sxy += (sched[i] - mx) * (zeiten[i] - my); sxx += (sched[i] - mx) ** 2; }
+  const b = sched.length > 1 ? sxy / sxx : 1, a0 = my - b * mx;
+  const rec = Math.abs(b - 1) > 1e-7 ? interpoliert(rec0, b) : rec0;
+  const a = a0 / b;
+  const markerPegel = zeiten.map((t) => 20 * Math.log10(corr[Math.round(t)] + 1e-12));
+
+  const sw = logSweep(20, 20000, FOLGE.sweepS).map((v) => v * FOLGE.sweepLevel);
+  const pre = Math.floor(0.05 * FS), n = Math.floor((FOLGE.sweepS + FOLGE.tail - 0.15) * FS), nfft = naechste2(n + pre);
+  const X = spektrum(sw, nfft);
+  let maxX = 0; for (let k = 0; k < nfft; k++) maxX = Math.max(maxX, X.re[k] ** 2 + X.im[k] ** 2);
+  const messungen = {};
+  FOLGE.kanaele.forEach((ch, i) => {
+    const start = Math.round(a + sweepZeit(i) * FS) - pre, seg = new Float64Array(nfft);
+    for (let j = 0; j < n + pre; j++) { const q = start + j; if (q >= 0 && q < rec.length) seg[j] = rec[q]; }
+    const S = spektrum(seg, nfft), re = new Float64Array(nfft), im = new Float64Array(nfft);
+    for (let k = 0; k < nfft; k++) {
+      const f = Math.min(k, nfft - k) * FS / nfft;
+      let w = Math.min(1, Math.max(0, (Math.log2(Math.max(f, 1e-3)) - Math.log2(14)) / Math.log2(20 / 14)));
+      w *= Math.min(1, Math.max(0, (Math.log2(21500) - Math.log2(Math.max(f, 1e-3))) / Math.log2(21500 / 19000)));
+      const d = X.re[k] ** 2 + X.im[k] ** 2 + 1e-6 * maxX;
+      const ir = (X.re[k] * w) / d, ii = (-X.im[k] * w) / d;
+      re[k] = S.re[k] * ir - S.im[k] * ii; im[k] = S.re[k] * ii + S.im[k] * ir;
+    }
+    fft(re, im, true);
+    const ir = re.slice(0, pre + Math.floor(0.6 * FS));
+    messungen[ch] = { ir, zero: pre, delay: laufzeit(ir, pre) };
+  });
+  return { messungen, drift_ppm: (b - 1) * 1e6, pruefung: pruefeAufnahme(rec, a, markerPegel) };
+}
+
+// --- Frequenzgänge -----------------------------------------------------------------------
+const NF = 1200, F = new Float64Array(NF);
+for (let i = 0; i < NF; i++) F[i] = Math.pow(10, Math.log10(15) + (Math.log10(20000) - Math.log10(15)) * i / (NF - 1));
+function antwort(m) {  // komplex auf F, Zeitbasis wie Python
+  const start = Math.max(0, m.zero - Math.floor(0.002 * FS)), n = Math.floor(0.5 * FS);
+  const seg = m.ir.slice(start, start + n), taper = Math.floor(0.1 * FS);
+  for (let i = 0; i < taper; i++) seg[seg.length - taper + i] *= 0.5 - 0.5 * Math.cos(2 * Math.PI * (taper + i) / (2 * taper - 1));
+  const nfft = naechste2(seg.length * 4), s = spektrum(seg, nfft), re = new Float64Array(NF), im = new Float64Array(NF);
+  for (let i = 0; i < NF; i++) {
+    const x = F[i] * nfft / FS, k = Math.floor(x), t = x - k;
+    const r = s.re[k] + t * (s.re[k + 1] - s.re[k]), q = s.im[k] + t * (s.im[k + 1] - s.im[k]);
+    const ph = -2 * Math.PI * F[i] * (start - m.zero) / FS, c = Math.cos(ph), sn = Math.sin(ph);
+    re[i] = r * c - q * sn; im[i] = r * sn + q * c;
+  }
+  return { re, im };
+}
+const leistung = (h) => h.re.map((r, i) => r * r + h.im[i] * h.im[i]);
+function glaetten(p, frac) {
+  const proOkt = NF / Math.log2(F[NF - 1] / F[0]), h = Math.max(1, Math.round(proOkt / frac / 2)), out = new Float64Array(NF);
+  for (let i = 0; i < NF; i++) { let s = 0; for (let j = -h; j <= h; j++) s += p[Math.min(NF - 1, Math.max(0, i + j))]; out[i] = s / (2 * h + 1); }
+  return out;
+}
+const dbArr = (p) => p.map((v) => db10(v));
+function bandDb(dbs, lo, hi) { let s = 0, c = 0; for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] <= hi) { s += Math.pow(10, dbs[i] / 10); c++; } return db10(s / c); }
+function untereGrenze(p, midDb) {
+  const sm = dbArr(glaetten(p, 1));
+  for (let i = NF - 1; i >= 0; i--) {
+    if (F[i] < 20 || F[i] > 300) continue;
+    let alle = true;
+    for (let j = 0; j < NF; j++) if (F[j] >= Math.max(15, F[i] / 2) && F[j] <= F[i] && !(sm[j] < midDb - 6)) { alle = false; break; }
+    if (alle) return F[i];
+  }
+  return 20;
+}
+
+// --- Biquads (Audio-EQ-Cookbook, wie CamillaDSP) ------------------------------------------
+function biquad(art, f0, q, gain) {
+  const w = 2 * Math.PI * f0 / FS, sn = Math.sin(w), cs = Math.cos(w), al = sn / (2 * q), A = Math.pow(10, gain / 40);
+  let b, a;
+  if (art === "Peaking") { b = [1 + al * A, -2 * cs, 1 - al * A]; a = [1 + al / A, -2 * cs, 1 - al / A]; }
+  else { const be = sn * Math.sqrt(A) / q;  // Lowshelf
+    b = [A * ((A + 1) - (A - 1) * cs + be), 2 * A * ((A - 1) - (A + 1) * cs), A * ((A + 1) - (A - 1) * cs - be)];
+    a = [(A + 1) + (A - 1) * cs + be, -2 * ((A - 1) + (A + 1) * cs), (A + 1) + (A - 1) * cs - be]; }
+  return { b: b.map((v) => v / a[0]), a: [1, a[1] / a[0], a[2] / a[0]] };
+}
+function biquadDb(bq) {
+  const out = new Float64Array(NF);
+  for (let i = 0; i < NF; i++) {
+    const w = 2 * Math.PI * F[i] / FS, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+    const nr = bq.b[0] + bq.b[1] * c1 + bq.b[2] * c2, ni = -bq.b[1] * s1 - bq.b[2] * s2;
+    const dr = 1 + bq.a[1] * c1 + bq.a[2] * c2, di = -bq.a[1] * s1 - bq.a[2] * s2;
+    out[i] = 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di));
+  }
+  return out;
+}
+const peqDb = (p) => biquadDb(biquad("Peaking", p.freq, p.q, p.gain));
+function biquadFilter(x, bq) {
+  const y = new Float64Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  for (let i = 0; i < x.length; i++) {
+    const v = bq.b[0] * x[i] + bq.b[1] * x1 + bq.b[2] * x2 - bq.a[1] * y1 - bq.a[2] * y2;
+    x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v;
+  }
+  return y;
+}
+
+// --- Leitplanken (klangbox/guardrails.py) -----------------------------------------------
+function sicherPeq(p) {
+  if (!(p.freq >= 15 && p.freq <= 20000)) return null;
+  let q = Math.min(10, Math.max(0.3, p.q)), g = Math.min(3, Math.max(-15, p.gain));
+  if (g > 0 && p.freq < 35) g = 0;
+  if (p.freq > 350) { g = Math.min(2, Math.max(-2, g)); q = Math.min(q, 1); }
+  if (Math.abs(g) < 0.05) return null;
+  return { freq: p.freq, gain: Math.round(g * 100) / 100, q: Math.round(q * 1000) / 1000 };
+}
+const rms = (arr) => arr.length ? Math.sqrt(arr.reduce((s, v) => s + v * v, 0) / arr.length) : 0;
+function summeDb(filter) { const c = new Float64Array(NF); for (const p of filter) { const d = peqDb(p); for (let i = 0; i < NF; i++) c[i] += d[i]; } return c; }
+
+function fitEq(r, ziel, lo, hi, posDev) {
+  const sel = Array.from(F, (f) => f >= lo && f <= hi);
+  if (!sel.some(Boolean)) return [];
+  const filter = [], korr = new Float64Array(NF);
+  for (let it = 0; it < 8; it++) {
+    const e = Array.from(F, (_, i) => sel[i] ? r[i] + korr[i] - ziel[i] : 0);
+    let i = 0; for (let j = 1; j < NF; j++) if (e[j] > e[i]) i = j;
+    let gain;
+    if (e[i] > 1.5) gain = -e[i];
+    else {
+      i = 0; for (let j = 1; j < NF; j++) if (e[j] < e[i]) i = j;
+      const konsistent = posDev.every((d) => d[i] + korr[i] < -2);
+      if (e[i] < -3 && konsistent) gain = -e[i] * 0.7; else break;
+    }
+    const halb = e[i] / 2, sg = Math.sign(e[i]);
+    let a = i; while (a > 0 && sel[a - 1] && Math.sign(e[a - 1]) === sg && Math.abs(e[a - 1]) > Math.abs(halb)) a--;
+    let b = i; while (b < NF - 1 && sel[b + 1] && Math.sign(e[b + 1]) === sg && Math.abs(e[b + 1]) > Math.abs(halb)) b++;
+    const breite = Math.max(F[b] - F[a], F[i] * 0.05);
+    let q = Math.min(10, Math.max(0.5, F[i] / breite));
+    if (gain > 0) q = Math.min(q, 3);
+    const p = sicherPeq({ freq: F[i], gain, q });
+    if (!p) break;
+    filter.push(p);
+    const d = peqDb(p); for (let j = 0; j < NF; j++) korr[j] += d[j];
+  }
+  return filter;
+}
+
+function pruefen(filter, posDb, ziel, sel, notizen, ch) {
+  const werte = (fl) => {
+    const c = summeDb(fl);
+    return posDb.map((r) => {
+      const v = [], n = [];
+      for (let i = 0; i < NF; i++) if (sel[i]) { v.push(r[i] - ziel[i]); n.push(r[i] + c[i] - ziel[i]); }
+      return [rms(v), rms(n)];
+    });
+  };
+  const lochVertieft = (fl) => { const c = summeDb(fl); let w = 0;
+    for (const r of posDb) for (let i = 0; i < NF; i++) if (sel[i] && r[i] - ziel[i] < -6) w = Math.max(w, -c[i]); return w; };
+  const schaden = (fl) => Math.max(Math.max(...werte(fl).map(([v, n]) => n - v)), lochVertieft(fl) - 2);
+  let fl = filter.slice();
+  while (fl.length) {
+    const sc = werte(fl), schlimm = Math.max(...sc.map(([v, n]) => n - v));
+    const gewinn = sc.reduce((s, [v, n]) => s + v - n, 0) / sc.length;
+    if (schlimm <= 0.5 && gewinn >= 0.3 && lochVertieft(fl) <= 2) break;
+    let best = 0, bestW = Infinity;
+    for (let j = 0; j < fl.length; j++) { const w = schaden(fl.slice(0, j).concat(fl.slice(j + 1))); if (w < bestW) { bestW = w; best = j; } }
+    notizen.push(`${ch}: Filter ${Math.round(fl[best].freq)} Hz verworfen (hätte an einem Platz verschlechtert oder ein Loch vertieft)`);
+    fl.splice(best, 1);
+  }
+  return fl;
+}
+
+// --- Einmessen (2.0, Sub an den Fronts) -------------------------------------------------
+function einmessen(punkte, hausDb) {
+  const kan = ["FL", "FR"], H = {}, pAvg = {}, mid = {}, grenze = {};
+  for (const ch of kan) {
+    H[ch] = punkte.map((p) => ({ h: antwort(p.messungen[ch]), w: 2 }));
+    const p = new Float64Array(NF); let ws = 0;
+    for (const { h, w } of H[ch]) { const l = leistung(h); for (let i = 0; i < NF; i++) p[i] += w * l[i]; ws += w; }
+    pAvg[ch] = p.map((v) => v / ws);
+    mid[ch] = bandDb(dbArr(glaetten(pAvg[ch], 3)), 500, 2000);
+    grenze[ch] = untereGrenze(pAvg[ch], mid[ch]);
+  }
+  let gains = { FL: mid.FL - mid.FL, FR: mid.FL - mid.FR };
+  const top = Math.max(gains.FL, gains.FR); gains = { FL: gains.FL - top, FR: gains.FR - top };
+  const rel = {}; for (const ch of kan) rel[ch] = punkte.reduce((s, p) => s + p.messungen[ch].delay, 0) / punkte.length;
+  const far = Math.max(rel.FL, rel.FR), delays = { FL: (far - rel.FL) * 1000, FR: (far - rel.FR) * 1000 };
+  const shelf = biquadDb(biquad("Lowshelf", 100, 0.7, hausDb)), ziel = shelf.map((v) => mid.FL - top + v);
+  const cals = {}, notizen = [], vor = [], nach = [];
+  for (const ch of kan) {
+    const g = gains[ch], lo = Math.max(grenze[ch] * 1.1, 20), hi = 350;
+    const rAvg = dbArr(glaetten(pAvg[ch], 12)).map((v) => v + g);
+    const posDb = H[ch].map(({ h }) => dbArr(glaetten(leistung(h), 12)).map((v) => v + g));
+    const posDev = posDb.map((r) => r.map((v, i) => v - ziel[i]));
+    const sel = Array.from(F, (f) => f >= lo && f <= hi);
+    let fl = fitEq(rAvg, ziel, lo, hi, posDev);
+    fl = pruefen(fl, posDb, ziel, sel, notizen, ch);
+    cals[ch] = { gain_db: Math.round(g * 100) / 100, eq: fl, delay_ms: 0 };
+    const c = summeDb(fl);
+    vor.push(posDb.reduce((s, r) => { const v = []; for (let i = 0; i < NF; i++) if (sel[i]) v.push(r[i] - ziel[i]); return s + rms(v); }, 0) / posDb.length);
+    nach.push(posDb.reduce((s, r) => { const v = []; for (let i = 0; i < NF; i++) if (sel[i]) v.push(r[i] + c[i] - ziel[i]); return s + rms(v); }, 0) / posDb.length);
+  }
+  const lo = Math.min(delays.FL, delays.FR);
+  for (const ch of kan) cals[ch].delay_ms = Math.round((delays[ch] - lo) * 1000) / 1000;
+  const zeilen = [`Bass-Abweichung vom Ziel (Mittel der gewählten Messpunkte): ${(vor.reduce((a, b) => a + b) / vor.length).toFixed(1)} dB -> ${(nach.reduce((a, b) => a + b) / nach.length).toFixed(1)} dB`];
+  const tipps = [];
+  // Bühne
+  const corrDb = (ch) => { const c = summeDb(cals[ch].eq); return dbArr(glaetten(leistung(H[ch][0].h), 3)).map((v, i) => v + cals[ch].gain_db + c[i]); };
+  const dl = corrDb("FL"), dr = corrDb("FR"), diff = [], diffMid = [];
+  for (let i = 0; i < NF; i++) { if (F[i] >= 200 && F[i] <= 5000) diff.push(dl[i] - dr[i]); if (F[i] >= 500 && F[i] <= 2000) diffMid.push(dl[i] - dr[i]); }
+  const mDiff = diff.reduce((a, b) => a + b, 0) / diff.length, sym = rms(diff.map((v) => v - mDiff));
+  const pegel = diffMid.reduce((a, b) => a + b, 0) / diffMid.length, abstand = Math.abs(punkte[0].messungen.FL.delay - punkte[0].messungen.FR.delay) * 343 * 100;
+  zeilen.push(`Bühne: links/rechts Pegel ${pegel >= 0 ? "+" : ""}${pegel.toFixed(1)} dB, Klangunterschied ${sym.toFixed(1)} dB, Abstandsunterschied ${abstand.toFixed(0)} cm (ausgeglichen)`);
+  if (sym > 1.5) tipps.push("Linke und rechte Box klingen im Raum unterschiedlich (z. B. eine näher an der Wand). Für eine stabile Mitte: beide gleich weit von Seiten- und Rückwand stellen.");
+  if (abstand > 30) tipps.push(`Du sitzt ${abstand.toFixed(0)} cm näher an einer Box. Die Box gleicht die Laufzeit aus, für die beste Bühne lohnt sich trotzdem ein mittiger Platz.`);
+  // Bass-Löcher (nur echte)
+  for (const ch of kan) {
+    const c = summeDb(cals[ch].eq);
+    const haupt = dbArr(glaetten(leistung(H[ch][0].h), 6)).map((v, i) => v + gains[ch] + c[i] - ziel[i]);
+    const nb = (i, fak) => { let j = 0, d = Infinity; for (let k = 0; k < NF; k++) { const x = Math.abs(F[k] - F[i] * fak); if (x < d) { d = x; j = k; } } return haupt[j]; };
+    let best = -1;
+    for (let i = 0; i < NF; i++) if (F[i] >= 30 && F[i] <= 200 && haupt[i] < -8 && nb(i, 1 / 1.41) > haupt[i] + 6 && nb(i, 1.41) > haupt[i] + 6 && (best < 0 || haupt[i] < haupt[best])) best = i;
+    if (best >= 0) {
+      const devs = H[ch].slice(1).map(({ h }) => dbArr(glaetten(leistung(h), 6))[best] + gains[ch] + c[best] - ziel[best]);
+      const nurHier = devs.length && median(devs) > -4;
+      tipps.push(`Bass-Loch bei ${Math.round(F[best])} Hz (${nurHier ? "nur genau am Hauptplatz" : "rund um den Hauptplatz"}). Das kann kein EQ füllen. Probier, das Sofa 20 bis 40 cm nach vorne oder hinten zu rücken, und miss neu.`);
+      break;
+    }
+  }
+  return { cals, zeilen: zeilen.concat(notizen.map((n) => "Hinweis: " + n)), tipps };
+}
+
+// --- Score (klangbox/bewertung.py) -------------------------------------------------------
+const KRITERIEN = {
+  bass_glaette_db: ["Bass gleichmäßig", 8.0, 2.5], platz_abweichung_db: ["Alle Plätze ähnlich", 6.0, 1.5],
+  mitte_pegel_db: ["Mitte (Pegel links/rechts)", 3.0, 0.25], mitte_zeit_ms: ["Mitte (Zeit links/rechts)", 2.0, 0.1], tiefgang_hz: ["Tiefgang", 80.0, 25.0],
+};
+const GEWICHTE = {
+  kino: { bass_glaette_db: 0.30, platz_abweichung_db: 0.20, mitte_pegel_db: 0.15, mitte_zeit_ms: 0.15, tiefgang_hz: 0.20 },
+  stereo: { bass_glaette_db: 0.30, platz_abweichung_db: 0.10, mitte_pegel_db: 0.20, mitte_zeit_ms: 0.20, tiefgang_hz: 0.20 },
+};
+function mitte(m) {  // Phantom-Mitte: beide Boxen zusammen
+  const n = Math.min(m.FL.ir.length, m.FR.ir.length), ir = new Float64Array(n);
+  for (let i = 0; i < n; i++) ir[i] = m.FL.ir[i] + m.FR.ir[i];
+  return { ir, zero: m.FL.zero, delay: 0 };
+}
+function score(plaetze, modus) {
+  const C = plaetze.map((m) => leistung(antwort(m.C)));
+  const std = (a) => { const mu = a.reduce((s, v) => s + v, 0) / a.length; return Math.sqrt(a.reduce((s, v) => s + (v - mu) ** 2, 0) / a.length); };
+  const glaette = C.map((p) => { const d = dbArr(glaetten(p, 12)); return std(d.filter((_, i) => F[i] >= 25 && F[i] <= 250)); }).reduce((a, b) => a + b) / C.length;
+  let platz = 0;
+  if (C.length > 1) {
+    const kurven = C.map((p) => { const d = dbArr(glaetten(p, 6)); const m = d.filter((_, i) => F[i] >= 500 && F[i] <= 2000); const mu = m.reduce((a, b) => a + b) / m.length; return d.map((v) => v - mu); });
+    const v = []; for (let i = 0; i < NF; i++) if (F[i] >= 30 && F[i] <= 200) v.push(std(kurven.map((k) => k[i])));
+    platz = v.reduce((a, b) => a + b) / v.length;
+  }
+  const h = plaetze[0], bm = (m) => { const d = dbArr(glaetten(leistung(antwort(m)), 3)); const s = d.filter((_, i) => F[i] >= 500 && F[i] <= 2000); return s.reduce((a, b) => a + b) / s.length; };
+  const pegel = Math.abs(bm(h.FL) - bm(h.FR)), zeit = Math.abs(h.FR.delay - h.FL.delay) * 1000;
+  const pc = C[0], midC = bandDb(dbArr(glaetten(pc, 3)), 500, 2000);
+  const dC = dbArr(glaetten(pc, 3)), mC = dC.filter((_, i) => F[i] >= 500 && F[i] <= 2000), midMean = mC.reduce((a, b) => a + b) / mC.length;
+  const tief = untereGrenze(pc, midMean);
+  const werte = { bass_glaette_db: glaette, platz_abweichung_db: platz, mitte_pegel_db: pegel, mitte_zeit_ms: zeit, tiefgang_hz: tief };
+  const teile = {}; let gesamt = 0;
+  for (const [k, [, schlecht, ref]] of Object.entries(KRITERIEN)) {
+    teile[k] = Math.min(100, Math.max(0, (schlecht - werte[k]) / (schlecht - ref) * 100));
+    gesamt += teile[k] * GEWICHTE[modus][k];
+  }
+  return { gesamt: Math.round(gesamt), teile: Object.fromEntries(Object.entries(teile).map(([k, v]) => [k, Math.round(v)])),
+           werte: Object.fromEntries(Object.entries(werte).map(([k, v]) => [k, Math.round(v * 100) / 100])), _midC: midC };
+}
+
+function korrigiert(m, cal) {
+  let ir = m.ir;
+  for (const p of cal.eq) ir = biquadFilter(ir, biquad("Peaking", p.freq, p.q, p.gain));
+  const g = Math.pow(10, cal.gain_db / 20), n = Math.round(cal.delay_ms * FS / 1000), out = new Float64Array(ir.length);
+  for (let i = n; i < ir.length; i++) out[i] = ir[i - n] * g;
+  return { ir: out, zero: m.zero, delay: m.delay + cal.delay_ms / 1000 };
+}
+function kurve(C) {
+  const d = dbArr(glaetten(leistung(antwort(C)), 6)), m = d.filter((_, i) => F[i] >= 500 && F[i] <= 2000), mu = m.reduce((a, b) => a + b) / m.length;
+  const f = [], v = []; for (let i = 0; i < NF; i++) if (F[i] >= 20 && F[i] <= 400) { f.push(Math.round(F[i] * 10) / 10); v.push(Math.round((d[i] - mu) * 100) / 100); }
+  return { f, v };
+}
+
+// --- Raum-Check: Aufnahmen rein, Ergebnis raus ------------------------------------------
+const HAUSKURVE = { kino: 4.0, stereo: 2.0 };
+function raumcheck(aufnahmen, modus = "kino") {
+  const erg = { aufnahmen: [], fehler: null, modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
+  const punkte = [];
+  for (const { name, daten } of aufnahmen) {
+    let a;
+    try { a = analysiere(daten); }
+    catch (e) { erg.aufnahmen.push({ platz: name, sauber: false, probleme: [`Messsignal nicht gefunden (${e.message}). Lief es während der Aufnahme?`] }); continue; }
+    erg.aufnahmen.push({ platz: name, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme, drift_ppm: Math.round(a.drift_ppm * 10) / 10, pruefton: a.pruefung.treppe_stufen_db });
+    if (a.pruefung.sauber) punkte.push({ name, messungen: a.messungen });
+  }
+  if (!punkte.length) { erg.fehler = "Keine saubere Aufnahme dabei. Bitte ohne Filter aufnehmen (Sprachmemos „Verlustfrei“) und wiederholen."; return erg; }
+  const ein = einmessen(punkte, HAUSKURVE[modus]);
+  const vorher = punkte.map((p) => ({ FL: p.messungen.FL, FR: p.messungen.FR, C: mitte(p.messungen) }));
+  const nachher = punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, ein.cals.FL), FR: korrigiert(p.messungen.FR, ein.cals.FR) }; m.C = mitte(m); return m; });
+  const sh = score(vorher, modus), sn = score(nachher, modus);
+  delete sh._midC; delete sn._midC;
+  const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C);
+  Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, bericht: ein.zeilen, tipps: ein.tipps,
+                       kurve: { f: kh.f, heute: kh.v, prognose: kn.v }, einstellungen: ein.cals });
+  return erg;
+}
+
+if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS };
+</script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let modus = "kino";
+let dateien = [];      // {name, daten: Float32Array}
+let runden = [];       // gespeicherte Ergebnisse
+try { runden = JSON.parse(localStorage.getItem("raumcheck-runden") || "[]"); } catch (e) { runden = []; }
+try { modus = localStorage.getItem("raumcheck-modus") || "kino"; } catch (e) {}
+
+function setzeModus(m) {
+  modus = m;
+  $("m-kino").setAttribute("aria-pressed", m === "kino");
+  $("m-stereo").setAttribute("aria-pressed", m === "stereo");
+  try { localStorage.setItem("raumcheck-modus", m); } catch (e) {}
+}
+$("m-kino").addEventListener("click", () => setzeModus("kino"));
+$("m-stereo").addEventListener("click", () => setzeModus("stereo"));
+setzeModus(modus);
+
+function zeigeDateien() {
+  $("dateien").innerHTML = dateien.map((d, i) => `<li><span>${i === 0 ? "<b>Hauptplatz</b> · " : ""}${esc(d.name)} (${(d.daten.length / 48000).toFixed(0)} s)</span>
+    <span style="display:flex; gap:6px; flex: none;">${i > 0 ? `<button class="klein zweit" type="button" data-haupt="${i}">Hauptplatz</button>` : ""}
+    <button class="klein zweit" type="button" data-weg="${i}" aria-label="${esc(d.name)} entfernen">✕</button></span></li>`).join("");
+  $("auswerten").disabled = !dateien.length;
+}
+$("dateien").addEventListener("click", (ev) => {
+  const h = ev.target.closest("[data-haupt]"), w = ev.target.closest("[data-weg]");
+  if (h) { const i = +h.dataset.haupt; dateien.unshift(dateien.splice(i, 1)[0]); zeigeDateien(); }
+  if (w) { dateien.splice(+w.dataset.weg, 1); zeigeDateien(); }
+});
+
+$("datei").addEventListener("change", async (ev) => {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ac = new AC({ sampleRate: 48000 });
+  for (const f of ev.target.files) {
+    try {
+      const buf = await ac.decodeAudioData(await f.arrayBuffer());
+      if (buf.sampleRate !== 48000) throw new Error("Abtastrate");
+      dateien.push({ name: f.name.replace(/\.[^.]+$/, ""), daten: new Float32Array(buf.getChannelData(0)) });
+    } catch (e) {
+      $("status").innerHTML = `<span class="warn">${esc(f.name)} ließ sich nicht lesen.</span>`;
+    }
+  }
+  if (ac.close) ac.close();
+  ev.target.value = "";
+  zeigeDateien();
+});
+
+// Direkt aufnehmen (nur wo der Browser das Mikrofon erlaubt, z. B. Safari auf der Mess-Webseite)
+let rec = null;
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext) $("rekorder").hidden = false;
+$("rec-start").addEventListener("click", async () => {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+  } catch (e) {
+    $("rekorder").hidden = true;
+    $("status").innerHTML = `<span class="warn">Aufnehmen geht hier nicht. Bitte mit Sprachmemos aufnehmen und die Dateien auswählen.</span>`;
+    return;
+  }
+  const s = stream.getAudioTracks()[0].getSettings();
+  const z = (n, v) => `${n}: <b class="${v === false ? "ok" : v === true ? "warn" : ""}">${v === false ? "aus" : v === true ? "AN" : "unbekannt"}</b>`;
+  $("filter").innerHTML = [z("Echo-Unterdrückung", s.echoCancellation), z("Störfilter", s.noiseSuppression), z("Lautstärke-Automatik", s.autoGainControl)].join(" · ");
+  const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC({ sampleRate: 48000 });
+  const quelle = ctx.createMediaStreamSource(stream), knoten = ctx.createScriptProcessor(4096, 1, 1), stumm = ctx.createGain();
+  stumm.gain.value = 0;
+  rec = { ctx, stream, quelle, knoten, puffer: [] };
+  knoten.onaudioprocess = (ev) => {
+    const d = ev.inputBuffer.getChannelData(0); rec.puffer.push(new Float32Array(d));
+    let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i]));
+    $("pegel").style.width = Math.min(100, m * 100) + "%";
+  };
+  quelle.connect(knoten); knoten.connect(stumm); stumm.connect(ctx.destination);
+  $("rec-start").disabled = true; $("rec-stop").disabled = false;
+  $("status").textContent = "Nimmt auf. Jetzt das Messsignal über die Anlage abspielen, danach „Beenden“.";
+});
+$("rec-stop").addEventListener("click", () => {
+  if (!rec) return;
+  rec.knoten.disconnect(); rec.quelle.disconnect(); rec.stream.getTracks().forEach((t) => t.stop());
+  const n = rec.puffer.reduce((s, b) => s + b.length, 0), daten = new Float32Array(n); let o = 0;
+  for (const b of rec.puffer) { daten.set(b, o); o += b.length; }
+  const rate = rec.ctx.sampleRate; rec.ctx.close(); rec = null;
+  $("rec-start").disabled = false; $("rec-stop").disabled = true; $("pegel").style.width = "0%";
+  if (rate !== 48000) { $("status").innerHTML = `<span class="warn">Abtastrate ${rate} Hz statt 48000 Hz, bitte Sprachmemos verwenden.</span>`; return; }
+  dateien.push({ name: $("platz").value, daten });
+  $("platz").selectedIndex = Math.min($("platz").options.length - 1, $("platz").selectedIndex + 1);
+  $("status").innerHTML = `<span class="ok">Gespeichert. Nächster Platz oder „Auswerten“.</span>`;
+  zeigeDateien();
+});
+
+// Rechnen im Hintergrund (Web Worker), damit die Seite flüssig bleibt
+const workerCode = $("analyse-src").textContent + `
+self.onmessage = (ev) => {
+  try {
+    const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
+    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus) });
+  } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
+};`;
+const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
+
+$("auswerten").addEventListener("click", () => {
+  $("auswerten").disabled = true;
+  $("status").innerHTML = `<span class="laeuft">Rechnet, etwa 10 Sekunden…</span>`;
+  const w = new Worker(workerUrl);
+  w.onmessage = (ev) => {
+    w.terminate();
+    $("auswerten").disabled = false;
+    if (!ev.data.ok) { $("status").innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(ev.data.fehler)}</span>`; return; }
+    const runde = { anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: ev.data.ergebnis };
+    runden.unshift(runde);
+    try { localStorage.setItem("raumcheck-runden", JSON.stringify(runden.slice(0, 12))); } catch (e) {}
+    dateien = []; zeigeDateien();
+    $("status").innerHTML = `<span class="ok">Fertig. Ergebnis unten. Für den Vergleich die nächste Anlage messen.</span>`;
+    zeigeAlles();
+  };
+  w.onerror = (e) => { w.terminate(); $("auswerten").disabled = false; $("status").innerHTML = `<span class="warn">Auswertung fehlgeschlagen.</span>`; };
+  w.postMessage({ dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), modus });
+});
+
+const KRIT = {
+  bass_glaette_db: ["Bass gleichmäßig", "dB"], platz_abweichung_db: ["Alle Plätze ähnlich", "dB"],
+  mitte_pegel_db: ["Mitte (Pegel links/rechts)", "dB"], mitte_zeit_ms: ["Mitte (Zeit links/rechts)", "ms"], tiefgang_hz: ["Tiefgang", "Hz"],
+};
+const zahl = (v, e) => v.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " " + e;
+
+function kurveSvg(k) {
+  const W = 320, H = 160, L = 30, R = 8, T = 8, B = 22, lo = Math.log(20), hi = Math.log(400);
+  const x = (f) => L + (Math.log(f) - lo) / (hi - lo) * (W - L - R);
+  const y = (d) => T + (15 - Math.max(-25, Math.min(15, d))) / 40 * (H - T - B);
+  let s = "";
+  for (const d of [10, 0, -10, -20]) s += `<line x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}" stroke="#2a3038"/><text x="${L - 4}" y="${y(d) + 3}" text-anchor="end">${d}</text>`;
+  for (const f of [20, 50, 100, 200, 400]) s += `<text x="${x(f)}" y="${H - 6}" text-anchor="middle">${f} Hz</text>`;
+  const pfad = (v) => v.map((d, i) => `${i ? "L" : "M"}${x(k.f[i]).toFixed(1)},${y(d).toFixed(1)}`).join("");
+  s += `<path d="${pfad(k.heute)}" fill="none" stroke="#eb6834" stroke-width="2"/><path d="${pfad(k.prognose)}" fill="none" stroke="#7fb0ff" stroke-width="2"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Bassverlauf am Hauptplatz, heute und mit Klang-Box">${s}</svg>`;
+}
+
+function karte(r, i) {
+  const e = r.e;
+  const pruef = `<ul class="klein" style="margin:0; padding-left:18px">${e.aufnahmen.map((a) =>
+    `<li><b class="${a.sauber ? "ok" : "warn"}">${a.sauber ? "sauber" : "nicht verwendet"}</b> · ${esc(a.platz)}${a.probleme.length ? "<br>" + a.probleme.map(esc).join("<br>") : ""}</li>`).join("")}</ul>`;
+  const kopf = `<div class="zeile" style="display:flex; justify-content:space-between; gap:10px; align-items:baseline;">
+      <h2>${esc(r.anlage)}</h2><span class="klein">${r.modus === "kino" ? "Kino" : "Stereo"} · ${esc(r.zeit)}</span></div>`;
+  if (e.fehler) return `<section class="card">${kopf}<p class="warn">${esc(e.fehler)}</p>${pruef}
+      <button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button></section>`;
+  const krit = Object.entries(KRIT).map(([k, [name, ein]]) => `<div class="krit"><div class="kopf"><span>${name}</span>
+      <span>${zahl(e.score_heute.werte[k], ein)} → ${zahl(e.score_prognose.werte[k], ein)}</span></div>
+      <div class="doppel"><div class="h" style="width:${e.score_heute.teile[k]}%"></div><div class="p" style="width:${e.score_prognose.teile[k]}%"></div></div></div>`).join("");
+  const tipps = e.tipps.length ? `<div><span class="klein">Tipps (freiwillig)</span><ul class="klein" style="margin:4px 0 0; padding-left:18px">${e.tipps.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
+  return `<section class="card">${kopf}
+    <div class="score"><div><div class="zahl" style="color: var(--heute)">${e.score_heute.gesamt}</div><div class="lbl">heute</div></div>
+      <div aria-hidden="true" style="font-size: 26px; color: var(--ink2)">→</div>
+      <div><div class="zahl" style="color: var(--prog)">${e.score_prognose.gesamt}</div><div class="lbl">mit Klang-Box (Prognose)</div></div></div>
+    <p class="klein">${esc(e.score_name)} von 0 bis 100.</p>
+    <div class="legende"><span><i style="background: var(--heute)"></i>heute</span><span><i style="background: var(--prog)"></i>mit Klang-Box</span></div>
+    <div style="display:grid; gap:12px">${krit}</div>
+    <div><span class="klein">Bass am Hauptplatz (dB)</span>${kurveSvg(e.kurve)}</div>
+    <div><span class="klein">Aufnahmen</span>${pruef}</div>${tipps}
+    <button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button></section>`;
+}
+
+function zeigeAlles() {
+  $("ergebnisse").innerHTML = runden.map(karte).join("");
+  const gueltig = runden.filter((r) => !r.e.fehler);
+  $("vergleich-karte").hidden = gueltig.length < 1;
+  $("vergleich").innerHTML = gueltig.map((r) => `<tr><td>${esc(r.anlage)}</td><td>${r.modus === "kino" ? "Kino" : "Stereo"}</td>
+    <td class="n" style="color: var(--heute)">${r.e.score_heute.gesamt}</td><td class="n" style="color: var(--prog)">${r.e.score_prognose.gesamt}</td></tr>`).join("");
+}
+$("ergebnisse").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-loeschen]");
+  if (!b) return;
+  runden.splice(+b.dataset.loeschen, 1);
+  try { localStorage.setItem("raumcheck-runden", JSON.stringify(runden)); } catch (e) {}
+  zeigeAlles();
+});
+zeigeAlles();
+zeigeDateien();
+</script>
+
+</body>
+</html>

@@ -65,6 +65,18 @@ audio { width: 100%; }
 .balken { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
 .balken > div { height: 8px; background: var(--prog); width: 0%; }
 .knoepfe { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kacheln { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kachel { background: var(--panel2); border-radius: 14px; padding: 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.kachel .titel { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-weight: 700; }
+.kachel .pz { font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 800; }
+.kachel .pz small { font-size: 13px; color: var(--ink2); font-weight: 500; }
+.kachel p { font-size: 13px; overflow-wrap: anywhere; }
+.ampel { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; background: var(--line); }
+.ampel.gruen { background: var(--ok); } .ampel.gelb { background: var(--warn); } .ampel.rot { background: var(--heute); }
+.hebel { border: 1px solid var(--prog); border-radius: 14px; padding: 12px; display: grid; gap: 4px; }
+.hebel b { color: var(--prog); }
+details summary { cursor: pointer; color: var(--ink2); font-size: 14px; min-height: 32px; display: flex; align-items: center; }
+.note { font-size: 13px; font-weight: 700; }
 select { min-height: 46px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 12px; }
 </style>
 
@@ -80,6 +92,14 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
       <button type="button" id="m-kino" aria-pressed="true">Kino<small>Filme, alle Plätze, mehr Wucht</small></button>
       <button type="button" id="m-stereo" aria-pressed="false">Stereo<small>Musik, Bühne am Hörplatz</small></button>
     </div>
+    <label class="klein" for="raum">Raumgröße (für den Nachhall-Sollwert)</label>
+    <select id="raum">
+      <option value="">Weiß nicht (typisches Wohnzimmer)</option>
+      <option value="40">Klein, bis 16 m²</option>
+      <option value="70">Mittel, 16 bis 30 m²</option>
+      <option value="110">Groß, 30 bis 45 m²</option>
+      <option value="160">Sehr groß, über 45 m²</option>
+    </select>
   </section>
 
   <section class="card" aria-labelledby="h-so">
@@ -281,12 +301,23 @@ function findeMarker(rec) {
   return { zeiten, corr };
 }
 
-function interpoliert(rec, b) {  // Aufnahme auf die Uhr der Wiedergabe umrechnen (kubisch)
+// Aufnahme auf die Uhr der Wiedergabe umrechnen: gefensterter Sinc (Lanczos, 32 Stützstellen je
+// Seite), fast so genau wie die FFT-Umrechnung in Python. Kubisch wäre in den Höhen zu ungenau.
+const SINC_A = 32, SINC_STUFEN = 512;
+let sincTabelle = null;
+function interpoliert(rec, b) {
+  if (!sincTabelle) {
+    sincTabelle = new Float64Array((SINC_STUFEN + 1) * 2 * SINC_A);
+    const si = (x) => (x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x));
+    for (let s = 0; s <= SINC_STUFEN; s++)
+      for (let k = 0; k < 2 * SINC_A; k++) { const x = k - SINC_A + 1 - s / SINC_STUFEN; sincTabelle[s * 2 * SINC_A + k] = si(x) * si(x / SINC_A); }
+  }
   const n = Math.round(rec.length / b), out = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    const x = i * b, j = Math.floor(x), t = x - j;
-    const y0 = rec[Math.max(0, j - 1)], y1 = rec[j] || 0, y2 = rec[j + 1] || 0, y3 = rec[j + 2] || 0;
-    out[i] = y1 + 0.5 * t * (y2 - y0 + t * (2 * y0 - 5 * y1 + 4 * y2 - y3 + t * (3 * (y1 - y2) + y3 - y0)));
+    const x = i * b, j = Math.floor(x), o = Math.round((x - j) * SINC_STUFEN) * 2 * SINC_A;
+    let acc = 0;
+    for (let k = 0; k < 2 * SINC_A; k++) { const q = j - SINC_A + 1 + k; if (q >= 0 && q < rec.length) acc += rec[q] * sincTabelle[o + k]; }
+    out[i] = acc;
   }
   return out;
 }
@@ -365,8 +396,9 @@ function analysiere(rec0) {
       re[k] = S.re[k] * ir - S.im[k] * ii; im[k] = S.re[k] * ii + S.im[k] * ir;
     }
     fft(re, im, true);
-    const ir = re.slice(0, pre + Math.floor(0.6 * FS));
-    messungen[ch] = { ir, zero: pre, delay: laufzeit(ir, pre) };
+    // 1,2 s Impulsantwort: genug für das Nachklingen im Bass. Laufzeit aus den ersten 0,6 s.
+    const ir = re.slice(0, pre + Math.floor(1.2 * FS));
+    messungen[ch] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
   });
   return { messungen, drift_ppm: (b - 1) * 1e6, pruefung: pruefeAufnahme(rec, a, markerPegel) };
 }
@@ -561,43 +593,278 @@ function einmessen(punkte, hausDb) {
   return { cals, zeilen: zeilen.concat(notizen.map((n) => "Hinweis: " + n)), tipps };
 }
 
-// --- Score (klangbox/bewertung.py) -------------------------------------------------------
-const KRITERIEN = {
-  bass_glaette_db: ["Bass gleichmäßig", 8.0, 2.5], platz_abweichung_db: ["Alle Plätze ähnlich", 6.0, 1.5],
-  mitte_pegel_db: ["Mitte (Pegel links/rechts)", 3.0, 0.25], mitte_zeit_ms: ["Mitte (Zeit links/rechts)", 2.0, 0.1], tiefgang_hz: ["Tiefgang", 80.0, 25.0],
+// --- Score v2 (klangbox/bewertung.py) ----------------------------------------------------
+const KENNZAHLEN = {
+  bass_glaette: ["Bass gleichmäßig", "bass"], nachklingen: ["Bass klingt nicht nach", "bass"],
+  plaetze: ["Alle Plätze ähnlich", "bass"], tiefgang: ["Tiefgang", "bass"], sub: ["Sub und Boxen zusammen", "bass"],
+  pegel: ["Kanäle gleich laut", "buehne"], laufzeit: ["Kanäle gleichzeitig", "buehne"],
+  klang_lr: ["Links und rechts klingen gleich", "buehne"], tonal: ["Klangbalance", "klang"], raum: ["Raum", "raum"],
 };
+const KERN = ["bass_glaette", "nachklingen", "pegel"];
 const GEWICHTE = {
-  kino: { bass_glaette_db: 0.30, platz_abweichung_db: 0.20, mitte_pegel_db: 0.15, mitte_zeit_ms: 0.15, tiefgang_hz: 0.20 },
-  stereo: { bass_glaette_db: 0.30, platz_abweichung_db: 0.10, mitte_pegel_db: 0.20, mitte_zeit_ms: 0.20, tiefgang_hz: 0.20 },
+  kino: { bass_glaette: 20, nachklingen: 15, plaetze: 15, tiefgang: 10, sub: 10, pegel: 10, laufzeit: 5, klang_lr: 0, tonal: 10, raum: 5 },
+  stereo: { bass_glaette: 15, nachklingen: 15, plaetze: 5, tiefgang: 10, sub: 0, pegel: 10, laufzeit: 10, klang_lr: 10, tonal: 15, raum: 10 },
 };
+const KACHELN = { kino: { bass: "Bass", buehne: "Kanäle", klang: "Dialog", raum: "Raum" },
+                  stereo: { bass: "Bass", buehne: "Bühne", klang: "Klang", raum: "Raum" } };
+const KONFIDENZ = { bass_glaette: 0.75, nachklingen: 0.75, plaetze: 1, tiefgang: 0.4, sub: 1, pegel: 1, laufzeit: 1, klang_lr: 1, tonal: 0.75, raum: 1 };  // iPhone
+const F_LO = 40, NEIGUNG = -0.8, RAUM_STANDARD_M3 = 70;
+const HAUSKURVE = { kino: 4.0, stereo: 2.0 };
+const NOTEN = [[90, "Referenz"], [75, "Sehr gut"], [60, "Gut"], [40, "Ordentlich"], [0, "Ausbaufähig"]];
+const HEBEL = {
+  bass_glaette: "Raumanpassung der Klang-Box einschalten: Sie senkt die dröhnenden Bass-Spitzen.",
+  nachklingen: "Sofa 20 bis 40 cm nach vorne oder hinten rücken und neu messen. Ein zweiter Sub hilft am meisten.",
+  plaetze: "Sub an einen anderen Ort stellen (Raumecke oder Mitte der Frontwand) oder einen zweiten Sub dazunehmen.",
+  tiefgang: "Sub-Pegel prüfen oder einen Subwoofer ergänzen.",
+  sub: "Sub-Laufzeit und Polarität einmessen lassen, damit Sub und Boxen sich nicht auslöschen.",
+  pegel: "Pegel der Kanäle angleichen lassen (macht die Einmessung).",
+  laufzeit: "Laufzeiten angleichen lassen oder den Hörplatz mittig zwischen die Boxen legen.",
+  klang_lr: "Boxen symmetrisch aufstellen: gleicher Abstand zur Seitenwand, gleich eingewinkelt.",
+  tonal: "Boxen auf den Hörplatz einwinkeln, frei von Regalkanten aufstellen.",
+  raum: "Hall dämpfen: Teppich, Vorhänge, Kissen oder ein Bücherregal an der Seitenwand.",
+};
+// Nach der Einmessung hat die Technik ihren Teil getan: dann hilft nur noch die Aufstellung.
+const HEBEL_EINGEMESSEN = {
+  bass_glaette: "Sub oder Sofa umstellen und neu messen: Der Bass-EQ ist schon ausgereizt, ohne zu verschlimmbessern.",
+  pegel: "Kabel und Lautstärke an den Boxen prüfen: Der Unterschied ist größer, als die Einmessung angleichen darf.",
+  laufzeit: "Hörplatz mittiger zwischen die Boxen legen.",
+  sub: "Sub näher an die Frontboxen stellen und neu messen.",
+};
+const RAUM_STUETZ = [[-0.4, 0], [-0.2, 40], [-0.1, 70], [-0.05, 100], [0.05, 100], [0.1, 70], [0.3, 0]];
+const note = (p) => NOTEN.find(([g]) => p >= g)[1];
+const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+const stdAbw = (a, ddof = 0) => { const mu = mean(a); return Math.sqrt(a.reduce((s, v) => s + (v - mu) ** 2, 0) / (a.length - ddof)); };
+const tmSoll = (v) => 0.25 * Math.cbrt(v / 100);
+function punkte(x, schlecht, gut, ref, log) {
+  if (log) [x, schlecht, gut, ref] = [x, schlecht, gut, ref].map((v) => Math.log(Math.max(v, 1e-9)));
+  const p = (x - gut) * (schlecht - gut) >= 0 ? 70 * (schlecht - x) / (schlecht - gut) : 70 + 30 * (gut - x) / (gut - ref);
+  return Math.min(100, Math.max(0, p));
+}
+function stuecke(x, st) {
+  if (x <= st[0][0]) return st[0][1];
+  for (let i = 1; i < st.length; i++) if (x <= st[i][0]) return st[i - 1][1] + (st[i][1] - st[i - 1][1]) * (x - st[i - 1][0]) / (st[i][0] - st[i - 1][0]);
+  return st[st.length - 1][1];
+}
+function steigung(x, y) { const mx = mean(x), my = mean(y); let a = 0, b = 0; for (let i = 0; i < x.length; i++) { a += (x[i] - mx) * (y[i] - my); b += (x[i] - mx) ** 2; } return a / b; }
+
+// Nullphasige Bandfilter (Gauß über log f), mit passender Unterabtastung
+function baender(ir, mitten, frac) {
+  const n = naechste2(2 * ir.length), X = spektrum(ir, n), sigma = (1 / frac) / 2.3548;
+  return mitten.map((fc) => {
+    const d = 1 << Math.max(0, Math.floor(Math.log2(FS / 2 / (3 * fc)))), m = n / d;
+    const re = new Float64Array(m), im = new Float64Array(m);
+    for (let k = 0; k <= m / 2; k++) {
+      const f = k * FS / n, g = Math.exp(-0.5 * (Math.log2(Math.max(f, 1e-3) / fc) / sigma) ** 2);
+      re[k] = X.re[k] * g; im[k] = X.im[k] * g;
+      if (k > 0 && k < m / 2) { re[m - k] = re[k]; im[m - k] = -im[k]; }
+    }
+    fft(re, im, true);
+    return { x: re.slice(0, Math.floor(ir.length / d)), d };
+  });
+}
+function abklingzeit(x, start, fs) {
+  const w = Math.max(1, Math.round(0.005 * fs)), nb = Math.floor((x.length - start) / w);
+  if (nb < 20) return null;
+  const blk = new Float64Array(nb);
+  for (let b = 0; b < nb; b++) { let s = 0; for (let j = 0; j < w; j++) s += x[start + b * w + j] ** 2; blk[b] = s / w; }
+  let p = 0; for (let b = 1; b < Math.floor(nb / 2); b++) if (blk[b] > blk[p]) p = b;
+  const nr = Math.max(3, Math.floor(nb / 10)); let rausch = 0; for (let b = nb - nr; b < nb; b++) rausch += blk[b]; rausch = rausch / nr + 1e-30;
+  const dyn = 10 * Math.log10(blk[p] / rausch);
+  if (dyn < 20) return null;
+  let cut = p + 1; while (cut < nb && blk[cut] > rausch * Math.pow(10, 0.5)) cut++;
+  const L = cut - p, edc = new Float64Array(L);
+  let acc = 0; for (let i = L - 1; i >= 0; i--) { acc += Math.max(blk[p + i] - rausch, 0); edc[i] = acc; }
+  const unten = dyn >= 35 ? -25 : -15, ts = [], ys = [];
+  let minDb = 0;
+  for (let i = 0; i < L; i++) {
+    const v = 10 * Math.log10(Math.max(edc[i] / edc[0], 1e-30)); minDb = Math.min(minDb, v);
+    if (v <= -5 && v >= unten) { ts.push(i * w / fs); ys.push(v); }
+  }
+  if (ts.length < 3 || minDb > -12) return null;
+  const s = steigung(ts, ys);
+  return s < 0 ? -60 / s : null;
+}
+function reflexionDb(m) {
+  const env = huellkurve(filtfilt(m.ir, bandpass(1000, 4000, 2)));
+  const d = m.zero + Math.round(m.delay * FS), ms = FS / 1000;
+  let direkt = 0, refl = 0;
+  for (let i = Math.max(0, d - ms / 2); i <= d + ms / 2; i++) direkt = Math.max(direkt, env[i]);
+  for (let i = d + ms; i < d + 15 * ms; i++) refl = Math.max(refl, env[i]);
+  return 20 * Math.log10(refl / (direkt + 1e-30) + 1e-30);
+}
+
+function rechner(hausDb) {
+  const cache = new Map();
+  const c = (m, key, fn) => { let e = cache.get(m); if (!e) cache.set(m, e = {}); if (!(key in e)) e[key] = fn(); return e[key]; };
+  const zielKurve = (() => { const sh = biquadDb(biquad("Lowshelf", 100, 0.7, hausDb)); return F.map((f, i) => NEIGUNG * Math.log2(f / 1000) + sh[i]); })();
+  const r = {
+    ziel: zielKurve,
+    leistung: (m) => c(m, "p", () => leistung(antwort(m))),
+    nachhall: (m) => c(m, "rt", () => {
+      const mitten = [250, 500, 1000, 2000, 4000], out = {};
+      baender(m.ir, mitten, 1).forEach(({ x, d }, i) => {
+        const t = abklingzeit(x, Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / d), FS / d);
+        if (t !== null) out[mitten[i]] = t;
+      });
+      return out;
+    }),
+    nachklingen: (m) => c(m, "nk", () => {
+      const mitten = [31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250].filter((f) => f >= F_LO * 0.99);
+      const rt = r.nachhall(m), tm = [500, 1000].filter((f) => f in rt).map((f) => rt[f]);
+      const boden = tm.length ? 1.2 * mean(tm) : 0, werte = [];
+      baender(m.ir, mitten, 3).forEach(({ x, d }, i) => {
+        const t = abklingzeit(x, Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / d), FS / d);
+        if (t !== null) { const s = Math.max(31 / mitten[i], boden); werte.push([t / s, mitten[i], t, s]); }
+      });
+      if (werte.length < 2) return null;
+      werte.sort((a, b) => b[0] - a[0]);
+      return [(werte[0][0] + werte[1][0]) / 2, werte[0][1], werte[0][2], werte[0][3]];
+    }),
+    reflexion: (m) => c(m, "refl", () => reflexionDb(m)),
+  };
+  return r;
+}
+const mittelDb = (p, lo, hi) => { let s = 0, n = 0; for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] <= hi) { s += p[i]; n++; } return db10(s / n); };
+function halbOktaven() { const k = [200]; while (k[k.length - 1] * Math.SQRT2 < 4000 * 1.01) k.push(k[k.length - 1] * Math.SQRT2); if (k[k.length - 1] < 4000 * 0.99) k.push(4000); return k.slice(0, -1).map((a, i) => [a, k[i + 1]]); }
+function tonalWerte(rdb) {
+  const nbd = halbOktaven().map(([a, b]) => { const v = []; for (let i = 0; i < NF; i++) if (F[i] >= a && F[i] < b) v.push(rdb[i]); const mu = mean(v); return mean(v.map((x) => Math.abs(x - mu))); });
+  const xs = [], ys = []; for (let i = 0; i < NF; i++) if (F[i] >= 200 && F[i] <= 4000) { xs.push(Math.log2(F[i])); ys.push(rdb[i]); }
+  return [mean(nbd), Math.abs(steigung(xs, ys) - NEIGUNG)];
+}
+const medianWert = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+const f1 = (x) => x.toFixed(1), f2 = (x) => x.toFixed(2);
+
+// plaetze: [{FL, FR, C}], der erste ist der Hauptplatz. C ist hier immer die Phantom-Mitte.
+function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = false) {
+  r = r || rechner(HAUSKURVE[modus]);
+  const kino = modus === "kino", haupt = plaetze[0], hatC = "C" in haupt;
+  const bassCh = kino && hatC ? ["C", "FL", "FR"] : ["FL", "FR"], gew = GEWICHTE[modus];
+  const pmittel = (ch, glatt) => { const p = new Float64Array(NF); for (const m of plaetze) { const l = r.leistung(m[ch]); for (let i = 0; i < NF; i++) p[i] += l[i] / plaetze.length; } return glatt ? glaetten(p, glatt) : p; };
+  const z = {};
+  const setze = (key, wert, p, anzeige, satz, konf) => { z[key] = { key, wert, punkte: p, gewicht: gew[key], konfidenz: p === null ? 0 : (konf ?? KONFIDENZ[key]), anzeige, satz }; };
+  const imBand = (arr, lo, hi) => arr.filter((_, i) => F[i] >= lo && F[i] <= hi);
+
+  // 1 Bass-Glätte
+  const dB = mean(bassCh.map((ch) => {
+    const e = dbArr(pmittel(ch, 6)).map((v, i) => v - r.ziel[i]), m = mean(imBand(e, 500, 2000));
+    const ew = imBand(e.map((v) => v - m).map((v) => v > 0 ? v : 0.5 * v), F_LO, 250);
+    return Math.sqrt(mean(ew.map((v) => v * v)));
+  }));
+  setze("bass_glaette", dB, punkte(dB, 6, 3, 1.5), `${f1(dB)} dB Abweichung`,
+    dB <= 3 ? "Bass gleichmäßig, kein Dröhnen." : `Der Bass ist ungleichmäßig (${f1(dB)} dB von der Zielkurve), einzelne Töne dröhnen.`);
+
+  // 2 Bass-Nachklingen
+  const jeCh = [];
+  for (const ch of bassCh) {
+    const v = plaetze.map((m) => r.nachklingen(m[ch])).filter((x) => x !== null).sort((a, b) => a[0] - b[0]);
+    if (v.length) jeCh.push(v[Math.floor(v.length / 2)]);
+  }
+  if (jeCh.length) {
+    const rho = mean(jeCh.map((v) => v[0])), [, fm, tmd, schw] = jeCh.reduce((a, b) => (b[0] > a[0] ? b : a));
+    setze("nachklingen", rho, punkte(rho, 2.5, 1.0, 0.7, true), `${f2(rho)} × Hörschwelle`,
+      `Der Bass klingt bei ${fm.toFixed(0)} Hz ${f2(tmd)} s nach, hörbar ab ${f2(schw)} s` + (tmd > schw ? " – leichtes Dröhnen." : " – nicht hörbar."));
+  } else setze("nachklingen", null, null, "nicht gemessen", "Zu wenig Störabstand im Bass, bitte lauter messen.");
+
+  // 3 Platz-Gleichheit (Sofa-Anker)
+  if (plaetze.length >= 2) {
+    const sp = mean(bassCh.map((ch) => {
+      const k = plaetze.map((m) => { const d = dbArr(glaetten(r.leistung(m[ch]), 6)), mu = mean(imBand(d, 500, 2000)); return d.map((v) => v - mu); });
+      const v = []; for (let i = 0; i < NF; i++) if (F[i] >= F_LO && F[i] <= 200) v.push(stdAbw(k.map((kk) => kk[i]), 1));
+      return mean(v);
+    }));
+    setze("plaetze", sp, punkte(sp, 6, 3, 1.5), `${f1(sp)} dB Unterschied`,
+      sp <= 3 ? `Auf allen ${plaetze.length} Plätzen ähnlich – Unterschied im Bass ${f1(sp)} dB.` : `Der Bass klingt je nach Platz verschieden (${f1(sp)} dB).`);
+  } else setze("plaetze", null, null, "nur ein Platz", "Für diesen Wert mindestens zwei Plätze messen.");
+
+  // 4 Tiefgang
+  const fg = bassCh.map((ch) => { const p = pmittel(ch, 0), mid = mean(imBand(dbArr(glaetten(p, 3)), 300, 3000)); return untereGrenze(p, mid); });
+  const f6 = Math.exp(mean(fg.map(Math.log))), ank = kino ? [80, 35, 25] : [80, 45, 30];
+  let pt = punkte(f6, ...ank, true);
+  if (f6 < F_LO) { pt = Math.min(pt, 70); setze("tiefgang", f6, pt, `< ${F_LO} Hz`, `Der Bass reicht tiefer als ${F_LO} Hz – genauer misst das Handy nicht.`); }
+  else setze("tiefgang", f6, pt, `${f6.toFixed(0)} Hz`, `Der Bass reicht bis etwa ${f6.toFixed(0)} Hz.` + (f6 <= ank[1] ? "" : " Für Film fehlt Tiefgang."));
+
+  // 5 Sub-Integration: der Sub läuft hier über die Boxen mit
+  setze("sub", null, null, "nicht einzeln gemessen", "Sub läuft über die Boxen mit und wird im Bass mitbewertet.");
+
+  // 6a/6b/7 Bühne am Hauptplatz
+  const pegel = { FL: mittelDb(r.leistung(haupt.FL), 500, 2000), FR: mittelDb(r.leistung(haupt.FR), 500, 2000) };
+  const dl = Math.abs(pegel.FL - pegel.FR), pp = kino ? punkte(dl, 3, 1, 0.5) : punkte(dl, 2, 0.5, 0.2);
+  setze("pegel", dl, pp, `${f1(dl)} dB`, pp >= 70 ? "Alle Kanäle gleich laut." :
+    `Die Stimme rutscht nach ${pegel.FL > pegel.FR ? "links" : "rechts"}: eine Box ist ${f1(dl)} dB lauter.`);
+  const tl = haupt.FL.delay * 1000, tr = haupt.FR.delay * 1000, dt = Math.abs(tl - tr);
+  const pz = kino ? punkte(dt, 1, 0.2, 0.1) : punkte(dt, 1, 0.1, 0.05), frueh = tl < tr ? "links" : "rechts";
+  setze("laufzeit", dt, pz, `${f2(dt)} ms`, pz >= 70 ? "Alle Boxen kommen gleichzeitig an, die Mitte steht." :
+    `Die ${frueh === "links" ? "linke" : "rechte"} Box kommt ${f2(dt)} ms früher an, die Stimme zieht nach ${frueh}.`);
+  const rl = glaetten(r.leistung(haupt.FL), 12), rr = glaetten(r.leistung(haupt.FR), 12);
+  const dLR = stdAbw(halbOktaven().map(([a, b]) => mittelDb(rl, a, b) - mittelDb(rr, a, b)));
+  setze("klang_lr", dLR, punkte(dLR, 3, 1, 0.5), `${f1(dLR)} dB`, dLR <= 1 ? "Links und rechts klingen gleich, die Bühne ist stabil." :
+    `Links und rechts klingen verschieden (${f1(dLR)} dB) – meist eine Wand oder ein Möbel nah an einer Box.`);
+
+  // 8 Tonalität bzw. Dialog
+  const pTon = (ch) => { const [nbd, ds] = tonalWerte(dbArr(pmittel(ch, 12))); return [0.7 * punkte(nbd, 3, 1.5, 0.8) + 0.3 * punkte(ds, 1.5, 0.5, 0.2), nbd]; };
+  if (kino && hatC) {
+    const [pc] = pTon("C"), lr = mean(["FL", "FR"].map((ch) => medianWert(plaetze.map((m) => r.reflexion(m[ch])))));
+    const pd = 0.6 * pc + 0.4 * punkte(lr, -3, -10, -15);
+    setze("tonal", pd, pd, `Reflexion ${lr.toFixed(0)} dB`, pd >= 70 ? "Stimmen klingen klar und natürlich." :
+      (lr > -10 ? "Stimmen klingen etwas hallig: frühe Reflexionen sind laut." : "Stimmen klingen etwas verfärbt."));
+  } else {
+    const w = ["FL", "FR"].map(pTon), ptn = mean(w.map((x) => x[0]));
+    setze("tonal", ptn, ptn, `${f1(mean(w.map((x) => x[1])))} dB Welligkeit`,
+      ptn >= 70 ? "Ausgewogener, natürlicher Klang." : "Der Klang ist etwas verfärbt (Mitten/Höhen ungleichmäßig).");
+  }
+
+  // 9 Raum
+  const rts = []; for (const m of plaetze) for (const ch of ["FL", "FR"]) rts.push(...Object.values(r.nachhall(m[ch])));
+  if (rts.length) {
+    const tMean = mean(rts), tm = tmSoll(raumM3 || RAUM_STANDARD_M3), dT = tMean - tm;
+    let pr = stuecke(dT, RAUM_STUETZ);
+    if (!kino) pr = 0.6 * pr + 0.4 * punkte(Math.abs(r.reflexion(haupt.FL) - r.reflexion(haupt.FR)), 6, 3, 1);
+    setze("raum", tMean, pr, `Nachhall ${f2(tMean)} s (Soll ${f2(tm)} s)`,
+      Math.abs(dT) <= 0.1 ? "Der Raum klingt angenehm." : (dT > 0 ? "Der Raum hallt etwas nach – das kann keine Technik ganz wegrechnen." : "Der Raum ist sehr trocken."),
+      raumM3 ? 1 : 0.75);
+  } else setze("raum", null, null, "nicht gemessen", "Nachhall nicht messbar, bitte lauter messen.");
+
+  const gem = Object.values(z).filter((k) => k.punkte !== null);
+  const summe = gem.reduce((s, k) => s + k.gewicht * k.konfidenz, 0);
+  let gesamt = gem.reduce((s, k) => s + k.gewicht * k.konfidenz * k.punkte, 0) / summe;
+  const gekappt = KERN.some((k) => z[k].punkte !== null && z[k].punkte < 30) && gesamt > 74;
+  if (gekappt) gesamt = 74;
+  let plusminus = null;
+  if (unsicherheit && plaetze.length >= 3) {
+    const loo = plaetze.slice(1).map((_, i) => score(plaetze.filter((__, j) => j !== i + 1), modus, raumM3, r, false).gesamt);
+    plusminus = Math.max(1, Math.round(Math.max(...loo.map((x) => Math.abs(x - gesamt)))));
+  }
+  if (!unsicherheit) return { gesamt };
+
+  const kacheln = {};
+  for (const [kid, titel] of Object.entries(KACHELN[modus])) {
+    const zs = gem.filter((k) => KENNZAHLEN[k.key][1] === kid), gw = zs.reduce((s, k) => s + k.gewicht * k.konfidenz, 0);
+    if (!zs.length || gw === 0) { kacheln[kid] = { titel, punkte: null, ampel: "grau", satz: "Nicht gemessen." }; continue; }
+    const p = zs.reduce((s, k) => s + k.gewicht * k.konfidenz * k.punkte, 0) / gw;
+    const schwach = zs.filter((k) => k.gewicht > 0).reduce((a, b) => (b.punkte < a.punkte ? b : a));
+    kacheln[kid] = { titel, punkte: Math.round(p), satz: schwach.satz, ampel: p >= 75 ? "gruen" : p >= 50 ? "gelb" : "rot" };
+  }
+  let hebel = null;
+  const kand = gem.filter((k) => k.gewicht > 0);
+  if (kand.length) {
+    const h = kand.reduce((a, b) => (b.gewicht * b.konfidenz * (100 - b.punkte) > a.gewicht * a.konfidenz * (100 - a.punkte) ? b : a));
+    const gewinn = h.gewicht * h.konfidenz * (100 - h.punkte) / summe;
+    if (gewinn >= 1) hebel = { kennzahl: h.key, name: KENNZAHLEN[h.key][0], massnahme: (eingemessen && HEBEL_EINGEMESSEN[h.key]) || HEBEL[h.key], bis_zu_punkte: Math.round(gewinn) };
+  }
+  const rund = (v, n) => Math.round(v * 10 ** n) / 10 ** n;
+  return {
+    gesamt: Math.round(gesamt), note: note(gesamt), plusminus, gekappt,
+    teile: Object.fromEntries(gem.map((k) => [k.key, Math.round(k.punkte)])),
+    werte: Object.fromEntries(Object.values(z).filter((k) => k.wert !== null).map((k) => [k.key, rund(k.wert, 3)])),
+    kennzahlen: Object.fromEntries(Object.values(z).map((k) => [k.key, { name: KENNZAHLEN[k.key][0], punkte: k.punkte === null ? null : Math.round(k.punkte),
+      gewicht: k.gewicht, konfidenz: k.konfidenz, anzeige: k.anzeige, satz: k.satz }])),
+    kacheln, hebel,
+  };
+}
 function mitte(m) {  // Phantom-Mitte: beide Boxen zusammen
   const n = Math.min(m.FL.ir.length, m.FR.ir.length), ir = new Float64Array(n);
   for (let i = 0; i < n; i++) ir[i] = m.FL.ir[i] + m.FR.ir[i];
   return { ir, zero: m.FL.zero, delay: 0 };
-}
-function score(plaetze, modus) {
-  const C = plaetze.map((m) => leistung(antwort(m.C)));
-  const std = (a) => { const mu = a.reduce((s, v) => s + v, 0) / a.length; return Math.sqrt(a.reduce((s, v) => s + (v - mu) ** 2, 0) / a.length); };
-  const glaette = C.map((p) => { const d = dbArr(glaetten(p, 12)); return std(d.filter((_, i) => F[i] >= 25 && F[i] <= 250)); }).reduce((a, b) => a + b) / C.length;
-  let platz = 0;
-  if (C.length > 1) {
-    const kurven = C.map((p) => { const d = dbArr(glaetten(p, 6)); const m = d.filter((_, i) => F[i] >= 500 && F[i] <= 2000); const mu = m.reduce((a, b) => a + b) / m.length; return d.map((v) => v - mu); });
-    const v = []; for (let i = 0; i < NF; i++) if (F[i] >= 30 && F[i] <= 200) v.push(std(kurven.map((k) => k[i])));
-    platz = v.reduce((a, b) => a + b) / v.length;
-  }
-  const h = plaetze[0], bm = (m) => { const d = dbArr(glaetten(leistung(antwort(m)), 3)); const s = d.filter((_, i) => F[i] >= 500 && F[i] <= 2000); return s.reduce((a, b) => a + b) / s.length; };
-  const pegel = Math.abs(bm(h.FL) - bm(h.FR)), zeit = Math.abs(h.FR.delay - h.FL.delay) * 1000;
-  const pc = C[0], midC = bandDb(dbArr(glaetten(pc, 3)), 500, 2000);
-  const dC = dbArr(glaetten(pc, 3)), mC = dC.filter((_, i) => F[i] >= 500 && F[i] <= 2000), midMean = mC.reduce((a, b) => a + b) / mC.length;
-  const tief = untereGrenze(pc, midMean);
-  const werte = { bass_glaette_db: glaette, platz_abweichung_db: platz, mitte_pegel_db: pegel, mitte_zeit_ms: zeit, tiefgang_hz: tief };
-  const teile = {}; let gesamt = 0;
-  for (const [k, [, schlecht, ref]] of Object.entries(KRITERIEN)) {
-    teile[k] = Math.min(100, Math.max(0, (schlecht - werte[k]) / (schlecht - ref) * 100));
-    gesamt += teile[k] * GEWICHTE[modus][k];
-  }
-  return { gesamt: Math.round(gesamt), teile: Object.fromEntries(Object.entries(teile).map(([k, v]) => [k, Math.round(v)])),
-           werte: Object.fromEntries(Object.entries(werte).map(([k, v]) => [k, Math.round(v * 100) / 100])), _midC: midC };
 }
 
 function korrigiert(m, cal) {
@@ -614,8 +881,7 @@ function kurve(C) {
 }
 
 // --- Raum-Check: Aufnahmen rein, Ergebnis raus ------------------------------------------
-const HAUSKURVE = { kino: 4.0, stereo: 2.0 };
-function raumcheck(aufnahmen, modus = "kino") {
+function raumcheck(aufnahmen, modus = "kino", raumM3 = null) {
   const erg = { aufnahmen: [], fehler: null, modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
   const punkte = [];
   for (const { name, daten } of aufnahmen) {
@@ -627,10 +893,13 @@ function raumcheck(aufnahmen, modus = "kino") {
   }
   if (!punkte.length) { erg.fehler = "Keine saubere Aufnahme dabei. Bitte ohne Filter aufnehmen (Sprachmemos „Verlustfrei“) und wiederholen."; return erg; }
   const ein = einmessen(punkte, HAUSKURVE[modus]);
+  // Bühne: links/rechts genau am Hauptplatz gleich laut (die Einmessung mittelt über alle Plätze)
+  const mDb = (ch) => mean(dbArr(glaetten(leistung(antwort(punkte[0].messungen[ch])), 3)).filter((_, i) => F[i] >= 500 && F[i] <= 2000));
+  const dLR = mDb("FL") - mDb("FR");
+  ein.cals.FL.gain_db = -Math.max(dLR, 0); ein.cals.FR.gain_db = -Math.max(-dLR, 0);
   const vorher = punkte.map((p) => ({ FL: p.messungen.FL, FR: p.messungen.FR, C: mitte(p.messungen) }));
   const nachher = punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, ein.cals.FL), FR: korrigiert(p.messungen.FR, ein.cals.FR) }; m.C = mitte(m); return m; });
-  const sh = score(vorher, modus), sn = score(nachher, modus);
-  delete sh._midC; delete sn._midC;
+  const sh = score(vorher, modus, raumM3), sn = score(nachher, modus, raumM3, null, true, true);
   const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C);
   Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, bericht: ein.zeilen, tipps: ein.tipps,
                        kurve: { f: kh.f, heute: kh.v, prognose: kn.v }, einstellungen: ein.cals });
@@ -647,6 +916,8 @@ let dateien = [];      // {name, daten: Float32Array}
 let runden = [];       // gespeicherte Ergebnisse
 try { runden = JSON.parse(localStorage.getItem("raumcheck-runden") || "[]"); } catch (e) { runden = []; }
 try { modus = localStorage.getItem("raumcheck-modus") || "kino"; } catch (e) {}
+try { $("raum").value = localStorage.getItem("raumcheck-raum") || ""; } catch (e) {}
+$("raum").addEventListener("change", () => { try { localStorage.setItem("raumcheck-raum", $("raum").value); } catch (e) {} });
 
 function setzeModus(m) {
   modus = m;
@@ -734,14 +1005,14 @@ const workerCode = $("analyse-src").textContent + `
 self.onmessage = (ev) => {
   try {
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
-    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus) });
+    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3) });
   } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
 };`;
 const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
 
 $("auswerten").addEventListener("click", () => {
   $("auswerten").disabled = true;
-  $("status").innerHTML = `<span class="laeuft">Rechnet, etwa 10 Sekunden…</span>`;
+  $("status").innerHTML = `<span class="laeuft">Rechnet, etwa 10 bis 30 Sekunden…</span>`;
   const w = new Worker(workerUrl);
   w.onmessage = (ev) => {
     w.terminate();
@@ -755,13 +1026,9 @@ $("auswerten").addEventListener("click", () => {
     zeigeAlles();
   };
   w.onerror = (e) => { w.terminate(); $("auswerten").disabled = false; $("status").innerHTML = `<span class="warn">Auswertung fehlgeschlagen.</span>`; };
-  w.postMessage({ dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), modus });
+  w.postMessage({ dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), modus, raumM3: +$("raum").value || null });
 });
 
-const KRIT = {
-  bass_glaette_db: ["Bass gleichmäßig", "dB"], platz_abweichung_db: ["Alle Plätze ähnlich", "dB"],
-  mitte_pegel_db: ["Mitte (Pegel links/rechts)", "dB"], mitte_zeit_ms: ["Mitte (Zeit links/rechts)", "ms"], tiefgang_hz: ["Tiefgang", "Hz"],
-};
 const zahl = (v, e) => v.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " " + e;
 
 function kurveSvg(k) {
@@ -784,20 +1051,34 @@ function karte(r, i) {
       <h2>${esc(r.anlage)}</h2><span class="klein">${r.modus === "kino" ? "Kino" : "Stereo"} · ${esc(r.zeit)}</span></div>`;
   if (e.fehler) return `<section class="card">${kopf}<p class="warn">${esc(e.fehler)}</p>${pruef}
       <button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button></section>`;
-  const krit = Object.entries(KRIT).map(([k, [name, ein]]) => `<div class="krit"><div class="kopf"><span>${name}</span>
-      <span>${zahl(e.score_heute.werte[k], ein)} → ${zahl(e.score_prognose.werte[k], ein)}</span></div>
-      <div class="doppel"><div class="h" style="width:${e.score_heute.teile[k]}%"></div><div class="p" style="width:${e.score_prognose.teile[k]}%"></div></div></div>`).join("");
-  const tipps = e.tipps.length ? `<div><span class="klein">Tipps (freiwillig)</span><ul class="klein" style="margin:4px 0 0; padding-left:18px">${e.tipps.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
-  return `<section class="card">${kopf}
-    <div class="score"><div><div class="zahl" style="color: var(--heute)">${e.score_heute.gesamt}</div><div class="lbl">heute</div></div>
+  const sh = e.score_heute, sp = e.score_prognose, tipps = e.tipps.length ? `<div><span class="klein">Tipps (freiwillig)</span><ul class="klein" style="margin:4px 0 0; padding-left:18px">${e.tipps.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
+  const zahlen = `<div class="score"><div><div class="zahl" style="color: var(--heute)">${sh.gesamt}</div><div class="lbl">heute${sh.note ? `<br><span class="note">${esc(sh.note)}</span>` : ""}</div></div>
       <div aria-hidden="true" style="font-size: 26px; color: var(--ink2)">→</div>
-      <div><div class="zahl" style="color: var(--prog)">${e.score_prognose.gesamt}</div><div class="lbl">mit Klang-Box (Prognose)</div></div></div>
-    <p class="klein">${esc(e.score_name)} von 0 bis 100.</p>
-    <div class="legende"><span><i style="background: var(--heute)"></i>heute</span><span><i style="background: var(--prog)"></i>mit Klang-Box</span></div>
-    <div style="display:grid; gap:12px">${krit}</div>
-    <div><span class="klein">Bass am Hauptplatz (dB)</span>${kurveSvg(e.kurve)}</div>
+      <div><div class="zahl" style="color: var(--prog)">${sp.gesamt}</div><div class="lbl">mit Klang-Box (Prognose)${sp.note ? `<br><span class="note">${esc(sp.note)}</span>` : ""}</div></div></div>`;
+  const ende = `<div><span class="klein">Bass am Hauptplatz (dB)</span>${kurveSvg(e.kurve)}</div>
     <div><span class="klein">Aufnahmen</span>${pruef}</div>${tipps}
     <button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button></section>`;
+  if (!sh.kacheln) return `<section class="card">${kopf}${zahlen}<p class="klein">Ältere Messrunde (Score v1). Für die neue Auswertung bitte neu messen.</p>${ende}`;
+  const pm = (s) => (s.plusminus ? ` ±${s.plusminus}` : "");
+  const kacheln = Object.keys(sp.kacheln).map((k) => { const a = sh.kacheln[k], b = sp.kacheln[k];
+    return `<div class="kachel"><div class="titel"><span><i class="ampel ${b.ampel}" aria-hidden="true"></i>${esc(b.titel)}</span></div>
+      <div class="pz">${a.punkte ?? "–"} <small>→</small> <span style="color: var(--prog)">${b.punkte ?? "–"}</span></div>
+      <p>${esc(b.satz)}</p></div>`; }).join("");
+  const hebelKarte = (h, wann) => h ? `<div class="hebel"><span class="klein">Größter Hebel ${wann}</span><b>${esc(h.name)}</b><p>${esc(h.massnahme)}</p>
+      <span class="klein">Bis zu +${h.bis_zu_punkte} Punkte (geschätzt)</span></div>` : "";
+  const zeilen = Object.entries(sp.kennzahlen).filter(([, b]) => b.gewicht || b.punkte !== null).map(([k, b]) => { const a = sh.kennzahlen[k];
+    const ca = b.konfidenz > 0 && b.konfidenz < 1 ? " ca." : "";
+    return `<tr><td>${esc(b.name)}${b.gewicht ? "" : " <span class='klein'>(nur Info)</span>"}<br><span class="klein">${esc(a.anzeige)} → ${esc(b.anzeige)}</span></td>
+      <td class="n" style="color: var(--heute)">${a.punkte ?? "–"}</td><td class="n" style="color: var(--prog)">${b.punkte ?? "–"}</td>
+      <td class="n klein">${b.gewicht}%${ca}</td></tr>`; }).join("");
+  return `<section class="card">${kopf}${zahlen}
+    <p class="klein">${esc(e.score_name)} von 0 bis 100${pm(sh) || pm(sp) ? `, Messunsicherheit heute${pm(sh)}, Prognose${pm(sp)}` : ""}. 90 Referenz · 75 Sehr gut · 60 Gut · 40 Ordentlich.${sp.gekappt ? " Prognose begrenzt: ein Kernwert ist noch schwach." : ""}</p>
+    <div class="kacheln">${kacheln}</div>
+    ${hebelKarte(sp.hebel, "mit Klang-Box")}
+    <details><summary>Alle Messwerte (heute → mit Klang-Box)</summary><div class="tabelle"><table>
+      <thead><tr><th>Kennzahl</th><th class="n">heute</th><th class="n">Box</th><th class="n">Gewicht</th></tr></thead><tbody>${zeilen}</tbody></table></div>
+      <p class="klein">„ca.“: Das iPhone misst diesen Wert nur ungefähr, er zählt deshalb weniger. Grenzwerte: eigene Festlegungen nach EBU/ITU, AES und Hörstudien (Fazenda, Olive), noch nicht mit vielen Räumen abgeglichen.</p></details>
+    ${ende}`;
 }
 
 function zeigeAlles() {

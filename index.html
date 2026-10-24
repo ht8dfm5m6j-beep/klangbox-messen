@@ -77,6 +77,11 @@ audio { width: 100%; }
 .hebel b { color: var(--prog); }
 details summary { cursor: pointer; color: var(--ink2); font-size: 14px; min-height: 32px; display: flex; align-items: center; }
 .note { font-size: 13px; font-weight: 700; }
+.felder { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+.felder label { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink2); min-width: 0; }
+.felder input { min-height: 42px; border-radius: 10px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 10px; width: 100%; font-size: 16px; }
+.vorschlag { background: var(--panel2); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
+.vorschlag ol { margin: 0; padding-left: 18px; font-size: 14px; }
 select { min-height: 46px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 12px; }
 </style>
 
@@ -158,6 +163,30 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
       <tbody id="vergleich"></tbody>
     </table></div>
     <p class="klein">„Mit Klang-Box“ ist eine Prognose: die Raumanpassung der Klang-Box auf genau diese Messungen gerechnet. Bei Sonos vergleicht das die Rechenverfahren, denn die Box kann Sonos-Lautsprecher nicht selbst ansteuern.</p>
+  </section>
+
+  <section class="card" aria-labelledby="h-sweet">
+    <h2 id="h-sweet">Sweetspot-Finder</h2>
+    <p class="klein">Rechnet aus Raummaßen und Nachhall, wo Hörplatz, Boxen und Sub am besten stehen (Raummoden-Modell). Maße in Metern, gemessen ab der Wand hinter den Boxen und ab der linken Wand (vom Hörplatz aus gesehen).</p>
+    <div class="felder">
+      <label>Raum breit<input type="number" step="0.05" min="2" max="15" id="s-breite" value="5.5"></label>
+      <label>Raum lang<input type="number" step="0.05" min="2" max="20" id="s-laenge" value="4.2"></label>
+      <label>Raum hoch<input type="number" step="0.05" min="2" max="5" id="s-hoehe" value="2.6"></label>
+      <label>Nachhall (s)<input type="number" step="0.05" min="0.1" max="2" id="s-t60" value="0.5"></label>
+      <label>Linke Box ab links<input type="number" step="0.05" id="s-flx" value="1.15"></label>
+      <label>Rechte Box ab links<input type="number" step="0.05" id="s-frx" value="3.95"></label>
+      <label>Boxen ab Wand dahinter<input type="number" step="0.05" id="s-fy" value="0.6"></label>
+      <label>Box-Höhe (Hochtöner)<input type="number" step="0.05" id="s-fz" value="1.0"></label>
+      <label>Hörplatz ab links<input type="number" step="0.05" id="s-hx" value="2.55"></label>
+      <label>Hörplatz ab Boxen-Wand<input type="number" step="0.05" id="s-hy" value="3.05"></label>
+      <label>Sub ab links<input type="number" step="0.05" id="s-sx" value="0.35"></label>
+      <label>Sub ab Boxen-Wand<input type="number" step="0.05" id="s-sy" value="0.3"></label>
+    </div>
+    <label class="klein"><input type="checkbox" id="s-ohnesub"> Kein Subwoofer</label>
+    <label class="klein"><input type="checkbox" id="s-eckig" checked> Raum ist (fast) rechteckig, ohne offene Küche oder große Nische</label>
+    <button type="button" id="s-rechnen">Beste Aufstellung berechnen</button>
+    <div id="s-status" class="klein" aria-live="polite"></div>
+    <div id="s-ergebnis" style="display: grid; gap: 12px;"></div>
   </section>
 
   <div id="ergebnisse" style="display: grid; gap: 18px;"></div>
@@ -1065,6 +1094,225 @@ function waechterErgebnis(e) {
 
 if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS };
 </script>
+<script type="text/plain" id="sweetspot-src">// Sweetspot-Finder in JavaScript: dieselben Schritte wie klangbox/sweetspot.py (Modalsumme für den
+// Rechteckraum, Dämpfung je Mode nach Kuttruff, Zielfunktion, Rastersuche, Wächter).
+// Läuft im Browser (Web Worker) und in Node (für den Abgleich mit der Python-Fassung).
+"use strict";
+
+const SS = (() => {
+  const C = 343, FSR = 48000, NFQ = 88;
+  const FREQ = new Float64Array(NFQ);
+  for (let i = 0; i < NFQ; i++) FREQ[i] = Math.pow(10, Math.log10(20) + (Math.log10(250) - Math.log10(20)) * i / (NFQ - 1));
+  const GEWICHTE = { kino: { streu: 0.35, glatt: 0.35, geo: 0.15, weg: 0.05 }, stereo: { streu: 0.15, glatt: 0.35, geo: 0.35, weg: 0.05 } };
+  const WINKEL_MIN = 22, WINKEL_MAX = 32, WINKEL_ZIEL = 30, MIN_GEWINN_J = 0.3, MAX_VERSCHLECHTERUNG_DB = 0.2, MAX_ALPHA = 0.3;
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  function modell(raum, fMax = 250) {
+    const lx = raum.breite, ly = raum.laenge, lz = raum.hoehe, grenze = 1.5 * fMax;
+    const v = lx * ly * lz, sx = ly * lz, sy = lx * lz, sz = lx * ly;
+    const alpha = Math.min(0.9, 0.161 * v / (2 * (sx + sy + sz) * raum.t60));
+    const e = (k) => (k === 0 ? 1 : 2), moden = [];
+    for (let nx = 0; nx <= Math.floor(2 * lx * grenze / C); nx++)
+      for (let ny = 0; ny <= Math.floor(2 * ly * grenze / C); ny++)
+        for (let nz = 0; nz <= Math.floor(2 * lz * grenze / C); nz++) {
+          const fn = C / 2 * Math.sqrt((nx / lx) ** 2 + (ny / ly) ** 2 + (nz / lz) ** 2);
+          if (fn > grenze) continue;
+          const lam = 1 / (e(nx) * e(ny) * e(nz)), delta = C * alpha / (8 * v) * 2 * (e(nx) * sx + e(ny) * sy + e(nz) * sz);
+          const re = new Float64Array(NFQ), im = new Float64Array(NFQ), wn = 2 * Math.PI * fn;
+          for (let k = 0; k < NFQ; k++) {  // 1 / (Λ (ωn² − ω² + 2jδω))
+            const w = 2 * Math.PI * FREQ[k], dr = lam * (wn * wn - w * w), di = lam * 2 * delta * w, d = dr * dr + di * di;
+            re[k] = dr / d; im[k] = -di / d;
+          }
+          moden.push({ nx, ny, nz, re, im });
+        }
+    return { raum, alpha, moden };
+  }
+  function psi(m, p) {
+    const r = m.raum, out = new Float64Array(m.moden.length);
+    m.moden.forEach((md, i) => { out[i] = Math.cos(Math.PI * md.nx * p[0] / r.breite) * Math.cos(Math.PI * md.ny * p[1] / r.laenge) * Math.cos(Math.PI * md.nz * p[2] / r.hoehe); });
+    return out;
+  }
+  function uebertragung(m, q, h) {  // komplex über FREQ
+    const a = psi(m, q), b = psi(m, h), re = new Float64Array(NFQ), im = new Float64Array(NFQ);
+    m.moden.forEach((md, i) => { const c = a[i] * b[i]; if (c === 0) return; for (let k = 0; k < NFQ; k++) { re[k] += c * md.re[k]; im[k] += c * md.im[k]; } });
+    return { re, im };
+  }
+  function bq(art, f0, q, gain = 0) {  // RBJ wie klangbox/engine.py
+    const w = 2 * Math.PI * f0 / FSR, sn = Math.sin(w), cs = Math.cos(w), al = sn / (2 * q);
+    let b, a;
+    if (art === "Highpass") { b = [(1 + cs) / 2, -(1 + cs), (1 + cs) / 2]; a = [1 + al, -2 * cs, 1 - al]; }
+    else { b = [(1 - cs) / 2, 1 - cs, (1 - cs) / 2]; a = [1 + al, -2 * cs, 1 - al]; }
+    return { b: b.map((x) => x / a[0]), a: [1, a[1] / a[0], a[2] / a[0]] };
+  }
+  function kette(biquads) {
+    const re = new Float64Array(NFQ).fill(1), im = new Float64Array(NFQ);
+    for (const f of biquads) for (let k = 0; k < NFQ; k++) {
+      const w = 2 * Math.PI * FREQ[k] / FSR, c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+      const nr = f.b[0] + f.b[1] * c1 + f.b[2] * c2, ni = -f.b[1] * s1 - f.b[2] * s2, dr = 1 + f.a[1] * c1 + f.a[2] * c2, di = -f.a[1] * s1 - f.a[2] * s2;
+      const d = dr * dr + di * di, hr = (nr * dr + ni * di) / d, hi = (ni * dr - nr * di) / d, r0 = re[k];
+      re[k] = r0 * hr - im[k] * hi; im[k] = r0 * hi + im[k] * hr;
+    }
+    return { re, im };
+  }
+  const Q_BW = Math.SQRT1_2;
+  function frequenzgaenge(mitSub, weiche = 80, boxTief = 45) {
+    if (!mitSub) return { box: kette([bq("Highpass", boxTief, 0.75)]), sub: null };
+    return { box: kette([bq("Highpass", boxTief, 0.75), bq("Highpass", weiche, Q_BW), bq("Highpass", weiche, Q_BW)]),
+             sub: kette([bq("Lowpass", weiche, Q_BW), bq("Lowpass", weiche, Q_BW), bq("Highpass", 22, 0.7)]) };
+  }
+  function glaettenDb(p) {
+    const proOkt = (NFQ - 1) / Math.log2(FREQ[NFQ - 1] / FREQ[0]), h = Math.max(1, Math.round(proOkt / 6 / 2)), out = new Float64Array(NFQ);
+    for (let i = 0; i < NFQ; i++) { let s = 0; for (let j = -h; j <= h; j++) s += p[Math.min(NFQ - 1, Math.max(0, i + j))]; out[i] = 10 * Math.log10(Math.max(s / (2 * h + 1), 1e-20)); }
+    return out;
+  }
+  function sitze(hp, modus) {
+    const [x, y, z] = hp;
+    const andere = modus === "kino" ? [[x - 0.55, y, z], [x + 0.55, y, z]] : [[x - 0.3, y, z], [x + 0.3, y, z], [x, y - 0.3, z]];
+    return { p: [hp, ...andere], w: [0.5, ...andere.map(() => 0.5 / andere.length)] };
+  }
+  function bassKennzahlen(pegel, w, house) {
+    let streu = 0, n = 0;
+    for (let k = 0; k < NFQ; k++) {
+      if (FREQ[k] < 30 || FREQ[k] > 150) continue;
+      let mu = 0; pegel.forEach((p, i) => { mu += w[i] * p[k]; });
+      let v = 0; pegel.forEach((p, i) => { v += w[i] * (p[k] - mu) ** 2; });
+      streu += Math.sqrt(v); n++;
+    }
+    streu /= n;
+    const e = [], idx = [];
+    for (let k = 0; k < NFQ; k++) { e.push(pegel[0][k] - house / (1 + (FREQ[k] / 100) ** 2)); if (FREQ[k] >= 25 && FREQ[k] <= 250) idx.push(k); }
+    const m = idx.reduce((s, k) => s + e[k], 0) / idx.length;
+    let g = 0; for (const k of idx) { const v = e[k] - m, ew = v < 0 ? v : 0.3 * v; g += ew * ew; }
+    return [streu, Math.sqrt(g / idx.length)];
+  }
+  function winkel(a) {
+    const [hx, hy] = a.hoerplatz;
+    const wl = Math.atan2(Math.abs(a.fl[0] - hx), Math.abs(hy - a.fl[1])) * 180 / Math.PI;
+    const wr = Math.atan2(Math.abs(a.fr[0] - hx), Math.abs(hy - a.fr[1])) * 180 / Math.PI;
+    return (wl + wr) / 2;
+  }
+  function geometrieStrafe(a, raum) {
+    let s = Math.max(0, Math.abs(winkel(a) - WINKEL_ZIEL) - 2) / 4;
+    s += Math.max(0, 0.5 - (raum.laenge - a.hoerplatz[1])) / 0.1;
+    for (const b of [a.fl, a.fr]) s += Math.max(0, 0.4 - Math.min(b[0], raum.breite - b[0])) / 0.2;
+    s += Math.abs(dist(a.fl, a.hoerplatz) - dist(a.fr, a.hoerplatz)) / 0.05;
+    return s;
+  }
+  function bewerte(a, m, modus, start) {
+    const raum = m.raum, house = modus === "kino" ? 4 : 2, { box, sub } = frequenzgaenge(!!a.sub), { p, w } = sitze(a.hoerplatz, modus);
+    const pegel = p.map((h) => {
+      const gl = uebertragung(m, a.fl, h), gr = uebertragung(m, a.fr, h), gs = a.sub ? uebertragung(m, a.sub, h) : null;
+      const pw = new Float64Array(NFQ), sg = a.subInvertiert ? -2 : 2;
+      for (let k = 0; k < NFQ; k++) {
+        const r0 = gl.re[k] + gr.re[k], i0 = gl.im[k] + gr.im[k];
+        let re = r0 * box.re[k] - i0 * box.im[k], im = r0 * box.im[k] + i0 * box.re[k];
+        if (gs) { re += sg * (gs.re[k] * sub.re[k] - gs.im[k] * sub.im[k]); im += sg * (gs.re[k] * sub.im[k] + gs.im[k] * sub.re[k]); }
+        pw[k] = re * re + im * im;
+      }
+      return glaettenDb(pw);
+    });
+    const [streu, glatt] = bassKennzahlen(pegel, w, house), geo = geometrieStrafe(a, raum);
+    let weg = 0;
+    if (start) {
+      weg = dist(a.hoerplatz, start.hoerplatz) + dist(a.fl, start.fl) + dist(a.fr, start.fr);
+      if (a.sub && start.sub) weg += dist(a.sub, start.sub);
+    }
+    const g = GEWICHTE[modus];
+    return { j: g.streu * streu + g.glatt * glatt + g.geo * geo + g.weg * weg, streu_db: streu, glatt_db: glatt, geo, weg_m: weg, winkel_grad: winkel(a) };
+  }
+  function waechterAufstellung(a, raum) {
+    const v = [];
+    const drin = (p, rand, name) => { if (!(rand <= p[0] && p[0] <= raum.breite - rand && rand <= p[1] && p[1] <= raum.laenge - rand && p[2] > 0 && p[2] < raum.hoehe)) v.push(`${name} liegt nicht im Raum`); };
+    drin(a.fl, 0.15, "Linke Box"); drin(a.fr, 0.15, "Rechte Box"); drin(a.hoerplatz, 0.3, "Hörplatz");
+    if (a.sub) drin(a.sub, 0.05, "Sub");
+    const w = winkel(a);
+    if (!(w >= WINKEL_MIN - 0.5 && w <= WINKEL_MAX + 0.5)) v.push(`Stereowinkel ${w.toFixed(0)}° außerhalb ${WINKEL_MIN}–${WINKEL_MAX}°`);
+    const d = dist(a.fl, a.hoerplatz);
+    if (!(d >= 1.2 && d <= 4)) v.push(`Hörabstand ${d.toFixed(1)} m außerhalb 1,2–4 m`);
+    for (const [b, n] of [[a.fl, "Linke"], [a.fr, "Rechte"]]) if (!(b[1] >= 0.2 && b[1] <= 1.3)) v.push(`${n} Box ${b[1].toFixed(2)} m von der Wand dahinter (erlaubt 0,2–1,3 m)`);
+    return v;
+  }
+  const arange = (a, stop, s) => { const n = Math.max(0, Math.ceil((stop - a) / s)), o = []; for (let i = 0; i < n; i++) o.push(a + i * s); return o; };  // wie numpy
+  function fronts(hx, hy, vorn, hw, zBox) { const dx = (hy - vorn) * Math.tan(hw * Math.PI / 180); return [[hx - dx, vorn, zBox], [hx + dx, vorn, zBox]]; }
+  function subKandidaten(raum, a) {
+    const z = 0.25, k = [];
+    for (const x of arange(0.2, raum.breite - 0.19, 0.2)) k.push([x, 0.2, z]);
+    for (const y of arange(0.4, raum.laenge - 0.19, 0.3)) k.push([0.2, y, z], [raum.breite - 0.2, y, z]);
+    for (const x of arange(0.2, raum.breite - 0.19, 0.4)) k.push([x, raum.laenge - 0.2, z]);
+    k.push([a.fl[0] - 0.4, a.fl[1], z], [a.fr[0] + 0.4, a.fr[1], z]);
+    return k.filter((p) => p[0] >= 0.05 && p[0] <= raum.breite - 0.05 && p[1] >= 0.05 && p[1] <= raum.laenge - 0.05);
+  }
+  function suche(raum, start, modus, frei, m) {
+    let best = start, bestB = bewerte(start, m, modus, start);
+    const zOhr = start.hoerplatz[2], zBox = start.fl[2];
+    for (let runde = 0; runde < 2; runde++) {
+      if (frei.hoerplatz || frei.boxen) {
+        const hx = frei.hoerplatz ? raum.breite / 2 : best.hoerplatz[0];
+        const ys = frei.hoerplatz ? arange(0.3 * raum.laenge, raum.laenge - 0.49, 0.1) : [best.hoerplatz[1]];
+        for (const hy of ys) {
+          const varianten = frei.boxen ? arange(0.3, 1.21, 0.1).flatMap((v) => [25, 27.5, 30].map((wk) => fronts(hx, hy, v, wk, zBox))) : [[best.fl, best.fr]];
+          for (const [fl, fr] of varianten) {
+            const kand = { ...best, hoerplatz: [hx, hy, zOhr], fl, fr };
+            if (waechterAufstellung(kand, raum).length) continue;
+            const b = bewerte(kand, m, modus, start);
+            if (b.j < bestB.j) { best = kand; bestB = b; }
+          }
+        }
+      }
+      if (frei.sub && best.sub) for (const p of subKandidaten(raum, best)) for (const inv of [false, true]) {
+        const kand = { ...best, sub: p, subInvertiert: inv };
+        if (waechterAufstellung(kand, raum).length) continue;
+        const b = bewerte(kand, m, modus, start);
+        if (b.j < bestB.j) { best = kand; bestB = b; }
+      }
+    }
+    return { a: best, b: bestB };
+  }
+  function robustBesser(raum, start, ziel, modus, m) {
+    const varianten = [m];
+    for (const [fx, fy, ft] of [[1.03, 0.97, 0.75], [0.97, 1.03, 1.25], [1.03, 1.03, 1], [0.97, 0.97, 1]])
+      varianten.push(modell({ ...raum, breite: raum.breite * fx, laenge: raum.laenge * fy, t60: raum.t60 * ft }));
+    for (const mv of varianten) {
+      const b0 = bewerte(start, mv, modus, start), b1 = bewerte(ziel, mv, modus, start);
+      if (b0.j - b1.j < MIN_GEWINN_J) return false;
+      if (b1.streu_db > b0.streu_db + MAX_VERSCHLECHTERUNG_DB || b1.glatt_db > b0.glatt_db + MAX_VERSCHLECHTERUNG_DB) return false;
+    }
+    return true;
+  }
+  const cm = (x) => `${Math.round(x * 100)} cm`;
+  function schritte(s, z) {
+    const o = [];
+    if (dist(s.hoerplatz, z.hoerplatz) > 0.04) o.push(`Hörplatz: ${cm(z.hoerplatz[1])} von der Wand hinter den Boxen, mittig (${cm(z.hoerplatz[0])} von links)`);
+    if (dist(s.fl, z.fl) > 0.04 || dist(s.fr, z.fr) > 0.04) o.push(`Boxen: ${cm(z.fl[1])} von der Wand dahinter, ${cm(z.fl[0])} und ${cm(z.fr[0])} von der linken Wand (Abstand zueinander ${cm(z.fr[0] - z.fl[0])}), auf den Hörplatz eindrehen`);
+    if (z.sub && s.sub && dist(s.sub, z.sub) > 0.04) o.push(`Sub: ${cm(z.sub[0])} von der linken Wand, ${cm(z.sub[1])} von der Wand hinter den Boxen`);
+    if (!!z.subInvertiert !== !!s.subInvertiert) o.push(z.subInvertiert ? "Sub: Phasenschalter auf 180°" : "Sub: Phasenschalter auf 0°");
+    return o;
+  }
+  function empfehlen(raum, start, modus = "stereo") {
+    start = { subInvertiert: false, ...start };
+    if (!raum.rechteckig) return { vorschlaege: [], hinweis: "Der Raum ist nicht rechteckig: Bass-Empfehlungen wären geraten. Nur messen hilft (verschiedene Plätze messen und vergleichen)." };
+    const m = modell(raum), heute = bewerte(start, m, modus, start);
+    if (m.alpha > MAX_ALPHA) return { heute, vorschlaege: [], start_waechter: waechterAufstellung(start, raum),
+      hinweis: "Der Raum ist stark bedämpft (sehr kurzer Nachhall). Hier ist das Rechenmodell unsicher: lieber zwei, drei Aufstellungen ausprobieren und jeweils messen." };
+    const stufen = [["Klein: nur den Sub", { hoerplatz: false, boxen: false, sub: true }], ["Mittel: Sub und Boxen", { hoerplatz: false, boxen: true, sub: true }],
+                    ["Groß: alles inklusive Hörplatz", { hoerplatz: true, boxen: true, sub: true }]];
+    const out = [], gesehen = [];
+    for (const [titel, frei] of stufen) {
+      if (!start.sub && !(frei.boxen || frei.hoerplatz)) continue;
+      const { a, b } = suche(raum, start, modus, frei, m);
+      if (waechterAufstellung(a, raum).length && !gleich(a, start)) continue;
+      if (gesehen.some((g) => gleich(g, a)) || !robustBesser(raum, start, a, modus, m)) continue;
+      gesehen.push(a);
+      out.push({ titel, aufstellung: a, bewertung: b, schritte: schritte(start, a) });
+    }
+    return { heute, vorschlaege: out, start_waechter: waechterAufstellung(start, raum), hinweis: "Nach dem Umstellen neu messen. Ist es gemessen schlechter, zurückstellen." };
+  }
+  return { empfehlen, bewerte, modell, waechterAufstellung, FREQ };
+})();
+
+if (typeof module !== "undefined") module.exports = SS;
+</script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -1217,9 +1465,10 @@ async function neueAufnahme(name, daten) {
 }
 
 // Rechnen im Hintergrund (Web Worker), damit die Seite flüssig bleibt
-const workerCode = $("analyse-src").textContent + `
+const workerCode = $("analyse-src").textContent + "\n" + $("sweetspot-src").textContent + `
 self.onmessage = (ev) => {
   try {
+    if (ev.data.art === "sweetspot") { self.postMessage({ ok: true, ergebnis: SS.empfehlen(ev.data.raum, ev.data.start, ev.data.modus) }); return; }
     if (ev.data.art === "pruefen") { self.postMessage({ ok: true, ergebnis: analysiere(new Float64Array(ev.data.daten)).pruefung }); return; }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
     self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3) });
@@ -1247,6 +1496,7 @@ $("auswerten").addEventListener("click", async () => {
   dateien = []; zeigeDateien();
   $("status").innerHTML = `<span class="ok">Fertig. Ergebnis unten. Für den Vergleich die nächste Anlage messen.</span>`;
   zeigeAlles();
+  nachhallUebernehmen();
 });
 
 const zahl = (v, e) => v.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " " + e;
@@ -1301,6 +1551,65 @@ function karte(r, i) {
     ${ende}`;
 }
 
+// --- Sweetspot-Finder -------------------------------------------------------------------------
+const SFELDER = ["breite", "laenge", "hoehe", "t60", "flx", "frx", "fy", "fz", "hx", "hy", "sx", "sy"];
+try { const g = JSON.parse(localStorage.getItem("raumcheck-sweetspot") || "{}"); for (const k of SFELDER) if (g[k] != null) $("s-" + k).value = g[k];
+  if (g.ohnesub) $("s-ohnesub").checked = true; if (g.eckig === false) $("s-eckig").checked = false; } catch (e) {}
+function grundriss(raum, start, ziel) {
+  const W = 300, s = Math.min((W - 20) / raum.breite, 260 / raum.laenge), H = raum.laenge * s + 20;
+  const X = (x) => 10 + x * s, Y = (y) => 10 + y * s;
+  const punkt = (p, farbe, r, t) => p ? `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="${r}" fill="${farbe}"/><text x="${(X(p[0]) + r + 2).toFixed(1)}" y="${(Y(p[1]) + 3).toFixed(1)}">${t}</text>` : "";
+  const box = (p, farbe) => `<rect x="${(X(p[0]) - 6).toFixed(1)}" y="${(Y(p[1]) - 6).toFixed(1)}" width="12" height="12" rx="2" fill="${farbe}"/>`;
+  let g = `<rect x="10" y="10" width="${(raum.breite * s).toFixed(1)}" height="${(raum.laenge * s).toFixed(1)}" fill="none" stroke="#2a3038" stroke-width="2"/>`;
+  g += `<text x="${X(raum.breite / 2)}" y="8" text-anchor="middle">Wand hinter den Boxen</text>`;
+  for (const [a, f] of [[start, "#5b6470"], [ziel, "#7fb0ff"]]) {
+    if (!a) continue;
+    g += `<line x1="${X(a.fl[0])}" y1="${Y(a.fl[1])}" x2="${X(a.hoerplatz[0])}" y2="${Y(a.hoerplatz[1])}" stroke="${f}" stroke-dasharray="3 3"/>`;
+    g += `<line x1="${X(a.fr[0])}" y1="${Y(a.fr[1])}" x2="${X(a.hoerplatz[0])}" y2="${Y(a.hoerplatz[1])}" stroke="${f}" stroke-dasharray="3 3"/>`;
+    g += box(a.fl, f) + box(a.fr, f) + punkt(a.hoerplatz, f, 6, a === ziel ? "Platz" : "") + punkt(a.sub, f, 7, a === ziel && a.sub ? "Sub" : "");
+  }
+  return `<svg viewBox="0 0 ${W} ${H.toFixed(0)}" width="100%" role="img" aria-label="Grundriss: grau heute, blau Vorschlag">${g}</svg>`;
+}
+$("s-rechnen").addEventListener("click", async () => {
+  const v = {}; for (const k of SFELDER) v[k] = parseFloat(String($("s-" + k).value).replace(",", "."));
+  const ohneSub = $("s-ohnesub").checked, eckig = $("s-eckig").checked;
+  try { localStorage.setItem("raumcheck-sweetspot", JSON.stringify({ ...v, ohnesub: ohneSub, eckig })); } catch (e) {}
+  // Wächter für die Eingaben: nur plausible Zahlen, alles im Raum
+  const fehler = [];
+  for (const k of SFELDER) if (!isFinite(v[k])) fehler.push(`Feld „${$("s-" + k).parentElement.firstChild.textContent}“ ist keine Zahl.`);
+  if (!fehler.length) {
+    if (v.breite < 2 || v.laenge < 2 || v.hoehe < 2 || v.breite > 15 || v.laenge > 20 || v.hoehe > 5) fehler.push("Raummaße unplausibel (2–15 m breit, 2–20 m lang, 2–5 m hoch).");
+    if (!(v.t60 >= 0.1 && v.t60 <= 2)) fehler.push("Nachhall bitte zwischen 0,1 und 2 s (steht nach einer Messung unter „Raum“).");
+    const drin = (x, y, n) => { if (!(x > 0 && x < v.breite && y > 0 && y < v.laenge)) fehler.push(`${n} liegt außerhalb des Raums.`); };
+    drin(v.flx, v.fy, "Linke Box"); drin(v.frx, v.fy, "Rechte Box"); drin(v.hx, v.hy, "Hörplatz");
+    if (!ohneSub) drin(v.sx, v.sy, "Sub");
+    if (v.frx <= v.flx) fehler.push("Die rechte Box muss weiter rechts stehen als die linke.");
+    if (v.hy <= v.fy) fehler.push("Der Hörplatz muss vor den Boxen liegen.");
+  }
+  if (fehler.length) { $("s-status").innerHTML = `<span class="warn">${fehler.map(esc).join(" ")}</span>`; return; }
+  const raum = { breite: v.breite, laenge: v.laenge, hoehe: v.hoehe, t60: v.t60, rechteckig: eckig };
+  const start = { hoerplatz: [v.hx, v.hy, 1.1], fl: [v.flx, v.fy, v.fz], fr: [v.frx, v.fy, v.fz], sub: ohneSub ? null : [v.sx, v.sy, 0.25] };
+  $("s-rechnen").disabled = true;
+  $("s-status").innerHTML = `<span class="laeuft">Rechnet viele tausend Aufstellungen durch…</span>`;
+  const r = await imWorker({ art: "sweetspot", raum, start, modus });
+  $("s-rechnen").disabled = false;
+  if (!r.ok) { $("s-status").innerHTML = `<span class="warn">Rechnung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
+  const e = r.ergebnis, h = e.heute;
+  $("s-status").innerHTML = (e.start_waechter || []).length ? `<span class="warn">Heute: ${esc(e.start_waechter.join(" · "))}</span>` : "";
+  const f1 = (x) => x.toLocaleString("de-DE", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+  const kopf = h ? `<p class="klein">Heute (berechnet): Bass-Unterschied zwischen den Plätzen ${f1(h.streu_db)} dB, Bass-Welligkeit am Hörplatz ${f1(h.glatt_db)} dB, Stereowinkel ±${Math.round(h.winkel_grad)}°.</p>` : "";
+  if (!e.vorschlaege.length) {
+    const t = e.hinweis.startsWith("Nach dem") ? "Deine Aufstellung ist schon gut: Kein Vorschlag bringt sicher mehr (auch wenn die Raummaße ein paar Zentimeter abweichen). So lassen." : e.hinweis;
+    $("s-ergebnis").innerHTML = kopf + `<p>${esc(t)}</p>`; return;
+  }
+  $("s-ergebnis").innerHTML = kopf + e.vorschlaege.map((p) => `<div class="vorschlag"><b>${esc(p.titel)}</b>
+      <ol>${p.schritte.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>
+      <span class="klein">Bass-Unterschied ${f1(h.streu_db)} → <b>${f1(p.bewertung.streu_db)} dB</b> · Welligkeit ${f1(h.glatt_db)} → <b>${f1(p.bewertung.glatt_db)} dB</b> · Winkel ±${Math.round(p.bewertung.winkel_grad)}°</span>
+      ${grundriss(raum, start, p.aufstellung)}</div>`).join("") + `<p class="klein">${esc(e.hinweis)} Vorschläge erscheinen nur, wenn sie auch bei ±3 % Raummaß und ±25 % Nachhall besser bleiben (Wächter).</p>`;
+});
+// Nachhall aus der letzten Messung übernehmen
+function nachhallUebernehmen() { const r = runden.find((x) => x.e && x.e.score_heute && x.e.score_heute.werte && x.e.score_heute.werte.raum); if (r) $("s-t60").value = (Math.round(r.e.score_heute.werte.raum * 100) / 100).toString(); }
+
 function zeigeAlles() {
   $("ergebnisse").innerHTML = runden.map(karte).join("");
   const gueltig = runden.filter((r) => !r.e.fehler);
@@ -1317,6 +1626,7 @@ $("ergebnisse").addEventListener("click", (ev) => {
 });
 zeigeAlles();
 zeigeDateien();
+nachhallUebernehmen();
 </script>
 
 </body>

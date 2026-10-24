@@ -425,20 +425,34 @@ function findeMarker(rec, f = FOLGE) {
   const tol = gleitMax(scharf, 2 * Math.floor(0.02 * FS) + 1), kamm = new Float64Array(nOff).fill(Infinity);
   for (const s of sched) for (let o = 0; o < nOff; o++) kamm[o] = Math.min(kamm[o], tol[s + o]);
   let off = 0; for (let o = 1; o < nOff; o++) if (kamm[o] > kamm[off]) off = o;
-  const back = Math.max(0, off - Math.floor(0.6 * FS));
-  for (let o = back; o < off; o++) if (kamm[o] >= 0.5 * kamm[off]) {
+  // Schwelle über dem Grundniveau des Kamms (hallige Räume: Nachklang der Prüftreppe)
+  const back = Math.max(0, off - Math.floor(0.6 * FS)), grund = median(kamm), schwelle = grund + 0.5 * (kamm[off] - grund);
+  for (let o = back; o < off; o++) if (kamm[o] >= schwelle) {
     let best = o; for (let q = o; q < Math.min(nOff, o + Math.floor(0.05 * FS)); q++) if (kamm[q] > kamm[best]) best = q;
     off = best; break;
   }
   let p0 = off;
   for (let o = 0; o < nOff; o++) if (kamm[o] >= kamm[off] * 0.999) { p0 = o; break; }
-  const zeiten = [], suche = Math.floor(0.025 * FS);
+  const grob = [], suche = Math.floor(0.025 * FS);
   for (const s of sched) {
     const c = p0 + s + Math.floor(0.02 * FS), lo = Math.max(1, c - suche), hi = Math.min(N - 1, c + suche);
     let p = lo; for (let i = lo; i < hi; i++) if (scharf[i] > scharf[p]) p = i;
-    zeiten.push(p + parabel(corr, p));
+    grob.push(p);
   }
-  return { zeiten, corr };
+  return { zeiten: markerFein(corr, grob), corr };
+}
+// Alle Marker gleich ausrichten (wie _marker_fein): Muster aus Direktschall und Reflexionen auf das
+// des ersten Markers legen (±2 ms), damit ein Sprung auf eine Reflexion den Takt nicht verschiebt
+function markerFein(corr, grob) {
+  const w = Math.floor(0.01 * FS), s = Math.floor(0.002 * FS), p0 = grob[0], t0 = p0 + parabel(corr, p0), zeiten = [t0];
+  for (const p of grob.slice(1)) {
+    if (p - w - s < 0 || p + w + s + 1 > corr.length || p0 - w < 0) { zeiten.push(p); continue; }
+    const kk = [];
+    for (let k = -s; k <= s; k++) { let d = 0; for (let i = -w; i <= w; i++) d += corr[p + k + i] * corr[p0 + i]; kk.push(d); }
+    let j = 0; for (let i = 1; i < kk.length; i++) if (kk[i] > kk[j]) j = i;
+    zeiten.push(p + (j - s) + parabel(kk, j) + (t0 - p0));
+  }
+  return zeiten;
 }
 
 // Aufnahme auf die Uhr der Wiedergabe umrechnen: gefensterter Sinc (Lanczos, 32 Stützstellen je
@@ -643,7 +657,7 @@ function sicherPeq(p) {
   if (!(p.freq >= 15 && p.freq <= 20000)) return null;
   let q = Math.min(10, Math.max(0.3, p.q)), g = Math.min(3, Math.max(-15, p.gain));
   if (g > 0 && p.freq < 35) g = 0;
-  if (p.freq > 350) { g = Math.min(2, Math.max(-2, g)); q = Math.min(q, 1); }
+  if (p.freq > 300) { g = Math.min(2, Math.max(-2, g)); q = Math.min(q, 1); }
   if (Math.abs(g) < 0.05) return null;
   return { freq: p.freq, gain: Math.round(g * 100) / 100, q: Math.round(q * 1000) / 1000 };
 }
@@ -746,7 +760,7 @@ function einmessen(punkte, hausDb) {
   const shelf = biquadDb(biquad("Lowshelf", 100, 0.7, hausDb)), ziel = shelf.map((v) => mid.FL - top + v);
   const cals = {}, notizen = [], vor = [], nach = [];
   for (const ch of kan) {
-    const g = gains[ch], lo = Math.max(grenze[ch] * 1.1, 20), hi = 350;
+    const g = gains[ch], lo = Math.max(grenze[ch] * 1.1, 20), hi = 300;
     const posDb = H[ch].map(({ h }) => dbArr(glaetten(leistung(h), 12)).map((v) => v + g));
     const sel = Array.from(F, (f) => f >= lo && f <= hi);
     let fl = fitEq(posDb, ziel, sel);

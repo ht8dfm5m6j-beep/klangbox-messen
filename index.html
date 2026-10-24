@@ -95,6 +95,7 @@ details summary { cursor: pointer; color: var(--ink2); font-size: 14px; min-heig
 .felder label { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink2); min-width: 0; }
 .felder input { min-height: 42px; border-radius: 10px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 10px; width: 100%; font-size: 16px; }
 .vorschlag { background: var(--panel2); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
+.raumtipps { display: grid; gap: 8px; }
 .vorschlag ol { margin: 0; padding-left: 18px; font-size: 14px; }
 select { min-height: 46px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 12px; }
 </style>
@@ -860,7 +861,8 @@ function baender(ir, mitten, frac) {
     return { x: re.slice(0, Math.floor(ir.length / d)), d };
   });
 }
-function abklingzeit(x, start, fs) {
+// Schroeder-Abklingkurve eines Bandsignals (wie _abklingkurve in Python)
+function abklingkurve(x, start, fs) {
   const w = Math.max(1, Math.round(0.005 * fs)), nb = Math.floor((x.length - start) / w);
   if (nb < 20) return null;
   const blk = new Float64Array(nb);
@@ -872,23 +874,36 @@ function abklingzeit(x, start, fs) {
   let cut = p + 1; while (cut < nb && blk[cut] > rausch * Math.pow(10, 0.5)) cut++;
   const L = cut - p, edc = new Float64Array(L);
   let acc = 0; for (let i = L - 1; i >= 0; i--) { acc += Math.max(blk[p + i] - rausch, 0); edc[i] = acc; }
-  const unten = dyn >= 35 ? -25 : -15, ts = [], ys = [];
-  let minDb = 0;
-  for (let i = 0; i < L; i++) {
-    const v = 10 * Math.log10(Math.max(edc[i] / edc[0], 1e-30)); minDb = Math.min(minDb, v);
-    if (v <= -5 && v >= unten) { ts.push(i * w / fs); ys.push(v); }
-  }
-  if (ts.length < 3 || minDb > -12) return null;
+  const db = new Float64Array(L), t = new Float64Array(L); let minDb = 0;
+  for (let i = 0; i < L; i++) { db[i] = 10 * Math.log10(Math.max(edc[i] / edc[0], 1e-30)); t[i] = i * w / fs; minDb = Math.min(minDb, db[i]); }
+  return { db, t, dyn, minDb };
+}
+function gerade(k, oben, unten) {
+  const ts = [], ys = [];
+  for (let i = 0; i < k.db.length; i++) if (k.db[i] <= oben && k.db[i] >= unten) { ts.push(k.t[i]); ys.push(k.db[i]); }
+  if (ts.length < 3) return null;
   const s = steigung(ts, ys);
   return s < 0 ? -60 / s : null;
 }
-function reflexionDb(m) {
+function abklingzeit(x, start, fs) {
+  const k = abklingkurve(x, start, fs);
+  if (!k || k.minDb > -12) return null;
+  return gerade(k, -5, k.dyn >= 35 ? -25 : -15);
+}
+function fruehAbklingzeit(x, start, fs) {  // EDT: 0 bis -10 dB
+  const k = abklingkurve(x, start, fs);
+  if (!k || k.minDb > -12) return null;
+  return gerade(k, 0, -10);
+}
+function reflexionDb(m) { return reflexion(m)[0]; }
+function reflexion(m) {  // [Pegel dB relativ zum Direktschall, Verzögerung ms] der stärksten Reflexion 1–15 ms
   const env = huellkurve(filtfilt(m.ir, bandpass(1000, 4000, 2)));
   const d = m.zero + Math.round(m.delay * FS), ms = FS / 1000;
   let direkt = 0, refl = 0;
   for (let i = Math.max(0, d - ms / 2); i <= d + ms / 2; i++) direkt = Math.max(direkt, env[i]);
-  for (let i = d + ms; i < d + 15 * ms; i++) refl = Math.max(refl, env[i]);
-  return 20 * Math.log10(refl / (direkt + 1e-30) + 1e-30);
+  let k = d + ms; for (let i = d + ms; i < d + 15 * ms; i++) if (env[i] > env[k]) k = i;
+  refl = env[k];
+  return [20 * Math.log10(refl / (direkt + 1e-30) + 1e-30), (k - d) * 1000 / FS];
 }
 
 function zielkurve(hausDb) { const sh = biquadDb(biquad("Lowshelf", 100, 0.7, hausDb)); return F.map((f, i) => NEIGUNG * Math.log2(f / 1000) + sh[i]); }
@@ -1172,6 +1187,45 @@ function kurve(C) {
 }
 
 // --- Raum-Check: Aufnahmen rein, Ergebnis raus ------------------------------------------
+// Raum-Tipps (wie klangbox/akustik.py, Regeln RA1, RA3, RA8/RA9, RA10, RA12 der Praxis-Recherche)
+function raumTipps(haupt, sh, raumM3) {
+  const tipps = [], r = { FL: reflexion(haupt.FL), FR: reflexion(haupt.FR) }, f0 = (x) => x.toFixed(0), f1 = (x) => x.toFixed(1), f2 = (x) => x.toFixed(2);
+  const ch = r.FR[0] > r.FL[0] ? "FR" : "FL", [db, ms] = r[ch];
+  if (db >= -6) tipps.push({ regel: "RA1", titel: "Starke Reflexion",
+    text: `Bei der ${ch === "FL" ? "linken" : "rechten"} Box kommt ${f1(ms)} ms nach dem Direktschall ein fast gleich lautes Echo (${f0(db)} dB, Umweg etwa ${f0(ms / 1000 * 343 * 100)} cm): meist eine Seitenwand, ein Fenster oder der Tisch. Finde die Stelle mit dem Spiegel-Trick (jemand hält einen Spiegel an die Wand; wo du vom Hörplatz die Box darin siehst, ist der Punkt) und häng dort einen dicken Vorhang, ein Regal oder einen Absorber (ab 5 cm dick) hin.`,
+    wirkung: "Reflexion etwa 10 dB leiser, Stimmen klarer, Mitte schärfer. DSP kann ein Echo nicht entfernen." });
+  if (Math.min(r.FL[0], r.FR[0]) >= -20) {
+    const dDb = Math.abs(r.FL[0] - r.FR[0]), dMs = Math.abs(r.FL[1] - r.FR[1]);
+    if (dDb > 3 || dMs > 1) { const lauter = r.FL[0] > r.FR[0] ? "links" : "rechts";
+      tipps.push({ regel: "RA3", titel: "Seiten klingen verschieden",
+        text: `Links und rechts wirft der Raum den Schall verschieden zurück (${f0(dDb)} dB, ${f1(dMs)} ms Unterschied, stärker ${lauter}). Typisch: Fenster oder Öffnung nur auf einer Seite. Behandle beide Seiten ähnlich (z. B. Vorhang ${lauter}, Regal auf der anderen Seite) oder stell die Anlage mittiger.`,
+        wirkung: "Stabilere Mitte, Stimmen kleben nicht an einer Box." }); }
+  }
+  const t = (sh.werte || {}).raum, v = raumM3 || RAUM_STANDARD_M3;
+  if (t != null && t > tmSoll(v) + 0.15) {
+    const ziel = tmSoll(v) + 0.1, da = 0.161 * v * (1 / ziel - 1 / t);
+    tipps.push({ regel: "RA8", titel: "Raum hallt nach",
+      text: `Nachhall ${f2(t)} s, gut wären etwa ${f2(ziel)} s. Dafür fehlen rund ${f0(da)} m² schluckende Fläche, zum Beispiel ${f0(da / 0.5)} m² schwere Vorhänge (in Falten) oder Akustikpaneele an den Reflexionspunkten. Ein Teppich allein hilft dagegen wenig: Er beruhigt vor allem die Höhen.`,
+      wirkung: "Klarere Stimmen, schärferes Bild. Den Nachhall kann keine Raumkorrektur wegrechnen." });
+  }
+  const nk = (sh.kennzahlen || {}).nachklingen || {};
+  if (nk.punkte != null && nk.punkte < 50) tipps.push({ regel: "RA10", titel: "Bass dröhnt nach",
+    text: `${nk.satz || ""} Die Klang-Box senkt die lauteste Spitze ab. Gegen langes Nachschwingen an allen Plätzen helfen nur Aufstellung (Sweetspot-Finder), ein zweiter Sub oder große Bassfallen in den Ecken.`,
+    wirkung: "Mit EQ: Spitze leiser. Mit Bassfallen: kürzeres Nachschwingen (Wirkung erst ab etwa 60 Hz)." });
+  const werte = [];
+  for (const m of [haupt.FL, haupt.FR]) baender(m.ir, [500, 1000], 1).forEach(({ x, d }) => {
+    const st = Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / d), tt = abklingzeit(x, st, FS / d), e = fruehAbklingzeit(x, st, FS / d);
+    if (tt && e) werte.push([e, tt]);
+  });
+  if (werte.length) {
+    const quote = mean(werte.map(([e, tt]) => tt / e));
+    if (quote > 1.3 && mean(werte.map(([, tt]) => tt)) > 0.3) tipps.push({ regel: "RA12", titel: "Verbundener Raum",
+      text: `Der Nachhall hat zwei Teile (spät ${f1(quote)}-mal langsamer als früh): Dein Raum ist offen zu einem anderen (Küche, Flur). Beim Filmabend Tür oder Vorhang zum Nebenraum schließen; messe an mehreren Plätzen.`,
+      wirkung: "Straffere Wiedergabe, weniger Hall von hinten." });
+  }
+  return tipps;
+}
+
 function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null) {
   const erg = { aufnahmen: [], fehler: null, modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
   const punkte = [];
@@ -1200,6 +1254,7 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null) {
   const sh = score(vorher, modus, raumM3), sn = score(nachher, modus, raumM3, null, true, true);
   const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C);
   Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, bericht: ein.zeilen, tipps: ein.tipps,
+                       raum_tipps: raumTipps(punkte[0].messungen, sh, raumM3),
                        kurve: { f: kh.f, heute: kh.v, prognose: kn.v }, einstellungen: ein.cals });
   // Nie verschlimmbessern: bringt die Raumanpassung insgesamt nichts, bleibt die Box neutral
   if (sn.gesamt < sh.gesamt) {
@@ -1773,6 +1828,8 @@ function karte(r, i) {
     <p class="klein">${esc(e.score_name)} von 0 bis 100${pm(sh) || pm(sp) ? `, Messunsicherheit heute${pm(sh)}, Prognose${pm(sp)}` : ""}. 90 Referenz · 75 Sehr gut · 60 Gut · 40 Ordentlich.${sp.gekappt ? " Prognose begrenzt: ein Kernwert ist noch schwach." : ""}</p>
     <div class="kacheln">${kacheln}</div>
     ${hebelKarte(sp.hebel, "mit Klang-Box")}
+    ${(e.raum_tipps || []).length ? `<div class="raumtipps"><span class="klein">Was am Raum selbst hilft (das kann keine Technik)</span>${e.raum_tipps.map((t) =>
+      `<div class="vorschlag"><b>${esc(t.titel)}</b><p style="font-size:14px">${esc(t.text)}</p><span class="klein">Wirkung: ${esc(t.wirkung)}</span></div>`).join("")}</div>` : ""}
     <details><summary>Alle Messwerte (heute → mit Klang-Box)</summary><div class="tabelle"><table>
       <thead><tr><th>Kennzahl</th><th class="n">heute</th><th class="n">Box</th><th class="n">Gewicht</th></tr></thead><tbody>${zeilen}</tbody></table></div>
       <p class="klein">„ca.“: Das iPhone misst diesen Wert nur ungefähr, er zählt deshalb weniger. Grenzwerte: eigene Festlegungen nach EBU/ITU, AES und Hörstudien (Fazenda, Olive), noch nicht mit vielen Räumen abgeglichen.</p></details>

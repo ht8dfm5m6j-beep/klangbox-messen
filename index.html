@@ -146,6 +146,19 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
 .farben button[aria-checked="true"] { color: var(--ink); }
 .farben button[aria-checked="true"] i { outline: 2px solid var(--ink); outline-offset: 2px; }
 .plan svg { display: block; touch-action: manipulation; }
+/* Ab dem Ergebnis: drei Werte, Profil-Karten, Urteil der Nachmessung */
+.zahldrei { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.zahldrei .zahlkarte { padding: 12px; } .zahldrei .zahl { font-size: 36px; } .zahldrei .lbl { font-size: 12px; line-height: 1.25; min-height: 30px; }
+#g-geraet, .felder select { width: 100%; min-width: 0; max-width: 100%; }
+.felder select { min-height: 44px; border-radius: 12px; background: var(--panel2); font-size: 15px; }
+.zahlkarte.geraet { background: var(--flaeche); outline: 1.5px dashed var(--line2); }
+.profile { display: grid; gap: 10px; }
+.profil { background: var(--panel); border-radius: 16px; padding: 12px 14px; display: grid; gap: 4px; min-width: 0; }
+.profil[data-an="true"] { background: var(--akzent-flaeche); outline: 1.5px solid var(--akzent); }
+.profil button.waehlen { background: transparent; color: var(--ink); min-height: 48px; padding: 0; width: 100%; display: grid; gap: 2px; justify-content: stretch; justify-items: start; text-align: left; font-weight: 500; }
+.profil .titel { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 16px; }
+.profil details summary { min-height: 28px; font-size: 13px; }
+.urteil.gut { outline: 1.5px solid var(--ok); } .urteil.zurueck { outline: 1.5px solid var(--warn); }
 .plan.klickbar svg { cursor: crosshair; }
 </style>
 
@@ -192,6 +205,9 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
       <option value="110">Groß, 30 bis 45 m²</option>
       <option value="160">Sehr groß, über 45 m²</option>
     </select>
+    <label class="klein" for="handy">Mit welchem Handy misst du?</label>
+    <select id="handy"><option value="">Anderes / weiß nicht (ohne Mikrofon-Korrektur)</option></select>
+    <div id="handy-hinweis" class="klein" hidden></div>
     <div id="raum-hinweis" class="klein ok" hidden></div>
     <button type="button" class="zweit" id="raum-scannen" data-scannen hidden>Raum neu scannen</button>
     <div class="knoepfe breit"><button type="button" class="zweit" data-zu="1">Zurück</button><button type="button" class="weiter" data-zu="3">Weiter</button></div>
@@ -300,9 +316,11 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
   <!-- Schritt 7: Ergebnis -->
   <section class="schritt" data-s="7" hidden style="display: grid; gap: 18px;">
     <div id="ergebnisse" style="display: grid; gap: 28px;"></div>
-    <div class="card">
+    <div class="card" id="wie-weiter">
       <h2>Wie weiter?</h2>
-      <button type="button" data-zu="8">Aufstellung verbessern (Sweetspot-Finder)</button>
+      <button type="button" data-zu="9">Klang wählen und Einstellungen übernehmen</button>
+      <button type="button" class="zweit" data-zu="11">Ohne Klang-Box: nur die Regler deiner Lautsprecher</button>
+      <button type="button" class="zweit" data-zu="8">Aufstellung verbessern (Sweetspot-Finder)</button>
       <button type="button" class="zweit" id="naechste-anlage">Andere Anlage messen und vergleichen</button>
       <button type="button" class="zweit" id="neu-messen">Diese Anlage noch einmal messen</button>
     </div>
@@ -389,6 +407,80 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
     <button type="button" id="s-rechnen">Vorschläge zeigen</button>
     <div id="s-status" class="klein" aria-live="polite"></div>
     <div id="s-ergebnis" style="display: grid; gap: 14px;"></div>
+    <div class="knoepfe"><button type="button" class="zweit" data-zu="7">Zurück zum Ergebnis</button><span></span></div>
+  </section>
+  <!-- Schritt 9: Klangprofil („Wie soll es klingen?“) -->
+  <section class="schritt" data-s="9" hidden style="display: grid; gap: 14px;" aria-labelledby="h-klang">
+    <h1 id="h-klang">Wie soll es klingen?</h1>
+    <p>Die Raumanpassung bleibt immer. Ein Klangprofil verschiebt nur die Tonbalance, um ein, zwei dB. Neutral ist voreingestellt.</p>
+    <div class="card"><span class="klein">Prognose am Hauptplatz (dB, 20 Hz bis 20 kHz)</span><div id="p-kurve"></div>
+      <div class="legende" id="p-legende"></div></div>
+    <div id="p-waechter" aria-live="polite"></div>
+    <div class="profile" id="p-liste" role="radiogroup" aria-label="Klangprofil"></div>
+    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="7">Zurück</button><button type="button" id="p-weiter">Weiter: Einstellungen anwenden</button></div>
+  </section>
+
+  <!-- Schritt 10: Einstellungen anwenden und nachmessen (mit Rücknahme) -->
+  <section class="schritt" data-s="10" hidden style="display: grid; gap: 14px;" aria-labelledby="h-anwenden">
+    <h1 id="h-anwenden">Einstellungen anwenden</h1>
+    <div class="card" id="a-zusammen"></div>
+    <section class="card" aria-labelledby="h-nach">
+      <h2 id="h-nach">Jetzt nachmessen</h2>
+      <p id="a-text"></p>
+      <ul class="haltung">
+        <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Genau wie vorhin: Hörplatz, iPhone auf Ohrhöhe, Mikrofon zu den Boxen, gleiche Lautstärke</li>
+      </ul>
+      <div id="a-vorher-zeile" class="kasten" hidden>
+        <span class="klein" id="a-vorher-text"></span>
+        <button type="button" class="zweit" id="a-vorher-messen">Vorher messen</button>
+      </div>
+      <button type="button" id="a-messen">Am Hörplatz nachmessen</button>
+      <button type="button" id="a-abbrechen" class="zweit" hidden>Abbrechen</button>
+      <div class="balken" aria-hidden="true"><div id="a-pegel"></div></div>
+      <div id="a-status" class="klein" aria-live="polite"></div>
+      <div id="a-filter" class="klein"></div>
+      <ul class="dateien" id="a-plaetze"></ul>
+      <details class="kasten" id="a-weitere"><summary>Weiteren Platz prüfen (empfohlen)</summary>
+        <p class="klein" id="a-weitere-text">Dafür misst du am selben Platz zweimal: erst mit „Alles aus“ an der Klang-Box, dann wieder mit Klang-Box.</p>
+        <label class="klein" for="a-platzname">Name des Platzes</label>
+        <input type="text" id="a-platzname" value="Platz 2">
+        <div class="knoepfe"><button type="button" class="zweit" id="a-extra-vorher">1 · „Alles aus“ messen</button><button type="button" class="zweit" id="a-extra-nachher" disabled>2 · Mit Klang-Box messen</button></div>
+      </details>
+      <button type="button" id="a-pruefen" disabled>Prüfen: besser oder schlechter?</button>
+    </section>
+    <div id="a-urteil" style="display: grid; gap: 12px;" aria-live="polite"></div>
+    <button type="button" class="zweit" id="a-spaeter">Später nachmessen (mit Erinnerung)</button>
+    <div class="knoepfe"><button type="button" class="zweit" id="a-zurueck">Zurück</button><button type="button" class="zweit" data-zu="7">Zum Ergebnis</button></div>
+  </section>
+
+  <!-- Schritt 11: Ohne Klang-Box: nur die Regler der Lautsprecher selbst (herstellerneutral, Geräteprofile) -->
+  <section class="schritt" data-s="11" hidden style="display: grid; gap: 14px;" aria-labelledby="h-geraet">
+    <h1 id="h-geraet">Ohne Klang-Box: die Regler deiner Lautsprecher</h1>
+    <p>Viele Lautsprecher und Subwoofer haben eigene Regler. Ich suche die beste Stellung, nach derselben Regel wie die Klang-Box: an keinem Platz schlechter. Was die Regler genau tun, ist je Gerät nur teils belegt. Deshalb misst du danach nach – hier ist das Pflicht.</p>
+    <div class="kasten">
+      <label class="klein" for="g-geraet">Welches Gerät?</label>
+      <select id="g-geraet"></select>
+      <div id="g-eigen" hidden style="display: grid; gap: 8px;"><h3>Welche Regler hat dein Gerät?</h3><ul class="haken" id="g-eigen-liste"></ul></div>
+      <p class="klein" id="g-hinweis"></p>
+      <div class="reihe" id="g-sub-zeile"><div><span style="font-size: 15px; font-weight: 600;">Ein Subwoofer spielt mit</span><span class="klein">am Sub-Ausgang der Lautsprecher</span></div><button type="button" class="schalter" role="switch" id="g-sub" aria-checked="false" aria-label="Ein Subwoofer spielt mit"></button></div>
+    </div>
+    <details class="kasten" id="g-heute" open><summary>So ist es heute eingestellt</summary>
+      <p class="klein">Lies die Werte am Gerät oder in seiner App ab. Weißt du sie nicht, lass die Werkseinstellung stehen.</p>
+      <div class="felder" id="g-felder"></div>
+      <button type="button" class="klein zweit" id="g-werks">Werkseinstellung</button>
+    </details>
+    <div class="kasten" id="g-sub-messung" hidden>
+      <h3>Für die Sub-Regler: noch eine Messung</h3>
+      <p class="klein"><span id="g-zerlegung-text"></span> So weiß ich, was die Lautsprecher und was der Sub spielen. Ohne diese Messung bleiben die Sub-Regler, wie sie sind.</p>
+      <button type="button" class="zweit" id="g-gedreht-messen">Mit umgedrehter Sub-Polarität messen</button>
+      <button type="button" id="g-abbrechen" class="zweit" hidden>Abbrechen</button>
+      <div class="balken" aria-hidden="true"><div id="g-pegel"></div></div>
+      <div id="g-mess-status" class="klein" aria-live="polite"></div>
+      <div id="g-filter" class="klein"></div>
+    </div>
+    <button type="button" id="g-rechnen">Beste Einstellung suchen</button>
+    <div id="g-status" class="klein" aria-live="polite"></div>
+    <div id="g-ergebnis" style="display: grid; gap: 12px;"></div>
     <div class="knoepfe"><button type="button" class="zweit" data-zu="7">Zurück zum Ergebnis</button><span></span></div>
   </section>
   <audio id="signal" src="raumcheck.wav" preload="auto" x-webkit-airplay="allow" playsinline></audio>
@@ -694,7 +786,22 @@ function stoerEinzeln(stoer) {
   return Object.keys(stoer).filter((k) => stoer[k] > -45 || (stoer[k] - mitte > 12 && stoer[k] > -60));
 }
 
-function analysiere(rec0, fo = FOLGE) {
+// Korrekturkurve eines Handy-Mikrofons (aus daten/mikrofone, wie klangbox/mikrofone.py): {f:[Hz], db:[dB]}.
+// Linear über log f interpoliert, Randwerte gehalten, höchstens +12 dB Verstärkung (sonst nur Rauschen).
+function mikroFaktor(m, f) {
+  const x = Math.log10(Math.max(f, 1)), xs = m.f.map((v) => Math.log10(v));
+  let db;
+  if (x <= xs[0]) db = m.db[0];
+  else if (x >= xs[xs.length - 1]) db = m.db[m.db.length - 1];
+  else { let i = 1; while (xs[i] < x) i++; const t = (x - xs[i - 1]) / (xs[i] - xs[i - 1]); db = m.db[i - 1] + t * (m.db[i] - m.db[i - 1]); }
+  return Math.pow(10, Math.max(db, -12) / 20);
+}
+function mikroKalibrierung(d) {  // wie mikrofone.kalibrierung(): über 2 kHz Mittel aus Druck und Freifeld, nur im gültigen Bereich
+  const [lo, hi] = d.gueltig_hz, f = [], db = [];
+  d.frequenzen_hz.forEach((x, i) => { if (x >= lo && x <= hi) { f.push(x); db.push(x > 2000 ? 0.5 * (d.druck_db[i] + d.freifeld_db[i]) : d.druck_db[i]); } });
+  return { f: [5, ...f, 24000], db: [db[0], ...db, db[db.length - 1]] };
+}
+function analysiere(rec0, fo = FOLGE, mikro = null) {
   const { zeiten, corr } = findeMarker(rec0, fo);
   const sched = fo.kanaele.map((_, i) => markerZeit(i, fo) * FS);
   const mx = sched.reduce((s, v) => s + v, 0) / sched.length, my = zeiten.reduce((s, v) => s + v, 0) / zeiten.length;
@@ -719,6 +826,7 @@ function analysiere(rec0, fo = FOLGE) {
       let w = Math.min(1, Math.max(0, (Math.log2(Math.max(f, 1e-3)) - Math.log2(14)) / Math.log2(20 / 14)));
       w *= Math.min(1, Math.max(0, (Math.log2(21500) - Math.log2(Math.max(f, 1e-3))) / Math.log2(21500 / 19000)));
       W[k] = w;
+      if (mikro) w /= mikroFaktor(mikro, f);  // Mikrofon-Korrektur herausrechnen (wie mic_cal in Python)
       const d = X.re[k] ** 2 + X.im[k] ** 2 + 1e-6 * maxX;
       const ir = (X.re[k] * w) / d, ii = (-X.im[k] * w) / d;
       re[k] = S.re[k] * ir - S.im[k] * ii; im[k] = S.re[k] * ii + S.im[k] * ir;
@@ -788,9 +896,15 @@ function biquad(art, f0, q, gain) {
   const w = 2 * Math.PI * f0 / FS, sn = Math.sin(w), cs = Math.cos(w), al = sn / (2 * q), A = Math.pow(10, gain / 40);
   let b, a;
   if (art === "Peaking") { b = [1 + al * A, -2 * cs, 1 - al * A]; a = [1 + al / A, -2 * cs, 1 - al / A]; }
-  else { const be = sn * Math.sqrt(A) / q;  // Lowshelf
+  else if (art === "Highpass") { b = [(1 + cs) / 2, -(1 + cs), (1 + cs) / 2]; a = [1 + al, -2 * cs, 1 - al]; }
+  else if (art === "Lowpass") { b = [(1 - cs) / 2, 1 - cs, (1 - cs) / 2]; a = [1 + al, -2 * cs, 1 - al]; }
+  else if (art === "Highshelf") { const be = sn * Math.sqrt(A) / q;
+    b = [A * ((A + 1) + (A - 1) * cs + be), -2 * A * ((A - 1) + (A + 1) * cs), A * ((A + 1) + (A - 1) * cs - be)];
+    a = [(A + 1) - (A - 1) * cs + be, 2 * ((A - 1) - (A + 1) * cs), (A + 1) - (A - 1) * cs - be]; }
+  else if (art === "Lowshelf") { const be = sn * Math.sqrt(A) / q;
     b = [A * ((A + 1) - (A - 1) * cs + be), 2 * A * ((A - 1) - (A + 1) * cs), A * ((A + 1) - (A - 1) * cs - be)];
     a = [(A + 1) + (A - 1) * cs + be, -2 * ((A - 1) + (A + 1) * cs), (A + 1) + (A - 1) * cs - be]; }
+  else throw new Error(`Unbekannter Biquad-Typ ${art}`);
   return { b: b.map((v) => v / a[0]), a: [1, a[1] / a[0], a[2] / a[0]] };
 }
 function biquadDb(bq) {
@@ -1246,7 +1360,7 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
   }
   const rund = (v, n) => Math.round(v * 10 ** n) / 10 ** n;
   return {
-    gesamt: Math.round(gesamt), note: note(gesamt), plusminus, gekappt,
+    gesamt: Math.round(gesamt), gesamt_roh: gesamt, teile_roh: Object.fromEntries(gem.map((k) => [k.key, k.punkte])), note: note(gesamt), plusminus, gekappt,
     teile: Object.fromEntries(gem.map((k) => [k.key, Math.round(k.punkte)])),
     werte: Object.fromEntries(Object.values(z).filter((k) => k.wert !== null).map((k) => [k.key, rund(k.wert, 3)])),
     kennzahlen: Object.fromEntries(Object.values(z).map((k) => [k.key, { name: KENNZAHLEN[k.key][0], punkte: k.punkte === null ? null : Math.round(k.punkte),
@@ -1332,9 +1446,9 @@ function korrigiertMitte(m, calL, calR) {
   return korrigiert({ ir, zero: m.zero, delay: m.delay }, { gain_db: 0, eq: [], delay_ms: 0.5 * (calL.delay_ms + calR.delay_ms) });
 }
 // Bewegte Messung (wie Trueplay) in Messpunkte zerlegen: je Dreiergruppe links/rechts/Mitte einer
-function bewegtePunkte(daten) {
+function bewegtePunkte(daten, mikro = null) {
   let a;
-  try { a = analysiere(daten, FOLGE_BEWEGT); }
+  try { a = analysiere(daten, FOLGE_BEWEGT, mikro); }
   catch (e) { return { punkte: [], info: { platz: "Bewegt", sauber: false, probleme: [`Messsignal nicht gefunden (${e.message}). Lief es während der Aufnahme?`] } }; }
   const gestoert = new Set(a.pruefung.gestoert || []), punkte = [], k = FOLGE_BEWEGT.kanaele;
   for (let g = 0; g < k.length / 3; g++) {
@@ -1358,6 +1472,15 @@ function korrigiert(m, cal) {
 function kurve(C) {
   const d = dbArr(glaetten(leistung(antwort(C)), 6)), m = d.filter((_, i) => F[i] >= 500 && F[i] <= 2000), mu = m.reduce((a, b) => a + b) / m.length;
   const f = [], v = []; for (let i = 0; i < NF; i++) if (F[i] >= 20 && F[i] <= 400) { f.push(Math.round(F[i] * 10) / 10); v.push(Math.round((d[i] - mu) * 100) / 100); }
+  return { f, v };
+}
+
+// Ganzer Frequenzgang der Mitte, 1/3 Oktave, jeder 8. Punkt (wie _kurve_voll): für die Profil-Vorschau
+const VOLL_SCHRITT = 8;
+function kurveVoll(C) {
+  const d = dbArr(glaetten(leistung(antwort(C)), 3)), m = d.filter((_, i) => F[i] >= 500 && F[i] <= 2000), mu = m.reduce((a, b) => a + b) / m.length;
+  const idx = []; for (let i = 0; i < NF; i++) if (F[i] >= 20 && F[i] <= 20000) idx.push(i);
+  const f = [], v = []; for (let k = 0; k < idx.length; k += VOLL_SCHRITT) { const i = idx[k]; f.push(Math.round(F[i] * 10) / 10); v.push(Math.round((d[i] - mu) * 100) / 100); }
   return { f, v };
 }
 
@@ -1401,18 +1524,19 @@ function raumTipps(haupt, sh, raumM3) {
   return tipps;
 }
 
-function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null) {
+function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null) {
+  const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null;
   const erg = { aufnahmen: [], fehler: null, modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
   const punkte = [];
   for (const { name, daten } of aufnahmen) {
     let a;
-    try { a = analysiere(daten); }
+    try { a = analysiere(daten, FOLGE, mikro); }
     catch (e) { erg.aufnahmen.push({ platz: name, sauber: false, probleme: [`Messsignal nicht gefunden (${e.message}). Lief es während der Aufnahme?`] }); continue; }
     erg.aufnahmen.push({ platz: name, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme, drift_ppm: Math.round(a.drift_ppm * 10) / 10, pruefton: a.pruefung.treppe_stufen_db });
     if (a.pruefung.sauber) punkte.push({ name, messungen: a.messungen });
   }
   if (!punkte.length) { erg.fehler = "Keine saubere Aufnahme dabei. Bitte ohne Filter aufnehmen (Sprachmemos „Verlustfrei“) und wiederholen."; return erg; }
-  if (bewegt) { const b = bewegtePunkte(bewegt); erg.aufnahmen.push(b.info); punkte.push(...b.punkte); }
+  if (bewegt) { const b = bewegtePunkte(bewegt, mikro); erg.aufnahmen.push(b.info); punkte.push(...b.punkte); }
   const ein = einmessen(punkte, HAUSKURVE[modus]);
   // Bühne: links/rechts genau am Hauptplatz gleich laut (die Einmessung mittelt über alle Plätze)
   // gemessen genau wie die Bewertung (Leistungsmittel 500–2000 Hz) und nach den EQs
@@ -1436,14 +1560,14 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null) {
   const nachher = punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, ein.cals.FL), FR: korrigiert(p.messungen.FR, ein.cals.FR) };
     m.C = p.messungen.C ? korrigiertMitte(p.messungen.C, ein.cals.FL, ein.cals.FR) : mitte(m); return m; });
   const sh = score(vorher, modus, raumM3), sn = score(nachher, modus, raumM3, null, true, true);
-  const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C);
+  const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C), vh = kurveVoll(vorher[0].C), vn = kurveVoll(nachher[0].C);
   Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, bericht: ein.zeilen, tipps: ein.tipps,
                        raum_tipps: raumTipps(punkte[0].messungen, sh, raumM3),
-                       kurve: { f: kh.f, heute: kh.v, prognose: kn.v }, einstellungen: ein.cals });
+                       kurve: { f: kh.f, heute: kh.v, prognose: kn.v }, kurve_voll: { f: vh.f, heute: vh.v, prognose: vn.v }, einstellungen: ein.cals });
   // Nie verschlimmbessern: bringt die Raumanpassung nicht mindestens einen Punkt, bleibt die Box neutral
   // (ein vorhergesagtes „gleich gut“ ist nur Risiko; wie MINDEST_GEWINN in raumcheck.py)
   if (sn.gesamt < sh.gesamt + 1) {
-    erg.score_prognose = { ...sh }; erg.kurve.prognose = kh.v;
+    erg.score_prognose = { ...sh }; erg.kurve.prognose = kh.v; erg.kurve_voll.prognose = vh.v;
     erg.einstellungen = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
     erg.bericht.push("Wächter: Die Raumanpassung würde hier insgesamt nichts verbessern. Die Box bleibt neutral.");
   }
@@ -1451,6 +1575,479 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null) {
   const v = waechterErgebnis(erg);
   if (v.length) return { aufnahmen: erg.aufnahmen, modus, score_name: erg.score_name, fehler: "Ergebnis zurückgehalten, es wäre nicht verlässlich: " + v.join("; ") };
   return erg;
+}
+
+// --- Klangprofile (klangbox/klangprofile.py): eigene Filterstufe nach der Raumkorrektur ------------
+// Zahl mit Komma, kaufmännisch gerundet (wie klangprofile.zahl)
+function zahlText(x, n = 1, vorzeichen = false) {
+  const p = Math.pow(10, n); let r = Math.floor(x * p + 0.5) / p; if (r === 0) r = 0;
+  const s = Math.abs(r).toFixed(n).replace(".", ",");
+  return r < 0 ? "-" + s : (vorzeichen && r > 0 ? "+" + s : s);
+}
+const PROFIL_ARTEN = { peaking: "Peaking", lowshelf: "Lowshelf", highshelf: "Highshelf" };
+const PROFIL_SKALEN = []; for (let k = 20; k >= 0; k--) PROFIL_SKALEN.push(k / 20);
+const LEIT = { boost: 3.0, ueber300: 300, boostOben: 2.0, tol: 0.05 };  // klangbox/guardrails.py
+function profilFilterDb(fl) { const c = new Float64Array(NF); for (const f of fl) { const d = biquadDb(biquad(PROFIL_ARTEN[f.typ], f.freq, f.q, f.gain_db)); for (let i = 0; i < NF; i++) c[i] += d[i]; } return c; }
+function pruefeProfil(p, grenzen) {
+  const g = grenzen, v = [], fl = p.filter || [];
+  if (fl.length > g.max_filter) v.push(`mehr als ${g.max_filter} Filter`);
+  for (const f of fl) {
+    if (!(f.typ in PROFIL_ARTEN)) { v.push(`Filtertyp '${f.typ}' unbekannt`); continue; }
+    if (!(f.freq >= 20 && f.freq <= 20000) || !(f.q >= 0.3 && f.q <= 10)) v.push(`Filter ${f.freq} Hz außerhalb des Bereichs`);
+    if (Math.abs(f.gain_db) > g.max_gain_db_je_filter + 1e-9) v.push(`Filter ${f.freq} Hz: ${f.gain_db} dB ist zu viel`);
+    if (f.freq > LEIT.ueber300) {
+      if (f.q > g.max_q_ueber_300hz + 1e-9) v.push(`Filter ${f.freq} Hz zu schmal (Q ${f.q})`);
+      if (Math.abs(f.gain_db) > LEIT.boostOben + 1e-9) v.push(`Filter ${f.freq} Hz: über 300 Hz höchstens ±2 dB`);
+    } else if (f.q > 1.4 + 1e-9) v.push(`Filter ${f.freq} Hz zu schmal (Q ${f.q})`);
+  }
+  if (!v.length && fl.length) { const s = profilFilterDb(fl); if (Math.max(...s) > g.max_summe_db + LEIT.tol || Math.min(...s) < -g.max_summe_db - LEIT.tol) v.push(`Filter zusammen außerhalb ±${g.max_summe_db.toFixed(0)} dB`); }
+  return v;
+}
+// Summe höchstens +3 dB, über 300 Hz +2 dB; wo der Raum-EQ allein schon höher liegt, darf das Profil nichts dazutun
+function profilVerstoss(raumDb, profDb) {
+  for (const [ch, r] of Object.entries(raumDb)) {
+    const seite = ch === "FL" ? "links" : ch === "FR" ? "rechts" : ch;
+    let i = 0, zi = -Infinity;
+    for (let k = 0; k < NF; k++) { const z = r[k] + profDb[k] - Math.max(F[k] > LEIT.ueber300 ? LEIT.boostOben : LEIT.boost, r[k]); if (z > zi) { zi = z; i = k; } }
+    if (zi > LEIT.tol) return `${seite} bei ${zahlText(F[i], 0)} Hz ${zahlText(r[i] + profDb[i], 1, true)} dB angehoben (${F[i] > LEIT.ueber300 ? "über 300 Hz erlaubt: +2 dB" : "erlaubt sind +3 dB"})`;
+  }
+  return null;
+}
+const profilNeutral = () => ({ id: "neutral", name: "Neutral (Harman-nah)", kurz: "Neutral – so, wie das Einmess-Ziel es vorsieht.", skala: 1, filter: [], vorverstaerkung_db: 0, zusatz_optional: null, zusatz_angewendet: false, braucht_engine: false, hinweise: [] });
+// Profil auf die Raumanpassung setzen (wie klangprofile.anwenden). daten: Inhalt von daten/klangprofile.json
+function profilAnwenden(einstellungen, profil, daten) {
+  if (profil == null) return profilNeutral();
+  const p = typeof profil === "string" ? daten.profile.find((x) => x.id === profil) : profil;
+  if (!p) throw new Error(`Unbekanntes Klangprofil '${profil}'`);
+  const out = { id: p.id, name: p.name, kurz: p.kurz, skala: 1, filter: [], vorverstaerkung_db: 0, zusatz_optional: p.zusatz_optional || null,
+    zusatz_angewendet: false, braucht_engine: !!p.zusatz_optional, hinweise: [] };
+  if (out.braucht_engine) out.hinweise.push(`Den Zusatz aus dem Profil (${p.zusatz_optional.typ === "mitte_seite" ? "Mitte/Seite" : "Übersprechen"}) kann die Klang-Box-Engine noch nicht. Es wirken nur die Filter.`);
+  const fehler = pruefeProfil(p, daten.grenzen);
+  if (fehler.length) { out.skala = 0; out.hinweise.push(`Wächter: Das Profil hält die Grenzen nicht ein (${fehler.join("; ")}). Es bleibt neutral.`); return out; }
+  if (!p.filter || !p.filter.length) return out;
+  const raumDb = {}; for (const ch of ["FL", "FR"]) if (einstellungen[ch]) raumDb[ch] = summeDb(einstellungen[ch].eq || []);
+  if (raumDb.FL && raumDb.FR) {  // Wächter Bühne: über 500 Hz L/R höchstens 1 dB verschieden (Profil kürzt sich heraus)
+    let i = 0, d = 0; for (let k = 0; k < NF; k++) { const x = F[k] > 500 ? Math.abs(raumDb.FL[k] - raumDb.FR[k]) : 0; if (x > d) { d = x; i = k; } }
+    if (d > 1 + LEIT.tol) out.hinweise.push(`Wächter: Über 500 Hz unterscheiden sich links und rechts schon durch die Raumanpassung um ${zahlText(d)} dB (bei ${zahlText(F[i], 0)} Hz, gut für die Bühne ist höchstens 1 dB). Das Profil gilt für beide Kanäle gleich und ändert daran nichts.`);
+  }
+  const skaliert = (s) => p.filter.map((f) => ({ typ: f.typ, freq: f.freq, gain_db: Math.round(f.gain_db * s * 100) / 100, q: f.q }));
+  let erster = null, skala = 0, fl = skaliert(0), ok = false;
+  for (const s of PROFIL_SKALEN) { const k = skaliert(s), v = profilVerstoss(raumDb, profilFilterDb(k)); if (v === null) { skala = s; fl = k; ok = true; break; } erster = erster || v; }
+  if (!ok) { skala = 0; fl = skaliert(0); }
+  if (skala > 0 && skala < 0.25) {  // schwächer hört man ein Profil nicht mehr: dann lieber ehrlich aus
+    out.skala = 0; out.hinweise.push(`Wächter: Zusammen mit deiner Raumanpassung dürfte das Profil nur noch zu ${zahlText(skala * 100, 0)} % wirken, das hört man nicht. Grund: Es hätte sonst ${erster}. Es bleibt aus.`);
+    return out;
+  }
+  out.skala = skala;
+  if (skala === 0) { out.hinweise.push(`Wächter: Zusammen mit deiner Raumanpassung hätte das Profil ${erster}. Es passt hier nicht und bleibt aus.`); return out; }
+  out.filter = fl;
+  const spitze = Math.max(0, Math.max(...profilFilterDb(fl)));
+  out.vorverstaerkung_db = spitze > 0 ? -Math.ceil(spitze * 10 - 1e-6) / 10 : 0;
+  if (skala < 1) out.hinweise.push(`Wächter: Ich habe das Profil auf ${zahlText(skala * 100, 0)} % abgeschwächt. Zusammen mit deiner Raumanpassung hätte es sonst ${erster}.`);
+  return out;
+}
+// Wirkung des Profils in dB an beliebigen Frequenzen (für die Prognose-Kurve)
+function profilDbAn(fl, freqs) {
+  return freqs.map((f) => { let s = 0; for (const x of fl) { const bq = biquad(PROFIL_ARTEN[x.typ], x.freq, x.q, x.gain_db), w = 2 * Math.PI * f / FS;
+    const c1 = Math.cos(w), s1 = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+    const nr = bq.b[0] + bq.b[1] * c1 + bq.b[2] * c2, ni = -bq.b[1] * s1 - bq.b[2] * s2, dr = 1 + bq.a[1] * c1 + bq.a[2] * c2, di = -bq.a[1] * s1 - bq.a[2] * s2;
+    s += 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di)); } return s; });
+}
+
+// --- Nachmessung mit Rücknahme (klangbox/nachpruefung.py) ---------------------------------------
+const NP = { rausch: 0.5, minTol: 0.3, teil: 5, score: 3, neigung: 0.3, spitzeMax: 4, spitzeProminenz: 2,
+  methodeB: { B1: 3, B2: 2, B3: 2, B4: 1.5, B5: 1.5, B6: 1.5, B7: 2, B8: 3 } };
+const PRUEFBAENDER = [["B1 Tiefbass", 20, 60], ["B2 Bass", 60, 150], ["B3 Grundton", 150, 300], ["B4 Untere Mitten", 300, 1000],
+  ["B5 Praesenz", 1000, 4000], ["B6 Brillanz", 4000, 8000], ["B7 Hoehen", 8000, 12500], ["B8 Luft", 12500, 16000]];
+// Bass-Abweichung (wie Kennzahl 1) an einem Platz, Stereo-Ziel, L und R gemittelt (Prüfstand R5)
+function bassAmPlatz(m) { const z = zielkurve(HAUSKURVE.stereo); return mean(["FL", "FR"].map((ch) => bassAbweichung(glaetten(leistung(antwort(m[ch])), 6), z))); }
+// Bass-Form: dasselbe ohne den mittleren Bass-Pegel (nur zur Anzeige, kein Urteilskriterium)
+function bassFormAmPlatz(m) {
+  const z = zielkurve(HAUSKURVE.stereo);
+  return mean(["FL", "FR"].map((ch) => { const d = dbArr(glaetten(leistung(antwort(m[ch])), 6)), e = [];
+    for (let i = 0; i < NF; i++) if (F[i] >= F_LO && F[i] <= 250) e.push(d[i] - z[i]);
+    const mu = mean(e); return Math.sqrt(mean(e.map((v) => { const x = v - mu; return (x > 0 ? x : 0.5 * x) ** 2; }))); }));
+}
+// Spitzen-Wächter (wie spitzen_anhebung): um wie viel stieg eine vorhandene Bass-Spitze stärker als der übrige Bass?
+const medianEcht = (a) => { const s = [...a].sort((x, y) => x - y), n = s.length; return n % 2 ? s[(n - 1) / 2] : 0.5 * (s[n / 2 - 1] + s[n / 2]); };
+const prominenz = (p) => { const a = dbArr(glaetten(p, 6)), b = dbArr(glaetten(p, 1)); return a.map((v, i) => v - b[i]); };
+function staerksteRaummode(m) {
+  const pl = prominenz(leistung(antwort(m.FL))), pr = prominenz(leistung(antwort(m.FR)));
+  let best = -1; for (let i = 0; i < NF; i++) if (F[i] >= F_LO && F[i] <= 200 && (best < 0 || 0.5 * (pl[i] + pr[i]) > 0.5 * (pl[best] + pr[best]))) best = i;
+  return [F[best], 0.5 * (pl[best] + pr[best])];
+}
+function spitzenAnhebung(v, n) { return spitzeAusLeistung(["FL", "FR"].map((ch) => leistung(antwort(v[ch]))), ["FL", "FR"].map((ch) => leistung(antwort(n[ch])))); }
+function spitzeAusLeistung(vorher, nachher) {
+  let best = [-99, 0];
+  for (let c = 0; c < vorher.length; c++) {
+    const pv = vorher[c], pn = nachher[c], dv = dbArr(glaetten(pv, 6)), dn = dbArr(glaetten(pn, 6)), pr = prominenz(pv), idx = [];
+    for (let i = 0; i < NF; i++) if (F[i] >= F_LO && F[i] <= 250) idx.push(i);  // unter 40 Hz misst das iPhone zu ungenau
+    const d = idx.map((i) => dn[i] - dv[i]), med = medianEcht(d);
+    let b = -99, bf = 0; idx.forEach((i, k) => { const x = pr[i] > NP.spitzeProminenz ? d[k] - med : -99; if (x > b) { b = x; bf = F[i]; } });
+    if (b > best[0]) best = [b, bf];
+  }
+  return best;
+}
+// Wirkung des Klangprofils aus einer Messung herausrechnen (Kehrfilter, minimalphasig)
+function ohneProfil(m, profil) {
+  const fl = (profil && profil.filter) || [], vor = (profil && profil.vorverstaerkung_db) || 0;
+  if (!fl.length && !vor) return m;
+  const out = {}, g = Math.pow(10, -vor / 20);
+  for (const [ch, x] of Object.entries(m)) {
+    let ir = x.ir;
+    for (const f of fl) { const bq = biquad(PROFIL_ARTEN[f.typ], f.freq, f.q, f.gain_db), b0 = bq.b[0];
+      ir = biquadFilter(ir, { b: bq.a.map((v) => v / b0), a: [1, bq.b[1] / b0, bq.b[2] / b0] }); }
+    out[ch] = { ir: ir.map((v) => v * g), zero: x.zero, delay: x.delay };
+  }
+  return out;
+}
+const mitMitte = (m) => ({ FL: m.FL, FR: m.FR, C: m.C || mitte(m) });
+// Theorie gegen Praxis (wie vergleich in nachpruefung.py)
+const VGL = { score: 3, bass: 2, ursachen: [
+  "Etwas wurde verschoben: Boxen, Sofa oder Möbel, oder das iPhone war an einer anderen Stelle als vorhin.",
+  "Lautstärke oder Quelle wurde geändert: andere Lautstärke, Klangregler, anderer Eingang.",
+  "Das Gerät hat die Einstellungen nicht übernommen: Klang-Box auf „Alles aus“, Datei nicht geladen oder Regler nicht gesetzt."] };
+function vorhersageMessung(m, einstellungen, kette) {
+  const e = einstellungen || {};
+  if (e.FL && e.FR) {
+    const o = { FL: korrigiert(m.FL, e.FL), FR: korrigiert(m.FR, e.FR) };
+    if (m.C) o.C = korrigiertMitte(m.C, e.FL, e.FR);
+    return mitMitte(o);
+  }
+  if (kette) { const o = {}; for (const [ch, x] of Object.entries(m)) { let ir = x.ir; for (const bq of kette.k) ir = biquadFilter(ir, bq); o[ch] = { ir: ir.map((v) => kette.faktor * v), zero: x.zero, delay: x.delay }; } return mitMitte(o); }
+  return mitMitte(m);
+}
+function kanalWerte(m) {
+  const t = { FL: m.FL.delay * 1000, FR: m.FR.delay * 1000 }, p = { FL: mittelDb(leistung(antwort(m.FL)), 500, 2000), FR: mittelDb(leistung(antwort(m.FR)), 500, 2000) };
+  const tm = Math.min(t.FL, t.FR), pm = Math.max(p.FL, p.FR);
+  return { FL: { laufzeit_ms: t.FL - tm, pegel_db: p.FL - pm }, FR: { laufzeit_ms: t.FR - tm, pegel_db: p.FR - pm } };
+}
+function vergleichRechnen(vh, gemessen, namen, modus, raumM3, sn, ungefaehr) {
+  const sp = score(vh, modus, raumM3, null, true, true);
+  sn = sn || score(gemessen, modus, raumM3, null, true, true);
+  const kz = Object.fromEntries(Object.entries(sp.kennzahlen).map(([k, v]) => [k, { name: v.name, vorhergesagt: v.punkte, gemessen: sn.kennzahlen[k].punkte }]));
+  const kv = kurve(vh[0].C), kn = kurve(gemessen[0].C), d = [];
+  kv.f.forEach((f, i) => { if (f >= 40 && f <= 300) d.push(Math.abs(kv.v[i] - kn.v[i])); });
+  const bass = mean(d), a = kanalWerte(vh[0]), b = kanalWerte(gemessen[0]), r = (x, n) => Math.round(x * 10 ** n) / 10 ** n;
+  const kan = Object.fromEntries(["FL", "FR"].map((ch) => [ch, Object.fromEntries(["laufzeit_ms", "pegel_db"].map((k) => [k, { vorhergesagt: r(a[ch][k], 3), gemessen: r(b[ch][k], 3) }]))]));
+  const dS = sn.gesamt_roh - sp.gesamt_roh, ueber = Math.abs(dS) > VGL.score || bass > VGL.bass;
+  return { score: { vorhergesagt: r(sp.gesamt_roh, 1), gemessen: r(sn.gesamt_roh, 1), abweichung: r(dS, 1), toleranz: VGL.score }, kennzahlen: kz,
+    bass_kurve: { f: kv.f, vorhergesagt: kv.v, gemessen: kn.v, mittel_abweichung_db: r(bass, 2), toleranz_db: VGL.bass },
+    kanaele: kan, plaetze: namen, hauptplatz: namen[0], ungefaehr: !!ungefaehr, ueber_toleranz: ueber, ursachen: ueber ? VGL.ursachen.slice() : [], positionen_geprueft: [] };
+}
+function methodeB(nachher, profil, modus) {
+  const p = new Float64Array(NF); let n = 0;
+  for (const m of nachher) for (const ch of ["FL", "FR"]) { const l = leistung(antwort(m[ch])); for (let i = 0; i < NF; i++) p[i] += l[i]; n++; }
+  for (let i = 0; i < NF; i++) p[i] /= n;
+  const ist = dbArr(glaetten(p, 3)), pz = profilFilterDb((profil && profil.filter) || []), soll = zielkurve(HAUSKURVE[modus]).map((v, i) => v + pz[i]);
+  const mu = (a) => { let s = 0, k = 0; for (let i = 0; i < NF; i++) if (F[i] >= 500 && F[i] <= 2000) { s += a[i]; k++; } return s / k; };
+  const mi = mu(ist), ms = mu(soll), I = ist.map((v) => v - mi), S = soll.map((v) => v - ms);
+  let bestanden = true;
+  const baender = PRUEFBAENDER.map(([band, lo, hi]) => {
+    const d = []; for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] < hi) d.push(I[i] - S[i]);
+    const abw = mean(d), kurz = band.split(" ")[0], tol = NP.methodeB[kurz], info = kurz === "B8", ok = Math.abs(abw) <= tol;
+    if (!ok && !info) bestanden = false;
+    return { band, von_hz: lo, bis_hz: hi, abweichung_db: Math.round(abw * 100) / 100, toleranz_db: tol, ok, nur_info: info };
+  });
+  const xs = [], yi = [], ys = []; for (let i = 0; i < NF; i++) if (F[i] >= 300 && F[i] <= 10000) { xs.push(Math.log2(F[i])); yi.push(I[i]); ys.push(S[i]); }
+  const dIst = steigung(xs, yi), dSoll = steigung(xs, ys), neigOk = Math.abs(dIst - dSoll) <= NP.neigung;
+  bestanden = bestanden && neigOk;
+  let hinweis = "Nur ein Hinweis, kein K.-o.-Kriterium: Über 300 Hz verändert die Raumanpassung nichts, und das iPhone misst den Hochton nur ungefähr.";
+  if (nachher.length < 5) hinweis += ` Gemessen an ${nachher.length} ${nachher.length === 1 ? "Platz" : "Plätzen"} (empfohlen sind mindestens 5): nur grob.`;
+  return { methode: "B", bestanden, baender, neigung: { ist_db_okt: Math.round(dIst * 1000) / 1000, soll_db_okt: Math.round(dSoll * 1000) / 1000, toleranz: NP.neigung, ok: neigOk },
+    plaetze: nachher.length, hinweis };
+}
+// vorher: {Platzname: messungen}, nachher: [{name, messungen}] (der erste gemeinsame Platz ist der Hauptplatz)
+function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", raumM3 = null, toleranz = NP.rausch, vorhersageKette = null, vorhersageUngefaehr = false) {
+  const plaetze = nachher.filter((p) => p.name in vorher);
+  if (!plaetze.length) return { ok: false, empfehlung: "zuruecknehmen", satz: "Ich kann nichts vergleichen: Zur Nachmessung fehlt die Messung vorher am selben Platz. Sicherheitshalber bleibt der alte Stand.",
+    gruende: ["keine Messung vorher und nachher am selben Platz"], je_platz: [], hinweise: [], profil_pruefung: null, vergleich: null };
+  const haupt = plaetze[0].name, z = zahlText;
+  const v = plaetze.map((p) => mitMitte(vorher[p.name])), nRoh = plaetze.map((p) => mitMitte(p.messungen)), nRk = plaetze.map((p) => mitMitte(ohneProfil(p.messungen, profil)));
+  const tol = Math.max(NP.minTol, toleranz), jePlatz = [], schlechter = [], gruende = [], hinweise = [];
+  plaetze.forEach((p, k) => {
+    const a = bassAmPlatz(v[k]), b = bassAmPlatz(nRk[k]), fa = bassFormAmPlatz(v[k]), fb = bassFormAmPlatz(nRk[k]);
+    const [sp, fSp] = spitzenAnhebung(v[k], nRk[k]), sb = b > a + tol, ss = sp > NP.spitzeMax, r2 = (x) => Math.round(x * 100) / 100;
+    jePlatz.push({ platz: p.name, bass_vorher_db: r2(a), bass_nachher_db: r2(b), form_vorher_db: r2(fa), form_nachher_db: r2(fb),
+      spitze_db: r2(sp), spitze_hz: Math.round(fSp * 10) / 10, toleranz_db: tol, schlechter: sb || ss });
+    if (sb || ss) schlechter.push(p.name);
+    if (sb) gruende.push(`${p.name}: Bass ${z(a)} → ${z(b)} dB Abweichung (schlechter um ${z(b - a)} dB, Toleranz ${z(tol)} dB)`);
+    if (ss) gruende.push(`${p.name}: Raummode bei ${z(fSp, 0)} Hz um ${z(sp)} dB stärker angehoben als der übrige Bass (erlaubt ${z(NP.spitzeMax)} dB): Das dröhnt.`);
+  });
+  const sv = score(v, modus, raumM3), sn = score(nRk, modus, raumM3, null, true, true);
+  const teile = {}, teilSchlecht = [];
+  for (const [key, name] of [["pegel", "Kanäle gleich laut"], ["laufzeit", "Kanäle gleichzeitig"]]) {
+    const a = sv.teile_roh[key], b = sn.teile_roh[key];
+    teile[key] = [a == null ? null : Math.round(a), b == null ? null : Math.round(b)];
+    if (a != null && b != null && b < a - NP.teil) { teilSchlecht.push(name); gruende.push(`${name} am Hauptplatz: ${z(a, 0)} → ${z(b, 0)} Punkte`); }
+  }
+  const scoreSchlecht = sn.gesamt_roh < sv.gesamt_roh - NP.score;
+  if (scoreSchlecht) gruende.push(`Gesamtscore ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}`);
+  const zurueck = !!(schlechter.length || teilSchlecht.length || scoreSchlecht);
+  let satz;
+  if (zurueck) {
+    if (schlechter.length) satz = `Ich nehme es zurück – es wurde an Platz „${schlechter[0]}“ schlechter` + (schlechter.length > 1 ? ` (und an ${schlechter.length - 1} weiteren)` : "") + ".";
+    else if (teilSchlecht.length) satz = `Ich nehme es zurück – am Hauptplatz „${haupt}“ wurde die Bühne schlechter (${teilSchlecht[0]}).`;
+    else satz = `Ich nehme es zurück – insgesamt wurde es schlechter (Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}).`;
+  } else {
+    satz = `Behalten: An ${plaetze.length === 1 ? "dem gemessenen Platz" : `allen ${plaetze.length} gemessenen Plätzen`} gleich gut oder besser (Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}).`;
+    gruende.push(`Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}, an keinem Platz mehr Bass-Abweichung oder eine angehobene Raummode`);
+  }
+  const e = einstellungen || {};
+  if (e.FL && e.FR) {
+    const soll = (e.FR.delay_ms || 0) - (e.FL.delay_ms || 0);
+    if (Math.abs(soll) >= 0.1) {
+      const dv = (vorher[haupt].FR.delay - vorher[haupt].FL.delay) * 1000, dn = (plaetze[0].messungen.FR.delay - plaetze[0].messungen.FL.delay) * 1000;
+      if (Math.abs((dn - dv) - soll) > 0.5 * Math.abs(soll)) hinweise.push("Die Laufzeiten scheinen nicht übernommen zu sein (am Hauptplatz hat sich kaum etwas verschoben). Ist die Klang-Box an und nicht auf „Alles aus“?");
+    }
+  }
+  let profilPruefung = null;
+  if (profil && profil.filter && profil.filter.length) {
+    profilPruefung = methodeB(nRoh, profil, modus);
+    if (!profilPruefung.bestanden) {
+      const weg = profilPruefung.baender.filter((b) => !b.ok && !b.nur_info);
+      let teil = weg.map((b) => `${b.band} ${z(b.abweichung_db, 1, true)} dB (±${z(b.toleranz_db)})`).join("; ");
+      if (!profilPruefung.neigung.ok) { const ne = profilPruefung.neigung; teil = (teil ? teil + "; " : "") + `Neigung ${z(ne.ist_db_okt, 2, true)} statt ${z(ne.soll_db_okt, 2, true)} dB/Oktave`; }
+      hinweise.push(`Profilprüfung (Methode B): weicht ab – ${teil}. ` + profilPruefung.hinweis);
+    }
+  }
+  // Theorie gegen Praxis
+  const vh = plaetze.map((p) => vorhersageMessung(vorher[p.name], einstellungen, vorhersageKette));
+  const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr);
+  if (vgl.ueber_toleranz) hinweise.push(`Prognose und Messung weichen ab (Score ${z(vgl.score.vorhergesagt, 0)} vorhergesagt, ${z(vgl.score.gemessen, 0)} gemessen; Bass im Mittel ${z(vgl.bass_kurve.mittel_abweichung_db)} dB). Mögliche Ursachen: ${vgl.ursachen.join(" ")} Danach am besten neu einmessen.`);
+  return { ok: !zurueck, empfehlung: zurueck ? "zuruecknehmen" : "behalten", satz, status: zurueck ? "zurueckgenommen" : "bestaetigt", gruende, je_platz: jePlatz, hauptplatz: haupt,
+    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, hinweise, profil_pruefung: profilPruefung, vergleich: vgl };
+}
+
+// --- Modus „Ohne Box“: Regler der Lautsprecher selbst (klangbox/regler.py) ----------------------------------
+// Herstellerneutral: Was ein Gerät kann, steht in seinem Geräteprofil (daten/geraete/*.json). Hier keine Marke.
+const RG = { qBw: 0.7071, gewinnMin: 0.05, klangMin: 2, subTrennung: 150, arten: { peaking: "Peaking", lowshelf: "Lowshelf", highshelf: "Highshelf" } };
+function reglerWerte(r) {
+  const w = r.werte;
+  if (Array.isArray(w)) return w.slice();
+  const n = Math.round((w.bis - w.von) / w.schritt), out = [];
+  for (let k = 0; k <= n; k++) out.push(Math.round((w.von + k * w.schritt) * 1000) / 1000);
+  return ("aus" in w ? [null] : []).concat(out);
+}
+function reglerText(r, v) {
+  const a = r.anzeige || {};
+  if (a.namen) return String(v) in a.namen ? a.namen[String(v)] : String(v);
+  if ("aus_wert" in r && v === r.aus_wert && "aus" in a) return a.aus;
+  return (a.vor || "") + zahlText(v, a.nachkomma ?? 1, !!a.vorzeichen) + (a.einheit ? " " + a.einheit : "");
+}
+function reglerNaechster(r, v) {
+  const ws = reglerWerte(r);
+  if (ws.includes(v)) return v;
+  const zahlen = ws.filter((w) => typeof w === "number");
+  if (typeof v === "number" && isFinite(v) && zahlen.length) { let b = zahlen[0]; for (const w of zahlen) if (Math.abs(w - v) < Math.abs(b - v)) b = w; return b; }
+  return r.werks;
+}
+function reglerSauber(p, aktuell) { const a = aktuell || {}, o = {}; for (const r of p.regler) o[r.id] = r.id in a ? reglerNaechster(r, a[r.id]) : r.werks; return o; }
+const kehr = (bq) => ({ b: bq.a.map((v) => v / bq.b[0]), a: [1, bq.b[1] / bq.b[0], bq.b[2] / bq.b[0]] });
+function analogBiquad(n, d, fw) {  // n2 s² + n1 s + n0 / (d2 s² + d1 s + d0), bilinear, vorverzerrt bei fw
+  const k = 2 * Math.PI * fw / Math.tan(Math.PI * fw / FS), digital = ([c2, c1, c0]) => [c2 * k * k + c1 * k + c0, 2 * (c0 - c2 * k * k), c2 * k * k - c1 * k + c0];
+  const b = digital(n), a = digital(d);
+  return { b: b.map((v) => v / a[0]), a: a.map((v) => v / a[0]) };
+}
+function linkwitzTransform(fAlt, fNeu, tief) {
+  const wa = 2 * Math.PI * fAlt, wn = 2 * Math.PI * fNeu; let n = [1, wa / RG.qBw, wa * wa]; const d = [1, wn / RG.qBw, wn * wn];
+  if (tief) { const g = (wn * wn) / (wa * wa); n = n.map((v) => g * v); }
+  return analogBiquad(n, d, Math.sqrt(fAlt * fNeu));
+}
+const reglerFreq = (f, v) => (v === null ? null : "freq_je_wert" in f ? +f.freq_je_wert[String(v)] : +v);
+// Biquads und Faktor, die der Regler von alt nach neu verändert (wirft: nicht vorhersagbar)
+function reglerKette(r, alt, neu) {
+  if (alt === neu) return { k: [], faktor: 1 };
+  const f = r.filter, art = f.art;
+  if (art in RG.arten) {
+    const gain = (v) => ("gain_je_wert" in f ? +f.gain_je_wert[String(v)] : +v), k = [];
+    if (gain(alt)) k.push(kehr(biquad(RG.arten[art], f.freq, f.q, gain(alt))));
+    if (gain(neu)) k.push(biquad(RG.arten[art], f.freq, f.q, gain(neu)));
+    return { k, faktor: 1 };
+  }
+  if (art === "hochpass_lr4" || art === "tiefpass_lr4") {
+    const fa = reglerFreq(f, alt), fn = reglerFreq(f, neu), tief = art === "tiefpass_lr4";
+    if (fn === null) throw new Error(`${r.name} ausschalten lässt sich nicht vorhersagen`);
+    if (fa === null) { const bq = biquad(tief ? "Lowpass" : "Highpass", fn, RG.qBw, 0); return { k: [bq, bq], faktor: 1 }; }
+    const t = linkwitzTransform(fa, fn, tief); return { k: [t, t], faktor: 1 };
+  }
+  if (art === "pegel") return { k: [], faktor: Math.pow(10, (+neu - +alt) / 20) };
+  if (art === "polaritaet") return { k: [], faktor: (neu === f.invertiert) !== (alt === f.invertiert) ? -1 : 1 };
+  throw new Error(`Unbekanntes Filtermodell '${art}'`);
+}
+function reglerKetten(p, alt, neu) {
+  const out = { lautsprecher: { k: [], faktor: 1 }, sub: { k: [], faktor: 1 } };
+  for (const r of p.regler) { const x = reglerKette(r, alt[r.id], neu[r.id]), o = out[r.teil]; out[r.teil] = { k: o.k.concat(x.k), faktor: o.faktor * x.faktor }; }
+  return out;
+}
+function ketteH(k, faktor = 1) {
+  const re = new Float64Array(NF).fill(faktor), im = new Float64Array(NF);
+  for (const bq of k) { const b = biquadH(bq); for (let i = 0; i < NF; i++) { const r0 = re[i]; re[i] = r0 * b.re[i] - im[i] * b.im[i]; im[i] = r0 * b.im[i] + im[i] * b.re[i]; } }
+  return { re, im };
+}
+const filternKette = (ir, k) => { for (const bq of k) ir = biquadFilter(ir, bq); return ir; };
+function reglerSubTrennung(p, alt) {
+  for (const r of p.regler) if (r.teil === "sub" && r.filter.art === "tiefpass_lr4" && alt[r.id] !== null) return Math.min(2 * reglerFreq(r.filter, alt[r.id]), 300);
+  return RG.subTrennung * 2;
+}
+function reglerTeile(punkte, gedreht, fc) {
+  return punkte.map((p, k) => {
+    const m = mitMitte(p.messungen), kan = {};
+    for (const [ch, x] of Object.entries(m)) {
+      if (k === 0 && gedreht && (ch === "FL" || ch === "FR")) {
+        const y = gedreht[ch], n = Math.min(x.ir.length, y.ir.length), lp = biquad("Lowpass", fc, RG.qBw, 0);
+        const d = new Float64Array(n); for (let i = 0; i < n; i++) d[i] = 0.5 * (x.ir[i] - y.ir[i]);
+        const sub = filternKette(d, [lp, lp]), ls = new Float64Array(n); for (let i = 0; i < n; i++) ls[i] = x.ir[i] - sub[i];
+        kan[ch] = { m: x, ls, sub };
+      } else kan[ch] = { m: x, ls: x.ir, sub: null };
+    }
+    if (k === 0 && gedreht) {
+      const n = Math.min(kan.FL.ls.length, kan.FR.ls.length), ls = new Float64Array(n), sub = new Float64Array(n);
+      for (let i = 0; i < n; i++) { ls[i] = kan.FL.ls[i] + kan.FR.ls[i]; sub[i] = kan.FL.sub[i] + kan.FR.sub[i]; }
+      kan.C = { m: m.C, ls, sub };
+    }
+    for (const c of Object.values(kan)) { c.H_ls = antwort({ ir: c.ls, zero: c.m.zero, delay: c.m.delay }); c.H_sub = c.sub ? antwort({ ir: c.sub, zero: c.m.zero, delay: c.m.delay }) : null; }
+    return { name: p.name, kan };
+  });
+}
+function reglerVorhersageH(c, hl, hs) {
+  const re = new Float64Array(NF), im = new Float64Array(NF);
+  for (let i = 0; i < NF; i++) {
+    re[i] = c.H_ls.re[i] * hl.re[i] - c.H_ls.im[i] * hl.im[i]; im[i] = c.H_ls.re[i] * hl.im[i] + c.H_ls.im[i] * hl.re[i];
+    if (c.H_sub) { re[i] += c.H_sub.re[i] * hs.re[i] - c.H_sub.im[i] * hs.im[i]; im[i] += c.H_sub.re[i] * hs.im[i] + c.H_sub.im[i] * hs.re[i]; }
+  }
+  return { re, im };
+}
+function reglerHH(p, alt, neu) { const k = reglerKetten(p, alt, neu); return [ketteH(k.lautsprecher.k, k.lautsprecher.faktor), ketteH(k.sub.k, k.sub.faktor)]; }
+function reglerBassWerte(p, teile, alt, neu) {
+  const [hl, hs] = reglerHH(p, alt, neu), eins = ketteH([]), z = zielkurve(HAUSKURVE.stereo);
+  return teile.map((t) => {
+    const b = [], pv = [], pn = [];
+    for (const ch of ["FL", "FR"]) {
+      const roh = leistung(reglerVorhersageH(t.kan[ch], hl, hs));
+      b.push(bassAbweichung(glaetten(roh, 6), z)); pv.push(leistung(reglerVorhersageH(t.kan[ch], eins, eins))); pn.push(roh);
+    }
+    return [mean(b), spitzeAusLeistung(pv, pn)[0]];
+  });
+}
+function reglerAnhebung(p, teile, alt, neu) {
+  const [hl, hs] = reglerHH(p, alt, neu), eins = ketteH([]), k0 = teile[0].kan, a = new Float64Array(NF), n = new Float64Array(NF);
+  for (const ch of ["FL", "FR"]) { const la = leistung(reglerVorhersageH(k0[ch], eins, eins)), ln = leistung(reglerVorhersageH(k0[ch], hl, hs)); for (let i = 0; i < NF; i++) { a[i] += la[i]; n[i] += ln[i]; } }
+  const da = dbArr(glaetten(a, 6)), dn = dbArr(glaetten(n, 6)); let g = -Infinity, o = -Infinity;
+  for (let i = 0; i < NF; i++) if (F[i] >= 20 && F[i] <= 20000) { const d = dn[i] - da[i]; g = Math.max(g, d); if (F[i] > 300) o = Math.max(o, d); }
+  return [g, o];
+}
+const reglerZuViel = (p, teile, alt, neu) => { const [g, o] = reglerAnhebung(p, teile, alt, neu); return g > 3.05 || o > 2.05; };
+function reglerKlang(p, teile, alt, neu) {
+  const [hl, hs] = reglerHH(p, alt, neu);
+  return mean(["FL", "FR"].map((ch) => {
+    const pw = new Float64Array(NF); for (const t of teile) { const l = leistung(reglerVorhersageH(t.kan[ch], hl, hs)); for (let i = 0; i < NF; i++) pw[i] += l[i]; }
+    for (let i = 0; i < NF; i++) pw[i] /= teile.length;
+    const [nbd, ds] = tonalWerte(dbArr(glaetten(pw, 12))); return 0.7 * punkte(nbd, 3, 1.5, 0.8) + 0.3 * punkte(ds, 1.5, 0.5, 0.2);
+  }));
+}
+function reglerVorhersage(p, teile, alt, neu) {
+  const k = reglerKetten(p, alt, neu), L = k.lautsprecher, S = k.sub;
+  return teile.map((t) => { const m = {};
+    for (const [ch, c] of Object.entries(t.kan)) { const l = filternKette(c.ls, L.k); let ir = l.map((v) => L.faktor * v);
+      if (c.sub) { const s = filternKette(c.sub, S.k); ir = ir.map((v, i) => v + S.faktor * s[i]); }
+      m[ch] = { ir, zero: c.m.zero, delay: c.m.delay }; }
+    return m; });
+}
+function reglerErlaubt(r, sub, zerlegt) {
+  if (r.teil === "sub") return sub && zerlegt;
+  if (r.nur_mit_sub && !sub) return false;
+  if (r.bei_sub_nur_zerlegt && sub && !zerlegt) return false;
+  return true;
+}
+function reglerKandidaten(p, alt, ids) {
+  const out = [];
+  for (const r of p.regler) {
+    if (!ids.has(r.id)) continue;
+    for (const v of reglerWerte(r)) {
+      if (v === alt[r.id]) continue;
+      try { reglerKette(r, alt[r.id], v); } catch (e) { continue; }  // z. B. Hochpass ausschalten: nicht vorhersagbar
+      const mf = r.filter.max_faktor, fa = r.filter.art.endsWith("_lr4") ? reglerFreq(r.filter, alt[r.id]) : null;
+      if (mf && fa !== null && v !== null) { const fv = reglerFreq(r.filter, v); if (!(fv >= fa / mf - 1e-9 && fv <= fa * mf + 1e-9)) continue; }
+      out.push([r.id, v]);
+    }
+  }
+  return out;
+}
+// punkteListe: [{name, messungen}] (der erste ist der Hauptplatz), gedreht: Messungen am Hauptplatz mit umgedrehter Sub-Polarität
+function reglerOptimieren(punkteListe, p, aktuell, modus = "kino", raumM3 = null, sub = false, gedreht = null) {
+  if (!punkteListe.length) throw new Error("Keine Messung");
+  const alt = reglerSauber(p, aktuell), zerlegt = !!(sub && gedreht), hinweise = [];
+  const gesperrt = p.regler.filter((r) => !reglerErlaubt(r, sub, zerlegt) && !(r.nur_mit_sub && !sub) && !(r.teil === "sub" && !sub));
+  if (gesperrt.length) hinweise.push(`${gesperrt.map((r) => r.name).join(", ")}: bleibt, wie es ist. Dafür brauche ich eine zweite Messung am Hörplatz mit umgedrehter Sub-Polarität.`);
+  const teile = reglerTeile(zerlegt ? punkteListe.slice(0, 1) : punkteListe, zerlegt ? gedreht : null, reglerSubTrennung(p, alt));
+  if (zerlegt && punkteListe.length > 1) hinweise.push("Mit den Sub-Reglern rechne ich nur am Hauptplatz: Nur dort gibt es die zweite Messung.");
+  const bassIds = new Set(p.regler.filter((r) => reglerErlaubt(r, sub, zerlegt) && (r.wirkt_auf || "bass") === "bass").map((r) => r.id));
+  const klang = p.regler.filter((r) => reglerErlaubt(r, sub, zerlegt) && r.wirkt_auf === "klang");
+  const heute = reglerBassWerte(p, teile, alt, alt);
+  let zustand = { ...alt }, jJetzt = mean(heute.map((w) => w[0])), kand = reglerKandidaten(p, alt, bassIds);
+  for (let it = 0; it < 12; it++) {
+    let best = null;
+    for (const [id, v] of kand) {
+      if (zustand[id] === v) continue;
+      const neu = { ...zustand, [id]: v }, w = reglerBassWerte(p, teile, alt, neu);
+      if (w.some((x, i) => x[0] > heute[i][0] + 1e-9 || x[1] > NP.spitzeMax - 0.5)) continue;  // nie einen Platz schlechter, keine Raummode anheben
+      const j = mean(w.map((x) => x[0]));
+      if (!best || j < best.j - 1e-9) best = { j, id, v };
+    }
+    if (!best || best.j > jJetzt - RG.gewinnMin) break;
+    const neu = { ...zustand, [best.id]: best.v };
+    if (reglerZuViel(p, teile, alt, neu)) { kand = kand.filter(([k, v]) => !(k === best.id && v === best.v)); continue; }  // Leitplanke
+    zustand = neu; jJetzt = best.j;
+  }
+  // Klang-Regler (Höhen): nach der Klangbalance, in den Leitplanken, nur wenn es deutlich hilft
+  for (const r of klang) {
+    const tAlt = reglerKlang(p, teile, alt, zustand); let bester = [tAlt, zustand[r.id]];
+    for (const [id, v] of reglerKandidaten(p, alt, new Set([r.id])).concat([[r.id, alt[r.id]]])) {
+      if (v === zustand[id]) continue;
+      const neu = { ...zustand, [id]: v };
+      if (reglerZuViel(p, teile, alt, neu)) continue;
+      const t = reglerKlang(p, teile, alt, neu); if (t > bester[0] + 1e-9) bester = [t, v];
+    }
+    if (bester[0] >= tAlt + RG.klangMin) zustand[r.id] = bester[1];
+  }
+  // Wächter: insgesamt nie schlechter als heute
+  const vor = reglerVorhersage(p, teile, alt, alt);
+  let nach = reglerVorhersage(p, teile, alt, zustand);
+  const sh = score(vor.map(mitMitte), modus, raumM3);
+  let sg = score(nach.map(mitMitte), modus, raumM3), geaendert = p.regler.filter((r) => zustand[r.id] !== alt[r.id]).map((r) => r.id);
+  if (geaendert.length && sg.gesamt_roh < sh.gesamt_roh) {
+    hinweise.push(`Wächter: Die beste Kombination wäre insgesamt nicht besser (Score ${zahlText(sh.gesamt_roh, 0)} → ${zahlText(sg.gesamt_roh, 0)}). Ich empfehle, nichts zu ändern.`);
+    zustand = { ...alt }; sg = sh; nach = vor; geaendert = [];
+  }
+  const neuW = reglerBassWerte(p, teile, alt, zustand), nachId = Object.fromEntries(p.regler.map((r) => [r.id, r]));
+  const anleitung = geaendert.length ? [`Stell ${p.wo} ein:`, ...geaendert.map((k) => `${nachId[k].name}: ${reglerText(nachId[k], zustand[k])} (bisher ${reglerText(nachId[k], alt[k])})`),
+    "Alles andere bleibt, wie es ist. Danach bitte nachmessen: Ohne Nachmessung weiß ich nicht, ob die Regler so wirken, wie ich rechne."]
+    : ["Nichts ändern: Mit den Reglern finde ich hier keine Einstellung, die an allen Plätzen besser ist."];
+  const r2 = (x) => Math.round(x * 100) / 100, kh = kurve(mitMitte(vor[0]).C), kn = kurve(mitMitte(nach[0]).C);
+  return { geraet: p.id, geraet_name: p.name, geraet_einstellungen: { geraet: p.id, werte: Object.fromEntries(p.regler.map((r) => [r.id, zustand[r.id]])) },
+    aktuell: { geraet: p.id, werte: { ...alt } }, geaendert, anleitung, hinweise,
+    geschaetzt: geaendert.filter((k) => nachId[k].status === "geschaetzt" && nachId[k].geschaetzt).map((k) => `${nachId[k].name}: ${nachId[k].geschaetzt}`),
+    sub_zerlegt: zerlegt, nachmessung_pflicht: true, hauptplatz: teile[0].name, score_heute: sh, score_geraet: sg,
+    je_platz: teile.map((t, i) => ({ platz: t.name, bass_heute_db: r2(heute[i][0]), bass_geraet_db: r2(neuW[i][0]), spitze_db: r2(neuW[i][1]) })),
+    kurve: { f: kh.f, heute: kh.v, geraet: kn.v } };
+}
+// Aufnahmen rein, Vorschlag raus (wie raumcheck: nur saubere Aufnahmen, dazu die bewegte Messung)
+function reglerRaumcheck(aufnahmen, bewegt, p, aktuell, modus, raumM3, sub, gedrehtDaten) {
+  const punkte = [];
+  for (const { name, daten } of aufnahmen) { const a = analysiere(daten); if (a.pruefung.sauber) punkte.push({ name, messungen: a.messungen }); }
+  if (!punkte.length) return { fehler: "Keine saubere Aufnahme dabei." };
+  if (bewegt) punkte.push(...bewegtePunkte(bewegt).punkte);
+  let gedreht = null;
+  if (gedrehtDaten) { const g = analysiere(gedrehtDaten); if (!g.pruefung.sauber) return { fehler: "Die Messung mit umgedrehter Sub-Polarität ist nicht sauber: " + g.pruefung.probleme.join(" ") }; gedreht = g.messungen; }
+  return reglerOptimieren(punkte, p, aktuell, modus, raumM3, sub, gedreht);
+}
+// Unbekanntes Gerät: ein Profil aus den Reglern der allgemeinen Profile, die es laut Nutzer hat (wie regler.zusammensetzen)
+function reglerZusammensetzen(ids, profile) {
+  const gen = profile.filter((p) => p.generisch), regler = gen.flatMap((p) => p.regler).filter((r) => ids.includes(r.id));
+  const zerl = (gen.find((p) => p.zerlegung) || {}).zerlegung || "";
+  return { schema_version: 1, id: "eigenes", hersteller: "", modell: "", name: "deine Lautsprecher", generisch: true, wo: "an den Reglern deiner Lautsprecher und deines Subwoofers",
+    zerlegung: zerl, hinweis: "Aus den allgemeinen Profilen zusammengesetzt: alles geschätzt.", quellen: [], regler };
 }
 
 // Wächter (wie klangbox/waechter.py): was physikalisch und nach unseren Regeln nie vorkommen darf
@@ -1477,8 +2074,1111 @@ function waechterErgebnis(e) {
   return v;
 }
 
-if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS, FOLGE_BEWEGT };
+if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS, FOLGE_BEWEGT, FOLGE, profilAnwenden, profilDbAn, zahlText,
+  nachpruefen, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber };
 </script>
+<script type="application/json" id="klangprofile-daten">{
+  "schema_version": 1,
+  "beschreibung": "Klangprofile fuer Klang-Box (CamillaDSP). Alle Filter wirken ZUSAETZLICH zur Raumkorrektur auf das Ziel (Harman-nah). Gain in dB, Q nach RBJ-Cookbook (Shelf: Q 0.707 = Butterworth-Steilheit). Profile sind Tonwaagen-Naeherungen, keine Lautsprecher-Emulationen.",
+  "grenzen": {
+    "max_gain_db_je_filter": 3.0,
+    "max_summe_db": 3.0,
+    "max_filter": 4,
+    "max_q_ueber_300hz": 1.0,
+    "hinweis": "Pruefung rechnerisch mit RBJ-Biquads bei 48 kHz; Summe aller Filter muss im gesamten Band innerhalb ±3 dB bleiben. Unter 300 Hz ist Q bis 1.4 zugelassen, Anhebung trotzdem max. +3 dB."
+  },
+  "pruefbaender_hz": {
+    "B1 Tiefbass": [
+      20,
+      60
+    ],
+    "B2 Bass": [
+      60,
+      150
+    ],
+    "B3 Grundton": [
+      150,
+      300
+    ],
+    "B4 Untere Mitten": [
+      300,
+      1000
+    ],
+    "B5 Praesenz": [
+      1000,
+      4000
+    ],
+    "B6 Brillanz": [
+      4000,
+      8000
+    ],
+    "B7 Hoehen": [
+      8000,
+      12500
+    ],
+    "B8 Luft": [
+      12500,
+      16000
+    ]
+  },
+  "profile": [
+    {
+      "id": "neutral",
+      "name": "Neutral (Harman-nah)",
+      "kurz": "Neutral – so, wie das Einmess-Ziel es vorsieht.",
+      "filter": [],
+      "was_es_nicht_kann": "Kein Filter. Ob es 'Harman' klingt, hängt am Zielverlauf der Raumkorrektur (gleichmäßig fallend, Bass über Mitten angehoben) und am Abstrahlverhalten der KEF, nicht an diesem Profil. Bevorzugte Bass-/Höhenmenge streut individuell (Olive/Welti/McMullin 2013: im Mittel ca. +2 dB Bass und Höhen gegenüber 'flach im Raum', mit großer Streuung).",
+      "quellen": [
+        "https://aes2.org/publications/elibrary-page/?id=17042",
+        "https://www.headphonesty.com/2020/04/harman-target-curves-part-3/",
+        "https://www.whatsbestforum.com/threads/target-curves.723"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 0.0,
+        "summe_ueber_300hz_min_db": 0.0,
+        "summe_ueber_300hz_max_db": 0.0,
+        "vorschlag_vorverstaerkung_db": -0.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": 0.0,
+          "B2 Bass": 0.0,
+          "B3 Grundton": 0.0,
+          "B4 Untere Mitten": 0.0,
+          "B5 Praesenz": 0.0,
+          "B6 Brillanz": 0.0,
+          "B7 Hoehen": 0.0,
+          "B8 Luft": 0.0
+        },
+        "erwartet_terzen_db": {
+          "20": 0.0,
+          "25": 0.0,
+          "31.5": 0.0,
+          "40": 0.0,
+          "50": 0.0,
+          "63": 0.0,
+          "80": 0.0,
+          "100": 0.0,
+          "125": 0.0,
+          "160": 0.0,
+          "200": 0.0,
+          "250": 0.0,
+          "315": 0.0,
+          "400": 0.0,
+          "500": 0.0,
+          "630": 0.0,
+          "800": 0.0,
+          "1000": 0.0,
+          "1250": 0.0,
+          "1600": 0.0,
+          "2000": 0.0,
+          "2500": 0.0,
+          "3150": 0.0,
+          "4000": 0.0,
+          "5000": 0.0,
+          "6300": 0.0,
+          "8000": 0.0,
+          "10000": 0.0,
+          "12500": 0.0,
+          "16000": 0.0,
+          "20000": 0.0
+        }
+      }
+    },
+    {
+      "id": "waermer_roehre",
+      "name": "Wärmer / Röhre",
+      "kurz": "Wärmer – in Richtung Röhrenkette.",
+      "filter": [
+        {
+          "typ": "peaking",
+          "freq": 110,
+          "gain_db": 1.5,
+          "q": 1.0
+        },
+        {
+          "typ": "lowshelf",
+          "freq": 250,
+          "gain_db": 1.0,
+          "q": 0.707
+        },
+        {
+          "typ": "peaking",
+          "freq": 3000,
+          "gain_db": -1.0,
+          "q": 0.8
+        },
+        {
+          "typ": "highshelf",
+          "freq": 9000,
+          "gain_db": -1.5,
+          "q": 0.707
+        }
+      ],
+      "was_es_nicht_kann": "Bildet nur den linearen Teil nach: Grundton/Oberbass etwas voller, Präsenz und Höhen etwas zurück (typisches Bild eines Röhrenverstärkers mit 1-3 Ohm Ausgangsimpedanz an einer Lautsprecherimpedanz mit Gipfeln). Die echte Abweichung hängt am Lautsprecher und wäre bei der LS50 Wireless II gar nicht vorhanden (aktive Endstufen, Impedanz-Interaktion entfällt). Nicht nachgebildet: k2/k3-Klirr, weiches Clipping, lastabhängige Kompression, Netzteil-Einbrüche, Rauschen. Echter Klirr ist in CamillaDSP nicht vorgesehen (kein Waveshaper-Filter).",
+      "quellen": [
+        "https://stereophile.com/content/air-tight-atm-211-tube-monoblock-power-amplifier-measurements",
+        "https://stereophile.com/content/primaluna-prologue-premium-power-amplifier-measurements",
+        "https://stereophile.com/content/rogue-audio-atlas-power-amplifier-measurements",
+        "https://stereophile.com/content/raven-audio-spirit-300b-reference-stereo-power-amplifier-measurements",
+        "https://stereophile.com/content/kef-ls50-meta-loudspeaker-measurements",
+        "https://www.hifinews.com/node/131964"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 2.46,
+        "summe_ueber_300hz_min_db": -1.5,
+        "summe_ueber_300hz_max_db": 0.54,
+        "vorschlag_vorverstaerkung_db": -2.5,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": 1.21,
+          "B2 Bass": 2.13,
+          "B3 Grundton": 1.18,
+          "B4 Untere Mitten": 0.1,
+          "B5 Praesenz": -0.64,
+          "B6 Brillanz": -0.65,
+          "B7 Hoehen": -1.05,
+          "B8 Luft": -1.44
+        },
+        "erwartet_terzen_db": {
+          "20": 1.05,
+          "25": 1.08,
+          "31.5": 1.13,
+          "40": 1.22,
+          "50": 1.37,
+          "63": 1.63,
+          "80": 2.04,
+          "100": 2.42,
+          "125": 2.35,
+          "160": 1.8,
+          "200": 1.28,
+          "250": 0.83,
+          "315": 0.47,
+          "400": 0.23,
+          "500": 0.09,
+          "630": 0.0,
+          "800": -0.07,
+          "1000": -0.15,
+          "1250": -0.27,
+          "1600": -0.45,
+          "2000": -0.68,
+          "2500": -0.92,
+          "3150": -1.01,
+          "4000": -0.85,
+          "5000": -0.65,
+          "6300": -0.57,
+          "8000": -0.73,
+          "10000": -1.06,
+          "12500": -1.35,
+          "16000": -1.49,
+          "20000": -1.5
+        }
+      }
+    },
+    {
+      "id": "roehre_ls50meta_modell",
+      "name": "Röhre an LS50 Meta (Rechenmodell 2 Ω)",
+      "kurz": "Wie ein Röhrenverstärker an einer passiven LS50 Meta – nur der Frequenzgang.",
+      "filter": [
+        {
+          "typ": "peaking",
+          "freq": 93,
+          "gain_db": 2.0,
+          "q": 1.4
+        },
+        {
+          "typ": "peaking",
+          "freq": 240,
+          "gain_db": -2.0,
+          "q": 1.0
+        },
+        {
+          "typ": "peaking",
+          "freq": 1600,
+          "gain_db": 1.0,
+          "q": 1.0
+        },
+        {
+          "typ": "highshelf",
+          "freq": 4000,
+          "gain_db": -0.5,
+          "q": 0.707
+        }
+      ],
+      "was_es_nicht_kann": "Angepasst (RMS-Fehler 0,28 dB, max. 1,1 dB, 30 Hz-16 kHz) an das Spannungsteiler-Modell Z/(Z+Ro) mit Ro = 2 Ohm und einer GENÄHERTEN LS50-Meta-Impedanzkurve (belegt: Min. ~3,65 Ohm @ 220-240 Hz, Max. ~31 Ohm @ 93 Hz, Weiche 2,1 kHz; Rest angenommen). Zeigt, dass eine Röhre an dieser Box NICHT pauschal 'wärmer' macht: +1,3 dB bei 93 Hz, aber -1,9 dB bei 230 Hz (Grundton dünner), +0,6 dB um 1,6 kHz. Kein Klirr, keine Kompression.",
+      "quellen": [
+        "https://www.hifinews.com/node/131964",
+        "https://stereophile.com/content/kef-ls50-meta-loudspeaker-measurements",
+        "https://stereophile.com/content/air-tight-atm-211-tube-monoblock-power-amplifier-measurements",
+        "https://stereophile.com/content/primaluna-prologue-premium-power-amplifier-measurements"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 1.67,
+        "summe_ueber_300hz_min_db": -1.51,
+        "summe_ueber_300hz_max_db": 0.95,
+        "vorschlag_vorverstaerkung_db": -1.7,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": 0.19,
+          "B2 Bass": 0.97,
+          "B3 Grundton": -1.36,
+          "B4 Untere Mitten": -0.39,
+          "B5 Praesenz": 0.54,
+          "B6 Brillanz": -0.31,
+          "B7 Hoehen": -0.47,
+          "B8 Luft": -0.49
+        },
+        "erwartet_terzen_db": {
+          "20": 0.04,
+          "25": 0.06,
+          "31.5": 0.11,
+          "40": 0.19,
+          "50": 0.36,
+          "63": 0.74,
+          "80": 1.45,
+          "100": 1.52,
+          "125": 0.5,
+          "160": -0.6,
+          "200": -1.44,
+          "250": -1.79,
+          "315": -1.39,
+          "400": -0.81,
+          "500": -0.42,
+          "630": -0.13,
+          "800": 0.12,
+          "1000": 0.39,
+          "1250": 0.72,
+          "1600": 0.95,
+          "2000": 0.77,
+          "2500": 0.45,
+          "3150": 0.17,
+          "4000": -0.08,
+          "5000": -0.26,
+          "6300": -0.38,
+          "8000": -0.44,
+          "10000": -0.47,
+          "12500": -0.49,
+          "16000": -0.5,
+          "20000": -0.5
+        }
+      }
+    },
+    {
+      "id": "detail_focal",
+      "name": "Detailreicher / Focal-Richtung",
+      "kurz": "Detailreicher – in Richtung Focal.",
+      "filter": [
+        {
+          "typ": "peaking",
+          "freq": 6500,
+          "gain_db": 1.5,
+          "q": 0.9
+        },
+        {
+          "typ": "highshelf",
+          "freq": 14000,
+          "gain_db": 1.0,
+          "q": 0.707
+        },
+        {
+          "typ": "peaking",
+          "freq": 2500,
+          "gain_db": -0.5,
+          "q": 0.8
+        }
+      ],
+      "was_es_nicht_kann": "Bildet nur die Energieverschiebung nach (Focal-Hochtöner strahlt 5-8 kHz breiter ab, daher mehr Leistung in diesem Band im Raum; leichte Präsenzsenke laut HFN). 'Detail' im Sinne von geringerem Klirr, schnellerem Ausschwingen oder Beryllium-Membran ist nicht erzeugbar: EQ hebt nur Pegel an. Mehr Höhen können in hallarmen Räumen detailreich, in hallenden Räumen scharf wirken.",
+      "quellen": [
+        "https://www.stereophile.com/content/focal-kanta-no2-loudspeaker-measurements",
+        "https://hifinews.com/content/focal-kanta-no2-loudspeaker-lab-report",
+        "https://soundstagehifi.com/index.php/reference-components/790-recommended-reference-component-focal-aria-906-loudspeakers",
+        "https://erinsaudiocorner.com/loudspeakers/focal_aria_906/"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 1.41,
+        "summe_ueber_300hz_min_db": -0.28,
+        "summe_ueber_300hz_max_db": 1.41,
+        "vorschlag_vorverstaerkung_db": -1.4,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": -0.0,
+          "B2 Bass": -0.0,
+          "B3 Grundton": -0.0,
+          "B4 Untere Mitten": -0.03,
+          "B5 Praesenz": -0.12,
+          "B6 Brillanz": 1.11,
+          "B7 Hoehen": 0.87,
+          "B8 Luft": 0.75
+        },
+        "erwartet_terzen_db": {
+          "20": -0.0,
+          "25": -0.0,
+          "31.5": -0.0,
+          "40": -0.0,
+          "50": -0.0,
+          "63": -0.0,
+          "80": -0.0,
+          "100": -0.0,
+          "125": -0.0,
+          "160": -0.0,
+          "200": -0.0,
+          "250": -0.01,
+          "315": -0.01,
+          "400": -0.01,
+          "500": -0.02,
+          "630": -0.03,
+          "800": -0.06,
+          "1000": -0.09,
+          "1250": -0.14,
+          "1600": -0.22,
+          "2000": -0.27,
+          "2500": -0.23,
+          "3150": 0.01,
+          "4000": 0.46,
+          "5000": 0.98,
+          "6300": 1.39,
+          "8000": 1.23,
+          "10000": 0.83,
+          "12500": 0.67,
+          "16000": 0.88,
+          "20000": 1.01
+        }
+      }
+    },
+    {
+      "id": "bw",
+      "name": "B&W-Richtung",
+      "kurz": "Brillanter, mit leicht zurückgenommener Präsenz – in Richtung B&W.",
+      "filter": [
+        {
+          "typ": "peaking",
+          "freq": 3000,
+          "gain_db": -1.5,
+          "q": 1.0
+        },
+        {
+          "typ": "highshelf",
+          "freq": 7000,
+          "gain_db": 2.0,
+          "q": 0.707
+        },
+        {
+          "typ": "peaking",
+          "freq": 80,
+          "gain_db": 1.0,
+          "q": 1.0
+        }
+      ],
+      "was_es_nicht_kann": "Stereophile misst bei aktuellen B&W (705 S3, 805 D4 Signature, 804 D4) achsial deutlich zu viel Hochton (bis ~10 dB-Spitze bei 10 kHz beim 705 S3, Hochtöner bis 5 dB zu laut beim 805 D4 Sig.), die im Hörfenster/mit Einwinkelung geringer ausfällt. Hier nur +2 dB breit, weil der Wächter mehr nicht zulässt und weil Spitzen auf Achse im Raum nicht in voller Höhe ankommen. Nicht nachbildbar: Bündelung/Abstrahlung des Diamant-Hochtöners, Gehäuse- und Port-Resonanzen (804 D4: 308/567 Hz), Ausschwingen bei 3,8 kHz, Impedanzlast.",
+      "quellen": [
+        "https://stereophile.com/content/bowers-wilkins-705-s3-loudspeaker-measurements",
+        "https://stereophile.com/content/bowers-wilkins-805-d4-signature-loudspeaker-measurements",
+        "https://www.stereophile.com/content/bowers-wilkins-diamond-series-804-d4-loudspeaker-measurements",
+        "https://hometheaterhifi.com/?p=88537",
+        "https://audioreview.frieve.com/products/en/bowers-wilkins-804-d4/"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 2.0,
+        "summe_ueber_300hz_min_db": -1.45,
+        "summe_ueber_300hz_max_db": 2.0,
+        "vorschlag_vorverstaerkung_db": -2.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": 0.28,
+          "B2 Bass": 0.77,
+          "B3 Grundton": 0.17,
+          "B4 Untere Mitten": -0.04,
+          "B5 Praesenz": -0.83,
+          "B6 Brillanz": 0.08,
+          "B7 Hoehen": 1.56,
+          "B8 Luft": 1.92
+        },
+        "erwartet_terzen_db": {
+          "20": 0.07,
+          "25": 0.11,
+          "31.5": 0.18,
+          "40": 0.31,
+          "50": 0.51,
+          "63": 0.81,
+          "80": 1.0,
+          "100": 0.83,
+          "125": 0.54,
+          "160": 0.3,
+          "200": 0.18,
+          "250": 0.1,
+          "315": 0.05,
+          "400": 0.02,
+          "500": -0.02,
+          "630": -0.05,
+          "800": -0.1,
+          "1000": -0.17,
+          "1250": -0.29,
+          "1600": -0.52,
+          "2000": -0.86,
+          "2500": -1.29,
+          "3150": -1.42,
+          "4000": -0.94,
+          "5000": -0.3,
+          "6300": 0.39,
+          "8000": 1.1,
+          "10000": 1.6,
+          "12500": 1.86,
+          "16000": 1.97,
+          "20000": 2.0
+        }
+      }
+    },
+    {
+      "id": "bbc_harbeth",
+      "name": "BBC / Harbeth-Richtung",
+      "kurz": "Sanfter und natürlicher in Stimmen – in Richtung BBC-Monitor.",
+      "filter": [
+        {
+          "typ": "lowshelf",
+          "freq": 200,
+          "gain_db": 1.0,
+          "q": 0.707
+        },
+        {
+          "typ": "peaking",
+          "freq": 2500,
+          "gain_db": -2.0,
+          "q": 0.8
+        },
+        {
+          "typ": "highshelf",
+          "freq": 10000,
+          "gain_db": -1.0,
+          "q": 0.707
+        }
+      ],
+      "was_es_nicht_kann": "Der 'BBC-Dip' ist eine flache Absenkung um 1-4 kHz bei BBC-Konstruktionen der 1960er-80er; Harbeth selbst sagt, dass LS3/5a ihn nicht hat, und Stereophile misst die Monitor 30.2 eher glatt mit leichtem Energieverlust im mittleren Hochton. Das Profil bildet also eine Idee ab, keinen bestimmten Lautsprecher. Nicht nachbildbar: dünnwandiges, bewusst mitschwingendes Gehäuse (Harbeth-Prinzip), Membranmaterial, Abstrahlung des grösseren Tieftöners.",
+      "quellen": [
+        "https://stereophile.com/node/65331",
+        "https://stereophile.com/content/harbeth-monitor-302-40th-anniversary-edition-loudspeaker-measurements",
+        "https://www.diyaudio.com/forums/multi-way/34354-bbc-dip.html",
+        "https://en.wikipedia.org/wiki/Harbeth_Audio_Limited",
+        "https://stereophile.com/content/harbeth-p3esr-loudspeaker-measurements"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 1.0,
+        "summe_ueber_300hz_min_db": -2.0,
+        "summe_ueber_300hz_max_db": 0.12,
+        "vorschlag_vorverstaerkung_db": -1.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": 1.0,
+          "B2 Bass": 0.92,
+          "B3 Grundton": 0.42,
+          "B4 Untere Mitten": -0.16,
+          "B5 Praesenz": -1.42,
+          "B6 Brillanz": -0.73,
+          "B7 Hoehen": -0.66,
+          "B8 Luft": -0.94
+        },
+        "erwartet_terzen_db": {
+          "20": 1.0,
+          "25": 1.0,
+          "31.5": 1.0,
+          "40": 1.0,
+          "50": 0.99,
+          "63": 0.99,
+          "80": 0.97,
+          "100": 0.94,
+          "125": 0.86,
+          "160": 0.7,
+          "200": 0.48,
+          "250": 0.26,
+          "315": 0.09,
+          "400": -0.02,
+          "500": -0.1,
+          "630": -0.19,
+          "800": -0.32,
+          "1000": -0.52,
+          "1250": -0.81,
+          "1600": -1.28,
+          "2000": -1.76,
+          "2500": -2.0,
+          "3150": -1.75,
+          "4000": -1.23,
+          "5000": -0.81,
+          "6300": -0.56,
+          "8000": -0.51,
+          "10000": -0.65,
+          "12500": -0.87,
+          "16000": -0.99,
+          "20000": -1.0
+        }
+      }
+    },
+    {
+      "id": "punchiger",
+      "name": "Punchiger",
+      "kurz": "Punchiger – mehr Kick im Bass, weniger Mulm.",
+      "filter": [
+        {
+          "typ": "peaking",
+          "freq": 90,
+          "gain_db": 2.5,
+          "q": 1.2
+        },
+        {
+          "typ": "peaking",
+          "freq": 300,
+          "gain_db": -1.0,
+          "q": 1.0
+        },
+        {
+          "typ": "peaking",
+          "freq": 3000,
+          "gain_db": 0.75,
+          "q": 1.0
+        }
+      ],
+      "was_es_nicht_kann": "Punch ist vor allem Dynamik und Zeitverhalten: Pegelreserve, kein Kompressionsverhalten von Treiber/Endstufe, kurzes Ausschwingen von Raummoden und saubere Sub-Übergabe. Ein EQ hebt nur 80-100 Hz an und nimmt 250-350 Hz zurück. Die Anhebung kostet 2,5 dB Headroom (Vorverstärkung entsprechend absenken) und belastet LS50/LSX-Tieftöner und REL stärker; nahe der Raummoden kann +2,5 dB Dröhnen statt Punch ergeben.",
+      "quellen": [
+        "https://stereophile.com/content/sounds-audio-glossary-glossary-f-h",
+        "https://labs.sonicfield.org/library/perceived-sound-quality-of-sound-reproducing-systems"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 2.4,
+        "summe_ueber_300hz_min_db": -0.82,
+        "summe_ueber_300hz_max_db": 0.74,
+        "vorschlag_vorverstaerkung_db": -2.4,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": 0.41,
+          "B2 Bass": 1.74,
+          "B3 Grundton": -0.22,
+          "B4 Untere Mitten": -0.37,
+          "B5 Praesenz": 0.41,
+          "B6 Brillanz": 0.27,
+          "B7 Hoehen": 0.06,
+          "B8 Luft": 0.02
+        },
+        "erwartet_terzen_db": {
+          "20": 0.09,
+          "25": 0.14,
+          "31.5": 0.24,
+          "40": 0.42,
+          "50": 0.75,
+          "63": 1.37,
+          "80": 2.24,
+          "100": 2.22,
+          "125": 1.32,
+          "160": 0.45,
+          "200": -0.13,
+          "250": -0.61,
+          "315": -0.82,
+          "400": -0.64,
+          "500": -0.39,
+          "630": -0.2,
+          "800": -0.08,
+          "1000": 0.01,
+          "1250": 0.1,
+          "1600": 0.23,
+          "2000": 0.42,
+          "2500": 0.65,
+          "3150": 0.74,
+          "4000": 0.54,
+          "5000": 0.33,
+          "6300": 0.18,
+          "8000": 0.1,
+          "10000": 0.05,
+          "12500": 0.03,
+          "16000": 0.01,
+          "20000": 0.0
+        }
+      }
+    },
+    {
+      "id": "luftiger",
+      "name": "Luftiger",
+      "kurz": "Luftiger – mehr Glanz und Raum ganz oben.",
+      "filter": [
+        {
+          "typ": "highshelf",
+          "freq": 11000,
+          "gain_db": 2.0,
+          "q": 0.707
+        },
+        {
+          "typ": "peaking",
+          "freq": 5000,
+          "gain_db": -0.5,
+          "q": 0.8
+        }
+      ],
+      "was_es_nicht_kann": "Luft = Energie ab ~10-12 kHz bis 20 kHz. Wer über ~50-60 Jahre alt ist, hört ab 12-14 kHz deutlich weniger; die Wirkung ist dann klein. Die Messung oberhalb 10 kHz hängt stark von Mikrofonwinkel und -kalibrierung ab. Nicht nachbildbar: breitere Abstrahlung (ein Hochtöner, der über 10 kHz bündelt, bringt mehr Luft nur auf Achse).",
+      "quellen": [
+        "https://forum.polkaudio.com/discussion/148663/how-do-you-describe-sound-quality",
+        "https://stereophile.com/content/sounds-audio-glossary-glossary-b-c",
+        "https://www.stereophile.com/content/focal-kanta-no2-loudspeaker-measurements"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 1.99,
+        "summe_ueber_300hz_min_db": -0.46,
+        "summe_ueber_300hz_max_db": 1.99,
+        "vorschlag_vorverstaerkung_db": -2.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": -0.0,
+          "B2 Bass": -0.0,
+          "B3 Grundton": -0.0,
+          "B4 Untere Mitten": -0.01,
+          "B5 Praesenz": -0.16,
+          "B6 Brillanz": -0.33,
+          "B7 Hoehen": 0.61,
+          "B8 Luft": 1.61
+        },
+        "erwartet_terzen_db": {
+          "20": -0.0,
+          "25": -0.0,
+          "31.5": -0.0,
+          "40": -0.0,
+          "50": -0.0,
+          "63": -0.0,
+          "80": -0.0,
+          "100": -0.0,
+          "125": -0.0,
+          "160": -0.0,
+          "200": -0.0,
+          "250": -0.0,
+          "315": -0.0,
+          "400": -0.0,
+          "500": -0.01,
+          "630": -0.01,
+          "800": -0.02,
+          "1000": -0.03,
+          "1250": -0.05,
+          "1600": -0.08,
+          "2000": -0.12,
+          "2500": -0.19,
+          "3150": -0.3,
+          "4000": -0.42,
+          "5000": -0.46,
+          "6300": -0.31,
+          "8000": 0.04,
+          "10000": 0.58,
+          "12500": 1.29,
+          "16000": 1.85,
+          "20000": 1.99
+        }
+      }
+    },
+    {
+      "id": "entspannt",
+      "name": "Entspannt (Abend / leise)",
+      "kurz": "Entspannt – für leises Hören am Abend.",
+      "filter": [
+        {
+          "typ": "lowshelf",
+          "freq": 150,
+          "gain_db": 2.0,
+          "q": 0.707
+        },
+        {
+          "typ": "peaking",
+          "freq": 3200,
+          "gain_db": -1.5,
+          "q": 0.8
+        },
+        {
+          "typ": "highshelf",
+          "freq": 9000,
+          "gain_db": -1.0,
+          "q": 0.707
+        }
+      ],
+      "was_es_nicht_kann": "Statischer Ausgleich für leises Hören (Kurven gleicher Lautheit: bei niedrigen Pegeln wird Bass schwächer wahrgenommen) plus weniger Präsenz gegen Ermüdung. Eine echte pegelabhängige Loudness wäre besser; CamillaDSP hat dafür ein eigenes Loudness-Filter, das an den Lautstärkeregler gekoppelt ist. Nicht ersetzt: Dynamikkompression für Nachtbetrieb.",
+      "quellen": [
+        "https://moodeaudio.org/forum/printthread.php?tid=7745",
+        "https://labs.sonicfield.org/library/frequency-response-and-perceived-sound-quality"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 2.0,
+        "summe_ueber_300hz_min_db": -1.51,
+        "summe_ueber_300hz_max_db": 0.1,
+        "vorschlag_vorverstaerkung_db": -2.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": 1.99,
+          "B2 Bass": 1.63,
+          "B3 Grundton": 0.45,
+          "B4 Untere Mitten": -0.06,
+          "B5 Praesenz": -0.92,
+          "B6 Brillanz": -0.9,
+          "B7 Hoehen": -0.82,
+          "B8 Luft": -1.0
+        },
+        "erwartet_terzen_db": {
+          "20": 2.0,
+          "25": 2.0,
+          "31.5": 2.0,
+          "40": 1.99,
+          "50": 1.97,
+          "63": 1.94,
+          "80": 1.85,
+          "100": 1.67,
+          "125": 1.34,
+          "160": 0.87,
+          "200": 0.47,
+          "250": 0.22,
+          "315": 0.08,
+          "400": 0.0,
+          "500": -0.04,
+          "630": -0.08,
+          "800": -0.14,
+          "1000": -0.23,
+          "1250": -0.36,
+          "1600": -0.6,
+          "2000": -0.92,
+          "2500": -1.29,
+          "3150": -1.51,
+          "4000": -1.34,
+          "5000": -1.0,
+          "6300": -0.74,
+          "8000": -0.69,
+          "10000": -0.82,
+          "12500": -0.96,
+          "16000": -1.01,
+          "20000": -1.01
+        }
+      }
+    },
+    {
+      "id": "kino_dialog",
+      "name": "Kino-Dialog",
+      "kurz": "Klarere Dialoge – Stimmen nach vorn, weniger Dröhnen.",
+      "filter": [
+        {
+          "typ": "lowshelf",
+          "freq": 120,
+          "gain_db": -1.5,
+          "q": 0.707
+        },
+        {
+          "typ": "peaking",
+          "freq": 2500,
+          "gain_db": 2.0,
+          "q": 0.8
+        },
+        {
+          "typ": "highshelf",
+          "freq": 10000,
+          "gain_db": -0.5,
+          "q": 0.707
+        }
+      ],
+      "was_es_nicht_kann": "Hebt den Sprach-Verständlichkeitsbereich (1-4 kHz) breit an und nimmt Bass zurück, der Sprache verdeckt. Bei Stereo-Material ist Dialog meist in der Mitte; gezielter wäre eine Anhebung nur im Mitte-Signal (M/S, siehe zusatz_optional). Ersetzt keinen Center-Lautsprecher und keine Dynamikkompression für laute Effekte.",
+      "zusatz_optional": {
+        "typ": "mitte_seite",
+        "beschreibung": "Peaking 2500 Hz +2 dB Q 0.8 nur auf M=(L+R)/2 statt auf L und R; per CamillaDSP-Mixer L/R->M/S->L/R. Pegelneutral für reine Seiteninformation."
+      },
+      "quellen": [
+        "https://labs.sonicfield.org/library/perceived-sound-quality-of-sound-reproducing-systems",
+        "https://audioxpress.com/article/fresh-from-the-bench-kef-ls50-meta-the-measurements"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 2.0,
+        "summe_ueber_300hz_min_db": -0.49,
+        "summe_ueber_300hz_max_db": 2.0,
+        "vorschlag_vorverstaerkung_db": -2.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": -1.48,
+          "B2 Bass": -1.01,
+          "B3 Grundton": -0.15,
+          "B4 Untere Mitten": 0.18,
+          "B5 Praesenz": 1.42,
+          "B6 Brillanz": 0.6,
+          "B7 Hoehen": -0.1,
+          "B8 Luft": -0.4
+        },
+        "erwartet_terzen_db": {
+          "20": -1.5,
+          "25": -1.5,
+          "31.5": -1.49,
+          "40": -1.48,
+          "50": -1.45,
+          "63": -1.39,
+          "80": -1.25,
+          "100": -1.01,
+          "125": -0.68,
+          "160": -0.35,
+          "200": -0.15,
+          "250": -0.04,
+          "315": 0.02,
+          "400": 0.07,
+          "500": 0.12,
+          "630": 0.2,
+          "800": 0.33,
+          "1000": 0.52,
+          "1250": 0.81,
+          "1600": 1.28,
+          "2000": 1.76,
+          "2500": 2.0,
+          "3150": 1.74,
+          "4000": 1.2,
+          "5000": 0.76,
+          "6300": 0.42,
+          "8000": 0.14,
+          "10000": -0.1,
+          "12500": -0.32,
+          "16000": -0.45,
+          "20000": -0.49
+        }
+      }
+    },
+    {
+      "id": "mehr_buehne",
+      "name": "Bühne weiter hinten",
+      "kurz": "Bühne weiter hinten – die ganze Musik rückt etwas zurück.",
+      "filter": [
+        {
+          "typ": "peaking",
+          "freq": 2500,
+          "gain_db": -1.5,
+          "q": 0.7
+        },
+        {
+          "typ": "highshelf",
+          "freq": 10000,
+          "gain_db": 0.0,
+          "q": 0.707
+        }
+      ],
+      "was_es_nicht_kann": "Die breite Präsenzsenke rückt die ganze Bühne etwas zurück, mehr Staffelung (Tiefe zwischen den Instrumenten) bringt sie nicht. Mehr Höhen wirken näher, deshalb hier keine Höhenanhebung (HS 10 kHz auf 0 dB). Eine breite Präsenzsenke lässt Quellen entfernter wirken ('Nähe' ist eine eigene Wahrnehmungsdimension, Gabrielsson). Echte Breite/Tiefe kommt von L/R-Gleichheit, frühen seitlichen Reflexionen (<~30 ms, ähnlicher Pegel) und der Aufnahme. Optional M/S-Breite (Seite +1 dB) – verletzt den Wächter nicht, weil sie nicht den Summenfreqünzgang hebt, aber sie verändert Mono-Kompatibilität und Mittenabbildung.",
+      "zusatz_optional": {
+        "typ": "mitte_seite",
+        "beschreibung": "S-Anteil +1 dB, M-Anteil -0.5 dB (breitbandig, oberhalb 200 Hz). Nur für Stereo-Musik, nicht für Filme."
+      },
+      "quellen": [
+        "https://labs.sonicfield.org/library/perceived-sound-quality-of-sound-reproducing-systems",
+        "https://aaltodoc.aalto.fi/items/d5e9595f-c665-47d1-ab5c-e6da255f2216",
+        "https://jcaa.caa-aca.ca/index.php/jcaa/article/download/845/562/952"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": -0.0,
+        "summe_ueber_300hz_min_db": -1.5,
+        "summe_ueber_300hz_max_db": -0.01,
+        "vorschlag_vorverstaerkung_db": -0.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": -0.0,
+          "B2 Bass": -0.0,
+          "B3 Grundton": -0.02,
+          "B4 Untere Mitten": -0.18,
+          "B5 Praesenz": -1.12,
+          "B6 Brillanz": -0.56,
+          "B7 Hoehen": -0.15,
+          "B8 Luft": -0.05
+        },
+        "erwartet_terzen_db": {
+          "20": -0.0,
+          "25": -0.0,
+          "31.5": -0.0,
+          "40": -0.0,
+          "50": -0.0,
+          "63": -0.0,
+          "80": -0.0,
+          "100": -0.0,
+          "125": -0.01,
+          "160": -0.01,
+          "200": -0.02,
+          "250": -0.03,
+          "315": -0.05,
+          "400": -0.08,
+          "500": -0.12,
+          "630": -0.19,
+          "800": -0.3,
+          "1000": -0.47,
+          "1250": -0.71,
+          "1600": -1.05,
+          "2000": -1.36,
+          "2500": -1.5,
+          "3150": -1.35,
+          "4000": -1.0,
+          "5000": -0.68,
+          "6300": -0.43,
+          "8000": -0.25,
+          "10000": -0.14,
+          "12500": -0.07,
+          "16000": -0.03,
+          "20000": -0.01
+        }
+      }
+    },
+    {
+      "id": "vinyl",
+      "name": "Vinyl-Richtung",
+      "kurz": "Runder – in Richtung Plattenspieler-Kette.",
+      "filter": [
+        {
+          "typ": "lowshelf",
+          "freq": 180,
+          "gain_db": 1.0,
+          "q": 0.707
+        },
+        {
+          "typ": "peaking",
+          "freq": 5000,
+          "gain_db": -1.0,
+          "q": 0.8
+        },
+        {
+          "typ": "highshelf",
+          "freq": 15000,
+          "gain_db": -1.5,
+          "q": 0.707
+        }
+      ],
+      "was_es_nicht_kann": "Linear nur grob: MM-Systeme haben je nach Lastkapazität eine Senke um 5 kHz und eine Spitze/Abfall bei 10-20 kHz – das ist systemabhängig, kein fester Vinyl-Klang. Nicht nachbildbar per EQ: Kanaltrennung nur ~25-31 dB @ 1 kHz (CD >90 dB), Mono-Bass aus dem Mastering, Rumpeln, Gleichlaufschwankungen, Abtastverzerrung (Innenrillen), Knistern. Die geringere Kanaltrennung ließe sich per Mixer (kleiner Crossfeed L<->R ca. -25 dB) andeuten – Option, nicht Teil der Filterliste.",
+      "zusatz_optional": {
+        "typ": "uebersprechen",
+        "beschreibung": "L->R und R->L je -25 dB (breitbandig) via CamillaDSP-Mixer; macht Bild minimal schmaler, wie Tonabnehmer-Übersprechen."
+      },
+      "quellen": [
+        "https://vinylsound.ca/products/audio-technica-vm510cb-dual-moving-magnet-cartridge",
+        "https://audio-technica.com/en-eu/at-oc9ml-ii",
+        "https://tnt-audio.com/sorgenti/load_the_magnets_e.html",
+        "https://store.acousticsounds.com/d/60043/DB_Systems-DB_Systems_DBP-6_Phono_Capacitor_Loading_Kit-Any"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": 1.0,
+        "summe_ueber_300hz_min_db": -1.47,
+        "summe_ueber_300hz_max_db": 0.11,
+        "vorschlag_vorverstaerkung_db": -1.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": 1.0,
+          "B2 Bass": 0.89,
+          "B3 Grundton": 0.36,
+          "B4 Untere Mitten": 0.0,
+          "B5 Praesenz": -0.33,
+          "B6 Brillanz": -0.88,
+          "B7 Hoehen": -0.46,
+          "B8 Luft": -0.7
+        },
+        "erwartet_terzen_db": {
+          "20": 1.0,
+          "25": 1.0,
+          "31.5": 1.0,
+          "40": 1.0,
+          "50": 0.99,
+          "63": 0.98,
+          "80": 0.96,
+          "100": 0.91,
+          "125": 0.81,
+          "160": 0.61,
+          "200": 0.39,
+          "250": 0.21,
+          "315": 0.09,
+          "400": 0.03,
+          "500": 0.0,
+          "630": -0.02,
+          "800": -0.04,
+          "1000": -0.06,
+          "1250": -0.09,
+          "1600": -0.15,
+          "2000": -0.25,
+          "2500": -0.39,
+          "3150": -0.61,
+          "4000": -0.87,
+          "5000": -1.0,
+          "6300": -0.87,
+          "8000": -0.59,
+          "10000": -0.42,
+          "12500": -0.47,
+          "16000": -1.02,
+          "20000": -1.47
+        }
+      }
+    },
+    {
+      "id": "kef_hausklang",
+      "name": "KEF-Hausklang (Referenz)",
+      "kurz": "Wie die KEF ab Werk – Raumkorrektur nur im Bass.",
+      "filter": [
+        {
+          "typ": "peaking",
+          "freq": 2000,
+          "gain_db": -1.0,
+          "q": 0.7
+        }
+      ],
+      "was_es_nicht_kann": "Die LS50 Meta zeigt achsial eine leichte Senke ~2 dB zwischen 1 und 3,5 kHz und fällt 1-2 dB von 3,5 bis 10 kHz (audioXpress, CEA-2034). Bei der Wireless II/LSX II ist die KEF-DSP-Abstimmung schon eingerechnet; dieses Profil stellt einen Teil der Werksbalance wieder her, falls die Raumkorrektur die Senke 'weggerechnet' hat. Nur sinnvoll, wenn die Korrektur oben eingreift.",
+      "quellen": [
+        "https://audioxpress.com/article/fresh-from-the-bench-kef-ls50-meta-the-measurements",
+        "https://www.spinorama.org/speakers/KEF%20LS50%20Wireless%20II/ErinsAudioCorner/index_eac.html",
+        "https://erinsaudiocorner.com/loudspeakers/kef_wireless_ii/"
+      ],
+      "grenzen_eingehalten": true,
+      "pruefung": {
+        "verstoesse": [],
+        "summe_max_db": -0.0,
+        "summe_ueber_300hz_min_db": -1.0,
+        "summe_ueber_300hz_max_db": -0.0,
+        "vorschlag_vorverstaerkung_db": -0.0,
+        "erwartete_bandabweichung_db": {
+          "B1 Tiefbass": -0.0,
+          "B2 Bass": -0.01,
+          "B3 Grundton": -0.02,
+          "B4 Untere Mitten": -0.19,
+          "B5 Praesenz": -0.78,
+          "B6 Brillanz": -0.25,
+          "B7 Hoehen": -0.06,
+          "B8 Luft": -0.02
+        },
+        "erwartet_terzen_db": {
+          "20": -0.0,
+          "25": -0.0,
+          "31.5": -0.0,
+          "40": -0.0,
+          "50": -0.0,
+          "63": -0.0,
+          "80": -0.0,
+          "100": -0.01,
+          "125": -0.01,
+          "160": -0.01,
+          "200": -0.02,
+          "250": -0.03,
+          "315": -0.05,
+          "400": -0.08,
+          "500": -0.13,
+          "630": -0.2,
+          "800": -0.31,
+          "1000": -0.47,
+          "1250": -0.68,
+          "1600": -0.91,
+          "2000": -1.0,
+          "2500": -0.91,
+          "3150": -0.69,
+          "4000": -0.46,
+          "5000": -0.3,
+          "6300": -0.18,
+          "8000": -0.11,
+          "10000": -0.06,
+          "12500": -0.03,
+          "16000": -0.01,
+          "20000": -0.0
+        }
+      }
+    }
+  ]
+}</script>
+<script type="application/json" id="geraete-daten">[{"schema_version": 1, "id": "generisch_bass_hoehen", "hersteller": "", "modell": "Bass/Höhen-Regler", "name": "deine Lautsprecher", "generisch": true, "wo": "an den Klangreglern deiner Lautsprecher (oder in ihrer App)", "hinweis": "Allgemeines Profil für Geräte mit Bass- und Höhenregler. Typische Werte (Kuhschwanz bei etwa 100 Hz und 10 kHz, ±6 dB), keine Messung eines bestimmten Geräts: alles geschätzt. Die Nachmessung zeigt, ob es passt.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "bass_db", "name": "Bass", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 100, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 100 Hz, Q 0,7, Stufen in dB (typischer Klangregler)"}, {"id": "hoehen_db", "name": "Höhen", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 10000, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 10 kHz, Q 0,7, Stufen in dB (typischer Klangregler)"}]}, {"schema_version": 1, "id": "generisch_subwoofer", "hersteller": "", "modell": "Subwoofer mit Pegel, Phase und Trennfrequenz", "name": "dein Subwoofer", "generisch": true, "wo": "an deinem Subwoofer", "zerlegung": "Dreh am Subwoofer die Phase kurz um (0° ↔ 180°) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Allgemeines Profil für einen Subwoofer mit Pegel-, Phasen- (0°/180°) und Trennfrequenz-Regler. Trennfrequenz als Linkwitz-Riley 4. Ordnung geschätzt, Regler am Gerät meist ohne Rastung: Werte ungefähr einstellen und nachmessen.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "sub_trennfrequenz_hz", "name": "Trennfrequenz (Crossover)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 150, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "geschaetzt": "Linkwitz-Riley 4. Ordnung, Bereich 40–150 Hz typisch"}, {"id": "sub_pegel_db", "name": "Pegel (Level)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "geschaetzt", "geschaetzt": "Pegel relativ zu heute in dB; die Skala am Gerät ist oft unbeschriftet"}, {"id": "sub_phase", "name": "Phase", "teil": "sub", "wirkt_auf": "bass", "werte": ["0", "180"], "werks": "0", "anzeige": {"namen": {"0": "0°", "180": "180°"}}, "filter": {"art": "polaritaet", "invertiert": "180"}, "status": "geschaetzt", "geschaetzt": "Phase nur als Umpolung (0°/180°); stufenlose Zwischenwerte sind nicht abgebildet"}]}, {"schema_version": 1, "id": "kef_ls50w2", "hersteller": "KEF", "adapter": "kef", "modell": "LS50 Wireless II", "name": "KEF LS50 Wireless II", "wo": "in KEF Connect (Expertenmodus, EQ-Einstellungen)", "zerlegung": "Stell in KEF Connect die Sub-Polarität kurz um (normal ↔ umgedreht) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Die Reglerbereiche sind belegt, die Filterformen teils geschätzt. Recherche Stand 25.10.2026 (Suchauszüge, kef.com und audiosciencereview.com ließen sich nicht direkt abrufen).", "quellen": ["https://www.manualslib.com/manual/2044332/Kef-Ls50-Wireless-Ii.html?page=57", "https://us.kef.com/blogs/news/kefs-room-desk-and-wall-eq-settings", "https://assets.kef.com/pdf_doc/LSX/LSXmanual_EN_v4-20200220.pdf", "https://www.home-assistant.io/integrations/kef/", "https://github.com/alexjuillardoff/KefBar/blob/main/docs/PROTOCOL.md", "https://assets.kef.com/archive/ls50_wireless/ls50_wireless_infosheet.pdf", "https://www.audiosciencereview.com/forum/index.php?threads/kef-ls50w-ii-measurements.36932/", "https://www.spinorama.org/speakers/KEF%20LS50%20Wireless%20II/ErinsAudioCorner/index_eac.html", "https://us.kef.com/blogs/news/optimizing-your-crossover-settings", "https://eu.kef.com/blogs/news/how-to-integrate-a-subwoofer-with-your-ls-wireless-speakers", "https://community.roonlabs.com/t/using-kef-ls50-wireless-ii-with-a-subwoofer/157545?page=3"], "regler": [{"id": "wandmodus", "name": "Wandmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 250, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch LS50 Wireless II); wirkt ab etwa 200 Hz abwärts (KEF), bis etwa 500 Hz (LSX-Handbuch)", "geschaetzt": "Form: Kuhschwanz 250 Hz, Q 0,7"}, {"id": "tischmodus", "name": "Tischmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "peaking", "freq": 180, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch); wirkt um etwa 180 Hz, eine Oktave nach oben und unten (KEF)", "geschaetzt": "Form: Glocke 180 Hz, Q 0,7"}, {"id": "bass_extension", "name": "Bass Extension", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "werte": ["less", "standard", "extra"], "werks": "standard", "anzeige": {"namen": {"less": "Less", "standard": "Standard", "extra": "Extra"}}, "filter": {"art": "hochpass_lr4", "freq_je_wert": {"less": 46, "standard": 43, "extra": 40}}, "status": "geschaetzt", "belegt": "−6 dB bei 40/43/46 Hz für Extra/Standard/Less (KEF, erste LS50 Wireless); LS50 Wireless II gemessen −6 dB bei 44,9 Hz (ASR-Forum) bzw. 45,4 Hz (Erin's Audio Corner)", "geschaetzt": "Übertrag der Werte der ersten Generation, Linkwitz-Riley 4. Ordnung"}, {"id": "hoehen_db", "name": "Treble Trim", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -4, "bis": 4, "schritt": 0.5}, "werks": 0, "anzeige": {"nachkomma": 1, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 2200, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich −4 bis +4 dB (Handbuch LS50 Wireless II)", "geschaetzt": "Form: Kuhschwanz ab 2,2 kHz, Q 0,7 (Frequenz nicht belegt)"}, {"id": "hochpass_hz", "name": "Hochpass (High-pass)", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "nur_mit_sub": true, "werte": {"von": 50, "bis": 120, "schritt": 5, "aus": null}, "werks": null, "aus_wert": null, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "hochpass_lr4"}, "status": "geschaetzt", "belegt": "Bereich 50–120 Hz in 5-Hz-Schritten (Home Assistant, erste Generation); KEF-Beispiel 70 Hz: −12 dB bei 56 Hz, −24 dB bei 35 Hz", "geschaetzt": "Linkwitz-Riley 4. Ordnung (KEF-Support nannte einmal auch 12 dB/Oktave Butterworth)"}, {"id": "sub_tiefpass_hz", "name": "Sub-Tiefpass (Sub out low-pass)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 250, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "belegt": "Bereich 40–250 Hz in 5-Hz-Schritten (Home Assistant, erste Generation; KEF-Blog)", "geschaetzt": "Linkwitz-Riley 4. Ordnung"}, {"id": "sub_gain_db", "name": "Sub-Pegel (Sub gain)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "belegt", "belegt": "Bereich −10 bis +10 dB (Home Assistant, erste Generation)"}, {"id": "sub_polaritaet", "name": "Sub-Polarität", "teil": "sub", "wirkt_auf": "bass", "werte": ["normal", "invertiert"], "werks": "normal", "anzeige": {"namen": {"normal": "normal", "invertiert": "umgedreht"}}, "filter": {"art": "polaritaet", "invertiert": "invertiert"}, "status": "belegt", "belegt": "Feld subwooferPolarity (kef:eqProfile/v2, KefBar)"}]}, {"schema_version": 1, "id": "kef_lsx2", "hersteller": "KEF", "adapter": "kef", "modell": "LSX II", "name": "KEF LSX II", "wo": "in KEF Connect (Expertenmodus, EQ-Einstellungen)", "zerlegung": "Stell in KEF Connect die Sub-Polarität kurz um (normal ↔ umgedreht) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Gleiche Plattform wie die LS50 Wireless II (KEF Connect, kef:eqProfile/v2): Bereiche und Filterformen von dort übernommen, für die LSX II selbst nicht einzeln belegt. Ein LSX II zeigte wallModeSetting −6,5 dB (KefBar), also mehr als die −6 dB der ersten LSX.", "quellen": ["https://www.manualslib.com/manual/2044332/Kef-Ls50-Wireless-Ii.html?page=57", "https://us.kef.com/blogs/news/kefs-room-desk-and-wall-eq-settings", "https://assets.kef.com/pdf_doc/LSX/LSXmanual_EN_v4-20200220.pdf", "https://www.home-assistant.io/integrations/kef/", "https://github.com/alexjuillardoff/KefBar/blob/main/docs/PROTOCOL.md", "https://assets.kef.com/archive/ls50_wireless/ls50_wireless_infosheet.pdf", "https://www.audiosciencereview.com/forum/index.php?threads/kef-ls50w-ii-measurements.36932/", "https://www.spinorama.org/speakers/KEF%20LS50%20Wireless%20II/ErinsAudioCorner/index_eac.html", "https://us.kef.com/blogs/news/optimizing-your-crossover-settings", "https://eu.kef.com/blogs/news/how-to-integrate-a-subwoofer-with-your-ls-wireless-speakers", "https://community.roonlabs.com/t/using-kef-ls50-wireless-ii-with-a-subwoofer/157545?page=3", "https://www.areadvd.de/tests/xxl-test-kef-lsx-ii-ultrakompakte-aktive-wireless-streaming-lautsprecher-der-extraklasse/"], "regler": [{"id": "wandmodus", "name": "Wandmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 250, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch LS50 Wireless II); wirkt ab etwa 200 Hz abwärts (KEF), bis etwa 500 Hz (LSX-Handbuch)", "geschaetzt": "Form: Kuhschwanz 250 Hz, Q 0,7; Bereich von der LS50 Wireless II übernommen"}, {"id": "tischmodus", "name": "Tischmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "peaking", "freq": 180, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch); wirkt um etwa 180 Hz, eine Oktave nach oben und unten (KEF)", "geschaetzt": "Form: Glocke 180 Hz, Q 0,7; Bereich von der LS50 Wireless II übernommen"}, {"id": "bass_extension", "name": "Bass Extension", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "werte": ["less", "standard", "extra"], "werks": "standard", "anzeige": {"namen": {"less": "Less", "standard": "Standard", "extra": "Extra"}}, "filter": {"art": "hochpass_lr4", "freq_je_wert": {"less": 46, "standard": 43, "extra": 40}}, "status": "geschaetzt", "belegt": "−6 dB bei 40/43/46 Hz für Extra/Standard/Less (KEF, erste LS50 Wireless); LS50 Wireless II gemessen −6 dB bei 44,9 Hz (ASR-Forum) bzw. 45,4 Hz (Erin's Audio Corner)", "geschaetzt": "Übertrag der Werte der ersten Generation, Linkwitz-Riley 4. Ordnung; Bereich von der LS50 Wireless II übernommen"}, {"id": "hoehen_db", "name": "Treble Trim", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -4, "bis": 4, "schritt": 0.5}, "werks": 0, "anzeige": {"nachkomma": 1, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 2200, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich −4 bis +4 dB (Handbuch LS50 Wireless II)", "geschaetzt": "Form: Kuhschwanz ab 2,2 kHz, Q 0,7 (Frequenz nicht belegt); Bereich von der LS50 Wireless II übernommen"}, {"id": "hochpass_hz", "name": "Hochpass (High-pass)", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "nur_mit_sub": true, "werte": {"von": 50, "bis": 120, "schritt": 5, "aus": null}, "werks": null, "aus_wert": null, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "hochpass_lr4"}, "status": "geschaetzt", "belegt": "Bereich 50–120 Hz in 5-Hz-Schritten (Home Assistant, erste Generation); KEF-Beispiel 70 Hz: −12 dB bei 56 Hz, −24 dB bei 35 Hz", "geschaetzt": "Linkwitz-Riley 4. Ordnung (KEF-Support nannte einmal auch 12 dB/Oktave Butterworth); Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_tiefpass_hz", "name": "Sub-Tiefpass (Sub out low-pass)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 250, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "belegt": "Bereich 40–250 Hz in 5-Hz-Schritten (Home Assistant, erste Generation; KEF-Blog)", "geschaetzt": "Linkwitz-Riley 4. Ordnung; Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_gain_db", "name": "Sub-Pegel (Sub gain)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "geschaetzt", "belegt": "Bereich −10 bis +10 dB (Home Assistant, erste Generation)", "geschaetzt": "Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_polaritaet", "name": "Sub-Polarität", "teil": "sub", "wirkt_auf": "bass", "werte": ["normal", "invertiert"], "werks": "normal", "anzeige": {"namen": {"normal": "normal", "invertiert": "umgedreht"}}, "filter": {"art": "polaritaet", "invertiert": "invertiert"}, "status": "geschaetzt", "belegt": "Feld subwooferPolarity (kef:eqProfile/v2, KefBar)", "geschaetzt": "Bereich von der LS50 Wireless II übernommen"}]}]</script>
 <script type="text/plain" id="sweetspot-src">// Sweetspot-Finder in JavaScript: dieselben Schritte wie klangbox/sweetspot.py (Modalsumme für den
 // Rechteckraum, Dämpfung je Mode nach Kuttruff, Zielfunktion, Rastersuche, Wächter).
 // Läuft im Browser (Web Worker) und in Node (für den Abgleich mit der Python-Fassung).
@@ -1919,6 +3619,7 @@ const SS = (() => {
 
 if (typeof module !== "undefined") module.exports = SS;
 </script>
+<script type="application/json" id="mikrofone-daten">{"iphone-17-pro": {"modell": "iPhone 17 Pro", "kennungen": [], "mikrofon": "unteres Mikrofon (neben USB-C), iOS-Messmodus", "quelle": "Faber Acoustical: Measured: iPhone 17 Pro microphone frequency response and directivity (2025), https://www.faberacoustical.com/blog/2025/ios/iphone/measured-iphone-17-pro-microphone-frequency-response-and-directivity/", "verfahren": "Schalltoter Raum, Referenz PCB 378B02 ca. 1 mm vor dem Mikrofon, 180° gedreht gemittelt, 1/24-Oktave geglättet", "abgelesen": "Von Hand aus dem Diagramm (Screenshot des Nutzers) abgelesen, Ablesefehler etwa ±0,5 dB; ein einzelnes Gerät, Streuung zwischen Geräten unbekannt", "frequenzen_hz": [18, 20, 22, 25, 30, 35, 40, 50, 60, 70, 100, 150, 200, 300, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 12000], "druck_db": [-18, -15, -12, -10.5, -7, -5.5, -4.3, -3.0, -2.3, -1.8, -1.2, -0.8, -0.5, -0.3, -0.1, 0.0, 0.0, 0.0, 0.0, -0.3, -0.8, -1.5, -2.3, -3.5, -5.0, 4.6], "freifeld_db": [-18, -15, -12, -10.5, -7, -5.5, -4.3, -3.0, -2.3, -1.8, -1.2, -0.8, -0.5, -0.3, -0.1, 0.0, 0.1, 0.4, 0.8, 1.3, 1.6, 1.8, 1.7, 1.3, 0.5, 11.5], "gueltig_hz": [25, 8000], "unsicherheit_db": {"25-40": 1.5, "40-5000": 0.5, "5000-8000": 1.5}, "hinweis": "Über 8 kHz schwankt die Empfindlichkeit je nach Schallrichtung um bis zu ±10 dB: dort nicht bewerten. Handy beim Messen immer gleich halten (Unterseite zu den Boxen)."}, "messmikro": {"modell": "Messmikrofon mit Kalibrierdatei (z. B. miniDSP UMIK-1)", "kennungen": [], "mikrofon": "USB-Messmikrofon, Kalibrierdatei des Herstellers eingerechnet", "quelle": "Annahme: nach Einrechnen der Kalibrierdatei bleibt ein Restfehler von etwa ±0,2 dB", "verfahren": "–", "abgelesen": "–", "frequenzen_hz": [10, 24000], "druck_db": [0.0, 0.0], "freifeld_db": [0.0, 0.0], "gueltig_hz": [10, 24000], "unsicherheit_db": {"20-20000": 0.2}, "hinweis": "Referenz für den Vergleich im Prüfstand."}}</script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -1932,6 +3633,12 @@ const schreiben = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }
 // App → Seite: klangboxNativ.aufnahmeFertig(id, base64Float32LE, sampleRate, info) oder aufnahmeFehler(id, text),
 //   window.klangboxAkzent(name), klangboxNativ.zeige("messen" | "sweetspot"), Ereignisse „klangboxtab“ und
 //   „klangboxraum“ (detail = Raum nach einem neuen Scan) auf window. Das Objekt der App wird nur ergänzt, nie ersetzt.
+// Regler der Lautsprecher übers WLAN (Schritt 11 „Ohne Klang-Box“), herstellerneutral; die App ordnet dem Adapter des
+//   Herstellers zu. Nur wenn klangboxNativ.geraete[<Geräte-id>].verfuegbar (oder klangboxNativ[<adapter aus dem Profil>]
+//   .verfuegbar) wahr ist: Seite → App {art: "geraetEinstellungen", reqId, geraet: <Geräte-id>, werte: {<Regler-id>: Wert}}
+//   (Regler und Werte wie im Geräteprofil daten/geraete/<id>.json); App → Seite klangboxNativ.geraetAntwort(reqId,
+//   {ok, gesetzt: [Regler-id], nicht_unterstuetzt: [Regler-id]}). Sonst bleibt es bei der Anleitung zum Abtippen.
+// „Später nachmessen“: Seite → App {art: "nachmessenErinnern", runde, anlage} (die App darf daran erinnern).
 // Ohne App (normaler Browser) ist nativ null und alles läuft wie bisher.
 const nativ = (() => {
   const n = window.klangboxNativ;
@@ -1962,6 +3669,7 @@ const nativ = (() => {
   return {
     raum: n.raum || null,
     akzentStart: n.akzent || null,
+    geraet: typeof n.geraet === "string" ? n.geraet : "",
     kannAufnehmen: !!n.kannAufnehmen && handler,
     // Aufnahme starten; ergebnis: Promise auf {daten, rate, info}, abgelehnt mit Fehlertext
     aufnahme() {
@@ -2008,6 +3716,16 @@ let runden = [];       // gespeicherte Ergebnisse
 try { runden = JSON.parse(lesen("raumcheck-runden", "[]")); } catch (e) { runden = []; }
 modus = lesen("raumcheck-modus", "kino");
 $("raum").value = lesen("raumcheck-raum", "");
+// Handy-Mikrofon: Korrekturkurven aus daten/mikrofone. In der App schlägt die Gerätekennung das Modell vor
+// (iPhone18,x = iPhone-17-Reihe); bestätigen muss der Nutzer, denn Pro und Nicht-Pro haben andere Mikrofone.
+let MIKROFONE = {};
+try { MIKROFONE = JSON.parse($("mikrofone-daten").textContent); } catch (e) { MIKROFONE = {}; }
+for (const [k, d] of Object.entries(MIKROFONE)) if (k !== "messmikro") { const o = document.createElement("option"); o.value = k; o.textContent = d.modell; $("handy").appendChild(o); }
+{ const gemerkt = lesen("raumcheck-handy", null), kennung = (nativ && nativ.geraet) || "";
+  const vorschlag = gemerkt !== null ? gemerkt : (/^iPhone18,[12]$/.test(kennung) ? "iphone-17-pro" : "");
+  $("handy").value = MIKROFONE[vorschlag] || vorschlag === "" ? vorschlag : "";
+  if (gemerkt === null && vorschlag) { $("handy-hinweis").hidden = false; $("handy-hinweis").textContent = "Erkannt – bitte kurz prüfen. Mit der richtigen Auswahl rechne ich die Eigenheiten deines Mikrofons heraus."; }
+  $("handy").addEventListener("change", () => { schreiben("raumcheck-handy", $("handy").value); $("handy-hinweis").hidden = true; }); }
 $("raum").addEventListener("change", () => schreiben("raumcheck-raum", $("raum").value));
 
 function setzeModus(m) {
@@ -2021,7 +3739,8 @@ $("m-stereo").addEventListener("click", () => setzeModus("stereo"));
 setzeModus(modus);
 
 // --- Geführter Ablauf (wie die Sonos-Einmessung: die App führt, Schritt für Schritt) ------------
-const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Ruhe und Lautstärke", "Hörplatz", "Bewegen", "Ergebnis", "Aufstellung"];
+const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Ruhe und Lautstärke", "Hörplatz", "Bewegen", "Ergebnis", "Aufstellung",
+  "Klang wählen", "Anwenden und nachmessen", "Ohne Klang-Box"];
 function zeigeSchritt(n) {
   document.querySelectorAll(".schritt").forEach((el) => { el.hidden = +el.dataset.s !== n; });
   document.querySelectorAll("#fortschritt span").forEach((s, i) => s.classList.toggle("an", i < n));
@@ -2029,6 +3748,9 @@ function zeigeSchritt(n) {
   if (n === 5) $("platz-bild").innerHTML = platzBild();
   pegelSchrittGewechselt(n);
   if (n === 8) planZeigen();
+  if (n === 9) profilZeigen();
+  if (n === 10) anwendenZeigen();
+  if (n === 11) geraetZeigen();
   window.scrollTo(0, 0);
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zu]"); if (b) zeigeSchritt(+b.dataset.zu); });
@@ -2198,7 +3920,7 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
   return r.daten;
 }
 function abbrechen() { if (laeuft) { laeuft.abbruch = true; sig.pause(); } }
-["abbrechen", "check-abbrechen", "bewegen-abbrechen"].forEach((id) => $(id).addEventListener("click", abbrechen));
+["abbrechen", "check-abbrechen", "bewegen-abbrechen", "a-abbrechen", "g-abbrechen"].forEach((id) => $(id).addEventListener("click", abbrechen));
 
 // Schritt 4: Ruhe und Lautstärke. Rauschton (2 s Stille, 3 s Rauschen) aufnehmen und bewerten:
 // Abstand Ton zu Raumrauschen mindestens 30 dB, Spitze unter -3 dBFS [eigene Festlegung, aus dem
@@ -2378,8 +4100,22 @@ self.onmessage = (ev) => {
     if (ev.data.art === "sweetspot") { self.postMessage({ ok: true, ergebnis: SS.empfehlen(ev.data.raum, ev.data.start, ev.data.modus, ev.data.fest || [], ev.data.grenzen || null) }); return; }
     if (ev.data.art === "pruefen") { self.postMessage({ ok: true, ergebnis: analysiere(new Float64Array(ev.data.daten)).pruefung }); return; }
     if (ev.data.art === "bewegtPruefen") { self.postMessage({ ok: true, ergebnis: bewegtePunkte(new Float64Array(ev.data.daten)).info }); return; }
+    if (ev.data.art === "nachpruefen") {
+      const an = (l) => l.map((d) => { const a = analysiere(new Float64Array(d.daten)); return { name: d.name, messungen: a.messungen, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme }; });
+      const v = an(ev.data.vorher), n = an(ev.data.nachher), schlecht = [...v, ...n].filter((x) => !x.sauber);
+      if (schlecht.length) { self.postMessage({ ok: true, ergebnis: { fehler: "Eine Aufnahme ist nicht sauber (" + schlecht[0].name + "): " + schlecht[0].probleme.join(" ") + " Bitte noch einmal messen." } }); return; }
+      let kette = null, ungefaehr = false;
+      if (ev.data.geraet) { const k = reglerKetten(ev.data.geraet, ev.data.geraetAlt, ev.data.geraetNeu); kette = k.lautsprecher; ungefaehr = k.sub.k.length > 0 || k.sub.faktor !== 1; }
+      self.postMessage({ ok: true, ergebnis: nachpruefen(Object.fromEntries(v.map((x) => [x.name, x.messungen])), n.map((x) => ({ name: x.name, messungen: x.messungen })),
+        ev.data.einstellungen, ev.data.profil, ev.data.modus, ev.data.raumM3, undefined, kette, ungefaehr) }); return;
+    }
+    if (ev.data.art === "regler") {
+      const auf = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
+      self.postMessage({ ok: true, ergebnis: reglerRaumcheck(auf, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.geraet, ev.data.aktuell, ev.data.modus,
+        ev.data.raumM3, ev.data.sub, ev.data.gedreht ? new Float64Array(ev.data.gedreht) : null) }); return;
+    }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
-    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null) });
+    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null) });
   } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
 };`;
 const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
@@ -2399,12 +4135,14 @@ async function auswerten(bewegt) {
   const ziel = bewegt ? "bewegen-status" : "status";
   $(ziel).innerHTML = `<span class="laeuft">Rechnet, etwa 10 bis 40 Sekunden…</span>`;
   $("auswerten").disabled = true;
-  const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null });
+  const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null,
+                            mikrofon: MIKROFONE[$("handy").value] || null });
   $("auswerten").disabled = !dateien.length;
   if (!r.ok) { $(ziel).innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
-  const runde = { anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis };
+  const runde = { id: `r${Date.now()}`, anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis, profil_id: "neutral", status: "vorhergesagt" };
   runden.unshift(runde);
   schreiben("raumcheck-runden", JSON.stringify(runden.slice(0, 12)));
+  messdaten = r.ergebnis.fehler ? null : { id: runde.id, dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null };
   dateien = []; hauptDaten = null; zeigeDateien(); $(ziel).innerHTML = "";
   if (nativ && !r.ergebnis.fehler) nativ.ereignis({ art: "ergebnis", score: r.ergebnis.score_prognose.gesamt, ohne: r.ergebnis.score_heute.gesamt });
   zeigeAlles(); nachhallUebernehmen(); zeigeSchritt(7);
@@ -2431,13 +4169,16 @@ function karte(r, i) {
   const e = r.e;
   const pruef = `<ul class="klein" style="margin:0; padding-left:18px">${e.aufnahmen.map((a) =>
     `<li><b class="${a.sauber ? "ok" : "warn"}">${a.sauber ? "sauber" : "nicht verwendet"}</b> · ${esc(a.platz)}${a.probleme.length ? "<br>" + a.probleme.map(esc).join("<br>") : ""}</li>`).join("")}</ul>`;
-  const kopf = `<div style="display:grid; gap:4px"><span class="eyebrow">${esc(r.anlage)} · ${r.modus === "kino" ? "Kino" : "Stereo"} · ${esc(r.zeit)}</span><h2 style="font-size: 28px">So klingt dein Raum</h2></div>`;
+  const status = !r.status ? "" : r.status === "bestaetigt" ? `<span class="marke" style="color: var(--ok)">✓ bestätigt (nachgemessen)</span>`
+    : r.status === "zurueckgenommen" ? `<span class="marke" style="color: var(--warn)">zurückgenommen (nachgemessen)</span>`
+    : `<span class="marke" style="color: var(--warn)">vorhergesagt – Nachmessung steht noch aus</span>`;
+  const kopf = `<div style="display:grid; gap:4px"><span class="eyebrow">${esc(r.anlage)} · ${r.modus === "kino" ? "Kino" : "Stereo"} · ${esc(r.zeit)}</span>${status}<h2 style="font-size: 28px">So klingt dein Raum</h2></div>`;
   const loeschen = `<button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button>`;
   if (e.fehler) return `<section class="runde card">${kopf}<p class="warn">${esc(e.fehler)}</p>${pruef}${loeschen}</section>`;
   const sh = e.score_heute, sp = e.score_prognose;
   const tipps = e.tipps.length ? `<div><span class="klein">Tipps (freiwillig)</span><ul class="klein" style="margin:4px 0 0; padding-left:18px">${e.tipps.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
   const pm = (s) => (s.plusminus ? ` ±${s.plusminus}` : "");
-  const zahlen = `<div class="zahlpaar">
+  const zahlen = r.geraet && !r.geraet.fehler ? dreiWerte(r) : `<div class="zahlpaar">
       <div class="zahlkarte"><span class="lbl">heute</span><span class="zahl" style="color: var(--heute)">${sh.gesamt}</span><span class="note">${esc(sh.note || "")}<span class="pm">${pm(sh)}</span></span></div>
       <div class="zahlkarte prog"><span class="lbl">mit Klang-Box</span><span class="zahl" style="color: var(--akzent)">${sp.gesamt}</span><span class="note">${esc(sp.note || "")}<span class="pm">${pm(sp)}</span></span></div></div>`;
   const ende = `<div class="card"><span class="klein">Bass am Hauptplatz (dB)</span>${kurveSvg(e.kurve)}
@@ -2884,13 +4625,19 @@ $("s-ergebnis").addEventListener("click", (ev) => {
 function nachhallUebernehmen() { const r = runden.find((x) => x.e && x.e.score_heute && x.e.score_heute.werte && x.e.score_heute.werte.raum); if (r) $("s-t60").value = (Math.round(r.e.score_heute.werte.raum * 100) / 100).toString(); }
 
 function zeigeAlles() {
-  $("ergebnisse").innerHTML = runden.map(karte).join("");
+  const offen = runden[0] && !runden[0].e.fehler && runden[0].status === "vorhergesagt" ? runden[0] : null;
+  $("ergebnisse").innerHTML = (offen ? `<div class="hebel" id="erinnerung"><span class="marke">Nachmessung steht noch aus</span>
+      <p style="font-size:14px">${offen.spaeter ? "Du wolltest später nachmessen. " : ""}Erst die Nachmessung zeigt, ob es wirklich besser klingt. Bis dahin ist das Ergebnis nur vorhergesagt.</p>
+      <button type="button" data-nachmessen="${offen.spaeter && offen.spaeter.art === "geraet" ? "geraet" : "box"}">Jetzt nachmessen</button></div>` : "")
+    + runden.map(karte).join("");
   const gueltig = runden.filter((r) => !r.e.fehler);
   $("vergleich-karte").hidden = gueltig.length < 1;
   $("vergleich").innerHTML = gueltig.map((r) => `<tr><td>${esc(r.anlage)}</td><td>${r.modus === "kino" ? "Kino" : "Stereo"}</td>
     <td class="n" style="color: var(--heute)">${r.e.score_heute.gesamt}</td><td class="n" style="color: var(--akzent)">${r.e.score_prognose.gesamt}</td></tr>`).join("");
 }
 $("ergebnisse").addEventListener("click", (ev) => {
+  const nm = ev.target.closest("[data-nachmessen]");
+  if (nm) { anwendenArt = nm.dataset.nachmessen; zeigeSchritt(anwendenArt === "geraet" ? 10 : (aktuelleRunde() && aktuelleRunde().profil ? 10 : 9)); return; }
   const b = ev.target.closest("[data-loeschen]");
   if (!b) return;
   runden.splice(+b.dataset.loeschen, 1);
@@ -2914,6 +4661,397 @@ window.addEventListener("klangboxraum", (ev) => {
     } else if (gemerkt && gemerkt.raum) scanAnwenden(gemerkt.raum, { wand: gemerkt.wand, felder: false, bestaetigt: gemerkt.bestaetigt, quelle: "Datei" });
   } catch (e) { $("s-status").innerHTML = `<span class="warn">Raumscan ließ sich nicht lesen: ${esc(e.message || e)}</span>`; }
 })();
+// --- Ab dem Ergebnis: Klangprofil, Einstellungen anwenden, Nachmessung mit Rücknahme, „Ohne Box“ ---------
+// Rechnungen wie die Box (analyse.js, im Hauptfaden für die schnellen Dinge, sonst im Worker)
+const AJ = new Function($("analyse-src").textContent + "\nreturn { profilAnwenden, profilDbAn, zahlText, reglerText, reglerWerte, reglerZusammensetzen };")();
+let PROFILE = null;
+try { PROFILE = JSON.parse($("klangprofile-daten").textContent); } catch (e) { PROFILE = null; }
+const NEUTRAL = { id: "neutral", name: "Neutral (Harman-nah)", kurz: "Neutral – so, wie das Einmess-Ziel es vorsieht.", skala: 1, filter: [], vorverstaerkung_db: 0,
+  zusatz_optional: null, zusatz_angewendet: false, braucht_engine: false, hinweise: [] };
+const zt = (x, n = 1, v = false) => AJ.zahlText(x, n, v);
+// Messdaten der letzten Runde (nur im Speicher: Aufnahmen sind zu groß für den Browser-Speicher)
+let messdaten = null;  // { id, dateien: [{name, daten}], bewegt, modus, raumM3 }
+const aktuelleRunde = () => (runden[0] && !runden[0].e.fehler ? runden[0] : null);
+const rundeSpeichern = () => schreiben("raumcheck-runden", JSON.stringify(runden.slice(0, 12)));
+
+// Schritt 9: Profil wählen. Der Wächter rechnet Raum-EQ plus Profil zusammen (profilAnwenden).
+function profilFuer(r, id) {
+  if (!PROFILE || !id || id === "neutral") return { ...NEUTRAL };
+  try { return AJ.profilAnwenden(r.e.einstellungen, id, PROFILE); } catch (e) { return { ...NEUTRAL, hinweise: ["Profil ließ sich nicht rechnen, es bleibt neutral."] }; }
+}
+function kurveVollSvg(f, linien) {
+  const W = 320, H = 170, L = 30, R = 8, T = 8, B = 22, lo = Math.log(20), hi = Math.log(20000);
+  const x = (v) => L + (Math.log(v) - lo) / (hi - lo) * (W - L - R), y = (d) => T + (10 - Math.max(-20, Math.min(10, d))) / 30 * (H - T - B);
+  let s = "";
+  for (const d of [10, 0, -10, -20]) s += `<line x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}" stroke="#2A313B"/><text x="${L - 4}" y="${y(d) + 3}" text-anchor="end">${d}</text>`;
+  for (const [v, t] of [[20, "20"], [100, "100"], [1000, "1k"], [10000, "10k"]]) s += `<text x="${x(v)}" y="${H - 6}" text-anchor="middle">${t} Hz</text>`;
+  for (const l of linien) s += `<path d="${l.v.map((d, i) => `${i ? "L" : "M"}${x(f[i]).toFixed(1)},${y(d).toFixed(1)}`).join("")}" fill="none" stroke="${l.farbe}" stroke-width="2"${l.strich ? ` stroke-dasharray="5 4"` : ""}${l.klasse ? ` class="${l.klasse}"` : ""}/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Frequenzgang am Hauptplatz mit Profil">${s}</svg>`;
+}
+function profilKurve(r, p) {
+  const kv = r.e.kurve_voll;
+  const f = kv ? kv.f : Array.from({ length: 100 }, (_, i) => 20 * Math.pow(1000, i / 99));
+  const pd = AJ.profilDbAn(p.filter || [], f), mitte = pd.filter((_, i) => f[i] >= 500 && f[i] <= 2000), mu = mitte.length ? mitte.reduce((a, b) => a + b) / mitte.length : 0;
+  const linien = [], leg = [];
+  if (kv) { linien.push({ v: kv.heute, farbe: "#FF9A70" }, { v: kv.prognose, farbe: "var(--akzent)", klasse: "ak-s" }); leg.push(["var(--heute)", "heute"], ["var(--akzent)", "mit Klang-Box"]); }
+  linien.push({ v: f.map((_, i) => (kv ? kv.prognose[i] : 0) + pd[i] - mu), farbe: "#F2F4F7", strich: true }); leg.push(["var(--ink)", kv ? `mit „${p.name}“` : `nur das Profil „${p.name}“`]);
+  $("p-kurve").innerHTML = kurveVollSvg(f, linien);
+  $("p-legende").innerHTML = leg.map(([c, t]) => `<span><i style="background: ${c}"></i>${esc(t)}</span>`).join("") + (kv ? "" : `<span class="klein">Ältere Messrunde: Für die ganze Prognose bitte neu messen.</span>`);
+}
+function profilZeigen() {
+  const r = aktuelleRunde();
+  if (!r) { zeigeSchritt(7); return; }
+  if (!PROFILE) { $("p-liste").innerHTML = `<p class="warn">Die Klangprofile fehlen in dieser Seite. Es bleibt neutral.</p>`; return; }
+  const gewaehlt = r.profil_id || "neutral", p = profilFuer(r, gewaehlt);
+  r.profil = p; rundeSpeichern();
+  profilKurve(r, p);
+  $("p-waechter").innerHTML = p.hinweise.length ? `<div class="kasten">${p.hinweise.map((h) => `<p class="${/Wächter/.test(h) ? "warn" : "klein"}" style="font-size:14px">${esc(h)}</p>`).join("")}${
+    p.skala < 1 && p.skala > 0 ? `<span class="klein">Ich wende es mit ${zt(p.skala * 100, 0)} % an. So bleibt alles in den Grenzen, die nie verschlimmbessern.</span>` : ""}</div>` : "";
+  $("p-liste").innerHTML = PROFILE.profile.map((q) => {
+    const an = q.id === gewaehlt;
+    return `<div class="profil" data-an="${an}"><button type="button" class="waehlen" role="radio" aria-checked="${an}" data-profil="${esc(q.id)}">
+      <span class="titel"><b>${esc(q.name)}</b>${an ? `<span class="marke">gewählt</span>` : ""}</span><span class="klein">${esc(q.kurz)}</span></button>
+      ${q.zusatz_optional ? `<span class="klein warn">Teil davon (${q.zusatz_optional.typ === "mitte_seite" ? "Mitte/Seite" : "Übersprechen"}) braucht eine neue Engine-Funktion und ist noch nicht aktiv.</span>` : ""}
+      <details><summary>Was es nicht kann</summary><p class="klein">${esc(q.was_es_nicht_kann)}</p></details></div>`;
+  }).join("");
+}
+$("p-liste").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-profil]"), r = aktuelleRunde();
+  if (!b || !r) return;
+  r.profil_id = b.dataset.profil; r.urteil = null; profilZeigen();
+});
+$("p-weiter").addEventListener("click", () => { anwendenArt = "box"; zeigeSchritt(10); });
+
+// Export: Datei mit Raumanpassung und Profil (Form wie klangprofile.export in Python)
+function exportObjekt(r, stand, einst, profil, geraet) {
+  const kanal = (c) => ({ gain_db: c.gain_db, delay_ms: c.delay_ms, eq: c.eq.map((q) => ({ freq: q.freq, gain: q.gain, q: q.q })) });
+  return { art: "klangbox-einstellungen", version: 1, stand, status: r.status || "vorhergesagt", modus: r.modus, anlage: r.anlage, erstellt: new Date().toISOString(),
+    einstellungen: { FL: kanal(einst.FL), FR: kanal(einst.FR), profil: profil || { ...NEUTRAL } }, geraet_einstellungen: geraet || null };
+}
+const NEUTRAL_EINST = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
+function herunterladen(obj, name) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" })), a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+let letzterExport = null;
+function exportAnbieten(obj, ziel, text) {
+  letzterExport = obj;
+  $(ziel).innerHTML = `<button type="button" data-export="datei">${esc(text || "Einstellungen speichern")}</button><button type="button" class="klein zweit" data-export="kopieren">Kopieren</button>
+    <details><summary>Inhalt ansehen</summary><pre class="klein" style="white-space: pre-wrap; overflow-wrap: anywhere; margin: 0">${esc(JSON.stringify(obj, null, 1))}</pre></details>`;
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-export]"); if (!b || !letzterExport) return;
+  if (b.dataset.export === "datei") herunterladen(letzterExport, "klangbox-einstellungen.json");
+  else { try { await navigator.clipboard.writeText(JSON.stringify(letzterExport, null, 2)); b.textContent = "✓ Kopiert"; } catch (e) { b.textContent = "Kopieren geht hier nicht"; } }
+});
+
+// Schritt 10: anwenden und nachmessen. art: "box" (Klang-Box) oder "geraet" (nur die Regler der Lautsprecher)
+let anwendenArt = "box";
+let nach = { vorher: {}, nachher: {}, extraName: null };  // Aufnahmen je Platz (Float32Array)
+function zusammenfassung(r) {
+  const e = r.e.einstellungen, p = r.profil || { ...NEUTRAL };
+  const kanal = (ch, n) => `<div class="zeile"><i class="ampel gut"></i><span><b>${n}</b>: Pegel ${zt(e[ch].gain_db, 1)} dB, Laufzeit ${zt(e[ch].delay_ms, 2)} ms, ${e[ch].eq.length} Bass-Filter</span></div>`;
+  return `<span class="marke">Raumanpassung</span><div class="zeilen">${kanal("FL", "Links")}${kanal("FR", "Rechts")}</div>
+    <span class="marke">Klang</span><div class="zeile"><i class="ampel ${p.skala < 1 ? "hinweis" : "gut"}"></i><span><b>${esc(p.name)}</b>${p.filter.length ? ` · ${p.filter.length} Filter, Vorverstärkung ${zt(p.vorverstaerkung_db, 1)} dB${p.skala < 1 ? `, auf ${zt(p.skala * 100, 0)} % abgeschwächt` : ""}` : ""}</span></div>
+    ${p.hinweise.map((h) => `<p class="klein">${esc(h)}</p>`).join("")}`;
+}
+function anwendenZeigen() {
+  const r = aktuelleRunde();
+  if (!r) { zeigeSchritt(7); return; }
+  const ohneBox = anwendenArt === "geraet";  // Regler der Lautsprecher statt Klang-Box
+  if (ohneBox && !(r.geraet && !r.geraet.fehler)) { zeigeSchritt(11); return; }
+  const gross = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  $("h-anwenden").textContent = ohneBox ? `${gross(r.geraet.geraet_name)} einstellen und nachmessen` : "Einstellungen anwenden";
+  if (ohneBox) {
+    $("a-zusammen").innerHTML = `<span class="marke">So stellst du es ein</span><ol class="klein" style="margin:0; padding-left:18px">${r.geraet.anleitung.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>`;
+    $("a-text").textContent = "Pflicht in diesem Modus: Einige Regler-Wirkungen sind geschätzt. Erst die Nachmessung zeigt, ob es wirklich besser ist. Wenn nicht, sage ich dir, wie du zurückstellst.";
+    $("a-weitere-text").textContent = "Für einen weiteren Platz misst du dort zweimal: erst mit den alten Werten, dann mit den neuen.";
+    $("a-extra-vorher").textContent = "1 · Mit alten Werten messen"; $("a-extra-nachher").textContent = "2 · Mit neuen Werten messen";
+  } else {
+    $("a-zusammen").innerHTML = zusammenfassung(r) + `<div id="a-export"></div><p class="klein">Lade die Datei in die Klang-Box. Danach hier nachmessen: Ich prüfe, ob es wirklich besser wurde, und nehme es sonst zurück.</p>`;
+    exportAnbieten(exportObjekt(r, "neu", r.e.einstellungen, r.profil), "a-export", "Für die Klang-Box speichern");
+    $("a-text").textContent = "Wenn die Klang-Box die neuen Einstellungen spielt: einmal am Hörplatz messen, wie vorhin. Weitere Plätze machen das Urteil sicherer. Erst danach gilt das Ergebnis als bestätigt.";
+    $("a-weitere-text").textContent = "Dafür misst du am selben Platz zweimal: erst mit „Alles aus“ an der Klang-Box, dann wieder mit Klang-Box.";
+    $("a-extra-vorher").textContent = "1 · „Alles aus“ messen"; $("a-extra-nachher").textContent = "2 · Mit Klang-Box messen";
+  }
+  // Messung von vorher am Hauptplatz: aus dieser Runde (im Speicher)
+  if (!nach.rundeId || nach.rundeId !== r.id || nach.art !== anwendenArt) {
+    nach = { rundeId: r.id, art: anwendenArt, vorher: {}, nachher: {}, extraName: null };
+    if (messdaten && messdaten.id === r.id) for (const d of messdaten.dateien) nach.vorher[d.name] = d.daten;
+  }
+  nach.haupt = (messdaten && messdaten.id === r.id && messdaten.dateien[0]) ? messdaten.dateien[0].name : (r.e.hauptplatz || "Hörplatz");
+  const fehlt = !nach.vorher[nach.haupt];
+  $("a-vorher-zeile").hidden = !fehlt || ohneBox;
+  $("a-vorher-text").textContent = "Die Messung von vorhin ist nicht mehr im Speicher (Seite neu geladen). Stell die Klang-Box auf „Alles aus“ und miss einmal vorher.";
+  if (fehlt && ohneBox) $("a-status").innerHTML = `<span class="warn">Die Messung von vorhin ist nicht mehr im Speicher. Stell die alten Werte ein und miss neu (Schritt 4).</span>`;
+  $("a-messen").disabled = fehlt;
+  plaetzeZeigen();
+  urteilZeigen(r);
+}
+// Neue oder gelöschte Messung: das alte Urteil gilt nicht mehr
+function urteilVerwerfen() { const r = aktuelleRunde(); if (r && r.urteil && r.urteil.art === anwendenArt) { r.urteil = null; rundeSpeichern(); } $("a-urteil").innerHTML = ""; }
+function plaetzeZeigen() {
+  const namen = Object.keys(nach.nachher);
+  $("a-plaetze").innerHTML = namen.map((n) => `<li><span><b>${esc(n)}</b> · vorher ✓ · nachher ✓</span><button class="klein zweit" type="button" data-nach-weg="${esc(n)}" aria-label="${esc(n)} entfernen">✕</button></li>`).join("")
+    + (nach.extraName && !nach.nachher[nach.extraName] ? `<li><span><b>${esc(nach.extraName)}</b> · vorher ✓ · nachher fehlt</span></li>` : "");
+  $("a-pruefen").disabled = !nach.nachher[nach.haupt];
+  $("a-extra-nachher").disabled = !nach.extraName;
+}
+$("a-plaetze").addEventListener("click", (ev) => { const b = ev.target.closest("[data-nach-weg]"); if (!b) return; delete nach.nachher[b.dataset.nachWeg]; urteilVerwerfen(); plaetzeZeigen(); });
+$("a-spaeter").addEventListener("click", () => {
+  const r = aktuelleRunde(); if (!r) return;
+  r.spaeter = { zeit: new Date().toISOString(), art: anwendenArt }; rundeSpeichern();
+  if (nativ) nativ.ereignis({ art: "nachmessenErinnern", runde: r.id, anlage: r.anlage });
+  zeigeAlles(); zeigeSchritt(7);
+});
+$("a-zurueck").addEventListener("click", () => zeigeSchritt(anwendenArt === "geraet" ? 11 : 9));
+async function nachAufnahme(ui) {
+  const d = await aufnehmen({ status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen" }, "raumcheck.wav", 26);
+  if (!d) return null;
+  $("a-status").innerHTML = `<span class="laeuft">Prüfe die Aufnahme…</span>`;
+  const p = await imWorker({ art: "pruefen", daten: d });
+  if (!p.ok || !p.ergebnis.sauber) { $("a-status").innerHTML = `<span class="warn">Nicht verwendet: ${esc(p.ok ? p.ergebnis.probleme.join(" ") : p.fehler)} Bitte noch einmal.</span>`; return null; }
+  $("a-status").innerHTML = `<span class="ok">✓ Aufnahme sauber.</span>`;
+  return d;
+}
+$("a-vorher-messen").addEventListener("click", async () => {
+  const d = await nachAufnahme("a-vorher-messen"); if (!d) return;
+  nach.vorher[nach.haupt] = d; urteilVerwerfen(); $("a-vorher-zeile").hidden = true; $("a-messen").disabled = false; plaetzeZeigen();
+});
+$("a-messen").addEventListener("click", async () => { const d = await nachAufnahme("a-messen"); if (!d) return; nach.nachher[nach.haupt] = d; urteilVerwerfen(); plaetzeZeigen(); });
+$("a-extra-vorher").addEventListener("click", async () => {
+  const name = ($("a-platzname").value || "").trim() || "Platz 2";
+  if (name === nach.haupt) { $("a-status").innerHTML = `<span class="warn">Bitte einen anderen Namen als „${esc(nach.haupt)}“.</span>`; return; }
+  const d = await nachAufnahme("a-extra-vorher"); if (!d) return;
+  nach.vorher[name] = d; delete nach.nachher[name]; nach.extraName = name; plaetzeZeigen();
+  $("a-status").innerHTML += anwendenArt === "geraet" ? " Jetzt die neuen Werte einstellen und Schritt 2 messen." : " Jetzt die Klang-Box wieder einschalten und Schritt 2 messen.";
+});
+$("a-extra-nachher").addEventListener("click", async () => {
+  if (!nach.extraName) return;
+  const d = await nachAufnahme("a-extra-nachher"); if (!d) return;
+  nach.nachher[nach.extraName] = d; nach.extraName = null; urteilVerwerfen(); $("a-platzname").value = `Platz ${Object.keys(nach.nachher).length + 1}`; plaetzeZeigen();
+});
+$("a-pruefen").addEventListener("click", async () => {
+  const r = aktuelleRunde(); if (!r) return;
+  const ohneBox = anwendenArt === "geraet", namen = [nach.haupt, ...Object.keys(nach.nachher).filter((n) => n !== nach.haupt)].filter((n) => nach.vorher[n] && nach.nachher[n]);
+  $("a-pruefen").disabled = true; $("a-urteil").innerHTML = "";
+  $("a-status").innerHTML = `<span class="laeuft">Vergleiche vorher und nachher…</span>`;
+  const res = await imWorker({ art: "nachpruefen", modus: r.modus, raumM3: +$("raum").value || null,
+    vorher: namen.map((n) => ({ name: n, daten: nach.vorher[n] })), nachher: namen.map((n) => ({ name: n, daten: nach.nachher[n] })),
+    einstellungen: ohneBox ? {} : r.e.einstellungen, profil: ohneBox ? null : (r.profil || null),
+    geraet: ohneBox ? r.geraet_profil : null, geraetAlt: ohneBox ? r.geraet.aktuell.werte : null, geraetNeu: ohneBox ? r.geraet.geraet_einstellungen.werte : null });
+  $("a-pruefen").disabled = false;
+  if (!res.ok) { $("a-status").innerHTML = `<span class="warn">Prüfung fehlgeschlagen: ${esc(res.fehler)}</span>`; return; }
+  if (res.ergebnis.fehler) { $("a-status").innerHTML = `<span class="warn">${esc(res.ergebnis.fehler)}</span>`; return; }
+  $("a-status").textContent = "";
+  r.urteil = { art: anwendenArt, zeit: new Date().toLocaleString("de-DE"), ...res.ergebnis };
+  r.status = r.urteil.empfehlung === "behalten" ? "bestaetigt" : "zurueckgenommen"; delete r.spaeter;
+  if (r.urteil.vergleich) {  // Theorie gegen Praxis sammeln: später auswerten, wie gut die Modelle stimmen
+    const log = lesenJson("raumcheck-vergleiche", []);
+    log.unshift({ runde: r.id, anlage: r.anlage, modus: r.modus, art: anwendenArt, zeit: new Date().toISOString(), empfehlung: r.urteil.empfehlung, vergleich: r.urteil.vergleich });
+    schreiben("raumcheck-vergleiche", JSON.stringify(log.slice(0, 30)));
+  }
+  if (r.urteil.empfehlung === "behalten" && !ohneBox) schreiben("raumcheck-bestaetigt", JSON.stringify(exportObjekt(r, "bestaetigt", r.e.einstellungen, r.profil)));
+  rundeSpeichern(); urteilZeigen(r);
+});
+// Theorie gegen Praxis: Prognose gegen Nachmessung (Kennzahlen, Bass-Kurve am Hauptplatz, Laufzeit und Pegel je Kanal)
+function vergleichHtml(u) {
+  const v = u.vergleich; if (!v) return "";
+  const kz = Object.entries(v.kennzahlen).filter(([, k]) => k.vorhergesagt !== null || k.gemessen !== null).map(([, k]) =>
+    `<tr><td>${esc(k.name)}</td><td class="n" style="color: var(--akzent)">${k.vorhergesagt ?? "–"}</td><td class="n">${k.gemessen ?? "–"}</td></tr>`).join("");
+  const kan = ["FL", "FR"].map((ch) => { const c = v.kanaele[ch];
+    return `<tr><td>${ch === "FL" ? "Links" : "Rechts"}</td><td class="n">${zt(c.laufzeit_ms.vorhergesagt, 2)} / ${zt(c.laufzeit_ms.gemessen, 2)} ms</td><td class="n">${zt(c.pegel_db.vorhergesagt, 1)} / ${zt(c.pegel_db.gemessen, 1)} dB</td></tr>`; }).join("");
+  const svg = kurveVglSvg(v.bass_kurve);
+  const ab = v.ueber_toleranz ? `<div class="kasten" style="outline: 1.5px solid var(--warn)"><b class="warn">Prognose und Messung weichen ab</b>
+      <p class="klein">Score ${zt(v.score.vorhergesagt, 0)} vorhergesagt, ${zt(v.score.gemessen, 0)} gemessen (Toleranz ±${zt(v.score.toleranz, 0)}); Bass im Mittel ${zt(v.bass_kurve.mittel_abweichung_db)} dB (Toleranz ${zt(v.bass_kurve.toleranz_db, 0)} dB). Mögliche Ursachen:</p>
+      <ul class="klein" style="margin:0; padding-left:18px">${v.ursachen.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+      <button type="button" class="zweit" data-zu="4">Neu einmessen</button></div>` : "";
+  return `${ab}<details class="kasten"${v.ueber_toleranz ? " open" : ""}><summary>Theorie gegen Praxis: Prognose ${zt(v.score.vorhergesagt, 0)}, gemessen ${zt(v.score.gemessen, 0)}${v.ungefaehr ? " (Prognose ungefähr)" : ""}</summary>
+    <span class="klein">Bass am Hauptplatz (dB)</span>${svg}
+    <div class="legende"><span><i style="background: var(--akzent)"></i>vorhergesagt</span><span><i style="background: var(--ink)"></i>gemessen</span></div>
+    <div class="tabelle"><table><thead><tr><th>Kennzahl</th><th class="n">Prognose</th><th class="n">gemessen</th></tr></thead><tbody>${kz}</tbody></table></div>
+    <div class="tabelle"><table><thead><tr><th>Kanal</th><th class="n">Laufzeit Prognose / gemessen</th><th class="n">Pegel</th></tr></thead><tbody>${kan}</tbody></table></div>
+    <button type="button" class="klein zweit" data-vergleich-speichern>Vergleich speichern (JSON)</button></details>`;
+}
+function kurveVglSvg(b) {
+  const W = 320, H = 160, L = 30, R = 8, T = 8, B = 22, lo = Math.log(20), hi = Math.log(400);
+  const x = (f) => L + (Math.log(f) - lo) / (hi - lo) * (W - L - R), y = (d) => T + (15 - Math.max(-25, Math.min(15, d))) / 40 * (H - T - B);
+  let s = "";
+  for (const d of [10, 0, -10, -20]) s += `<line x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}" stroke="#2A313B"/><text x="${L - 4}" y="${y(d) + 3}" text-anchor="end">${d}</text>`;
+  for (const f of [20, 50, 100, 200, 400]) s += `<text x="${x(f)}" y="${H - 6}" text-anchor="middle">${f} Hz</text>`;
+  const pfad = (v) => v.map((d, i) => `${i ? "L" : "M"}${x(b.f[i]).toFixed(1)},${y(d).toFixed(1)}`).join("");
+  s += `<path d="${pfad(b.vorhergesagt)}" fill="none" class="ak-s" stroke-width="2"/><path d="${pfad(b.gemessen)}" fill="none" stroke="#F2F4F7" stroke-width="2" stroke-dasharray="5 4"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Bass am Hauptplatz, vorhergesagt und gemessen">${s}</svg>`;
+}
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest("[data-vergleich-speichern]")) return;
+  const r = aktuelleRunde(); if (!r || !r.urteil || !r.urteil.vergleich) return;
+  herunterladen({ art: "klangbox-nachpruefung", version: 1, anlage: r.anlage, modus: r.modus, zeit: new Date().toISOString(), empfehlung: r.urteil.empfehlung,
+    nachpruefung: { vergleich: r.urteil.vergleich } }, "klangbox-vergleich.json");
+});
+function urteilZeigen(r) {
+  const u = r.urteil;
+  if (!u || u.art !== anwendenArt) { $("a-urteil").innerHTML = ""; return; }
+  const plaetze = `<div class="tabelle"><table><thead><tr><th>Platz</th><th class="n">Bass vorher</th><th class="n">nachher</th><th class="n">Form vorher</th><th class="n">nachher</th></tr></thead><tbody>${
+    u.je_platz.map((p) => `<tr><td>${esc(p.platz)}${p.schlechter ? ` <span class="warn">schlechter</span>` : ""}</td><td class="n" style="color: var(--heute)">${zt(p.bass_vorher_db)}</td><td class="n">${zt(p.bass_nachher_db)}</td><td class="n" style="color: var(--heute)">${zt(p.form_vorher_db)}</td><td class="n">${zt(p.form_nachher_db)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="klein">Bass: Abweichung vom Ziel in dB, Form (nur zur Info): wie ungleichmäßig der Bass ist, ohne den Pegel. Kleiner ist besser. Toleranz für Messrauschen ${zt(u.je_platz[0] ? u.je_platz[0].toleranz_db : 0.5)} dB.</p>`;
+  const pp = u.profil_pruefung ? `<details class="kasten"><summary>Profilprüfung (Methode B): ${u.profil_pruefung.bestanden ? "passt" : "weicht ab, nur ein Hinweis"}</summary><div class="tabelle"><table><thead><tr><th>Band</th><th class="n">Abweichung</th><th class="n">Toleranz</th></tr></thead><tbody>${
+    u.profil_pruefung.baender.map((b) => `<tr><td>${esc(b.band)}${b.nur_info ? " (Info)" : ""}</td><td class="n ${b.ok ? "ok" : "warn"}">${zt(b.abweichung_db, 1, true)} dB</td><td class="n">±${zt(b.toleranz_db)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="klein">Neigung 300 Hz – 10 kHz: ${zt(u.profil_pruefung.neigung.ist_db_okt, 2, true)} dB/Oktave, Ziel mit Profil ${zt(u.profil_pruefung.neigung.soll_db_okt, 2, true)}. ${esc(u.profil_pruefung.hinweis)}</p></details>` : "";
+  const hinweise = u.hinweise.filter((h) => !/^Profilprüfung|^Prognose und Messung/.test(h)).map((h) => `<p class="klein warn">${esc(h)}</p>`).join("") + vergleichHtml(u);
+  if (u.empfehlung === "behalten") {
+    $("a-urteil").innerHTML = `<section class="card urteil gut"><span class="marke" style="color: var(--ok)">Nachgemessen</span><h2>✓ ${esc(u.satz)}</h2>
+      <div class="wirkung"><span class="gross zahl">${zt(u.score_nachher, 0)}</span><span class="klein">${esc(r.e.score_name)} nachgemessen, vorher ${zt(u.score_vorher, 0)}</span></div>
+      ${hinweise}${plaetze}${pp}</section>`;
+    return;
+  }
+  // Zurücknehmen: alter Stand anbieten
+  let alt = "";
+  if (u.art === "geraet") {
+    const g = r.geraet_profil, a = r.geraet.aktuell.werte, k = r.geraet.geraet_einstellungen.werte;
+    const zeilen = g.regler.filter((x) => a[x.id] !== k[x.id]).map((x) => `<li>${esc(x.name)}: zurück auf ${esc(AJ.reglerText(x, a[x.id]))}</li>`).join("");
+    alt = `<p style="font-size:15px">Stell ${esc(g.wo)} zurück:</p><ol class="klein" style="margin:0; padding-left:18px">${zeilen || "<li>nichts zu tun</li>"}</ol>
+      ${geraetNativ(g) ? `<button type="button" id="a-geraet-zurueck">Alte Werte senden</button><div id="a-geraet-antwort" class="klein" aria-live="polite"></div>` : ""}`;
+  } else {
+    let b = null; try { b = JSON.parse(lesen("raumcheck-bestaetigt", "") || "null"); } catch (e) { b = null; }
+    const gueltig = b && b.art === "klangbox-einstellungen" && b.einstellungen && b.einstellungen.FL;
+    const obj = gueltig ? { ...b, stand: "vorher", erstellt: new Date().toISOString() } : exportObjekt(r, "neutral", NEUTRAL_EINST, { ...NEUTRAL });
+    alt = `<p style="font-size:15px">${gueltig ? "Ich biete dir den letzten Stand an, der beim Nachmessen gut war." : "Ich biete dir den neutralen Stand an: keine Raumanpassung, kein Profil."} Lade diese Datei in die Klang-Box.</p><div id="a-alt-export"></div>`;
+    setTimeout(() => exportAnbieten(obj, "a-alt-export", gueltig ? "Alten Stand speichern" : "Neutralen Stand speichern"), 0);
+  }
+  $("a-urteil").innerHTML = `<section class="card urteil zurueck"><span class="marke" style="color: var(--warn)">Nachgemessen</span><h2>${esc(u.satz)}</h2>
+    <ul class="klein" style="margin:0; padding-left:18px">${u.gruende.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>${alt}${hinweise}${plaetze}${pp}</section>`;
+  const zb = $("a-geraet-zurueck"); if (zb) zb.addEventListener("click", () => geraetSendenZeigen(r.geraet_profil, r.geraet.aktuell.werte, "a-geraet-antwort"));
+}
+
+// --- Schritt 11: Ohne Klang-Box: Regler der Lautsprecher (Geräteprofile aus daten/geraete) ------------------
+let GERAETE = [];
+try { GERAETE = JSON.parse($("geraete-daten").textContent); } catch (e) { GERAETE = []; }
+const lesenJson = (k, std) => { try { const v = JSON.parse(lesen(k, "")); return v == null ? std : v; } catch (e) { return std; } };
+let geraetWahl = lesen("raumcheck-geraet", (GERAETE.find((g) => !g.generisch) || { id: "eigenes" }).id);
+let geraetSub = lesen("raumcheck-geraet-sub", "0") === "1", geraetGedreht = null;
+let eigeneRegler = lesenJson("raumcheck-eigene-regler", []), geraetHeute = lesenJson("raumcheck-geraet-heute", {});
+const nurSub = (g) => g.regler.length > 0 && g.regler.every((r) => r.teil === "sub");
+const subSinnvoll = (g) => g.regler.some((r) => r.teil === "sub" || r.nur_mit_sub || r.bei_sub_nur_zerlegt);
+const kannZerlegen = (g) => g.regler.some((r) => r.teil === "sub" && r.filter.art === "polaritaet");
+function geraetProfil() {
+  const g = geraetWahl === "eigenes" ? null : GERAETE.find((x) => x.id === geraetWahl);
+  return g || AJ.reglerZusammensetzen(eigeneRegler, GERAETE);
+}
+const mitSub = (g) => nurSub(g) || (geraetSub && subSinnvoll(g));
+const sichtbar = (g, r) => !((r.teil === "sub" || r.nur_mit_sub) && !mitSub(g));
+function geraetFormular() {
+  const opt = (v, t) => `<option value="${esc(v)}"${v === geraetWahl ? " selected" : ""}>${esc(t)}</option>`;
+  $("g-geraet").innerHTML = GERAETE.filter((g) => !g.generisch).map((g) => opt(g.id, g.name)).join("")
+    + GERAETE.filter((g) => g.generisch).map((g) => opt(g.id, `${g.modell} (allgemein)`)).join("") + opt("eigenes", "Anderes Gerät: Regler selbst wählen");
+  $("g-eigen").hidden = geraetWahl !== "eigenes";
+  $("g-eigen-liste").innerHTML = GERAETE.filter((g) => g.generisch).flatMap((g) => g.regler).map((r) =>
+    `<li><label><input type="checkbox" data-eigen="${esc(r.id)}"${eigeneRegler.includes(r.id) ? " checked" : ""}> ${esc(r.name)}${r.teil === "sub" ? " (Subwoofer)" : ""}</label></li>`).join("");
+  const g = geraetProfil();
+  $("g-hinweis").textContent = g.regler.length ? (g.hinweis || "") : "Wähle oben die Regler, die dein Gerät hat.";
+  $("g-sub-zeile").hidden = nurSub(g) || !subSinnvoll(g);
+  $("g-sub").setAttribute("aria-checked", geraetSub);
+  const heute = geraetHeute[g.id] || {};
+  $("g-felder").innerHTML = g.regler.filter((r) => sichtbar(g, r)).map((r) => {
+    const ws = AJ.reglerWerte(r), wert = r.id in heute && ws.some((w) => w === heute[r.id]) ? heute[r.id] : r.werks;
+    return `<label>${esc(r.name)}<select data-regler="${esc(r.id)}">${ws.map((w, i) => `<option value="${i}"${w === wert ? " selected" : ""}>${esc(AJ.reglerText(r, w))}</option>`).join("")}</select></label>`;
+  }).join("");
+  $("g-heute").hidden = !g.regler.length;
+  $("g-sub-messung").hidden = !(mitSub(g) && kannZerlegen(g));
+  $("g-zerlegung-text").textContent = g.zerlegung || "Dreh die Sub-Polarität kurz um und miss am Hörplatz. Danach stellst du sie zurück.";
+  $("g-mess-status").innerHTML = geraetGedreht ? `<span class="ok">✓ Messung mit umgedrehter Sub-Polarität liegt vor. Stell die Polarität wieder zurück.</span>` : "";
+  $("g-rechnen").disabled = !g.regler.length || !(messdaten && aktuelleRunde() && messdaten.id === aktuelleRunde().id);
+}
+function geraetAktuell() {
+  const g = geraetProfil(), out = {};
+  document.querySelectorAll("#g-felder select[data-regler]").forEach((s) => { const r = g.regler.find((x) => x.id === s.dataset.regler); if (r) out[r.id] = AJ.reglerWerte(r)[+s.value]; });
+  return out;
+}
+$("g-geraet").addEventListener("change", () => { geraetWahl = $("g-geraet").value; geraetGedreht = null; schreiben("raumcheck-geraet", geraetWahl); geraetFormular(); });
+$("g-eigen-liste").addEventListener("change", (ev) => { const c = ev.target.closest("[data-eigen]"); if (!c) return;
+  eigeneRegler = [...document.querySelectorAll("[data-eigen]")].filter((x) => x.checked).map((x) => x.dataset.eigen); schreiben("raumcheck-eigene-regler", JSON.stringify(eigeneRegler)); geraetFormular(); });
+$("g-sub").addEventListener("click", () => { geraetSub = !geraetSub; schreiben("raumcheck-geraet-sub", geraetSub ? "1" : "0"); geraetFormular(); });
+$("g-felder").addEventListener("change", () => { geraetHeute[geraetProfil().id] = geraetAktuell(); schreiben("raumcheck-geraet-heute", JSON.stringify(geraetHeute)); });
+$("g-werks").addEventListener("click", () => { delete geraetHeute[geraetProfil().id]; schreiben("raumcheck-geraet-heute", JSON.stringify(geraetHeute)); geraetFormular(); });
+$("g-gedreht-messen").addEventListener("click", async () => {
+  const d = await aufnehmen({ status: "g-mess-status", pegel: "g-pegel", filter: "g-filter", start: "g-gedreht-messen", abbrechen: "g-abbrechen" }, "raumcheck.wav", 26);
+  if (!d) return;
+  const pr = await imWorker({ art: "pruefen", daten: d });
+  if (!pr.ok || !pr.ergebnis.sauber) { $("g-mess-status").innerHTML = `<span class="warn">Nicht verwendet: ${esc(pr.ok ? pr.ergebnis.probleme.join(" ") : pr.fehler)} Bitte noch einmal.</span>`; return; }
+  geraetGedreht = d; geraetFormular();
+});
+// Werte über die App ans Gerät (herstellerneutral; die App ordnet dem Adapter des Herstellers zu)
+const geraetOffen = new Map();
+function geraetNativ(g) {
+  const n = window.klangboxNativ;
+  if (!n || typeof n !== "object" || !(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.klangbox)) return false;
+  return !!((n.geraete && n.geraete[g.id] && n.geraete[g.id].verfuegbar) || (g.adapter && n[g.adapter] && n[g.adapter].verfuegbar));
+}
+if (window.klangboxNativ && typeof window.klangboxNativ === "object") {
+  window.klangboxNativ.geraetAntwort = (reqId, antwort) => { const ok = geraetOffen.get(reqId); if (!ok) return false; geraetOffen.delete(reqId); ok(antwort || { ok: false }); return true; };
+}
+function geraetSenden(geraet, werte) {
+  const reqId = `geraet${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  return new Promise((ok) => {
+    geraetOffen.set(reqId, ok);
+    try { window.webkit.messageHandlers.klangbox.postMessage({ art: "geraetEinstellungen", reqId, geraet, werte }); }
+    catch (e) { geraetOffen.delete(reqId); ok({ ok: false, fehler: "Die App antwortet nicht." }); return; }
+    setTimeout(() => { if (geraetOffen.has(reqId)) { geraetOffen.delete(reqId); ok({ ok: false, fehler: "Die App hat nicht geantwortet." }); } }, 15000);
+  });
+}
+async function geraetSendenZeigen(g, werte, ziel) {
+  $(ziel).innerHTML = `<span class="laeuft">Sende an ${esc(g.name)}…</span>`;
+  const a = await geraetSenden(g.id, werte), name = (id) => (g.regler.find((r) => r.id === id) || { name: id }).name, ns = (a.nicht_unterstuetzt || []).map(name);
+  if (a.ok) $(ziel).innerHTML = `<span class="ok">✓ Gesetzt${(a.gesetzt || []).length ? ": " + esc((a.gesetzt || []).map(name).join(", ")) : ""}.</span>`
+    + (ns.length ? ` <span class="warn">Bitte von Hand einstellen: ${esc(ns.join(", "))}.</span>` : "");
+  else $(ziel).innerHTML = `<span class="warn">Ging nicht${a.fehler ? ` (${esc(a.fehler)})` : ""}. Bitte die Werte von Hand einstellen.</span>`;
+}
+function geraetZeigen() {
+  const r = aktuelleRunde();
+  if (!r) { zeigeSchritt(7); return; }
+  geraetFormular();
+  const da = messdaten && messdaten.id === r.id;
+  $("g-status").innerHTML = da ? "" : `<span class="warn">Die Aufnahmen von vorhin sind nicht mehr im Speicher (Seite neu geladen). Dafür bitte noch einmal messen.</span> <button type="button" class="klein zweit" data-zu="4">Neu messen</button>`;
+  geraetErgebnisZeigen(r);
+}
+$("g-rechnen").addEventListener("click", async () => {
+  const r = aktuelleRunde(), g = geraetProfil(); if (!r || !messdaten || messdaten.id !== r.id || !g.regler.length) return;
+  $("g-rechnen").disabled = true; $("g-status").innerHTML = `<span class="laeuft">Suche die beste Kombination, etwa 20 bis 60 Sekunden…</span>`;
+  const sub = mitSub(g);
+  const res = await imWorker({ art: "regler", dateien: messdaten.dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt: messdaten.bewegt, geraet: g, aktuell: geraetAktuell(),
+    modus: r.modus, raumM3: messdaten.raumM3, sub, gedreht: sub ? geraetGedreht : null });
+  $("g-rechnen").disabled = false;
+  if (!res.ok) { $("g-status").innerHTML = `<span class="warn">Rechnung fehlgeschlagen: ${esc(res.fehler)}</span>`; return; }
+  if (res.ergebnis.fehler) { $("g-status").innerHTML = `<span class="warn">${esc(res.ergebnis.fehler)}</span>`; return; }
+  $("g-status").textContent = "";
+  r.geraet = res.ergebnis; r.geraet_profil = g; r.urteil = r.urteil && r.urteil.art === "geraet" ? null : r.urteil; rundeSpeichern();
+  geraetErgebnisZeigen(r); zeigeAlles();
+});
+function dreiWerte(r) {
+  const k = r.geraet, sp = r.e.score_prognose;
+  return `<div class="zahldrei">
+    <div class="zahlkarte"><span class="lbl">heute</span><span class="zahl" style="color: var(--heute)">${k.score_heute.gesamt}</span><span class="note">${esc(k.score_heute.note || "")}</span></div>
+    <div class="zahlkarte geraet"><span class="lbl">nur mit Einstellungen</span><span class="zahl">${k.score_geraet.gesamt}</span><span class="note">${esc(k.score_geraet.note || "")}</span></div>
+    <div class="zahlkarte prog"><span class="lbl">mit Klang-Box</span><span class="zahl" style="color: var(--akzent)">${sp.gesamt}</span><span class="note">${esc(sp.note || "")}</span></div></div>
+    <p class="klein">„Nur mit Einstellungen“ (${esc(k.geraet_name)}) und „mit Klang-Box“ sind Prognosen.${k.sub_zerlegt ? " Die Werte für die Regler sind nur am Hauptplatz gerechnet (dort gibt es die Sub-Messung)." : ""}</p>`;
+}
+function geraetErgebnisZeigen(r) {
+  if (!r.geraet || r.geraet.fehler || !r.geraet_profil) { $("g-ergebnis").innerHTML = ""; return; }
+  const k = r.geraet, g = r.geraet_profil, geaendert = k.geaendert.length, nativ2 = geraetNativ(g);
+  const kurve = { f: k.kurve.f, heute: k.kurve.heute, prognose: k.kurve.geraet };
+  $("g-ergebnis").innerHTML = `${dreiWerte(r)}
+    <section class="card"><span class="marke">${geaendert ? "So stellst du es ein" : "Ergebnis"}</span>
+      <ol class="klein" style="margin:0; padding-left:18px; font-size:15px; color: var(--ink)">${k.anleitung.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>
+      ${k.hinweise.map((h) => `<p class="klein warn">${esc(h)}</p>`).join("")}
+      ${geaendert && nativ2 ? `<button type="button" id="g-senden">Über die App einstellen (WLAN)</button><div id="g-antwort" class="klein" aria-live="polite"></div>` : ""}
+      ${geaendert ? `<button type="button" ${nativ2 ? `class="zweit"` : ""} id="g-nachmessen">Eingestellt – jetzt nachmessen (Pflicht)</button>` : ""}
+      ${k.geschaetzt.length ? `<details><summary>Was davon geschätzt ist</summary><ul class="klein" style="margin:0; padding-left:18px">${k.geschaetzt.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></details>` : ""}</section>
+    <div class="card"><span class="klein">Bass am Hauptplatz (dB)</span>${kurveSvg(kurve)}
+      <div class="legende"><span><i style="background: var(--heute)"></i>heute</span><span><i style="background: var(--akzent)"></i>nur mit Einstellungen</span></div></div>`;
+  const s = $("g-senden"); if (s) s.addEventListener("click", () => geraetSendenZeigen(g, k.geraet_einstellungen.werte, "g-antwort"));
+  const n = $("g-nachmessen"); if (n) n.addEventListener("click", () => { anwendenArt = "geraet"; zeigeSchritt(10); });
+}
+geraetFormular();
 zeigeAlles();
 zeigeDateien();
 nachhallUebernehmen();

@@ -4127,7 +4127,7 @@ async function mikrofonOeffnen(ui) {
 async function aufnehmen(ui, src, sekundenExtern, tick) {
   const status = (h) => { $(ui.status).innerHTML = h; };
   if (quelle === "box" && !boxBereit()) { status(`<span class="warn">Die Klang-Box ist nicht eingerichtet. Bitte in Schritt 3 eine andere Quelle wählen.</span>`); return null; }
-  if (quelle === "airplay" && kannAirplay && !drahtlos()) { status(`<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`); return null; }
+  if (quelle === "airplay" && kannAirplay && !drahtlos() && !airplayBestaetigt) { status(`<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`); return null; }
   const mic = await mikrofonOeffnen(ui);
   if (mic.fehler) { status(`<span class="warn">${mic.fehler}</span>`); return null; }
   laeuft = { abbruch: mic.kaputt };
@@ -4163,7 +4163,8 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
     sig.currentTime = 0;
     try { await sig.play(); } catch (e) { ende(); status(`<span class="warn">Wiedergabe ließ sich nicht starten.</span>`); return null; }
     await warte(800);
-    if (kannAirplay && !drahtlos()) { sig.pause(); ende(); setzeQuelle("extern");
+    // bestätigte Wahl: Safari meldet AirPlay manchmal nie; ob die Anlage spielt, prüfen Pegel und Wächter der Aufnahme
+    if (kannAirplay && !drahtlos() && !airplayBestaetigt) { sig.pause(); ende(); setzeQuelle("extern");
       status(`<span class="warn">iOS hat AirPlay beim Aufnehmen abgeschaltet. Ich habe auf „Von anderem Gerät“ umgestellt: bitte das Messsignal dort abspielen.</span>`); return null; }
     const gesamt = (sig.duration / (sig.playbackRate || 1) || sekundenExtern) + 3;
     await new Promise((r) => { const t = setInterval(() => { if (tick) tick((Date.now() - t0) / 1000 / gesamt);

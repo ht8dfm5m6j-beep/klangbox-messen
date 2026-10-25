@@ -402,6 +402,7 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
 const FS = 48000;
 const PRUEF_STUFEN_DB = [-52, -42, -32, -22, -12];  // leise → laut: der Nachhall stört die nächste Stufe nicht
 const PRUEF_STUFE_S = 0.6;
+const PRUEF_VORSTUFE_DB = -62;  // unbewertet, im Vorlauf: jede bewertete Stufe hat denselben Vorgänger (wie messung.py)
 // Messfolgen wie klangbox/messung.py: am Hörplatz (mit Prüfton) und bewegt (wie Trueplay)
 function folgeAus(cfg) {
   const f = { lead: 1.0, markerToSweep: 0.5, sweepS: 4.0, tail: 1.5, sweepLevel: 0.25, pruefton: true, bewegt: false, ...cfg };
@@ -614,7 +615,7 @@ function laufzeit(ir, zero) {
   return (g + parabel(env, g) - zero) / FS;
 }
 
-function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE) {
+function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE, roh = rec) {
   const erg = { marker_schwankung_db: Math.max(...markerPegel) - Math.min(...markerPegel) };
   const start = a + fo.lead * FS;
   const pegel = (t0, t1) => {
@@ -626,7 +627,7 @@ function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE) {
     return 10 * Math.log10(s / (i1 - i0) + 1e-24);
   };
   const stufen = PRUEF_STUFEN_DB.map((_, k) => pegel(k * PRUEF_STUFE_S + 0.15, (k + 1) * PRUEF_STUFE_S - 0.1));
-  const ruhe = pegel(-0.6, -0.15);  // Stille vor der Treppe (dahinter klingt die lauteste Stufe nach)
+  const ruhe = pegel(-PRUEF_STUFE_S - 0.4, -PRUEF_STUFE_S - 0.05);  // Stille vor der Vorstufe
   const k0 = PRUEF_STUFEN_DB.indexOf(Math.max(...PRUEF_STUFEN_DB));  // lauteste Stufe ist der Bezug
   if (fo.pruefton && stufen.every((v) => v !== null) && ruhe !== null && stufen[k0] > ruhe + 25) {
     const erwartet = PRUEF_STUFEN_DB.map((lv) => stufen[k0] - (PRUEF_STUFEN_DB[k0] - lv));
@@ -640,9 +641,16 @@ function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE) {
   const probleme = [];
   if (erg.marker_schwankung_db > 1.0 && !fo.bewegt) probleme.push(`Gleich laute Zeitmarker schwanken um ${erg.marker_schwankung_db.toFixed(1)} dB: das Handy regelt die Lautstärke automatisch nach.`);
   if (erg.leise_verschluckt) probleme.push("Leise Prüftöne fehlen: ein Störgeräuschfilter ist aktiv.");
-  else if ((erg.treppe_fehler_db || 0) > 2.0) probleme.push(`Die 10-dB-Stufen des Prüftons weichen bis ${erg.treppe_fehler_db.toFixed(1)} dB ab: die Aufnahme wird komprimiert oder nachgeregelt.`);
-  let mx = 0; for (let i = 0; i < rec.length; i++) mx = Math.max(mx, Math.abs(rec[i]));
-  if (mx > 0.99) probleme.push("Die Aufnahme übersteuert: leiser abspielen.");
+  else if ((erg.treppe_fehler_db || 0) > 1.0) probleme.push(`Die 10-dB-Stufen des Prüftons weichen bis ${erg.treppe_fehler_db.toFixed(1)} dB ab: die Aufnahme wird komprimiert oder nachgeregelt.`);
+  // an der Originalaufnahme: das Umrechnen auf die Uhr der Box rundet flache Spitzen ab
+  let mx = 0; for (let i = 0; i < roh.length; i++) mx = Math.max(mx, Math.abs(roh[i]));
+  // auch unterhalb von Vollaussteuerung (wie _abgeschnitten in Python): eine abgeschnittene Spitze ist flach
+  // und hat scharfe Ecken; eine natürliche Spitze (auch ein tiefer Sinus) ist rund
+  let ecken = 0;
+  for (let i = 1; i < roh.length - 1; i++) {
+    if (Math.abs(roh[i]) >= mx * (1 - 5e-4) && Math.abs(roh[i] - roh[i - 1]) > 0.002 * mx && Math.abs(roh[i + 1] - roh[i]) < 1e-6 * mx) ecken++;
+  }
+  if (mx > 0.99 || (mx > 0 && ecken >= 10)) probleme.push("Die Aufnahme übersteuert: leiser abspielen.");
   if (fo.pruefton && !erg.treppe_vorhanden) probleme.push("Prüfton nicht gefunden: bitte die neue Raum-Check-Datei verwenden.");
   erg.probleme = probleme;
   erg.sauber = probleme.length === 0;
@@ -663,6 +671,7 @@ function stoerProbleme(stoer) {
 // Unerklärter Rest (Aufnahme minus Impulsantwort ⊛ Sweep) in 20-ms-Stücken: ein Knall spät im Sweep oder im
 // Nachhall landet sonst mitten in der Impulsantwort. Sauber höchstens etwa −14 dB, ein Knall ab etwa +5 dB.
 const REST_GRENZE_DB = -5;
+const REST_SPITZE_DB = 35;  // und spitz: ein Knall ab ~40 dB über dem Median des Rests, langer Nachhall bis ~32 dB
 function restAusreisser(S, W, X, ir, pre, n, sweepS) {
   const nfft = ir.length, irw = new Float64Array(nfft);
   irw.set(ir.subarray(0, pre + Math.floor(1.2 * FS)));
@@ -725,10 +734,10 @@ function analysiere(rec0, fo = FOLGE) {
     const ir = re.slice(0, pre + Math.floor(1.2 * FS));
     messungen[key] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
   });
-  const pruefung = pruefeAufnahme(rec, a, markerPegel, fo);
+  const pruefung = pruefeAufnahme(rec, a, markerPegel, fo, rec0);
   pruefung.stoer_db = Object.fromEntries(Object.entries(stoer).map(([k, v]) => [k, Math.round(v * 10) / 10]));
   pruefung.rest_db = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.map((x) => Math.round(x * 10) / 10)]));
-  const knall = Object.keys(rest).filter((k) => rest[k][1] > REST_GRENZE_DB);
+  const knall = Object.keys(rest).filter((k) => rest[k][1] > REST_GRENZE_DB && rest[k][0] > REST_SPITZE_DB);
   if (fo.bewegt) pruefung.gestoert = [...new Set([...stoerEinzeln(stoer), ...knall])].sort();
   else {
     const texte = stoerProbleme(stoer);

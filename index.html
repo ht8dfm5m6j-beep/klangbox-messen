@@ -3994,6 +3994,8 @@ $("vorb-weiter").addEventListener("click", () => {
     $("airplay-bestaetigen").addEventListener("click", () => { airplayBestaetigt = true; $("vorb-status").textContent = ""; zeigeSchritt(4); });
     return;
   }
+  // gewählt ist gewählt: iOS kann AirPlay später beim Öffnen des Mikrofons wieder als „nicht drahtlos“ melden
+  if (quelle === "airplay" && drahtlos()) airplayBestaetigt = true;
   $("vorb-status").textContent = "";
   zeigeSchritt(4);
 });

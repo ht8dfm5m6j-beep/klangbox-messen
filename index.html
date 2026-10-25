@@ -8,49 +8,64 @@
 <body>
 <title>Klang-Box Raum-Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
-/* Raum-Check: Aufnahmen aus Sprachmemos auswerten, Messrunden vergleichen (Sonos, KEF, ...).
-   Eine Spalte wie eine iPhone-App, dunkel wie die Klang-Box-App. */
-:root { --bg: #0d0f12; --panel: #171a1f; --panel2: #232830; --line: #2a3038; --ink: #f2f4f7; --ink2: #9aa3ad;
-  --heute: #eb6834; --prog: #7fb0ff; --ok: #79c98a; --warn: #f0b35a; color-scheme: dark; }
+/* Raum-Check: geführte Messung, Ergebnis heute → mit Klang-Box, Sweetspot-Finder.
+   Eine Spalte wie die iPhone-App (Stil: docs/app/mockups/STIL.md). Läuft auch offline in der App
+   (WKWebView): ohne Google Fonts greift die Systemschrift. */
+:root { --bg: #0B0D10; --panel: #171B21; --panel2: #2A313B; --flaeche: #12161C; --line: #2A313B; --line2: #3A4452;
+  --ink: #F2F4F7; --ink2: #9AA3AD; --heute: #FF9A70; --warn: #FFB547; --ok: #8CE0C4;
+  --akzent: #7FB0FF; --akzent-hell: #A8C8EE; --akzent-flaeche: #13202F; --akzent-rand: #2F4C70; --prog: var(--akzent);
+  --schrift: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --zahlen: "Space Grotesk", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; color-scheme: dark; }
+:root[data-akzent="mint"] { --akzent: #8CE0C4; --akzent-hell: #C4F1E2; --akzent-flaeche: #10241F; --akzent-rand: #2B5A4C; --ok: #9FE870; }
+:root[data-akzent="violett"] { --akzent: #B79CFF; --akzent-hell: #D8CCFF; --akzent-flaeche: #1C1730; --akzent-rand: #47397A; }
 *, *::before, *::after { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-main { max-width: 560px; margin: 0 auto; padding-block: 24px 56px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
-h1 { font-size: 30px; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
-h2 { font-size: 19px; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--schrift); margin: 0; }
+main { max-width: 560px; margin: 0 auto; padding-block: 26px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+h1, h2, .zahl, .gross { font-family: var(--zahlen); font-weight: 700; letter-spacing: -0.02em; }
+h1 { font-size: 30px; margin: 0; line-height: 1.1; text-wrap: balance; }
+h2 { font-size: 22px; margin: 0; line-height: 1.15; }
+h3 { font-size: 16px; margin: 0; font-weight: 600; }
 p { margin: 0; color: var(--ink2); }
+.eyebrow { font-size: 13px; color: var(--ink2); letter-spacing: 0.04em; text-transform: uppercase; }
+.marke { font-size: 12px; color: var(--akzent); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .card { background: var(--panel); border-radius: 18px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.schritt.card { background: transparent; padding: 0; gap: 14px; }
+.kasten { background: var(--panel); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
 button, select, input { font: inherit; }
-button, .knopf { min-height: 50px; border: 0; border-radius: 14px; background: var(--ink); color: var(--bg); font-weight: 700; font-size: 16px; cursor: pointer;
+button, .knopf { min-height: 54px; border: 0; border-radius: 16px; background: var(--ink); color: var(--bg); font-weight: 600; font-size: 16px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 0 16px; text-align: center; }
-button.zweit, .knopf.zweit { background: var(--panel2); color: var(--ink); }
+button.zweit, .knopf.zweit { background: var(--panel); color: var(--ink); }
+.kasten button.zweit, .card button.zweit, .kasten .knopf.zweit, .card .knopf.zweit { background: var(--panel2); }
 button.klein { min-height: 36px; font-size: 13.5px; border-radius: 10px; padding: 0 10px; }
 button:disabled { opacity: .4; cursor: default; }
-button:focus-visible, select:focus-visible, input:focus-visible, .knopf:focus-within { outline: 2px solid var(--prog); outline-offset: 2px; }
-input[type="text"] { min-height: 46px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 12px; width: 100%; }
+button:focus-visible, select:focus-visible, input:focus-visible, .knopf:focus-within, a:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+a { color: var(--akzent-hell); }
+input[type="text"] { min-height: 48px; border-radius: 13px; border: 0; background: var(--panel); color: var(--ink); padding: 0 12px; width: 100%; }
+input[type="range"] { width: 100%; accent-color: var(--akzent); }
 .wahl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.wahl button { display: grid; gap: 2px; justify-items: start; text-align: left; padding: 12px 14px; min-height: 76px; background: var(--panel2); color: var(--ink); }
+.wahl button { display: grid; gap: 2px; justify-items: start; text-align: left; padding: 12px 14px; min-height: 80px; background: var(--panel); color: var(--ink); border-radius: 16px; }
 .wahl button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 .wahl small { font-size: 12.5px; font-weight: 500; opacity: .75; }
 ol.schritte { margin: 0; padding-left: 20px; color: var(--ink2); display: grid; gap: 4px; }
 .klein { font-size: 13px; color: var(--ink2); }
 .ok { color: var(--ok); } .warn { color: var(--warn); }
 .dateien { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.dateien li { display: flex; gap: 8px; align-items: center; justify-content: space-between; background: var(--panel2); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.dateien li { display: flex; gap: 8px; align-items: center; justify-content: space-between; background: var(--panel); border-radius: 12px; padding: 8px 10px; font-size: 14px; }
 .dateien li span { min-width: 0; overflow-wrap: anywhere; }
-.score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; text-align: center; }
-.score .zahl { font-size: 46px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.score .lbl { font-size: 13px; color: var(--ink2); }
-.krit { display: grid; gap: 6px; }
-.krit .kopf { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
-.krit .kopf span:last-child { color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.doppel { position: relative; height: 10px; border-radius: 5px; background: var(--line); }
-.doppel .h, .doppel .p { position: absolute; left: 0; height: 4px; border-radius: 2px; }
-.doppel .h { top: 0; background: var(--heute); } .doppel .p { bottom: 0; background: var(--prog); }
+.zahlpaar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.zahlkarte { background: var(--panel); border-radius: 18px; padding: 16px; display: grid; gap: 2px; align-content: start; }
+.zahlkarte.prog { background: var(--akzent-flaeche); outline: 1.5px solid var(--akzent-rand); }
+.zahlkarte .lbl { font-size: 13px; color: var(--ink2); } .zahlkarte.prog .lbl { color: var(--akzent-hell); }
+.zahlkarte .zahl { font-size: 52px; line-height: 1; font-variant-numeric: tabular-nums; }
+.zahlkarte .note { font-size: 14px; font-weight: 600; } .zahlkarte .pm { font-weight: 400; color: var(--akzent-hell); }
 .legende { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--ink2); }
 .legende i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-svg text { fill: var(--ink2); font-size: 10px; }
+svg text { fill: var(--ink2); font-size: 10px; font-family: var(--schrift); }
+.ak-f { fill: var(--akzent); } .ak-s { stroke: var(--akzent); } .hell-f { fill: var(--akzent-hell); }
 .tabelle { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
 th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
@@ -58,69 +73,110 @@ th { color: var(--ink2); font-weight: 500; font-size: 12px; text-transform: uppe
 td.n { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
 th.n { text-align: right; }
 .laeuft { display: flex; align-items: center; gap: 10px; color: var(--ink2); }
-.laeuft::before { content: ""; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--prog); animation: dreh 0.9s linear infinite; }
+.laeuft::before { content: ""; width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--akzent); animation: dreh 0.9s linear infinite; }
 @keyframes dreh { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .laeuft::before { animation: none; } }
 audio { width: 100%; }
-.balken { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
-.balken > div { height: 8px; background: var(--prog); width: 0%; }
+.balken { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.balken > div { height: 6px; background: var(--akzent); width: 0%; }
+.balken > div.lauf { width: 35%; animation: lauf 1.3s ease-in-out infinite; }  /* Aufnahme über die App: Laufanzeige statt Pegel */
+@keyframes lauf { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+@media (prefers-reduced-motion: reduce) { .laeuft::before { animation: none; } .balken > div.lauf { animation: none; width: 100%; opacity: .5; } }
 .knoepfe { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.knoepfe.breit { grid-template-columns: 1fr 2fr; }
 .kacheln { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.kachel { background: var(--panel2); border-radius: 14px; padding: 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
-.kachel .titel { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-weight: 700; }
-.kachel .pz { font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 800; }
-.kachel .pz small { font-size: 13px; color: var(--ink2); font-weight: 500; }
-.kachel p { font-size: 13px; overflow-wrap: anywhere; }
-.ampel { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; background: var(--line); }
-.ampel.gruen { background: var(--ok); } .ampel.gelb { background: var(--warn); } .ampel.rot { background: var(--heute); }
-.hebel { border: 1px solid var(--prog); border-radius: 14px; padding: 12px; display: grid; gap: 4px; }
-.hebel b { color: var(--prog); }
+.kachel { background: var(--panel); border-radius: 16px; padding: 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.kachel .titel { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 600; font-size: 15px; }
+.kachel .pz { font-family: var(--zahlen); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; }
+.kachel p { font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.ampel { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; background: var(--line2); }
+.ampel.gruen, .ampel.gut { background: var(--ok); } .ampel.gelb, .ampel.hinweis { background: var(--warn); } .ampel.rot, .ampel.problem { background: var(--heute); }
+.hebel { border-radius: 18px; padding: 16px; background: var(--panel); outline: 1.5px solid var(--akzent); display: grid; gap: 6px; }
+.hebel b { font-size: 16px; font-weight: 600; }
 details summary { cursor: pointer; color: var(--ink2); font-size: 14px; min-height: 32px; display: flex; align-items: center; }
 .note { font-size: 13px; font-weight: 700; }
 .schritt[hidden], [hidden] { display: none !important; }
-.fortschritt { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-.fortschritt > div { height: 6px; background: var(--prog); width: 0%; transition: width .3s; }
+.segmente { display: flex; gap: 6px; }
+.segmente span { flex: 1; height: 4px; border-radius: 2px; background: var(--line); transition: background .3s; }
+.segmente span.an { background: var(--akzent); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chip { min-height: 40px; border-radius: 20px; background: var(--panel2); color: var(--ink); font-weight: 600; font-size: 14px; padding: 0 14px; }
-.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.chip { min-height: 36px; border-radius: 18px; background: var(--panel); outline: 1px solid var(--line2); color: var(--ink); font-weight: 500; font-size: 13.5px; padding: 0 14px; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); outline: 0; font-weight: 600; }
 .haken { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.haken label { display: flex; gap: 10px; align-items: flex-start; background: var(--panel2); border-radius: 12px; padding: 12px; font-size: 15px; cursor: pointer; }
-.haken input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--ok); }
-.haltung { margin: 0; padding-left: 18px; }
-.bewegen-bild { position: relative; }
-.ring { position: absolute; left: 50%; top: 26%; width: 84px; height: 84px; transform: translate(-50%, -50%) rotate(-90deg); }
-.ring circle { fill: none; stroke-width: 6; }
+.haken label { display: flex; gap: 10px; align-items: flex-start; background: var(--panel); border-radius: 14px; padding: 12px; font-size: 15px; cursor: pointer; }
+.haken input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--akzent); }
+.haltung { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.haltung li { display: flex; gap: 12px; align-items: center; font-size: 15px; line-height: 1.4; color: var(--ink); }
+.haltung svg { flex: none; }
+.bewegen-bild { position: relative; display: grid; place-items: center; }
+.bewegen-bild .rest { position: absolute; top: 33%; display: grid; justify-items: center; pointer-events: none; }
+.bewegen-bild .rest .gross { font-size: 44px; line-height: 1; }
 #ring { transition: stroke-dashoffset .3s linear; }
 .felder { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
 .felder label { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink2); min-width: 0; }
-.felder input { min-height: 42px; border-radius: 10px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 10px; width: 100%; font-size: 16px; }
-.vorschlag { background: var(--panel2); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
-.raumtipps { display: grid; gap: 8px; }
+.felder input { min-height: 44px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 10px; width: 100%; font-size: 16px; }
+.vorschlag { background: var(--panel); border-radius: 18px; padding: 16px; display: grid; gap: 10px; }
 .vorschlag ol { margin: 0; padding-left: 18px; font-size: 14px; }
-select { min-height: 46px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 12px; }
+.raumtipps { display: grid; gap: 8px; }
+.raumtipps .vorschlag { padding: 12px 14px; border-radius: 14px; background: var(--flaeche); }
+select { min-height: 48px; border-radius: 13px; border: 0; background: var(--panel); color: var(--ink); padding: 0 12px; }
+.kasten select { background: var(--panel2); }
+.zeilen { display: grid; gap: 8px; }
+.zeile { display: flex; gap: 10px; align-items: baseline; font-size: 14px; }
+.zeile .ampel { transform: translateY(1px); }
+.zeile b { font-weight: 600; }
+.wirkung { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.wirkung .gross { font-size: 40px; line-height: 1; color: var(--akzent); }
+.reihe { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.reihe > div { display: grid; gap: 2px; min-width: 0; }
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--bg); border-radius: 11px; padding: 3px; flex: none; }
+.seg button { min-height: 36px; padding: 0 12px; border-radius: 9px; background: transparent; color: var(--ink2); font-size: 13px; font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--panel2); color: var(--ink); font-weight: 600; }
+.schalter { width: 54px; min-height: 32px; height: 32px; border-radius: 16px; background: var(--line2); position: relative; flex: none; padding: 0; }
+.schalter::after { content: ""; position: absolute; left: 3px; top: 3px; width: 26px; height: 26px; border-radius: 13px; background: var(--ink); transition: left .2s; }
+.schalter[aria-checked="true"] { background: var(--akzent); }
+.schalter[aria-checked="true"]::after { left: 25px; background: var(--bg); }
+.wert { color: var(--akzent-hell); font-variant-numeric: tabular-nums; }
+.regler { display: grid; gap: 6px; }
+.regler label { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; font-weight: 600; }
+.rahmen { border-radius: 16px; padding: 14px 16px; outline: 1.5px dashed var(--line2); display: grid; gap: 6px; }
+.rahmen .gross { font-size: 22px; color: var(--akzent); }
+.farben { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.farben button { min-height: 44px; padding: 0 4px; background: transparent; color: var(--ink2); gap: 8px; font-weight: 500; font-size: 14px; border-radius: 22px; }
+.farben button i { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-style: normal; color: var(--bg); font-size: 15px; font-weight: 700; }
+.farben button[aria-checked="true"] { color: var(--ink); }
+.farben button[aria-checked="true"] i { outline: 2px solid var(--ink); outline-offset: 2px; }
+.plan svg { display: block; touch-action: manipulation; }
+.plan.klickbar svg { cursor: crosshair; }
 </style>
 
 <main>
-  <header style="display: grid; gap: 10px;">
-    <h1>Raum-Check</h1>
-    <div class="fortschritt" aria-hidden="true"><div id="fortschritt-balken"></div></div>
-    <span class="klein" id="schritt-text"></span>
+  <header style="display: grid; gap: 12px;">
+    <div class="segmente" id="fortschritt" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    <span class="eyebrow" id="schritt-text"></span>
   </header>
 
   <!-- Schritt 1: Kino oder Stereo -->
   <section class="card schritt" data-s="1" aria-labelledby="h-modus">
-    <h2 id="h-modus">Was willst du messen?</h2>
+    <h1 id="h-modus">Was willst du messen?</h1>
     <p>Die Messung dauert etwa 5 Minuten. Ich führe dich Schritt für Schritt.</p>
     <div class="wahl" role="group" aria-label="Modus">
       <button type="button" id="m-kino" aria-pressed="true">Kino<small>Filme, alle Plätze, mehr Wucht</small></button>
       <button type="button" id="m-stereo" aria-pressed="false">Stereo<small>Musik, Bühne am Hörplatz</small></button>
     </div>
     <button type="button" class="weiter" data-zu="2">Weiter</button>
+    <div class="kasten">
+      <span class="klein" id="farbe-text">Farbe: Blau</span>
+      <div class="farben" role="radiogroup" aria-labelledby="farbe-text">
+        <button type="button" role="radio" data-akzent="blau" aria-checked="true"><i style="background:#7FB0FF"></i>Blau</button>
+        <button type="button" role="radio" data-akzent="mint" aria-checked="false"><i style="background:#8CE0C4"></i>Mint</button>
+        <button type="button" role="radio" data-akzent="violett" aria-checked="false"><i style="background:#B79CFF"></i>Violett</button>
+      </div>
+    </div>
   </section>
 
   <!-- Schritt 2: Anlage und Raum -->
   <section class="card schritt" data-s="2" hidden aria-labelledby="h-anlage">
-    <h2 id="h-anlage">Welche Anlage, welcher Raum?</h2>
+    <h1 id="h-anlage">Welche Anlage, welcher Raum?</h1>
     <div class="chips" role="group" aria-label="Anlage wählen">
       <button type="button" class="chip" data-anlage="KEF LS50 + REL">KEF LS50 + REL</button>
       <button type="button" class="chip" data-anlage="Sonos ohne Trueplay">Sonos ohne Trueplay</button>
@@ -136,12 +192,14 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
       <option value="110">Groß, 30 bis 45 m²</option>
       <option value="160">Sehr groß, über 45 m²</option>
     </select>
-    <div class="knoepfe"><button type="button" class="zweit" data-zu="1">Zurück</button><button type="button" class="weiter" data-zu="3">Weiter</button></div>
+    <div id="raum-hinweis" class="klein ok" hidden></div>
+    <button type="button" class="zweit" id="raum-scannen" data-scannen hidden>Raum neu scannen</button>
+    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="1">Zurück</button><button type="button" class="weiter" data-zu="3">Weiter</button></div>
   </section>
 
   <!-- Schritt 3: Vorbereitung -->
   <section class="card schritt" data-s="3" hidden aria-labelledby="h-vorb">
-    <h2 id="h-vorb">Vorbereiten</h2>
+    <h1 id="h-vorb">Vorbereiten</h1>
     <p>Hake ab, was erledigt ist. Erst dann geht es weiter.</p>
     <ul class="haken">
       <li><label><input type="checkbox" class="pflicht"> Lautstärke wie beim normalen Hören (Gespräch gut möglich, nicht laut)</label></li>
@@ -149,7 +207,7 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
       <li><label><input type="checkbox" class="pflicht"> Türen, Vorhänge und Möbel so wie beim Hören</label></li>
       <li><label><input type="checkbox" class="pflicht"> Klangeinstellungen der Boxen so lassen wie im Alltag (für den Sonos-Vergleich: Trueplay wie im Namen angegeben)</label></li>
     </ul>
-    <h2 style="font-size: 17px;">Woher kommt das Messsignal?</h2>
+    <h3>Woher kommt das Messsignal?</h3>
     <div class="wahl" role="group" aria-label="Wiedergabe">
       <button type="button" id="q-airplay" aria-pressed="true">Von diesem iPhone<small>per AirPlay an die Anlage</small></button>
       <button type="button" id="q-extern" aria-pressed="false">Von anderem Gerät<small>Apple TV, Mac, iPad</small></button>
@@ -162,12 +220,12 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
       <a href="raumcheck.m4a" download>Messsignal (.m4a)</a> · <a href="raumcheck.wav" download>(.wav)</a>.
       Beim Messen zählt die Seite 5 Sekunden herunter, dann startest du es dort.</div>
     <div id="vorb-status" class="klein" aria-live="polite"></div>
-    <div class="knoepfe"><button type="button" class="zweit" data-zu="2">Zurück</button><button type="button" id="vorb-weiter">Weiter</button></div>
+    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="2">Zurück</button><button type="button" id="vorb-weiter">Weiter</button></div>
   </section>
 
   <!-- Schritt 4: Ruhe und Lautstärke prüfen -->
   <section class="card schritt" data-s="4" hidden aria-labelledby="h-check">
-    <h2 id="h-check">Ruhe und Lautstärke prüfen</h2>
+    <h1 id="h-check">Ruhe und Lautstärke prüfen</h1>
     <p>Setz dich auf deinen Hörplatz. Ein kurzer Rauschton läuft, das iPhone hört zu. Danach weißt du, ob es zu leise, zu laut oder genau richtig ist.</p>
     <button type="button" id="check-start">Prüfen</button>
     <button type="button" id="check-abbrechen" class="zweit" hidden>Abbrechen</button>
@@ -179,11 +237,12 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
 
   <!-- Schritt 5: Am Hörplatz messen -->
   <section class="card schritt" data-s="5" hidden aria-labelledby="h-platz">
-    <h2 id="h-platz">Am Hörplatz messen</h2>
+    <span class="eyebrow">Klang messen · Teil 1 von 2</span>
+    <h1 id="h-platz">Am Hörplatz messen</h1>
     <div id="platz-bild"></div>
-    <ul class="klein haltung">
-      <li>Sitz auf deinem Hörplatz, iPhone auf Ohrhöhe, Kopf genau zwischen den Boxen</li>
-      <li>Unterseite (Mikrofon) zeigt zu den Boxen. Ruhig halten, nicht sprechen (etwa 25 Sekunden)</li>
+    <ul class="haltung">
+      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Sitz auf deinem Hörplatz, iPhone auf Ohrhöhe, Kopf genau zwischen den Boxen</li>
+      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M12 21v-2"/></svg>Mikrofon (Unterseite) zeigt zu den Boxen. Ruhig halten, nicht sprechen (etwa 25 Sekunden)</li>
     </ul>
     <button type="button" id="messen">Messen</button>
     <button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button>
@@ -197,32 +256,36 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
         <li>Aufnahme starten, Messsignal abspielen, nach dem Ende stoppen. Hörplatz und 2 Plätze daneben.</li>
         <li>Aufnahmen in „Dateien“ sichern und hier auswählen. Die erste ist der Hauptplatz.</li>
       </ol>
-      <label class="knopf zweit" for="datei">Aufnahmen auswählen
-        <input id="datei" type="file" accept="audio/*,.m4a,.wav,.aac,.caf" multiple hidden>
-      </label>
-      <button type="button" id="auswerten" class="zweit" disabled>Diese Dateien auswerten</button>
+      <div style="display: grid; gap: 8px;">
+        <label class="knopf zweit" for="datei">Aufnahmen auswählen
+          <input id="datei" type="file" accept="audio/*,.m4a,.wav,.aac,.caf" multiple hidden>
+        </label>
+        <button type="button" id="auswerten" class="zweit" disabled>Diese Dateien auswerten</button>
+      </div>
     </details>
     <div class="knoepfe"><button type="button" class="zweit" data-zu="4">Zurück</button><span></span></div>
   </section>
 
   <!-- Schritt 6: Bewegen (wie Trueplay) -->
   <section class="card schritt" data-s="6" hidden aria-labelledby="h-bewegen">
-    <h2 id="h-bewegen">Langsam durch den Hörbereich gehen</h2>
+    <span class="eyebrow">Klang messen · Teil 2 von 2</span>
+    <h1 id="h-bewegen">Langsam um die Plätze gehen</h1>
     <div class="bewegen-bild">
-      <svg viewBox="0 0 320 220" width="100%" role="img" aria-label="So bewegst du das iPhone: langsam um das Sofa gehen und auf und ab bewegen">
-        <rect x="14" y="10" width="292" height="200" rx="10" fill="none" stroke="#2a3038" stroke-width="2"/>
-        <rect x="70" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/><rect x="232" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/>
-        <rect x="90" y="150" width="140" height="28" rx="8" fill="#232830"/><text x="160" y="198" text-anchor="middle">Sofa</text>
-        <path id="weg" d="M90,130 C120,95 200,95 230,130 C250,160 230,190 160,190 C90,190 70,160 90,130 Z" fill="none" stroke="#2a3038" stroke-dasharray="4 5"/>
-        <g><rect x="-6" y="-10" width="12" height="20" rx="3" fill="#7fb0ff"><animateTransform attributeName="transform" type="translate" values="0,-6;0,6;0,-6" dur="1.6s" repeatCount="indefinite"/></rect>
+      <svg viewBox="0 0 320 320" width="100%" style="max-width: 320px" role="img" aria-label="Fortschritt und Draufsicht: langsam um das Sofa gehen und das iPhone auf und ab bewegen">
+        <circle cx="160" cy="160" r="150" fill="none" stroke="#1C2129" stroke-width="10"/>
+        <circle id="ring" class="ak-s" cx="160" cy="160" r="150" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="942.5" stroke-dashoffset="942.5" transform="rotate(-90 160 160)"/>
+        <rect x="112" y="78" width="16" height="16" rx="3" fill="#9AA3AD"/><rect x="192" y="78" width="16" height="16" rx="3" fill="#9AA3AD"/>
+        <rect x="100" y="190" width="120" height="34" rx="10" fill="#2A313B"/>
+        <path id="weg" d="M160,148 A92,52 0 1,0 160.1,148 Z" fill="none" stroke="#3A4452" stroke-width="2" stroke-dasharray="5 6"/>
+        <g><circle r="12" class="ak-f"/><rect x="-5" y="-8" width="10" height="16" rx="2.5" fill="#0B0D10"><animateTransform attributeName="transform" type="translate" values="0,-3;0,3;0,-3" dur="1.6s" repeatCount="indefinite"/></rect>
           <animateMotion dur="14s" repeatCount="indefinite"><mpath href="#weg"/></animateMotion></g>
       </svg>
-      <svg class="ring" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" stroke="#2a3038"/><circle id="ring" cx="30" cy="30" r="26" stroke="#7fb0ff" stroke-dasharray="163.4" stroke-dashoffset="163.4"/></svg>
+      <div class="rest"><span class="gross" id="ring-sek">63 s</span><span class="klein">noch</span></div>
     </div>
-    <ul class="klein haltung">
-      <li>Geh langsam um die Sitzplätze herum (etwa eine Minute), dort wo gehört wird</li>
-      <li>Beweg das iPhone dabei langsam auf und ab, zwischen Brust- und Kopfhöhe</li>
-      <li>Nicht sprechen. Ein kurzes Geräusch ist nicht schlimm, dieser Teil wird weggelassen</li>
+    <ul class="haltung">
+      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M7 8l5-5 5 5M7 16l5 5 5-5"/></svg>iPhone dabei langsam auf und ab, zwischen Brust und Kopf</li>
+      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><path d="M4 12a8 8 0 1 0 8-8"/><path d="M12 4l-3-2M12 4l-3 2"/></svg>Etwa eine Minute rund um die Sitzplätze, dort wo gehört wird</li>
+      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Nicht sprechen. Ein kurzes Geräusch ist nicht schlimm, dieser Teil wird weggelassen</li>
     </ul>
     <button type="button" id="bewegen-start">Start</button>
     <button type="button" id="bewegen-abbrechen" class="zweit" hidden>Abbrechen</button>
@@ -231,9 +294,9 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
     <div class="knoepfe"><button type="button" class="zweit" data-zu="5">Zurück</button><button type="button" class="zweit" id="ohne-bewegen">Ohne Bewegen auswerten</button></div>
   </section>
 
-  <!-- Schritt 5: Ergebnis -->
+  <!-- Schritt 7: Ergebnis -->
   <section class="schritt" data-s="7" hidden style="display: grid; gap: 18px;">
-    <div id="ergebnisse" style="display: grid; gap: 18px;"></div>
+    <div id="ergebnisse" style="display: grid; gap: 28px;"></div>
     <div class="card">
       <h2>Wie weiter?</h2>
       <button type="button" data-zu="8">Aufstellung verbessern (Sweetspot-Finder)</button>
@@ -250,32 +313,79 @@ select { min-height: 46px; border-radius: 12px; border: 0; background: var(--pan
     </section>
   </section>
 
-  <!-- Schritt 6: Sweetspot -->
-  <section class="schritt" data-s="8" hidden style="display: grid; gap: 18px;">
-  <div class="card" aria-labelledby="h-sweet">
-    <h2 id="h-sweet">Sweetspot-Finder</h2>
-    <p class="klein">Rechnet aus Raummaßen und Nachhall, wo Hörplatz, Boxen und Sub am besten stehen (Raummoden-Modell). Maße in Metern, gemessen ab der Wand hinter den Boxen und ab der linken Wand (vom Hörplatz aus gesehen).</p>
-    <div class="felder">
-      <label>Raum breit<input type="number" step="0.05" min="2" max="15" id="s-breite" value="5.5"></label>
-      <label>Raum lang<input type="number" step="0.05" min="2" max="20" id="s-laenge" value="4.2"></label>
-      <label>Raum hoch<input type="number" step="0.05" min="2" max="5" id="s-hoehe" value="2.6"></label>
-      <label>Nachhall (s)<input type="number" step="0.05" min="0.1" max="2" id="s-t60" value="0.5"></label>
-      <label>Linke Box ab links<input type="number" step="0.05" id="s-flx" value="1.15"></label>
-      <label>Rechte Box ab links<input type="number" step="0.05" id="s-frx" value="3.95"></label>
-      <label>Boxen ab Wand dahinter<input type="number" step="0.05" id="s-fy" value="0.6"></label>
-      <label>Box-Höhe (Hochtöner)<input type="number" step="0.05" id="s-fz" value="1.0"></label>
-      <label>Hörplatz ab links<input type="number" step="0.05" id="s-hx" value="2.55"></label>
-      <label>Hörplatz ab Boxen-Wand<input type="number" step="0.05" id="s-hy" value="3.05"></label>
-      <label>Sub ab links<input type="number" step="0.05" id="s-sx" value="0.35"></label>
-      <label>Sub ab Boxen-Wand<input type="number" step="0.05" id="s-sy" value="0.3"></label>
-    </div>
-    <label class="klein"><input type="checkbox" id="s-ohnesub"> Kein Subwoofer</label>
-    <label class="klein"><input type="checkbox" id="s-eckig" checked> Raum ist (fast) rechteckig, ohne offene Küche oder große Nische</label>
-    <button type="button" id="s-rechnen">Beste Aufstellung berechnen</button>
-    <div id="s-status" class="klein" aria-live="polite"></div>
-    <div id="s-ergebnis" style="display: grid; gap: 12px;"></div>
-  </div>
+  <!-- Schritt 8: Sweetspot -->
+  <section class="schritt" data-s="8" hidden style="display: grid; gap: 14px;" aria-labelledby="h-sweet">
+    <h1 id="h-sweet">Deine Aufstellung</h1>
+    <div class="plan klickbar" id="s-plan"></div>
+    <div id="s-3d" hidden style="height: 300px; border-radius: 16px; overflow: hidden; background: var(--flaeche);"></div>
+    <p class="klein" id="s-plan-hilfe">Tipp in die Skizze, wo nichts hin darf („hier nicht“, 50 × 50 cm). Nochmal tippen entfernt die Markierung.</p>
+    <div class="zeilen" id="s-geometrie" aria-live="polite"></div>
 
+    <div class="kasten" id="s-scan">
+      <div class="reihe"><div><h3>Raumscan</h3><span class="klein" id="s-scan-text">Mit der Klang-Box-App gescannt? Lade die raum.json: Maße, Türen, Fenster und Möbel werden übernommen.</span></div></div>
+      <div id="s-scan-wahl" hidden style="display: grid; gap: 8px;">
+        <label class="klein" for="s-wand">Wand hinter den Boxen</label>
+        <select id="s-wand"></select>
+        <label class="klein" id="s-bestaetigen-zeile"><input type="checkbox" id="s-bestaetigt"> Wand hinter den Boxen und Hörplatz stimmen so</label>
+      </div>
+      <div class="knoepfe">
+        <label class="knopf zweit" for="s-raumdatei">Raumscan laden<input id="s-raumdatei" type="file" accept=".json,application/json" hidden></label>
+        <button type="button" class="zweit" data-scannen hidden>Raum neu scannen</button>
+        <button type="button" class="zweit" id="s-scan-weg" hidden>Scan nicht nutzen</button>
+      </div>
+    </div>
+
+    <details class="kasten" id="s-masse"><summary>Raummaße und heutige Positionen</summary>
+      <p class="klein">Maße in Metern, gemessen ab der Wand hinter den Boxen und ab der linken Wand (vom Hörplatz aus gesehen).</p>
+      <div class="felder">
+        <label>Raum breit<input type="number" step="0.05" min="2" max="15" id="s-breite" value="5.5"></label>
+        <label>Raum lang<input type="number" step="0.05" min="2" max="20" id="s-laenge" value="4.2"></label>
+        <label>Raum hoch<input type="number" step="0.05" min="2" max="5" id="s-hoehe" value="2.6"></label>
+        <label>Nachhall (s)<input type="number" step="0.05" min="0.1" max="2" id="s-t60" value="0.5"></label>
+        <label>Linke Box ab links<input type="number" step="0.05" id="s-flx" value="1.15"></label>
+        <label>Rechte Box ab links<input type="number" step="0.05" id="s-frx" value="3.95"></label>
+        <label>Boxen ab Wand dahinter<input type="number" step="0.05" id="s-fy" value="0.6"></label>
+        <label>Box-Höhe (Hochtöner)<input type="number" step="0.05" id="s-fz" value="1.0"></label>
+        <label>Hörplatz ab links<input type="number" step="0.05" id="s-hx" value="2.55"></label>
+        <label>Hörplatz ab Boxen-Wand<input type="number" step="0.05" id="s-hy" value="3.05"></label>
+        <label>Sub ab links<input type="number" step="0.05" id="s-sx" value="0.35"></label>
+        <label>Sub ab Boxen-Wand<input type="number" step="0.05" id="s-sy" value="0.3"></label>
+      </div>
+      <label class="klein"><input type="checkbox" id="s-ohnesub"> Kein Subwoofer</label>
+    </details>
+    <label class="klein"><input type="checkbox" id="s-eckig" checked> Raum ist (fast) rechteckig, ohne offene Küche oder große Nische (nur dann kann ich den Bass vorausrechnen)</label>
+
+    <div style="display: grid; gap: 10px;" id="s-erlaubt" aria-labelledby="h-erlaubt">
+      <div style="display: grid; gap: 4px;"><h2 id="h-erlaubt">Was ist erlaubt?</h2><p>Ich schlage nur vor, was bei euch zu Hause geht.</p></div>
+      <div class="kasten">
+        <div class="reihe"><div><h3>Sofa</h3><span class="klein" id="g-sofa-text">bleibt, wo es ist</span></div>
+          <div class="seg" role="group" aria-label="Sofa"><button type="button" id="g-sofa-fest" aria-pressed="true">Fest</button><button type="button" id="g-sofa-darf" aria-pressed="false">Darf</button></div></div>
+        <div class="regler" id="g-sofa-regler" hidden><label for="g-sofa"><span>darf wandern</span><span class="wert" id="g-sofa-wert">± 30 cm</span></label><input id="g-sofa" type="range" min="10" max="100" step="5" value="30"></div>
+      </div>
+      <div class="kasten">
+        <div class="regler"><label for="g-wand"><span>Boxen höchstens von der Wand</span><span class="wert" id="g-wand-wert">60 cm</span></label><input id="g-wand" type="range" min="20" max="120" step="5" value="60"></div>
+        <div class="regler"><label for="g-seite"><span>seitlich verschieben</span><span class="wert" id="g-seite-wert">± 30 cm</span></label><input id="g-seite" type="range" min="0" max="100" step="5" value="30"></div>
+        <div class="reihe"><div><span style="font-size: 15px; font-weight: 600;">Boxen bleiben symmetrisch zum Sofa</span></div><button type="button" class="schalter" role="switch" id="g-sym" aria-checked="true" aria-label="Boxen bleiben symmetrisch zum Sofa"></button></div>
+      </div>
+      <div class="kasten">
+        <h3>Sub</h3>
+        <div class="chips" role="group" aria-label="Sub">
+          <button type="button" class="chip" data-sub="fest" aria-pressed="false">Fest</button>
+          <button type="button" class="chip" data-sub="wand" aria-pressed="false">An der Wand</button>
+          <button type="button" class="chip" data-sub="ecken" aria-pressed="false">Nur Ecken</button>
+          <button type="button" class="chip" data-sub="frei" aria-pressed="true">Frei</button>
+        </div>
+        <div class="reihe"><div><span style="font-size: 15px; font-weight: 600;">Nicht mitten im Raum</span><span class="klein">höchstens 30 cm von einer Wand</span></div><button type="button" class="schalter" role="switch" id="g-subwand" aria-checked="true" aria-label="Sub nicht mitten im Raum"></button></div>
+      </div>
+      <div class="kasten">
+        <div class="reihe"><div><span style="font-size: 15px; font-weight: 600;">Laufwege frei halten</span><span class="klein" id="g-lauf-text">80 cm vor Türen und zur Sofa, aus dem Raumscan</span></div><button type="button" class="schalter" role="switch" id="g-lauf" aria-checked="true" aria-label="Laufwege frei halten"></button></div>
+      </div>
+      <div class="reihe" id="s-fest" hidden><span class="klein" id="s-fest-text"></span><button type="button" class="klein zweit" id="s-fest-weg">Alles wieder frei</button></div>
+    </div>
+
+    <button type="button" id="s-rechnen">Vorschläge zeigen</button>
+    <div id="s-status" class="klein" aria-live="polite"></div>
+    <div id="s-ergebnis" style="display: grid; gap: 14px;"></div>
     <div class="knoepfe"><button type="button" class="zweit" data-zu="7">Zurück zum Ergebnis</button><span></span></div>
   </section>
   <audio id="signal" src="raumcheck.wav" preload="auto" x-webkit-airplay="allow" playsinline></audio>
@@ -444,7 +554,7 @@ function findeMarker(rec, f = FOLGE) {
 // Alle Marker gleich ausrichten (wie _marker_fein): Muster aus Direktschall und Reflexionen auf das
 // des ersten Markers legen (±2 ms), damit ein Sprung auf eine Reflexion den Takt nicht verschiebt
 function markerFein(corr, grob) {
-  const w = Math.floor(0.01 * FS), s = Math.floor(0.002 * FS), p0 = grob[0], t0 = p0 + parabel(corr, p0), zeiten = [t0];
+  const w = Math.floor(0.01 * FS), s = Math.floor(0.006 * FS), p0 = grob[0], t0 = p0 + parabel(corr, p0), zeiten = [t0];
   for (const p of grob.slice(1)) {
     if (p - w - s < 0 || p + w + s + 1 > corr.length || p0 - w < 0) { zeiten.push(p); continue; }
     const kk = [];
@@ -516,7 +626,7 @@ function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE) {
   const probleme = [];
   if (erg.marker_schwankung_db > 1.0 && !fo.bewegt) probleme.push(`Gleich laute Zeitmarker schwanken um ${erg.marker_schwankung_db.toFixed(1)} dB: das Handy regelt die Lautstärke automatisch nach.`);
   if (erg.leise_verschluckt) probleme.push("Leise Prüftöne fehlen: ein Störgeräuschfilter ist aktiv.");
-  else if ((erg.treppe_fehler_db || 0) > 1.5) probleme.push(`Die 10-dB-Stufen des Prüftons weichen bis ${erg.treppe_fehler_db.toFixed(1)} dB ab: die Aufnahme wird komprimiert oder nachgeregelt.`);
+  else if ((erg.treppe_fehler_db || 0) > 2.0) probleme.push(`Die 10-dB-Stufen des Prüftons weichen bis ${erg.treppe_fehler_db.toFixed(1)} dB ab: die Aufnahme wird komprimiert oder nachgeregelt.`);
   let mx = 0; for (let i = 0; i < rec.length; i++) mx = Math.max(mx, Math.abs(rec[i]));
   if (mx > 0.99) probleme.push("Die Aufnahme übersteuert: leiser abspielen.");
   if (fo.pruefton && !erg.treppe_vorhanden) probleme.push("Prüfton nicht gefunden: bitte die neue Raum-Check-Datei verwenden.");
@@ -536,6 +646,26 @@ function stoerProbleme(stoer) {
 }
 
 // Bewegte Messung: welche einzelnen Sweeps hatten ein Geräusch? (Nur diese fallen weg.)
+// Unerklärter Rest (Aufnahme minus Impulsantwort ⊛ Sweep) in 20-ms-Stücken: ein Knall spät im Sweep oder im
+// Nachhall landet sonst mitten in der Impulsantwort. Sauber höchstens etwa −14 dB, ein Knall ab etwa +5 dB.
+const REST_GRENZE_DB = -5;
+function restAusreisser(S, W, X, ir, pre, n, sweepS) {
+  const nfft = ir.length, irw = new Float64Array(nfft);
+  irw.set(ir.subarray(0, pre + Math.floor(1.2 * FS)));
+  const H = spektrum(irw, nfft), rr = new Float64Array(nfft), ri = new Float64Array(nfft), sr = new Float64Array(nfft), si = new Float64Array(nfft);
+  for (let k = 0; k < nfft; k++) {
+    sr[k] = S.re[k] * W[k]; si[k] = S.im[k] * W[k];
+    rr[k] = sr[k] - (H.re[k] * X.re[k] - H.im[k] * X.im[k]); ri[k] = si[k] - (H.re[k] * X.im[k] + H.im[k] * X.re[k]);
+  }
+  fft(rr, ri, true); fft(sr, si, true);
+  const k = Math.floor(0.02 * FS), m = Math.floor((n + pre) / k), er = [], es = [];
+  for (let j = 0; j < m; j++) {
+    let a = 0, b = 0; for (let q = j * k; q < (j + 1) * k; q++) { a += rr[q] * rr[q]; b += sr[q] * sr[q]; }
+    er.push(10 * Math.log10(a / k + 1e-30)); es.push(10 * Math.log10(b / k + 1e-30));
+  }
+  const mx = Math.max(...er), imSweep = es.slice(Math.floor(pre / k), Math.floor((pre + Math.floor(sweepS * FS)) / k));
+  return [mx - medianWert(er), mx - medianWert(imSweep)];
+}
 function stoerEinzeln(stoer) {
   const werte = Object.values(stoer).sort((a, b) => a - b), mitte = werte[Math.floor(werte.length / 2)];
   return Object.keys(stoer).filter((k) => stoer[k] > -45 || (stoer[k] - mitte > 12 && stoer[k] > -60));
@@ -555,16 +685,17 @@ function analysiere(rec0, fo = FOLGE) {
   const pre = Math.floor(0.05 * FS), n = Math.floor((fo.sweepS + fo.tail - 0.15) * FS), nfft = naechste2(n + pre);
   const X = spektrum(sw, nfft);
   let maxX = 0; for (let k = 0; k < nfft; k++) maxX = Math.max(maxX, X.re[k] ** 2 + X.im[k] ** 2);
-  const messungen = {}, stoer = {};
+  const messungen = {}, stoer = {}, rest = {};
   fo.kanaele.forEach((ch, i) => {
     const key = kanalSchluessel(fo.kanaele, i);
     const start = Math.round(a + sweepZeit(i, fo) * FS) - pre, seg = new Float64Array(nfft);
     for (let j = 0; j < n + pre; j++) { const q = start + j; if (q >= 0 && q < rec.length) seg[j] = rec[q]; }
-    const S = spektrum(seg, nfft), re = new Float64Array(nfft), im = new Float64Array(nfft);
+    const S = spektrum(seg, nfft), re = new Float64Array(nfft), im = new Float64Array(nfft), W = new Float64Array(nfft);
     for (let k = 0; k < nfft; k++) {
       const f = Math.min(k, nfft - k) * FS / nfft;
       let w = Math.min(1, Math.max(0, (Math.log2(Math.max(f, 1e-3)) - Math.log2(14)) / Math.log2(20 / 14)));
       w *= Math.min(1, Math.max(0, (Math.log2(21500) - Math.log2(Math.max(f, 1e-3))) / Math.log2(21500 / 19000)));
+      W[k] = w;
       const d = X.re[k] ** 2 + X.im[k] ** 2 + 1e-6 * maxX;
       const ir = (X.re[k] * w) / d, ii = (-X.im[k] * w) / d;
       re[k] = S.re[k] * ir - S.im[k] * ii; im[k] = S.re[k] * ii + S.im[k] * ir;
@@ -575,14 +706,21 @@ function analysiere(rec0, fo = FOLGE) {
     for (let k = 0; k < nfft; k++) spitze = Math.max(spitze, re[k] * re[k]);
     for (let k = r0; k < r1; k++) rs += re[k] * re[k];
     stoer[key] = 10 * Math.log10(rs / (r1 - r0) / (spitze + 1e-30) + 1e-30);
+    rest[key] = restAusreisser(S, W, X, re, pre, n, fo.sweepS);
     // 1,2 s Impulsantwort: genug für das Nachklingen im Bass. Laufzeit aus den ersten 0,6 s.
     const ir = re.slice(0, pre + Math.floor(1.2 * FS));
     messungen[key] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
   });
   const pruefung = pruefeAufnahme(rec, a, markerPegel, fo);
   pruefung.stoer_db = Object.fromEntries(Object.entries(stoer).map(([k, v]) => [k, Math.round(v * 10) / 10]));
-  if (fo.bewegt) pruefung.gestoert = stoerEinzeln(stoer).sort();
-  else for (const t of stoerProbleme(stoer)) { pruefung.probleme.push(t); pruefung.sauber = false; }
+  pruefung.rest_db = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.map((x) => Math.round(x * 10) / 10)]));
+  const knall = Object.keys(rest).filter((k) => rest[k][1] > REST_GRENZE_DB);
+  if (fo.bewegt) pruefung.gestoert = [...new Set([...stoerEinzeln(stoer), ...knall])].sort();
+  else {
+    const texte = stoerProbleme(stoer);
+    for (const ch of knall.sort()) if (!texte.some((t) => t.includes(` ${ch}.`))) texte.push(`Ein Geräusch (Klopfen, Husten?) während der Messung von ${ch}. Bitte wiederholen.`);
+    for (const t of texte) { pruefung.probleme.push(t); pruefung.sauber = false; }
+  }
   return { messungen, drift_ppm: (b - 1) * 1e6, pruefung };
 }
 
@@ -1205,13 +1343,13 @@ function kurve(C) {
 function raumTipps(haupt, sh, raumM3) {
   const tipps = [], r = { FL: reflexion(haupt.FL), FR: reflexion(haupt.FR) }, f0 = (x) => x.toFixed(0), f1 = (x) => x.toFixed(1), f2 = (x) => x.toFixed(2);
   const ch = r.FR[0] > r.FL[0] ? "FR" : "FL", [db, ms] = r[ch];
-  if (db >= -6) tipps.push({ regel: "RA1", titel: "Starke Reflexion",
+  if (db >= -6) tipps.push({ regel: "RA1", titel: "Starke Reflexion", seite: ch === "FL" ? "links" : "rechts",
     text: `Bei der ${ch === "FL" ? "linken" : "rechten"} Box kommt ${f1(ms)} ms nach dem Direktschall ein fast gleich lautes Echo (${f0(db)} dB, Umweg etwa ${f0(ms / 1000 * 343 * 100)} cm): meist eine Seitenwand, ein Fenster oder der Tisch. Finde die Stelle mit dem Spiegel-Trick (jemand hält einen Spiegel an die Wand; wo du vom Hörplatz die Box darin siehst, ist der Punkt) und häng dort einen dicken Vorhang, ein Regal oder einen Absorber (ab 5 cm dick) hin.`,
     wirkung: "Reflexion etwa 10 dB leiser, Stimmen klarer, Mitte schärfer. DSP kann ein Echo nicht entfernen." });
   if (Math.min(r.FL[0], r.FR[0]) >= -20) {
     const dDb = Math.abs(r.FL[0] - r.FR[0]), dMs = Math.abs(r.FL[1] - r.FR[1]);
     if (dDb > 3 || dMs > 1) { const lauter = r.FL[0] > r.FR[0] ? "links" : "rechts";
-      tipps.push({ regel: "RA3", titel: "Seiten klingen verschieden",
+      tipps.push({ regel: "RA3", titel: "Seiten klingen verschieden", seite: lauter,
         text: `Links und rechts wirft der Raum den Schall verschieden zurück (${f0(dDb)} dB, ${f1(dMs)} ms Unterschied, stärker ${lauter}). Typisch: Fenster oder Öffnung nur auf einer Seite. Behandle beide Seiten ähnlich (z. B. Vorhang ${lauter}, Regal auf der anderen Seite) oder stell die Anlage mittiger.`,
         wirkung: "Stabilere Mitte, Stimmen kleben nicht an einer Box." }); }
   }
@@ -1254,14 +1392,23 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null) {
   if (bewegt) { const b = bewegtePunkte(bewegt); erg.aufnahmen.push(b.info); punkte.push(...b.punkte); }
   const ein = einmessen(punkte, HAUSKURVE[modus]);
   // Bühne: links/rechts genau am Hauptplatz gleich laut (die Einmessung mittelt über alle Plätze)
-  const mDb = (ch) => mean(dbArr(glaetten(leistung(antwort(punkte[0].messungen[ch])), 3)).filter((_, i) => F[i] >= 500 && F[i] <= 2000));
-  const dLR = mDb("FL") - mDb("FR");
-  ein.cals.FL.gain_db = -Math.max(dLR, 0); ein.cals.FR.gain_db = -Math.max(-dLR, 0);
+  // gemessen genau wie die Bewertung (Leistungsmittel 500–2000 Hz) und nach den EQs
+  const pegelAngleichen = (cals) => {
+    const mDb = (ch) => {
+      const p = leistung(antwort(punkte[0].messungen[ch]));
+      for (const q of cals[ch].eq) { const g = biquadDb(biquad("Peaking", q.freq, q.q, q.gain)); for (let i = 0; i < NF; i++) p[i] *= Math.pow(10, g[i] / 10); }
+      return mittelDb(p, 500, 2000);
+    };
+    const dLR = mDb("FL") - mDb("FR");
+    cals.FL.gain_db = -Math.max(dLR, 0); cals.FR.gain_db = -Math.max(-dLR, 0);
+  };
+  pegelAngleichen(ein.cals);
   // ... und gleichzeitig: die frühere Box wartet auf die spätere
   const dt = (punkte[0].messungen.FR.delay - punkte[0].messungen.FL.delay) * 1000;
   ein.cals.FL.delay_ms = Math.max(dt, 0); ein.cals.FR.delay_ms = Math.max(-dt, 0);
   const wa = waechterEq(punkte, ein.cals, modus);
   ein.cals = wa.cals; ein.zeilen = ein.zeilen.concat(wa.hinweise);
+  pegelAngleichen(ein.cals);  // der Wächter kann EQs geändert haben
   const vorher = punkte.map((p) => ({ FL: p.messungen.FL, FR: p.messungen.FR, C: p.messungen.C || mitte(p.messungen) }));
   const nachher = punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, ein.cals.FL), FR: korrigiert(p.messungen.FR, ein.cals.FR) };
     m.C = p.messungen.C ? korrigiertMitte(p.messungen.C, ein.cals.FL, ein.cals.FR) : mitte(m); return m; });
@@ -1370,7 +1517,13 @@ const SS = (() => {
     return { re, im };
   }
   const Q_BW = Math.SQRT1_2;
+  const fgCache = new Map();
   function frequenzgaenge(mitSub, weiche = 80, boxTief = 45) {
+    const k = `${mitSub}|${weiche}|${boxTief}`;
+    if (!fgCache.has(k)) fgCache.set(k, frequenzgaengeRechnen(mitSub, weiche, boxTief));
+    return fgCache.get(k);
+  }
+  function frequenzgaengeRechnen(mitSub, weiche, boxTief) {
     if (!mitSub) return { box: kette([bq("Highpass", boxTief, 0.75)]), sub: null };
     return { box: kette([bq("Highpass", boxTief, 0.75), bq("Highpass", weiche, Q_BW), bq("Highpass", weiche, Q_BW)]),
              sub: kette([bq("Lowpass", weiche, Q_BW), bq("Lowpass", weiche, Q_BW), bq("Highpass", 22, 0.7)]) };
@@ -1400,6 +1553,13 @@ const SS = (() => {
     let g = 0; for (const k of idx) { const v = e[k] - m, ew = v < 0 ? v : 0.3 * v; g += ew * ew; }
     return [streu, Math.sqrt(g / idx.length)];
   }
+  function korrekturKennzahlen(p0, house) {  // (Korrekturbedarf, Löcher) in dB am Hauptplatz, 25–250 Hz
+    const e = [], idx = [];
+    for (let k = 0; k < NFQ; k++) { e.push(p0[k] - house / (1 + (FREQ[k] / 100) ** 2)); if (FREQ[k] >= 25 && FREQ[k] <= 250) idx.push(k); }
+    const m = idx.reduce((s, k) => s + e[k], 0) / idx.length;
+    let q = 0, l = 0; for (const k of idx) { const v = e[k] - m, n = Math.min(v, 0); q += v * v; l += n * n; }
+    return [Math.sqrt(q / idx.length), Math.sqrt(l / idx.length)];
+  }
   function winkel(a) {
     const [hx, hy] = a.hoerplatz;
     const wl = Math.atan2(Math.abs(a.fl[0] - hx), Math.abs(hy - a.fl[1])) * 180 / Math.PI;
@@ -1413,7 +1573,14 @@ const SS = (() => {
     s += Math.abs(dist(a.fl, a.hoerplatz) - dist(a.fr, a.hoerplatz)) / 0.05;
     return s;
   }
-  function bewerte(a, m, modus, start) {
+  const schl = (a) => a ? [a.hoerplatz, a.fl, a.fr, a.sub || null, !!a.subInvertiert] : null;
+  function bewerte(a, m, modus, start) {  // dieselbe Aufstellung nicht zweimal rechnen
+    const k = JSON.stringify([schl(a), modus, schl(start), m.raum.breite, m.raum.laenge]);
+    m.cache = m.cache || new Map();
+    if (!m.cache.has(k)) m.cache.set(k, bewerteRechnen(a, m, modus, start));
+    return m.cache.get(k);
+  }
+  function bewerteRechnen(a, m, modus, start) {
     const raum = m.raum, house = modus === "kino" ? 4 : 2, { box, sub } = frequenzgaenge(!!a.sub), { p, w } = sitze(a.hoerplatz, modus);
     const pegel = p.map((h) => {
       const gl = uebertragung(m, a.fl, h), gr = uebertragung(m, a.fr, h), gs = a.sub ? uebertragung(m, a.sub, h) : null;
@@ -1426,14 +1593,14 @@ const SS = (() => {
       }
       return glaettenDb(pw);
     });
-    const [streu, glatt] = bassKennzahlen(pegel, w, house), geo = geometrieStrafe(a, raum);
+    const [streu, glatt] = bassKennzahlen(pegel, w, house), geo = geometrieStrafe(a, raum), [korr, loch] = korrekturKennzahlen(pegel[0], house);
     let weg = 0;
     if (start) {
       weg = dist(a.hoerplatz, start.hoerplatz) + dist(a.fl, start.fl) + dist(a.fr, start.fr);
       if (a.sub && start.sub) weg += dist(a.sub, start.sub);
     }
     const g = GEWICHTE[modus];
-    return { j: g.streu * streu + g.glatt * glatt + g.geo * geo + g.weg * weg, streu_db: streu, glatt_db: glatt, geo, weg_m: weg, winkel_grad: winkel(a) };
+    return { j: g.streu * streu + g.glatt * glatt + g.geo * geo + g.weg * weg, streu_db: streu, glatt_db: glatt, geo, weg_m: weg, winkel_grad: winkel(a), korrektur_db: korr, loecher_db: loch };
   }
   function waechterAufstellung(a, raum) {
     const v = [];
@@ -1445,6 +1612,12 @@ const SS = (() => {
     const d = dist(a.fl, a.hoerplatz);
     if (!(d >= 1.2 && d <= 4)) v.push(`Hörabstand ${d.toFixed(1)} m außerhalb 1,2–4 m`);
     for (const [b, n] of [[a.fl, "Linke"], [a.fr, "Rechte"]]) if (!(b[1] >= 0.2 && b[1] <= 1.3)) v.push(`${n} Box ${b[1].toFixed(2)} m von der Wand dahinter (erlaubt 0,2–1,3 m)`);
+    // Sperrzonen aus dem Raumscan (Türen, Fenster, Möbel): Rechtecke x0..x1, y0..y1; fuer = wen sie sperren
+    for (const z of raum.sperrzonen || []) {
+      const fuer = z.fuer == null ? ["boxen", "sub", "hoerplatz"] : z.fuer;
+      for (const [p, art, n] of [[a.fl, "boxen", "Linke Box"], [a.fr, "boxen", "Rechte Box"], [a.sub, "sub", "Sub"], [a.hoerplatz, "hoerplatz", "Hörplatz"]])
+        if (p && fuer.includes(art) && z.x0 <= p[0] && p[0] <= z.x1 && z.y0 <= p[1] && p[1] <= z.y1) v.push(`${n}: ${z.grund}`);
+    }
     return v;
   }
   const arange = (a, stop, s) => { const n = Math.max(0, Math.ceil((stop - a) / s)), o = []; for (let i = 0; i < n; i++) o.push(a + i * s); return o; };  // wie numpy
@@ -1457,18 +1630,53 @@ const SS = (() => {
     k.push([a.fl[0] - 0.4, a.fl[1], z], [a.fr[0] + 0.4, a.fr[1], z]);
     return k.filter((p) => p[0] >= 0.05 && p[0] <= raum.breite - 0.05 && p[1] >= 0.05 && p[1] <= raum.laenge - 0.05);
   }
-  function suche(raum, start, modus, frei, m) {
+  // --- Grenzen: was zu Hause erlaubt ist (Schema wie grenzen in klangbox/sweetspot.py) ---------------
+  // hoerplatz_m (0 = fest), boxen_wand_max_m, boxen_seitlich_max_m, boxen_symmetrisch, sub ("fest" | "wand" |
+  // "ecken" | "frei"), sub_wandnah_m; Sperrzonen mit grenze: true (Laufwege, „hier nicht“) zählen auch dazu.
+  // Geprüft werden nur Teile, die sich gegenüber heute bewegen.
+  const EPS = 1e-9;
+  const anders = (p, q) => p.some((x, i) => Math.abs(x - q[i]) > EPS);
+  const asym = (a) => Math.abs((a.hoerplatz[0] - a.fl[0]) - (a.fr[0] - a.hoerplatz[0])) + Math.abs(a.fl[1] - a.fr[1]);
+  function grenzenVerletzt(a, start, raum, g) {
+    if (!g || !Object.keys(g).length) return [];
+    const v = [], r = g.hoerplatz_m;
+    if (r != null && anders(a.hoerplatz, start.hoerplatz) && (Math.abs(a.hoerplatz[0] - start.hoerplatz[0]) > r + EPS || Math.abs(a.hoerplatz[1] - start.hoerplatz[1]) > r + EPS))
+      v.push("Hörplatz: weiter als erlaubt vom heutigen Platz");
+    for (const [b, b0, n] of [[a.fl, start.fl, "Linke Box"], [a.fr, start.fr, "Rechte Box"]]) {
+      if (!anders(b, b0)) continue;
+      if (g.boxen_wand_max_m != null && b[1] > g.boxen_wand_max_m + EPS) v.push(`${n}: weiter als erlaubt von der Wand dahinter`);
+      if (g.boxen_seitlich_max_m != null && Math.abs(b[0] - b0[0]) > g.boxen_seitlich_max_m + EPS) v.push(`${n}: weiter als erlaubt seitlich verschoben`);
+    }
+    if (g.boxen_symmetrisch && (anders(a.fl, start.fl) || anders(a.fr, start.fr) || anders(a.hoerplatz, start.hoerplatz)) && asym(a) > asym(start) + 0.005)
+      v.push("Boxen: nicht mehr symmetrisch zum Hörplatz");
+    if (a.sub && start.sub && anders(a.sub, start.sub)) {
+      const [x, y] = a.sub, art = g.sub || "frei";
+      if (art === "fest") v.push("Sub: bleibt fest");
+      else if (art === "wand" && y > 0.3 + EPS) v.push("Sub: nur entlang der Wand hinter den Boxen");
+      else if (art === "ecken" && !(Math.min(x, raum.breite - x) <= 0.5 + EPS && Math.min(y, raum.laenge - y) <= 0.5 + EPS)) v.push("Sub: nur in einer Ecke");
+      if (g.sub_wandnah_m != null && Math.min(x, raum.breite - x, y, raum.laenge - y) > g.sub_wandnah_m + EPS) v.push("Sub: nicht mitten im Raum");
+    }
+    return v;
+  }
+  function festAusGrenzen(fest, g) {
+    const f = new Set(fest || []);
+    if (g && g.hoerplatz_m != null && g.hoerplatz_m <= 0) f.add("hoerplatz");
+    if (g && g.sub === "fest") f.add("sub");
+    return f;
+  }
+  function suche(raum, start, modus, frei, m, grenzen = null) {
     let best = start, bestB = bewerte(start, m, modus, start);
-    const zOhr = start.hoerplatz[2], zBox = start.fl[2];
+    const zOhr = start.hoerplatz[2], zBox = start.fl[2], rHp = grenzen ? grenzen.hoerplatz_m : null;
     for (let runde = 0; runde < 2; runde++) {
       if (frei.hoerplatz || frei.boxen) {
-        const hx = frei.hoerplatz ? raum.breite / 2 : best.hoerplatz[0];
+        let hx = frei.hoerplatz ? raum.breite / 2 : best.hoerplatz[0];
+        if (frei.hoerplatz && rHp != null) hx = Math.min(Math.max(hx, start.hoerplatz[0] - rHp), start.hoerplatz[0] + rHp);
         const ys = frei.hoerplatz ? arange(0.3 * raum.laenge, raum.laenge - 0.49, 0.1) : [best.hoerplatz[1]];
         for (const hy of ys) {
           const varianten = frei.boxen ? arange(0.3, 1.21, 0.1).flatMap((v) => [25, 27.5, 30].map((wk) => fronts(hx, hy, v, wk, zBox))) : [[best.fl, best.fr]];
           for (const [fl, fr] of varianten) {
             const kand = { ...best, hoerplatz: [hx, hy, zOhr], fl, fr };
-            if (waechterAufstellung(kand, raum).length) continue;
+            if (waechterAufstellung(kand, raum).length || grenzenVerletzt(kand, start, raum, grenzen).length) continue;
             const b = bewerte(kand, m, modus, start);
             if (b.j < bestB.j) { best = kand; bestB = b; }
           }
@@ -1476,7 +1684,7 @@ const SS = (() => {
       }
       if (frei.sub && best.sub) for (const p of subKandidaten(raum, best)) for (const inv of [false, true]) {
         const kand = { ...best, sub: p, subInvertiert: inv };
-        if (waechterAufstellung(kand, raum).length) continue;
+        if (waechterAufstellung(kand, raum).length || grenzenVerletzt(kand, start, raum, grenzen).length) continue;
         const b = bewerte(kand, m, modus, start);
         if (b.j < bestB.j) { best = kand; bestB = b; }
       }
@@ -1503,26 +1711,186 @@ const SS = (() => {
     if (!!z.subInvertiert !== !!s.subInvertiert) o.push(z.subInvertiert ? "Sub: Phasenschalter auf 180°" : "Sub: Phasenschalter auf 0°");
     return o;
   }
-  function empfehlen(raum, start, modus = "stereo") {
+  // --- Geometrie-Check und Feinjustage (wie klangbox/sweetspot.py, Texte gleich) ----------------------
+  const rund = (x, n = 0) => { const f = 10 ** n, r = Math.floor(x * f + 0.5) / f; return r === 0 ? 0 : r; };
+  const z = (x, n = 0) => rund(x, n).toFixed(n).replace(".", ",");
+  const grad = (r) => r * 180 / Math.PI;
+  function geometrie(a, raum) {
+    const out = [], k = (thema, ampel, zahl, satz) => out.push({ thema, ampel, zahl, satz });
+    const [hx, hy, hz] = a.hoerplatz, w = winkel(a);
+    if (Math.abs(w - WINKEL_ZIEL) <= 2) k("Stereowinkel", "gut", `±${z(w)}°`, "Ideal: Die Boxen stehen im richtigen Winkel, die Bühne ist breit und stabil.");
+    else if (w < WINKEL_MIN) k("Stereowinkel", "problem", `±${z(w)}°`, "Zu schmal: Die Musik klebt in der Mitte. Boxen weiter auseinander stellen oder näher heran setzen (Ziel ±30°).");
+    else if (w > WINKEL_MAX) k("Stereowinkel", "problem", `±${z(w)}°`, "Zu breit: In der Mitte entsteht ein Loch. Boxen enger zusammen stellen oder weiter weg setzen (Ziel ±30°).");
+    else if (w < WINKEL_ZIEL) k("Stereowinkel", "hinweis", `±${z(w)}°`, "Etwas schmal: Die Bühne wirkt enger als möglich. Boxen ein Stück auseinander (Ziel ±30°).");
+    else k("Stereowinkel", "hinweis", `±${z(w)}°`, "Etwas breit: Die Mitte wird weniger stabil. Boxen ein Stück zusammen (Ziel ±30°).");
+    const dl = dist(a.fl, a.hoerplatz), dr = dist(a.fr, a.hoerplatz);
+    let d = Math.abs(dl - dr) * 100;
+    if (rund(d) < 2) k("Abstand links/rechts", "gut", `${z(d)} cm`, "Beide Boxen sind gleich weit von deinem Kopf entfernt: Die Mitte steht genau vor dir.");
+    else {
+      const [nah, weit] = dl < dr ? ["linke", "rechte"] : ["rechte", "linke"], seite = dl < dr ? "links" : "rechts";
+      k("Abstand links/rechts", d < 10 ? "hinweis" : "problem", `${z(d)} cm`, `Die ${nah} Box ist ${z(d)} cm näher an deinem Kopf: `
+        + (d < 15 ? `Die Mitte rutscht um etwa ${z(d)}° nach ${seite}. ` : `Die Mitte rutscht fast ganz in die ${nah} Box. `)
+        + `Die ${nah} Box ${z(d)} cm nach hinten rücken oder die ${weit} Box näher holen.`);
+    }
+    const sl = a.fl[0], sr = raum.breite - a.fr[0];
+    d = Math.abs(sl - sr) * 100;
+    let zahl = `links ${z(sl, 2)} m, rechts ${z(sr, 2)} m`;
+    if (Math.min(sl, sr) < 0.3) k("Seitenwände", "problem", zahl, "Eine Box steht sehr nah an der Seitenwand: Der Bass wird dick und das Bild kippt zu dieser Seite. Mindestens 30 cm, besser 50 cm Abstand.");
+    else if (rund(d) > 20) k("Seitenwände", "hinweis", zahl, `Die Boxen stehen ${z(d)} cm unsymmetrisch zu den Seitenwänden: Links und rechts klingen verschieden. Wenn möglich die Anlage mittiger stellen.`);
+    else k("Seitenwände", "gut", zahl, "Die Boxen stehen symmetrisch zu den Seitenwänden.");
+    const y = [a.fl[1], a.fr[1]];
+    zahl = `${z(y[0], 2)} / ${z(y[1], 2)} m`;
+    if (y.every((v) => v >= 0.3 && v <= 1.0)) k("Wand hinter den Boxen", "gut", zahl, "Guter Abstand zur Wand hinter den Boxen (empfohlen 0,3 bis 1,0 m).");
+    else if (y.every((v) => v >= 0.2 && v <= 1.3)) k("Wand hinter den Boxen", "hinweis", zahl, "Noch in Ordnung, empfohlen sind 0,3 bis 1,0 m zur Wand dahinter: näher dröhnt der Bass, weiter weg wird er dünn.");
+    else k("Wand hinter den Boxen", "problem", zahl, "Die Boxen stehen zu nah oder zu weit von der Wand dahinter. Empfohlen sind 0,3 bis 1,0 m.");
+    const r = raum.laenge - hy;
+    zahl = `${z(r, 2)} m`;
+    if (r >= 0.5) k("Kopf zur Rückwand", "gut", zahl, "Genug Abstand zur Wand hinter dir.");
+    else if (r >= 0.3) k("Kopf zur Rückwand", "hinweis", zahl, "Dein Kopf ist nah an der Wand hinter dir: Der Bass ist dort zu stark. Wenn möglich 50 cm Abstand oder mehr.");
+    else k("Kopf zur Rückwand", "problem", zahl, "Dein Kopf ist direkt an der Wand: Bass dröhnt, Höhen klingen hart. Das Sofa 50 cm vorziehen hilft viel.");
+    const dz = ((a.fl[2] + a.fr[2]) / 2 - hz) * 100;
+    zahl = `${rund(dz) > 0 ? "+" : rund(dz) < 0 ? "−" : ""}${z(Math.abs(dz))} cm`;
+    if (Math.abs(rund(dz)) <= 10) k("Hochtöner und Ohrhöhe", "gut", zahl, "Die Hochtöner sind etwa auf Ohrhöhe.");
+    else k("Hochtöner und Ohrhöhe", Math.abs(dz) <= 25 ? "hinweis" : "problem", zahl, dz > 0
+      ? `Die Hochtöner sind ${z(Math.abs(dz))} cm über deinen Ohren: Boxen leicht nach unten neigen oder niedrigere Ständer nehmen.`
+      : `Die Hochtöner sind ${z(Math.abs(dz))} cm unter deinen Ohren: höhere Ständer nehmen oder die Boxen leicht nach oben kippen.`);
+    const basis = Math.hypot(a.fr[0] - a.fl[0], a.fr[1] - a.fl[1]), abst = (Math.hypot(a.fl[0] - hx, a.fl[1] - hy) + Math.hypot(a.fr[0] - hx, a.fr[1] - hy)) / 2, q = basis / abst;
+    zahl = `Basis ${z(basis, 2)} m, Hörabstand ${z(abst, 2)} m`;
+    if (q >= 0.8 && q <= 1.2) k("Basis und Hörabstand", "gut", zahl, "Boxenabstand und Hörabstand passen zueinander (gleichseitiges Dreieck).");
+    else if (q < 0.8) k("Basis und Hörabstand", "hinweis", zahl, "Die Boxen stehen eng im Vergleich zum Hörabstand: Boxen auseinander oder näher heran setzen.");
+    else k("Basis und Hörabstand", "hinweis", zahl, "Die Boxen stehen weit auseinander im Vergleich zum Hörabstand: Boxen enger oder weiter weg setzen.");
+    const wl = grad(Math.atan2(Math.abs(hx - a.fl[0]), Math.max(1e-6, hy - a.fl[1]))), wr = grad(Math.atan2(Math.abs(hx - a.fr[0]), Math.max(1e-6, hy - a.fr[1])));
+    k("Einwinkeln", "gut", `links ${z(wl)}°, rechts ${z(wr)}°`, `Dreh jede Box so, dass sie auf deinen Kopf zeigt: die linke um ${z(wl)}°, die rechte um ${z(wr)}° nach innen.`);
+    return out;
+  }
+  const TEILE = { fl: "Linke Box", fr: "Rechte Box", boxen: "Beide Boxen", sub: "Sub", hoerplatz: "Hörplatz" };
+  const FEIN_SCHRITTE = [0.1, 0.2, 0.3], FEIN_MIN_KORREKTUR = 0.15, FEIN_MIN_STREU_DB = 0.5;
+  const verschoben = (p, dx, dy) => [p[0] + dx, p[1] + dy, p[2]];
+  const waechterArten = (a, raum) => new Set(waechterAufstellung(a, raum).map((v) => v.split(/[0-9]/)[0]));
+  function varianten(raum, m) {
+    const out = [m];
+    for (const [fx, fy, ft] of [[1.03, 0.97, 0.75], [0.97, 1.03, 1.25], [1.03, 1.03, 1], [0.97, 0.97, 1]])
+      out.push(modell({ ...raum, breite: raum.breite * fx, laenge: raum.laenge * fy, t60: raum.t60 * ft }));
+    return out;
+  }
+  function feinjustage(raum, start, modus = "stereo", fest = [], m = null, anzahl = 3, grenzen = null) {
     start = { subInvertiert: false, ...start };
-    if (!raum.rechteckig) return { vorschlaege: [], hinweis: "Der Raum ist nicht rechteckig: Bass-Empfehlungen wären geraten. Nur messen hilft (verschiedene Plätze messen und vergleichen)." };
-    const m = modell(raum), heute = bewerte(start, m, modus, start);
-    if (m.alpha > MAX_ALPHA) return { heute, vorschlaege: [], start_waechter: waechterAufstellung(start, raum),
-      hinweis: "Der Raum ist stark bedämpft (sehr kurzer Nachhall). Hier ist das Rechenmodell unsicher: lieber zwei, drei Aufstellungen ausprobieren und jeweils messen." };
-    const stufen = [["Klein: nur den Sub", { hoerplatz: false, boxen: false, sub: true }], ["Mittel: Sub und Boxen", { hoerplatz: false, boxen: true, sub: true }],
-                    ["Groß: alles inklusive Hörplatz", { hoerplatz: true, boxen: true, sub: true }]];
-    const out = [], gesehen = [];
-    for (const [titel, frei] of stufen) {
-      if (!start.sub && !(frei.boxen || frei.hoerplatz)) continue;
-      const { a, b } = suche(raum, start, modus, frei, m);
+    m = m || modell(raum);
+    const f = festAusGrenzen(fest, grenzen);
+    if (!raum.rechteckig || m.alpha > MAX_ALPHA) return [];
+    const b0 = bewerte(start, m, modus, start), arten0 = waechterArten(start, raum), kand = [];
+    for (const teil of ["fl", "fr", "boxen", "sub", "hoerplatz"]) {
+      if (f.has(teil) || (teil === "boxen" && (f.has("fl") || f.has("fr"))) || (teil === "sub" && !start.sub)) continue;
+      for (const achse of teil === "boxen" ? [1] : [0, 1]) for (const v of FEIN_SCHRITTE) for (const sg of [-1, 1]) {
+        const [dx, dy] = achse === 0 ? [sg * v, 0] : [0, sg * v];
+        const a = teil === "boxen" ? { ...start, fl: verschoben(start.fl, dx, dy), fr: verschoben(start.fr, dx, dy) } : { ...start, [teil]: verschoben(start[teil], dx, dy) };
+        const arten = waechterArten(a, raum);
+        if ([...arten].some((x) => !arten0.has(x)) || grenzenVerletzt(a, start, raum, grenzen).length) continue;
+        const b = bewerte(a, m, modus, start);
+        const rel = b0.korrektur_db > 0 ? 1 - b.korrektur_db / b0.korrektur_db : 0, dstreu = b0.streu_db - b.streu_db;
+        if (b.j >= b0.j || !(rel >= FEIN_MIN_KORREKTUR || dstreu >= FEIN_MIN_STREU_DB)) continue;
+        const nutzen = Math.max(rel / FEIN_MIN_KORREKTUR, dstreu / FEIN_MIN_STREU_DB);
+        kand.push({ n: nutzen / (v * 100), teil, achse, sg, v, a, b, rel });
+      }
+    }
+    kand.sort((p, q) => q.n - p.n);
+    let vs = null; const out = [], gesehen = new Set();
+    for (const { teil, achse, sg, v, a, b, rel } of kand) {
+      if (gesehen.has(teil)) continue;
+      vs = vs || varianten(raum, m);
+      let robust = true;
+      for (const mv of vs.slice(1)) {
+        const v0 = bewerte(start, mv, modus, start), v1 = bewerte(a, mv, modus, start);
+        if ((v1.korrektur_db >= v0.korrektur_db && v1.streu_db >= v0.streu_db) || v1.j >= v0.j
+            || v1.streu_db > v0.streu_db + MAX_VERSCHLECHTERUNG_DB || v1.korrektur_db > v0.korrektur_db + MAX_VERSCHLECHTERUNG_DB) { robust = false; break; }
+      }
+      if (!robust) continue;
+      gesehen.add(teil);
+      const zcm = rund(v * 100);
+      const richtung = achse === 0 ? (sg < 0 ? "nach links" : "nach rechts")
+        : teil === "hoerplatz" ? (sg < 0 ? "näher zu den Boxen" : "weiter weg von den Boxen") : (sg < 0 ? "näher an die Wand dahinter" : "weiter weg von der Wand dahinter");
+      const p = rund(rel * 100);
+      const satz = `${TEILE[teil]} ${zcm} cm ${richtung}: Korrekturbedarf ${p >= 0 ? "−" : "+"}${z(Math.abs(rel * 100))} %, `
+        + `Bass-Unterschied zwischen den Plätzen ${z(b0.streu_db, 1)} → ${z(b.streu_db, 1)} dB`;
+      out.push({ teil, satz, aufstellung: a, bewertung: b, schritt_cm: zcm, geht_nicht: teil === "boxen" ? ["fl", "fr"] : [teil] });
+      if (out.length >= anzahl) break;
+    }
+    return out;
+  }
+  const freiOhne = (frei, f) => ({ hoerplatz: frei.hoerplatz && !f.has("hoerplatz"), boxen: frei.boxen && !f.has("fl") && !f.has("fr") && !f.has("boxen"), sub: frei.sub && !f.has("sub") });
+  const STUFEN = [["Klein: nur den Sub", { hoerplatz: false, boxen: false, sub: true }, ["sub"]], ["Mittel: Sub und Boxen", { hoerplatz: false, boxen: true, sub: true }, ["fl", "fr"]],
+                  ["Groß: alles inklusive Hörplatz", { hoerplatz: true, boxen: true, sub: true }, ["hoerplatz"]]];
+  function vorschlaege(raum, start, modus, fest, grenzen, m) {
+    const f = festAusGrenzen(fest, grenzen), out = [], gesehen = [];
+    for (const [titel, frei0, gehtNicht] of STUFEN) {
+      const frei = freiOhne(frei0, f);
+      if (!(frei.boxen || frei.hoerplatz || (frei.sub && start.sub))) continue;
+      const { a, b } = suche(raum, start, modus, frei, m, grenzen);
       if (waechterAufstellung(a, raum).length && !gleich(a, start)) continue;
       if (gesehen.some((g) => gleich(g, a)) || !robustBesser(raum, start, a, modus, m)) continue;
       gesehen.push(a);
-      out.push({ titel, aufstellung: a, bewertung: b, schritte: schritte(start, a) });
+      out.push({ titel, aufstellung: a, bewertung: b, schritte: schritte(start, a), geht_nicht: gehtNicht });
     }
-    return { heute, vorschlaege: out, start_waechter: waechterAufstellung(start, raum), hinweis: "Nach dem Umstellen neu messen. Ist es gemessen schlechter, zurückstellen." };
+    return out;
   }
-  return { empfehlen, bewerte, modell, waechterAufstellung, FREQ };
+  const GRENZ_SCHLUESSEL = ["hoerplatz_m", "boxen_wand_max_m", "boxen_seitlich_max_m", "boxen_symmetrisch", "sub", "sub_wandnah_m", "zonen"], MIN_UNTERSCHIED_ANTEIL = 0.10;
+  function lockerungSatz(k, g, v, start) {
+    const a = v ? v.aufstellung : start;
+    if (k === "hoerplatz_m") { const d = Math.max(Math.abs(a.hoerplatz[0] - start.hoerplatz[0]), Math.abs(a.hoerplatz[1] - start.hoerplatz[1]));
+      return g.hoerplatz_m <= 0 ? `Dürfte das Sofa ${z(d * 100)} cm wandern` : `Dürfte das Sofa ${z(d * 100)} statt ${z(g.hoerplatz_m * 100)} cm wandern`; }
+    if (k === "boxen_wand_max_m") { const y = Math.max(a.fl[1], a.fr[1]);
+      return `Dürften die Boxen ${z(Math.max(0, y - g.boxen_wand_max_m) * 100)} cm weiter in den Raum (${z(y * 100)} cm von der Wand)`; }
+    if (k === "boxen_seitlich_max_m") { const d = Math.max(Math.abs(a.fl[0] - start.fl[0]), Math.abs(a.fr[0] - start.fr[0]));
+      return `Dürften die Boxen ${z(d * 100)} statt ${z(g.boxen_seitlich_max_m * 100)} cm seitlich wandern`; }
+    if (k === "boxen_symmetrisch") return "Dürften die Boxen unsymmetrisch zum Sofa stehen";
+    if (k === "sub") return "Dürfte der Sub überall stehen";
+    if (k === "sub_wandnah_m") return "Dürfte der Sub weiter in den Raum";
+    return "Ohne die Laufwege und markierten Sperrflächen";
+  }
+  function vergleichOhneGrenzen(raum, start, modus, fest, grenzen, m, vs, heute) {
+    const zonen = raum.sperrzonen || [], hatZonen = zonen.some((x) => x.grenze);
+    if ((!grenzen || !Object.keys(grenzen).length) && !hatZonen) return null;
+    const raum0 = { ...raum, sperrzonen: zonen.filter((x) => !x.grenze) };
+    const gewinn = (l) => l.reduce((mx, v) => Math.max(mx, heute.j - v.bewertung.j), 0);
+    const voll = gewinn(vorschlaege(raum0, start, modus, fest, null, m));
+    if (voll <= 0) return null;
+    const anteil = Math.min(1, gewinn(vs) / voll);
+    if (anteil > 1 - MIN_UNTERSCHIED_ANTEIL) return null;
+    let best = null;
+    for (const k of GRENZ_SCHLUESSEL) {
+      let r, g;
+      if (k === "zonen") { if (!hatZonen) continue; r = raum0; g = grenzen; }
+      else {
+        if (!grenzen || grenzen[k] == null || (k === "boxen_symmetrisch" && !grenzen[k]) || (k === "sub" && grenzen[k] === "frei")) continue;
+        r = raum; g = Object.fromEntries(Object.entries(grenzen).filter(([kk]) => kk !== k));
+      }
+      const l = vorschlaege(r, start, modus, fest, g, m), a = Math.min(1, gewinn(l) / voll);
+      if (!best || a > best[0] + EPS) best = [a, k, l.length ? l.reduce((p, q) => (heute.j - q.bewertung.j > heute.j - p.bewertung.j ? q : p)) : null];
+    }
+    const p = z(anteil * 100);
+    if (best && best[0] - anteil >= MIN_UNTERSCHIED_ANTEIL) {
+      const bed = lockerungSatz(best[1], grenzen || {}, best[2], start);
+      const satz = anteil > 0 ? `Mit deinen Grenzen erreichst du ${p} % der möglichen Verbesserung. ${bed}, wären es ${z(best[0] * 100)} %.`
+        : `Größere Umbauten bringen in deinem Rahmen nichts Sicheres. ${bed}, wären ${z(best[0] * 100)} % der möglichen Verbesserung drin.`;
+      return { anteil, anteil_gelockert: best[0], grenze: best[1], satz };
+    }
+    return { anteil, anteil_gelockert: null, grenze: null, satz: anteil > 0
+      ? `Mit deinen Grenzen erreichst du ${p} % der möglichen Verbesserung. Mehr ginge nur, wenn mehrere Grenzen zugleich lockerer wären.`
+      : "Größere Umbauten bringen in deinem Rahmen nichts Sicheres. Mehr ginge nur, wenn mehrere Grenzen zugleich lockerer wären." };
+  }
+  // fest: Teile ("fl", "fr", "sub", "hoerplatz"), die nicht bewegt werden können („Geht nicht“); grenzen: siehe oben
+  function empfehlen(raum, start, modus = "stereo", fest = [], grenzen = null) {
+    start = { subInvertiert: false, ...start };
+    const geo = geometrie(start, raum);
+    if (!raum.rechteckig) return { vorschlaege: [], geometrie: geo, feinjustage: [], ohne_grenzen: null, hinweis: "Der Raum ist nicht rechteckig: Bass-Empfehlungen wären geraten. Nur messen hilft (verschiedene Plätze messen und vergleichen)." };
+    const m = modell(raum), heute = bewerte(start, m, modus, start);
+    if (m.alpha > MAX_ALPHA) return { heute, vorschlaege: [], start_waechter: waechterAufstellung(start, raum), geometrie: geo, feinjustage: [], ohne_grenzen: null,
+      hinweis: "Der Raum ist stark bedämpft (sehr kurzer Nachhall). Hier ist das Rechenmodell unsicher: lieber zwei, drei Aufstellungen ausprobieren und jeweils messen." };
+    const out = vorschlaege(raum, start, modus, fest, grenzen, m);
+    return { heute, vorschlaege: out, start_waechter: waechterAufstellung(start, raum), geometrie: geo, feinjustage: feinjustage(raum, start, modus, fest, m, 3, grenzen),
+      ohne_grenzen: vergleichOhneGrenzen(raum, start, modus, fest, grenzen, m, out, heute), hinweis: "Nach dem Umstellen neu messen. Ist es gemessen schlechter, zurückstellen." };
+  }
+  return { empfehlen, feinjustage, geometrie, grenzenVerletzt, bewerte, modell, waechterAufstellung, FREQ };
 })();
 
 if (typeof module !== "undefined") module.exports = SS;
@@ -1530,19 +1898,80 @@ if (typeof module !== "undefined") module.exports = SS;
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const lesen = (k, std) => { try { const v = localStorage.getItem(k); return v == null ? std : v; } catch (e) { return std; } };
+const schreiben = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+
+// --- Brücke zur iPhone-App (WKWebView) -----------------------------------------------------------
+// Die App setzt vor dem Laden window.klangboxNativ = { version: 1, raum: <Raumscan oder null>, kannAufnehmen }.
+// Seite → App: webkit.messageHandlers.klangbox.postMessage({art: "aufnahmeStart" | "aufnahmeStopp", id}),
+//   {art: "raumNeuScannen"}, {art: "akzent", wert}, {art: "ergebnis", score, ohne}.
+// App → Seite: klangboxNativ.aufnahmeFertig(id, base64Float32LE, sampleRate, info) oder aufnahmeFehler(id, text),
+//   window.klangboxAkzent(name), klangboxNativ.zeige("messen" | "sweetspot"), Ereignisse „klangboxtab“ und
+//   „klangboxraum“ (detail = Raum nach einem neuen Scan) auf window. Das Objekt der App wird nur ergänzt, nie ersetzt.
+// Ohne App (normaler Browser) ist nativ null und alles läuft wie bisher.
+const nativ = (() => {
+  const n = window.klangboxNativ;
+  if (!n || typeof n !== "object") return null;
+  const offen = new Map(); let zaehler = 0;
+  const senden = (m) => { try { window.webkit.messageHandlers.klangbox.postMessage(m); return true; } catch (e) { return false; } };
+  const ausBase64 = (b64) => {
+    const s = atob(b64), dv = new DataView(new ArrayBuffer(s.length - (s.length % 4)));
+    for (let i = 0; i < dv.byteLength; i++) dv.setUint8(i, s.charCodeAt(i));
+    const out = new Float32Array(dv.byteLength / 4); for (let i = 0; i < out.length; i++) out[i] = dv.getFloat32(i * 4, true);
+    return out;
+  };
+  n.aufnahmeFertig = (id, b64, rate, info) => {
+    const o = offen.get(id); if (!o) return false; offen.delete(id);
+    try { o.ok({ daten: ausBase64(b64 || ""), rate: +rate, info: info || {} }); } catch (e) { o.fehler("Die Aufnahme der App ließ sich nicht lesen."); }
+    return true;
+  };
+  n.aufnahmeFehler = (id, text) => { const o = offen.get(id); if (!o) return false; offen.delete(id); o.fehler(String(text || "Aufnahme fehlgeschlagen.")); return true; };
+  const handler = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.klangbox);
+  return {
+    raum: n.raum || null,
+    akzentStart: n.akzent || null,
+    kannAufnehmen: !!n.kannAufnehmen && handler,
+    // Aufnahme starten; ergebnis: Promise auf {daten, rate, info}, abgelehnt mit Fehlertext
+    aufnahme() {
+      const id = `a${++zaehler}-${Date.now()}`;
+      const ergebnis = new Promise((ok, fehler) => offen.set(id, { ok, fehler }));
+      ergebnis.catch(() => {});
+      if (!senden({ art: "aufnahmeStart", id })) n.aufnahmeFehler(id, "Die App antwortet nicht.");
+      return { id, ergebnis, stopp: () => senden({ art: "aufnahmeStopp", id }) };
+    },
+    raumNeuScannen: () => senden({ art: "raumNeuScannen" }),
+    ereignis: (m) => senden(m),
+  };
+})();
+document.querySelectorAll("[data-scannen]").forEach((b) => { b.hidden = !nativ; b.addEventListener("click", () => nativ && nativ.raumNeuScannen()); });
+
+// --- Akzentfarbe (Blau, Mint, Violett) ----------------------------------------------------------
+const AKZENTE = { blau: ["Blau", "#7FB0FF"], mint: ["Mint", "#8CE0C4"], violett: ["Violett", "#B79CFF"] };
+function setzeAkzent(name, melden) {
+  if (!AKZENTE[name]) name = "blau";
+  if (name === "blau") document.documentElement.removeAttribute("data-akzent"); else document.documentElement.dataset.akzent = name;
+  document.querySelectorAll("[data-akzent]").forEach((b) => { if (b.tagName === "BUTTON") { const an = b.dataset.akzent === name; b.setAttribute("aria-checked", an); b.querySelector("i").textContent = an ? "✓" : ""; } });
+  $("farbe-text").textContent = `Farbe: ${AKZENTE[name][0]}`;
+  if (melden) { schreiben("raumcheck-akzent", name); if (nativ) nativ.ereignis({ art: "akzent", wert: name }); }
+  try { if (window.Raum3D) window.Raum3D.setAkzent(); } catch (e) {}
+}
+document.querySelectorAll("button[data-akzent]").forEach((b) => b.addEventListener("click", () => setzeAkzent(b.dataset.akzent, true)));
+setzeAkzent(nativ && AKZENTE[nativ.akzentStart] ? nativ.akzentStart : lesen("raumcheck-akzent", "blau"), false);
+window.klangboxAkzent = (name) => { setzeAkzent(name, false); schreiben("raumcheck-akzent", AKZENTE[name] ? name : "blau"); };
+
 let modus = "kino";
 let dateien = [];      // {name, daten: Float32Array}
 let runden = [];       // gespeicherte Ergebnisse
-try { runden = JSON.parse(localStorage.getItem("raumcheck-runden") || "[]"); } catch (e) { runden = []; }
-try { modus = localStorage.getItem("raumcheck-modus") || "kino"; } catch (e) {}
-try { $("raum").value = localStorage.getItem("raumcheck-raum") || ""; } catch (e) {}
-$("raum").addEventListener("change", () => { try { localStorage.setItem("raumcheck-raum", $("raum").value); } catch (e) {} });
+try { runden = JSON.parse(lesen("raumcheck-runden", "[]")); } catch (e) { runden = []; }
+modus = lesen("raumcheck-modus", "kino");
+$("raum").value = lesen("raumcheck-raum", "");
+$("raum").addEventListener("change", () => schreiben("raumcheck-raum", $("raum").value));
 
 function setzeModus(m) {
   modus = m;
   $("m-kino").setAttribute("aria-pressed", m === "kino");
   $("m-stereo").setAttribute("aria-pressed", m === "stereo");
-  try { localStorage.setItem("raumcheck-modus", m); } catch (e) {}
+  schreiben("raumcheck-modus", m);
 }
 $("m-kino").addEventListener("click", () => setzeModus("kino"));
 $("m-stereo").addEventListener("click", () => setzeModus("stereo"));
@@ -1552,31 +1981,32 @@ setzeModus(modus);
 const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Ruhe und Lautstärke", "Hörplatz", "Bewegen", "Ergebnis", "Aufstellung"];
 function zeigeSchritt(n) {
   document.querySelectorAll(".schritt").forEach((el) => { el.hidden = +el.dataset.s !== n; });
-  $("fortschritt-balken").style.width = Math.min(100, (n - 1) / 6 * 100) + "%";
+  document.querySelectorAll("#fortschritt span").forEach((s, i) => s.classList.toggle("an", i < n));
   $("schritt-text").textContent = n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
   if (n === 5) $("platz-bild").innerHTML = platzBild();
+  if (n === 8) planZeigen();
   window.scrollTo(0, 0);
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zu]"); if (b) zeigeSchritt(+b.dataset.zu); });
-function zeigeChips() { document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", c.dataset.anlage === $("anlage").value)); }
-document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => { $("anlage").value = c.dataset.anlage; zeigeChips(); }));
+function zeigeChips() { document.querySelectorAll("[data-anlage]").forEach((c) => c.setAttribute("aria-pressed", c.dataset.anlage === $("anlage").value)); }
+document.querySelectorAll("[data-anlage]").forEach((c) => c.addEventListener("click", () => { $("anlage").value = c.dataset.anlage; zeigeChips(); }));
 $("anlage").addEventListener("input", zeigeChips);
 // Wächter Vorbereitung: alles abgehakt und eine gültige Signalquelle
 $("vorb-weiter").addEventListener("click", () => {
   const offen = [...document.querySelectorAll(".pflicht")].filter((c) => !c.checked).length;
   if (offen) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst alle Punkte abhaken (${offen} offen).</span>`; return; }
   if (!kannAufnehmen) { $("vorb-status").innerHTML = `<span class="warn">Dieser Browser darf hier nicht aufnehmen. Bitte in Safari öffnen, oder am Hörplatz Sprachmemos-Dateien nutzen.</span>`; }
-  else if (quelle === "airplay" && !kannAirplay) { $("vorb-status").innerHTML = `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Wähle „Von anderem Gerät“ oder öffne die Seite in Safari.</span>`; return; }
+  else if (quelle === "airplay" && !kannAirplay && !nativ) { $("vorb-status").innerHTML = `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Wähle „Von anderem Gerät“ oder öffne die Seite in Safari.</span>`; return; }
   else if (quelle === "airplay" && !drahtlos()) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst „AirPlay-Lautsprecher wählen“ und deine Anlage antippen. Sonst misst du den iPhone-Lautsprecher.</span>`; return; }
   $("vorb-status").textContent = "";
   zeigeSchritt(4);
 });
 function platzBild() {
-  let g = `<rect x="14" y="10" width="292" height="190" rx="10" fill="none" stroke="#2a3038" stroke-width="2"/>`;
-  g += `<rect x="70" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/><rect x="232" y="24" width="18" height="18" rx="3" fill="#9aa3ad"/><text x="160" y="38" text-anchor="middle">Boxen</text>`;
-  g += `<line x1="79" y1="42" x2="160" y2="150" stroke="#2a3038" stroke-dasharray="3 3"/><line x1="241" y1="42" x2="160" y2="150" stroke="#2a3038" stroke-dasharray="3 3"/>`;
-  g += `<rect x="80" y="162" width="160" height="26" rx="8" fill="#232830"/><text x="160" y="196" text-anchor="middle">Sofa</text>`;
-  g += `<circle cx="160" cy="150" r="11" fill="${hauptDaten ? "#79c98a" : "#7fb0ff"}"/><text x="160" y="154" text-anchor="middle" style="fill:#0d0f12; font-weight:700">${hauptDaten ? "✓" : "1"}</text>`;
+  let g = `<rect x="1" y="1" width="318" height="208" rx="12" fill="#12161C" stroke="#2A313B" stroke-width="2"/>`;
+  g += `<rect x="70" y="24" width="18" height="18" rx="3" fill="#9AA3AD"/><rect x="232" y="24" width="18" height="18" rx="3" fill="#9AA3AD"/><text x="160" y="38" text-anchor="middle">Boxen</text>`;
+  g += `<line x1="79" y1="42" x2="160" y2="150" stroke="#3A4452" stroke-dasharray="3 3"/><line x1="241" y1="42" x2="160" y2="150" stroke="#3A4452" stroke-dasharray="3 3"/>`;
+  g += `<rect x="80" y="162" width="160" height="28" rx="9" fill="#2A313B"/><text x="160" y="203" text-anchor="middle">Sofa</text>`;
+  g += `<circle cx="160" cy="150" r="12" class="${hauptDaten ? "" : "ak-f"}" ${hauptDaten ? `fill="var(--ok)" style="fill: var(--ok)"` : ""}/><text x="160" y="154" text-anchor="middle" style="fill:#0B0D10; font-weight:700; font-size: 12px">${hauptDaten ? "✓" : "1"}</text>`;
   return `<svg viewBox="0 0 320 210" width="100%" role="img" aria-label="Draufsicht: iPhone am Hörplatz">${g}</svg>`;
 }
 let hauptDaten = null;  // saubere Aufnahme am Hörplatz
@@ -1614,21 +2044,23 @@ $("datei").addEventListener("change", async (ev) => {
 
 // --- Ein-Knopf-Messung: aufnehmen, Messsignal abspielen (AirPlay), automatisch stoppen, sofort prüfen ---
 const sig = $("signal");
-let quelle = "airplay", laeuft = null;
-try { quelle = localStorage.getItem("raumcheck-quelle") || "airplay"; } catch (e) {}
+let quelle = lesen("raumcheck-quelle", "airplay"), laeuft = null;
 const kannAirplay = !!sig.webkitShowPlaybackTargetPicker;
-const kannAufnehmen = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext);
-const drahtlos = () => !!sig.webkitCurrentPlaybackTargetIsWireless;
+const nativAufnahme = !!(nativ && nativ.kannAufnehmen);
+const kannAufnehmen = nativAufnahme || !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext);
+// In der App: fehlt das AirPlay-Attribut (WKWebView), nicht blockieren
+const drahtlos = () => (nativ && sig.webkitCurrentPlaybackTargetIsWireless === undefined) || !!sig.webkitCurrentPlaybackTargetIsWireless;
 function setzeQuelle(q) {
   quelle = q;
   $("q-airplay").setAttribute("aria-pressed", q === "airplay"); $("q-extern").setAttribute("aria-pressed", q === "extern");
   $("airplay-zeile").hidden = q !== "airplay"; $("extern-zeile").hidden = q !== "extern";
-  try { localStorage.setItem("raumcheck-quelle", q); } catch (e) {}
+  schreiben("raumcheck-quelle", q);
   if ($("vorb-status")) $("vorb-status").textContent = "";
   zeigeZiel();
 }
 function zeigeZiel() {
-  if (!kannAirplay) { $("ziel").innerHTML = `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Hier: „Von anderem Gerät“ wählen oder in Safari öffnen.</span>`; return; }
+  if (!kannAirplay) { $("ziel").innerHTML = nativ ? `AirPlay-Lautsprecher im Kontrollzentrum wählen (Bildschirm-Synchronisierung aus, nur Ton).`
+    : `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Hier: „Von anderem Gerät“ wählen oder in Safari öffnen.</span>`; return; }
   $("ziel").innerHTML = drahtlos() ? `<span class="ok">✓ Wiedergabe über AirPlay</span>` : `Noch kein AirPlay-Lautsprecher gewählt (sonst spielt das iPhone selbst).`;
 }
 $("q-airplay").addEventListener("click", () => setzeQuelle("airplay"));
@@ -1639,30 +2071,60 @@ setzeQuelle(quelle);
 if (!kannAufnehmen) { $("messen").disabled = true; $("filter").innerHTML = `<span class="warn">Aufnehmen geht hier nicht (nur über https in Safari/Chrome). Unten Sprachmemos-Dateien nutzen.</span>`; }
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
-// Eine Aufnahme: Mikrofon ohne Filter öffnen, Signal abspielen (AirPlay) oder Countdown fürs andere
-// Gerät, automatisch stoppen. Gibt die Aufnahme zurück (oder null mit Hinweis im Status).
-async function aufnehmen(ui, src, sekundenExtern, tick) {
-  const status = (h) => { $(ui.status).innerHTML = h; };
-  if (quelle === "airplay" && kannAirplay && !drahtlos()) { status(`<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`); return null; }
+// Mikrofon öffnen: über die App (nativ) oder getUserMedia ohne Filter.
+// Gibt {stopp(): Promise<{daten, rate, spitze} | {fehler}>, schliessen(), kaputt} oder {fehler} zurück.
+async function mikrofonOeffnen(ui) {
+  if (nativAufnahme) {
+    const a = nativ.aufnahme(), mic = { kaputt: false }; let gestoppt = false;
+    a.ergebnis.catch(() => { mic.kaputt = true; abbrechen(); });  // Fehler der App mitten in der Aufnahme: Ablauf stoppen
+    const stopp = () => { if (!gestoppt) { gestoppt = true; a.stopp(); } };
+    if (ui.filter) $(ui.filter).innerHTML = `Mikrofon über die Klang-Box-App (Messmodus, ohne Filter)`;
+    if (ui.pegel) $(ui.pegel).classList.add("lauf");
+    mic.schliessen = () => { stopp(); if (ui.pegel) $(ui.pegel).classList.remove("lauf"); };
+    mic.stopp = async () => {
+      stopp();
+      try {
+        const r = await Promise.race([a.ergebnis, warte(20000).then(() => { throw "Die App hat die Aufnahme nicht geliefert."; })]);
+        let s = 0; for (let i = 0; i < r.daten.length; i++) s = Math.max(s, Math.abs(r.daten[i]));
+        return { daten: r.daten, rate: r.rate, spitze: s };
+      } catch (t) { return { fehler: esc(t) }; }
+    };
+    return mic;
+  }
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } }); }
-  catch (e) { status(`<span class="warn">Kein Zugriff aufs Mikrofon. Bitte erlauben (aA-Menü → Website-Einstellungen).</span>`); return null; }
+  catch (e) { return { fehler: "Kein Zugriff aufs Mikrofon. Bitte erlauben (aA-Menü → Website-Einstellungen)." }; }
   const st = stream.getAudioTracks()[0].getSettings();
   const z = (n, v) => `${n}: <b class="${v === false ? "ok" : v === true ? "warn" : ""}">${v === false ? "aus" : v === true ? "AN" : "unbekannt"}</b>`;
   if (ui.filter) $(ui.filter).innerHTML = [z("Echo-Unterdrückung", st.echoCancellation), z("Störfilter", st.noiseSuppression), z("Lautstärke-Automatik", st.autoGainControl)].join(" · ");
   const AC = window.AudioContext || window.webkitAudioContext, ctx = new AC({ sampleRate: 48000 });
   const q = ctx.createMediaStreamSource(stream), knoten = ctx.createScriptProcessor(4096, 1, 1), stumm = ctx.createGain();
   stumm.gain.value = 0;
-  const puffer = []; let spitze = 0;
+  const puffer = []; let spitze = 0, zu = false;
   knoten.onaudioprocess = (ev) => {
     const d = ev.inputBuffer.getChannelData(0); puffer.push(new Float32Array(d));
     let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i]));
     spitze = Math.max(spitze, m); if (ui.pegel) $(ui.pegel).style.width = Math.min(100, m * 100) + "%";
   };
   q.connect(knoten); knoten.connect(stumm); stumm.connect(ctx.destination);
-  laeuft = { abbruch: false };
+  const schliessen = () => { if (zu) return; zu = true; knoten.disconnect(); q.disconnect(); stream.getTracks().forEach((t) => t.stop()); ctx.close(); };
+  return { kaputt: false, schliessen, stopp: async () => {
+    const rate = ctx.sampleRate; schliessen();
+    const n = puffer.reduce((s, b) => s + b.length, 0), daten = new Float32Array(n); let o = 0;
+    for (const b of puffer) { daten.set(b, o); o += b.length; }
+    return { daten, rate, spitze };
+  } };
+}
+// Eine Aufnahme: Mikrofon öffnen, Signal abspielen (AirPlay) oder Countdown fürs andere Gerät,
+// automatisch stoppen. Gibt die Aufnahme zurück (oder null mit Hinweis im Status).
+async function aufnehmen(ui, src, sekundenExtern, tick) {
+  const status = (h) => { $(ui.status).innerHTML = h; };
+  if (quelle === "airplay" && kannAirplay && !drahtlos()) { status(`<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`); return null; }
+  const mic = await mikrofonOeffnen(ui);
+  if (mic.fehler) { status(`<span class="warn">${mic.fehler}</span>`); return null; }
+  laeuft = { abbruch: mic.kaputt };
   $(ui.start).disabled = true; $(ui.abbrechen).hidden = false;
-  const ende = () => { knoten.disconnect(); q.disconnect(); stream.getTracks().forEach((t) => t.stop()); ctx.close(); if (ui.pegel) $(ui.pegel).style.width = "0%"; $(ui.start).disabled = false; $(ui.abbrechen).hidden = true; };
+  const ende = () => { mic.schliessen(); if (ui.pegel) $(ui.pegel).style.width = "0%"; $(ui.start).disabled = false; $(ui.abbrechen).hidden = true; laeuft = null; };
   const t0 = Date.now();
   if (quelle === "airplay") {
     if (!sig.src.endsWith(src)) { sig.src = src; sig.load(); }
@@ -1671,7 +2133,7 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
     await warte(800);
     if (kannAirplay && !drahtlos()) { sig.pause(); ende(); setzeQuelle("extern");
       status(`<span class="warn">iOS hat AirPlay beim Aufnehmen abgeschaltet. Ich habe auf „Von anderem Gerät“ umgestellt: bitte das Messsignal dort abspielen.</span>`); return null; }
-    const gesamt = (sig.duration || sekundenExtern) + 3;
+    const gesamt = (sig.duration / (sig.playbackRate || 1) || sekundenExtern) + 3;
     await new Promise((r) => { const t = setInterval(() => { if (tick) tick((Date.now() - t0) / 1000 / gesamt);
       if (sig.ended || laeuft.abbruch) { clearInterval(t); r(); } }, 250); });
     const e0 = Date.now();
@@ -1682,16 +2144,16 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
     while (!laeuft.abbruch && Date.now() - t1 < sekundenExtern * 1000) { const r = (Date.now() - t1) / 1000 / sekundenExtern;
       if (tick) tick(r); status(`<span class="laeuft">Misst… noch ${Math.ceil(sekundenExtern * (1 - r))} s</span>`); await warte(250); }
   }
-  const rate = ctx.sampleRate, abgebrochen = laeuft.abbruch;
-  ende(); laeuft = null; if (tick) tick(1);
+  const abgebrochen = laeuft.abbruch;
+  const r = await mic.stopp();
+  ende(); if (tick) tick(1);
+  if (r.fehler) { status(`<span class="warn">Aufnahme über die App fehlgeschlagen: ${r.fehler}</span>`); return null; }
   if (abgebrochen) { status("Abgebrochen."); return null; }
-  if (rate !== 48000) { status(`<span class="warn">Abtastrate ${rate} Hz statt 48000 Hz. Bitte Sprachmemos nutzen.</span>`); return null; }
-  const n = puffer.reduce((s, b) => s + b.length, 0), daten = new Float32Array(n); let o = 0;
-  for (const b of puffer) { daten.set(b, o); o += b.length; }
-  if (spitze < 0.003) { status(`<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`); return null; }
-  return daten;
+  if (r.rate !== 48000) { status(`<span class="warn">Abtastrate ${r.rate} Hz statt 48000 Hz. Bitte Sprachmemos nutzen.</span>`); return null; }
+  if (r.spitze < 0.003) { status(`<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`); return null; }
+  return r.daten;
 }
-const abbrechen = () => { if (laeuft) { laeuft.abbruch = true; sig.pause(); } };
+function abbrechen() { if (laeuft) { laeuft.abbruch = true; sig.pause(); } }
 ["abbrechen", "check-abbrechen", "bewegen-abbrechen"].forEach((id) => $(id).addEventListener("click", abbrechen));
 
 // Schritt 4: Ruhe und Lautstärke. Rauschton (2 s Stille, 3 s Rauschen) aufnehmen und bewerten:
@@ -1728,19 +2190,22 @@ $("messen").addEventListener("click", async () => {
   if (await neueAufnahme("Hörplatz", d)) { hauptDaten = d; $("platz-bild").innerHTML = platzBild(); await warte(1200); zeigeSchritt(6); }
 });
 
-// Schritt 6: Bewegen (wie Trueplay)
-const ring = (r) => { $("ring").setAttribute("stroke-dashoffset", (163.4 * (1 - Math.min(1, Math.max(0, r)))).toFixed(1)); };
+// Schritt 6: Bewegen (wie Trueplay): Ring mit Restsekunden
+const BEWEGEN_S = 63;
+const ring = (r) => { r = Math.min(1, Math.max(0, r));
+  $("ring").setAttribute("stroke-dashoffset", (942.5 * (1 - r)).toFixed(1)); $("ring-sek").textContent = `${Math.ceil(BEWEGEN_S * (1 - r))} s`; };
 $("bewegen-start").addEventListener("click", async () => {
   ring(0);
   $("bewegen-status").innerHTML = `<span class="laeuft">Jetzt langsam gehen und das iPhone auf und ab bewegen…</span>`;
-  const d = await aufnehmen({ status: "bewegen-status", pegel: "bewegen-pegel", start: "bewegen-start", abbrechen: "bewegen-abbrechen" }, "bewegen.wav", 63, ring);
+  const d = await aufnehmen({ status: "bewegen-status", pegel: "bewegen-pegel", start: "bewegen-start", abbrechen: "bewegen-abbrechen" }, "bewegen.wav", BEWEGEN_S, ring);
   if (!d) return;
   $("bewegen-status").innerHTML = `<span class="laeuft">Prüfe die Bewegungs-Messung…</span>`;
   const p = await imWorker({ art: "bewegtPruefen", daten: d });
   if (!p.ok || !p.ergebnis.sauber) {
     $("bewegen-status").innerHTML = `<span class="warn">Nicht verwendbar: ${esc(p.ok ? p.ergebnis.probleme.join(" ") : p.fehler)} Bitte noch einmal.</span>`; return;
   }
-  $("bewegen-status").innerHTML = `<span class="ok">✓ ${p.ergebnis.punkte} Messpunkte im Hörbereich${p.ergebnis.verworfen ? `, ${p.ergebnis.verworfen} gestörte Sweeps weggelassen` : ""}.</span> Ich werte aus…`;
+  const v = p.ergebnis.verworfen || 0;
+  $("bewegen-status").innerHTML = `<span class="ok">✓ ${12 - v} von 12 Sweeps sauber${v ? ` · ${v === 1 ? "1 Geräusch" : `${v} Geräusche`} weggelassen` : ""}.</span> Ich werte aus…`;
   await auswerten(d);
 });
 $("ohne-bewegen").addEventListener("click", () => auswerten(null));
@@ -1763,7 +2228,7 @@ async function neueAufnahme(name, daten) {
 const workerCode = $("analyse-src").textContent + "\n" + $("sweetspot-src").textContent + `
 self.onmessage = (ev) => {
   try {
-    if (ev.data.art === "sweetspot") { self.postMessage({ ok: true, ergebnis: SS.empfehlen(ev.data.raum, ev.data.start, ev.data.modus) }); return; }
+    if (ev.data.art === "sweetspot") { self.postMessage({ ok: true, ergebnis: SS.empfehlen(ev.data.raum, ev.data.start, ev.data.modus, ev.data.fest || [], ev.data.grenzen || null) }); return; }
     if (ev.data.art === "pruefen") { self.postMessage({ ok: true, ergebnis: analysiere(new Float64Array(ev.data.daten)).pruefung }); return; }
     if (ev.data.art === "bewegtPruefen") { self.postMessage({ ok: true, ergebnis: bewegtePunkte(new Float64Array(ev.data.daten)).info }); return; }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
@@ -1779,6 +2244,8 @@ function imWorker(nachricht) {
     w.postMessage(nachricht);
   });
 }
+// Sweetspot-Rechner auch direkt (schnelle Dinge wie der Geometrie-Check, ohne Worker)
+const SSH = new Function($("sweetspot-src").textContent + "\nreturn SS;")();
 
 async function auswerten(bewegt) {
   if (!dateien.length) { zeigeSchritt(5); $("status").innerHTML = `<span class="warn">Erst am Hörplatz messen.</span>`; return; }
@@ -1790,23 +2257,26 @@ async function auswerten(bewegt) {
   if (!r.ok) { $(ziel).innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
   const runde = { anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis };
   runden.unshift(runde);
-  try { localStorage.setItem("raumcheck-runden", JSON.stringify(runden.slice(0, 12))); } catch (e) {}
+  schreiben("raumcheck-runden", JSON.stringify(runden.slice(0, 12)));
   dateien = []; hauptDaten = null; zeigeDateien(); $(ziel).innerHTML = "";
+  if (nativ && !r.ergebnis.fehler) nativ.ereignis({ art: "ergebnis", score: r.ergebnis.score_prognose.gesamt, ohne: r.ergebnis.score_heute.gesamt });
   zeigeAlles(); nachhallUebernehmen(); zeigeSchritt(7);
 }
 $("auswerten").addEventListener("click", () => auswerten(null));
 
 const zahl = (v, e) => v.toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " " + e;
+const f1 = (x) => x.toLocaleString("de-DE", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const f2 = (x) => (Math.round(x * 100) / 100).toLocaleString("de-DE");
 
 function kurveSvg(k) {
   const W = 320, H = 160, L = 30, R = 8, T = 8, B = 22, lo = Math.log(20), hi = Math.log(400);
   const x = (f) => L + (Math.log(f) - lo) / (hi - lo) * (W - L - R);
   const y = (d) => T + (15 - Math.max(-25, Math.min(15, d))) / 40 * (H - T - B);
   let s = "";
-  for (const d of [10, 0, -10, -20]) s += `<line x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}" stroke="#2a3038"/><text x="${L - 4}" y="${y(d) + 3}" text-anchor="end">${d}</text>`;
+  for (const d of [10, 0, -10, -20]) s += `<line x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}" stroke="#2A313B"/><text x="${L - 4}" y="${y(d) + 3}" text-anchor="end">${d}</text>`;
   for (const f of [20, 50, 100, 200, 400]) s += `<text x="${x(f)}" y="${H - 6}" text-anchor="middle">${f} Hz</text>`;
   const pfad = (v) => v.map((d, i) => `${i ? "L" : "M"}${x(k.f[i]).toFixed(1)},${y(d).toFixed(1)}`).join("");
-  s += `<path d="${pfad(k.heute)}" fill="none" stroke="#eb6834" stroke-width="2"/><path d="${pfad(k.prognose)}" fill="none" stroke="#7fb0ff" stroke-width="2"/>`;
+  s += `<path d="${pfad(k.heute)}" fill="none" stroke="#FF9A70" stroke-width="2"/><path d="${pfad(k.prognose)}" fill="none" class="ak-s" stroke-width="2"/>`;
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Bassverlauf am Hauptplatz, heute und mit Klang-Box">${s}</svg>`;
 }
 
@@ -1814,67 +2284,284 @@ function karte(r, i) {
   const e = r.e;
   const pruef = `<ul class="klein" style="margin:0; padding-left:18px">${e.aufnahmen.map((a) =>
     `<li><b class="${a.sauber ? "ok" : "warn"}">${a.sauber ? "sauber" : "nicht verwendet"}</b> · ${esc(a.platz)}${a.probleme.length ? "<br>" + a.probleme.map(esc).join("<br>") : ""}</li>`).join("")}</ul>`;
-  const kopf = `<div class="zeile" style="display:flex; justify-content:space-between; gap:10px; align-items:baseline;">
-      <h2>${esc(r.anlage)}</h2><span class="klein">${r.modus === "kino" ? "Kino" : "Stereo"} · ${esc(r.zeit)}</span></div>`;
-  if (e.fehler) return `<section class="card">${kopf}<p class="warn">${esc(e.fehler)}</p>${pruef}
-      <button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button></section>`;
-  const sh = e.score_heute, sp = e.score_prognose, tipps = e.tipps.length ? `<div><span class="klein">Tipps (freiwillig)</span><ul class="klein" style="margin:4px 0 0; padding-left:18px">${e.tipps.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
-  const zahlen = `<div class="score"><div><div class="zahl" style="color: var(--heute)">${sh.gesamt}</div><div class="lbl">heute${sh.note ? `<br><span class="note">${esc(sh.note)}</span>` : ""}</div></div>
-      <div aria-hidden="true" style="font-size: 26px; color: var(--ink2)">→</div>
-      <div><div class="zahl" style="color: var(--prog)">${sp.gesamt}</div><div class="lbl">mit Klang-Box (Prognose)${sp.note ? `<br><span class="note">${esc(sp.note)}</span>` : ""}</div></div></div>`;
-  const ende = `<div><span class="klein">Bass am Hauptplatz (dB)</span>${kurveSvg(e.kurve)}</div>
-    <div><span class="klein">Aufnahmen</span>${pruef}</div>${tipps}
-    <button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button></section>`;
-  if (!sh.kacheln) return `<section class="card">${kopf}${zahlen}<p class="klein">Ältere Messrunde (Score v1). Für die neue Auswertung bitte neu messen.</p>${ende}`;
+  const kopf = `<div style="display:grid; gap:4px"><span class="eyebrow">${esc(r.anlage)} · ${r.modus === "kino" ? "Kino" : "Stereo"} · ${esc(r.zeit)}</span><h2 style="font-size: 28px">So klingt dein Raum</h2></div>`;
+  const loeschen = `<button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button>`;
+  if (e.fehler) return `<section class="runde card">${kopf}<p class="warn">${esc(e.fehler)}</p>${pruef}${loeschen}</section>`;
+  const sh = e.score_heute, sp = e.score_prognose;
+  const tipps = e.tipps.length ? `<div><span class="klein">Tipps (freiwillig)</span><ul class="klein" style="margin:4px 0 0; padding-left:18px">${e.tipps.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
   const pm = (s) => (s.plusminus ? ` ±${s.plusminus}` : "");
+  const zahlen = `<div class="zahlpaar">
+      <div class="zahlkarte"><span class="lbl">heute</span><span class="zahl" style="color: var(--heute)">${sh.gesamt}</span><span class="note">${esc(sh.note || "")}<span class="pm">${pm(sh)}</span></span></div>
+      <div class="zahlkarte prog"><span class="lbl">mit Klang-Box</span><span class="zahl" style="color: var(--akzent)">${sp.gesamt}</span><span class="note">${esc(sp.note || "")}<span class="pm">${pm(sp)}</span></span></div></div>`;
+  const ende = `<div class="card"><span class="klein">Bass am Hauptplatz (dB)</span>${kurveSvg(e.kurve)}
+    <div class="legende"><span><i style="background: var(--heute)"></i>heute</span><span><i style="background: var(--akzent)"></i>mit Klang-Box</span></div></div>
+    <details class="kasten"><summary>Aufnahmen und Tipps</summary>${pruef}${tipps}</details>${loeschen}`;
+  if (!sh.kacheln) return `<section class="runde" style="display:grid; gap:12px">${kopf}${zahlen}<p class="klein">Ältere Messrunde (Score v1). Für die neue Auswertung bitte neu messen.</p>${ende}</section>`;
   const kacheln = Object.keys(sp.kacheln).map((k) => { const a = sh.kacheln[k], b = sp.kacheln[k];
-    return `<div class="kachel"><div class="titel"><span><i class="ampel ${b.ampel}" aria-hidden="true"></i>${esc(b.titel)}</span></div>
-      <div class="pz">${a.punkte ?? "–"} <small>→</small> <span style="color: var(--prog)">${b.punkte ?? "–"}</span></div>
+    return `<div class="kachel"><div class="titel"><span>${esc(b.titel)}</span><i class="ampel ${b.ampel}" aria-label="${b.ampel === "gruen" ? "gut" : b.ampel === "gelb" ? "mittel" : b.ampel === "rot" ? "schwach" : "nicht gemessen"}"></i></div>
+      <div class="pz">${a.punkte ?? "–"} → <span style="color: var(--akzent)">${b.punkte ?? "–"}</span></div>
       <p>${esc(b.satz)}</p></div>`; }).join("");
-  const hebelKarte = (h, wann) => h ? `<div class="hebel"><span class="klein">Größter Hebel ${wann}</span><b>${esc(h.name)}</b><p>${esc(h.massnahme)}</p>
+  const hebelKarte = (h, wann) => h ? `<div class="hebel"><span class="marke">Größter Hebel ${wann}</span><b>${esc(h.name)}</b><p style="font-size:14px; line-height:1.45">${esc(h.massnahme)}</p>
       <span class="klein">Bis zu +${h.bis_zu_punkte} Punkte (geschätzt)</span></div>` : "";
   const zeilen = Object.entries(sp.kennzahlen).filter(([, b]) => b.gewicht || b.punkte !== null).map(([k, b]) => { const a = sh.kennzahlen[k];
     const ca = b.konfidenz > 0 && b.konfidenz < 1 ? " ca." : "";
     return `<tr><td>${esc(b.name)}${b.gewicht ? "" : " <span class='klein'>(nur Info)</span>"}<br><span class="klein">${esc(a.anzeige)} → ${esc(b.anzeige)}</span></td>
-      <td class="n" style="color: var(--heute)">${a.punkte ?? "–"}</td><td class="n" style="color: var(--prog)">${b.punkte ?? "–"}</td>
+      <td class="n" style="color: var(--heute)">${a.punkte ?? "–"}</td><td class="n" style="color: var(--akzent)">${b.punkte ?? "–"}</td>
       <td class="n klein">${b.gewicht}%${ca}</td></tr>`; }).join("");
-  return `<section class="card">${kopf}${zahlen}
+  const rt = raumTippsMitScan(e.raum_tipps || []);
+  return `<section class="runde" style="display:grid; gap:12px">${kopf}${zahlen}
     <p class="klein">${esc(e.score_name)} von 0 bis 100${pm(sh) || pm(sp) ? `, Messunsicherheit heute${pm(sh)}, Prognose${pm(sp)}` : ""}. 90 Referenz · 75 Sehr gut · 60 Gut · 40 Ordentlich.${sp.gekappt ? " Prognose begrenzt: ein Kernwert ist noch schwach." : ""}</p>
     <div class="kacheln">${kacheln}</div>
     ${hebelKarte(sp.hebel, "mit Klang-Box")}
-    ${(e.raum_tipps || []).length ? `<div class="raumtipps"><span class="klein">Was am Raum selbst hilft (das kann keine Technik)</span>${e.raum_tipps.map((t) =>
+    ${rt.length ? `<div class="card raumtipps"><span class="marke">Was am Raum selbst hilft</span><span class="klein">Das kann keine Technik.</span>${rt.map((t) =>
       `<div class="vorschlag"><b>${esc(t.titel)}</b><p style="font-size:14px">${esc(t.text)}</p><span class="klein">Wirkung: ${esc(t.wirkung)}</span></div>`).join("")}</div>` : ""}
-    <details><summary>Alle Messwerte (heute → mit Klang-Box)</summary><div class="tabelle"><table>
+    <details class="kasten"><summary>Alle Messwerte (heute → mit Klang-Box)</summary><div class="tabelle"><table>
       <thead><tr><th>Kennzahl</th><th class="n">heute</th><th class="n">Box</th><th class="n">Gewicht</th></tr></thead><tbody>${zeilen}</tbody></table></div>
       <p class="klein">„ca.“: Das iPhone misst diesen Wert nur ungefähr, er zählt deshalb weniger. Grenzwerte: eigene Festlegungen nach EBU/ITU, AES und Hörstudien (Fazenda, Olive), noch nicht mit vielen Räumen abgeglichen.</p></details>
-    ${ende}`;
+    ${ende}</section>`;
+}
+
+// --- Raumscan (RoomPlan aus der App oder raum.json) -----------------------------------------------
+// Format (Meter): Grundriss von oben wie RoomPlan (x, z): x nach rechts, y nach unten wie in einem Bild,
+// x/y ≥ 0, Höhe z. Wände, Türen, Fenster, Öffnungen, Objekte mit mitte [x, y, z], groesse [b, t, h], drehung_grad.
+// Für den Sweetspot-Finder wird gedreht/gespiegelt: x quer ab der linken Wand, y ab der Wand hinter den Boxen.
+let scan = null;  // { roh, wand, sicher, grund, ss }
+const MOEBEL = { sofa: "Sofa", tisch: "Tisch", stuhl: "Stuhl", regal: "Regal", fernseher: "Fernseher", bett: "Bett", schrank: "Schrank", kamin: "Kamin", sonstiges: "Möbel" };
+const v2 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1]], add: (a, b) => [a[0] + b[0], a[1] + b[1]], mal: (a, k) => [a[0] * k, a[1] * k],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1], len: (a) => Math.hypot(a[0], a[1]) };
+function imPolygon(p, poly) {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) c = !c; }
+  return c;
+}
+function abstandStrecke(p, a, b) { const d = v2.sub(b, a), t = Math.max(0, Math.min(1, v2.dot(v2.sub(p, a), d) / (v2.dot(d, d) || 1))); return v2.len(v2.sub(p, v2.add(a, v2.mal(d, t)))); }
+const richtung = (w) => { const d = v2.sub(w.b, w.a), l = v2.len(d) || 1; return [d[0] / l, d[1] / l]; };
+function innenNormale(w, poly) {
+  const d = richtung(w), n = [-d[1], d[0]], m = v2.mal(v2.add(w.a, w.b), 0.5);
+  return imPolygon(v2.add(m, v2.mal(n, 0.05)), poly) ? n : [-n[0], -n[1]];
+}
+function scanPruefen(r) {
+  const pkt = (p) => Array.isArray(p) && p.length >= 2 && Number.isFinite(+p[0]) && Number.isFinite(+p[1]);
+  if (!r || typeof r !== "object") throw new Error("keine Raumdaten");
+  if (r.version !== 1) throw new Error(`Version ${esc(r.version)} wird nicht unterstützt`);
+  if (!Array.isArray(r.grundriss) || r.grundriss.length < 3 || !r.grundriss.every(pkt)) throw new Error("Grundriss fehlt");
+  const hoehe = +r.hoehe;
+  if (!(hoehe >= 1.8 && hoehe <= 6)) throw new Error("Raumhöhe unplausibel");
+  const grundriss = r.grundriss.map((p) => [+p[0], +p[1]]);
+  let waende = (Array.isArray(r.waende) ? r.waende : []).filter((w) => w && pkt(w.a) && pkt(w.b)).map((w, i) => ({ id: String(w.id ?? `w${i + 1}`), a: [+w.a[0], +w.a[1]], b: [+w.b[0], +w.b[1]], hoehe: +w.hoehe || hoehe }));
+  if (!waende.length) waende = grundriss.map((p, i) => ({ id: `w${i + 1}`, a: p, b: grundriss[(i + 1) % grundriss.length], hoehe }));
+  const liste = (x) => (Array.isArray(x) ? x : []).filter((o) => o && pkt(o.mitte) && +o.breite > 0);
+  const objekte = (Array.isArray(r.objekte) ? r.objekte : []).filter((o) => o && pkt(o.mitte) && Array.isArray(o.groesse) && o.groesse.length >= 2)
+    .map((o) => ({ art: MOEBEL[o.art] ? o.art : "sonstiges", mitte: o.mitte.map(Number), groesse: o.groesse.map(Number), drehung_grad: +o.drehung_grad || 0 }));
+  return { ...r, hoehe, grundriss, waende, tueren: liste(r.tueren), fenster: liste(r.fenster), oeffnungen: liste(r.oeffnungen), objekte };
+}
+function boxenwand(r) {
+  const nah = (p) => r.waende.map((w) => [abstandStrecke(p, w.a, w.b), w]).sort((p, q) => p[0] - q[0]);
+  const tv = r.objekte.find((o) => o.art === "fernseher"), sofa = r.objekte.find((o) => o.art === "sofa");
+  if (tv) { const d = nah(tv.mitte); return { id: d[0][1].id, sicher: d.length < 2 || d[1][0] - d[0][0] > 0.3, grund: "beim Fernseher" }; }
+  if (sofa) {
+    const hinter = nah(sofa.mitte)[0][1], u = richtung(hinter);
+    const geg = r.waende.filter((w) => w !== hinter && Math.abs(v2.dot(richtung(w), u)) > 0.9 && v2.len(v2.sub(w.b, w.a)) >= 1)
+      .map((w) => [abstandStrecke(sofa.mitte, w.a, w.b), w]).sort((p, q) => q[0] - p[0]);
+    if (geg.length) return { id: geg[0][1].id, sicher: false, grund: "gegenüber dem Sofa" };
+  }
+  const l = [...r.waende].sort((p, q) => v2.len(v2.sub(q.b, q.a)) - v2.len(v2.sub(p.b, p.a)));
+  return { id: l[0].id, sicher: false, grund: "längste Wand" };
+}
+// Alles ins Sweetspot-System drehen: Blick vom Hörplatz zur Boxenwand, x nach rechts, y in den Raum
+function scanSystem(r, wandId) {
+  const w = r.waende.find((x) => x.id === wandId) || r.waende[0], n = innenNormale(w, r.grundriss), rechts = [n[1], -n[0]];
+  const roh = (p) => [v2.dot(p, rechts), v2.dot(v2.sub(p, w.a), n)];
+  const pr = r.grundriss.map(roh), x0 = Math.min(...pr.map((p) => p[0])), y0 = Math.min(...pr.map((p) => p[1]));
+  const T = (p) => { const q = roh(p); return [q[0] - x0, q[1] - y0]; }, Tv = (v) => [v2.dot(v, rechts), v2.dot(v, n)];
+  const poly = r.grundriss.map(T), breite = Math.max(...poly.map((p) => p[0])), laenge = Math.max(...poly.map((p) => p[1]));
+  const wandVon = (el) => r.waende.find((x) => x.id === el.wand) || r.waende.map((x) => [abstandStrecke(el.mitte, x.a, x.b), x]).sort((p, q) => p[0] - q[0])[0][1];
+  const loch = (el) => { const wd = wandVon(el); return { mitte: T(el.mitte), t: Tv(richtung(wd)), ni: Tv(innenNormale(wd, r.grundriss)), breite: +el.breite }; };
+  const objekte = r.objekte.map((o) => {
+    const th = o.drehung_grad * Math.PI / 180, c = Math.cos(th), s = Math.sin(th), [b, t] = o.groesse;
+    const ecken = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([i, j]) => T([o.mitte[0] + c * i * b / 2 - s * j * t / 2, o.mitte[1] + s * i * b / 2 + c * j * t / 2]));
+    return { art: o.art, name: MOEBEL[o.art], mitte: T(o.mitte), ecken };
+  });
+  const sc = { breite, laenge, hoehe: r.hoehe, poly, waende: r.waende.map((x) => ({ id: x.id, a: T(x.a), b: T(x.b) })),
+    tueren: r.tueren.map(loch), fenster: r.fenster.map(loch), oeffnungen: r.oeffnungen.map(loch), objekte };
+  sc.sperrzonen = sperrzonenAusScan(sc);
+  // Derselbe Raum im Sweetspot-System für die 3D-Ansicht (raum3d.js): Drehung um φ, Objekte mitdrehen
+  const phi = Math.atan2(n[0], n[1]) * 180 / Math.PI, mitWand = (l) => l.map((t) => ({ ...t, mitte: T(t.mitte) }));
+  sc.raum3d = { version: 1, quelle: r.quelle, hoehe: r.hoehe, rechteckig: r.rechteckig, grundriss: poly, waende: r.waende.map((x) => ({ id: x.id, a: T(x.a), b: T(x.b), hoehe: x.hoehe })),
+    tueren: mitWand(r.tueren), fenster: mitWand(r.fenster), oeffnungen: mitWand(r.oeffnungen),
+    objekte: r.objekte.map((o) => ({ ...o, mitte: [...T(o.mitte), o.mitte[2] ?? (o.groesse[2] || 0) / 2], drehung_grad: o.drehung_grad + phi })) };
+  return sc;
+}
+const rechteck = (pts, extra) => ({ x0: Math.min(...pts.map((p) => p[0])), y0: Math.min(...pts.map((p) => p[1])), x1: Math.max(...pts.map((p) => p[0])), y1: Math.max(...pts.map((p) => p[1])), ...extra });
+const vorDerWand = (l, tiefe) => { const h = v2.mal(l.t, l.breite / 2), a = v2.sub(l.mitte, h), b = v2.add(l.mitte, h), d = v2.mal(l.ni, tiefe); return [a, b, v2.add(a, d), v2.add(b, d)]; };
+function sperrzonenAusScan(sc) {
+  const z = [];
+  for (const t of sc.tueren) z.push(rechteck(vorDerWand(t, 0.9), { grund: "steht im Türschwenk (Laufweg)", art: "tuer" }));
+  for (const t of sc.oeffnungen) z.push(rechteck(vorDerWand(t, 0.9), { grund: "steht im Durchgang", art: "tuer" }));
+  for (const f of sc.fenster) z.push(rechteck(vorDerWand(f, 0.3), { grund: "zu nah vor dem Fenster (unter 30 cm)", fuer: ["boxen", "sub"], art: "fenster" }));
+  for (const o of sc.objekte) z.push(rechteck(o.ecken, { grund: `steht im Möbel (${o.name})`, art: "moebel", ...(o.art === "sofa" ? { fuer: ["boxen", "sub"] } : {}) }));
+  // Ecken und Nischen außerhalb des Grundrisses (L-Raum): Rasterzellen der Bounding-Box
+  const xs = [...new Set([0, sc.breite, ...sc.poly.map((p) => p[0])].map((x) => Math.round(x * 1000) / 1000))].sort((a, b) => a - b);
+  const ys = [...new Set([0, sc.laenge, ...sc.poly.map((p) => p[1])].map((y) => Math.round(y * 1000) / 1000))].sort((a, b) => a - b);
+  for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < ys.length; j++)
+    if (xs[i + 1] - xs[i] > 0.01 && ys[j + 1] - ys[j] > 0.01 && !imPolygon([(xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2], sc.poly))
+      z.push({ x0: xs[i], y0: ys[j], x1: xs[i + 1], y1: ys[j + 1], grund: "liegt außerhalb des Raums (Ecke oder Nische)", art: "aussen" });
+  return z;
+}
+const inZone = (p, art, zonen) => zonen.some((z) => (z.fuer || ["boxen", "sub", "hoerplatz"]).includes(art) && z.x0 <= p[0] && p[0] <= z.x1 && z.y0 <= p[1] && p[1] <= z.y1);
+const r2 = (x) => String(Math.round(x * 100) / 100);
+function scanFelderSetzen(sc, roh) {
+  const setze = (k, x) => { $("s-" + k).value = r2(x); };
+  setze("breite", sc.breite); setze("laenge", sc.laenge); setze("hoehe", sc.hoehe);
+  const flaeche = Math.abs(sc.poly.reduce((s, p, i) => { const q = sc.poly[(i + 1) % sc.poly.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+  $("s-eckig").checked = roh.rechteckig != null ? !!roh.rechteckig : flaeche / (sc.breite * sc.laenge) > 0.95;
+  const sofa = sc.objekte.find((o) => o.art === "sofa"), klemm = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+  const hx = klemm(sofa ? sofa.mitte[0] : sc.breite / 2, 0.35, sc.breite - 0.35), hy = klemm(sofa ? sofa.mitte[1] : 0.6 * sc.laenge, 1.4, sc.laenge - 0.35);
+  setze("hx", hx); setze("hy", hy);
+  // Boxen kennt der Scan nicht: Vorschlag symmetrisch zum Hörplatz, ±30° (höchstens bis 40 cm an die Seitenwand)
+  const fy = 0.6, dx = Math.max(0.5, Math.min((hy - fy) * Math.tan(Math.PI / 6), hx - 0.4, sc.breite - hx - 0.4));
+  setze("fy", fy); setze("flx", hx - dx); setze("frx", hx + dx);
+  const frei = [[0.35, 0.3], [sc.breite - 0.35, 0.3], [hx - dx - 0.4, fy], [hx + dx + 0.4, fy]].find((p) => !inZone(p, "sub", sc.sperrzonen)) || [0.35, 0.3];
+  setze("sx", frei[0]); setze("sy", frei[1]);
+}
+function raumgroesseAusScan(roh, sc) {
+  const flaeche = +roh.flaeche_m2 || Math.abs(sc.poly.reduce((s, p, i) => { const q = sc.poly[(i + 1) % sc.poly.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+  const v = +roh.volumen_m3 || flaeche * sc.hoehe;
+  let o = $("raum").querySelector("option[data-scan]");
+  if (!o) { o = document.createElement("option"); o.dataset.scan = "1"; $("raum").appendChild(o); }
+  o.value = String(Math.round(v * 10) / 10);
+  o.textContent = `Aus dem Raumscan: ${f1(flaeche)} m², ${f1(v)} m³`;
+  $("raum").value = o.value;
+  $("raum-hinweis").hidden = false;
+  $("raum-hinweis").textContent = `✓ Raumgröße aus dem Raumscan: ${f1(flaeche)} m², ${f1(v)} m³ (${f2(sc.breite)} × ${f2(sc.laenge)} m, ${f2(sc.hoehe)} m hoch)`;
+}
+function scanAnwenden(roh, { wand = null, felder = true, bestaetigt = false, quelle = "Datei" } = {}) {
+  const r = scanPruefen(roh), bw = boxenwand(r), id = wand && r.waende.some((w) => w.id === wand) ? wand : bw.id;
+  scan = { roh: r, wand: id, sicher: !!bestaetigt, grund: id === bw.id ? bw.grund : "von dir gewählt", quelle, ss: scanSystem(r, id) };
+  if (felder) scanFelderSetzen(scan.ss, r);
+  raumgroesseAusScan(r, scan.ss);
+  // Wand-Auswahl zum Bestätigen oder Ändern
+  const tags = (w) => { const t = []; const nahe = (p) => abstandStrecke(p, w.a, w.b) < 0.5;
+    if (r.objekte.some((o) => o.art === "fernseher" && nahe(o.mitte))) t.push("Fernseher"); if (r.fenster.some((f) => f.wand === w.id)) t.push("Fenster");
+    if (r.tueren.some((f) => f.wand === w.id)) t.push("Tür"); return t.length ? ` (${t.join(", ")})` : ""; };
+  $("s-wand").innerHTML = r.waende.map((w, i) => `<option value="${esc(w.id)}"${w.id === id ? " selected" : ""}>${i + 1}. Wand, ${f1(v2.len(v2.sub(w.b, w.a)))} m${esc(tags(w))}</option>`).join("");
+  $("s-scan-wahl").hidden = false; $("s-scan-weg").hidden = false;
+  $("s-bestaetigen-zeile").hidden = scan.sicher; $("s-bestaetigt").checked = scan.sicher;
+  $("s-scan-text").innerHTML = `<span class="ok">✓ Aus dem Raumscan${quelle === "App" ? " der App" : ""}:</span> ${f2(scan.ss.breite)} × ${f2(scan.ss.laenge)} m, ${r.tueren.length} Tür(en), ${r.fenster.length} Fenster, ${r.objekte.length} Möbel. Boxen und Sub kennt der Scan nicht: Positionen sind ein Vorschlag, bitte nachmessen.<br>${scan.sicher
+    ? `Wand hinter den Boxen: ${esc(scan.grund)}.` : `<b class="warn">Tippe in der Skizze auf die Wand, an der die Boxen stehen</b> (Vorschlag: die Wand ${esc(scan.grund)}, oben eingezeichnet) oder bestätige unten.`}`;
+  $("g-lauf-text").textContent = "80 cm vor Türen und zum Sofa, aus dem Raumscan";
+  schreiben("raumcheck-raumscan", JSON.stringify({ raum: roh, wand: id, bestaetigt: scan.sicher }));
+  if (felder) felderMerken();
+  planZeigen(); zeigeAlles();
+}
+function scanVergessen() {
+  scan = null; schreiben("raumcheck-raumscan", "");
+  $("s-scan-wahl").hidden = true; $("s-scan-weg").hidden = true;
+  $("s-scan-text").textContent = "Mit der Klang-Box-App gescannt? Lade die raum.json: Maße, Türen, Fenster und Möbel werden übernommen.";
+  const o = $("raum").querySelector("option[data-scan]"); if (o) { o.remove(); $("raum").value = lesen("raumcheck-raum", ""); }
+  $("raum-hinweis").hidden = true; planZeigen(); zeigeAlles();
+}
+$("s-raumdatei").addEventListener("change", async (ev) => {
+  const f = ev.target.files[0]; ev.target.value = "";
+  if (!f) return;
+  try { scanAnwenden(JSON.parse(await f.text()), { felder: true, quelle: "Datei" }); $("s-status").textContent = ""; }
+  catch (e) { $("s-status").innerHTML = `<span class="warn">Raumscan ließ sich nicht lesen: ${esc(e.message || e)}</span>`; }
+});
+$("s-wand").addEventListener("change", () => { if (scan) scanAnwenden(scan.roh, { wand: $("s-wand").value, felder: true, bestaetigt: true, quelle: scan.quelle }); });
+$("s-bestaetigt").addEventListener("change", () => { if (scan && $("s-bestaetigt").checked) scanAnwenden(scan.roh, { wand: scan.wand, felder: false, bestaetigt: true, quelle: scan.quelle }); });
+$("s-scan-weg").addEventListener("click", scanVergessen);
+
+// Raum-Tipps mit dem Scan anreichern: Fenster an der Seite → Vorhang statt allgemeinem Absorber (RA2),
+// Fenster nur auf einer Seite der Hörachse → RA3-artiger Hinweis
+function raumTippsMitScan(tipps) {
+  if (!scan || !scan.ss.fenster.length) return tipps;
+  const achse = parseFloat($("s-hx").value) || scan.ss.breite / 2;
+  const seitlich = scan.ss.fenster.filter((f) => Math.abs(f.t[1]) > 0.7);
+  const seiten = { links: seitlich.filter((f) => f.mitte[0] < achse), rechts: seitlich.filter((f) => f.mitte[0] >= achse) };
+  const vorhang = (s) => { const b = Math.max(...seiten[s].map((f) => f.breite));
+    return `Fenster ${s}: Vorhang (doppelte Fensterbreite, 10–15 cm vor dem Glas) – also etwa ${f1(2 * b)} m Stoff, schwer, in Falten, bodenlang.`; };
+  const out = tipps.map((t) => ({ ...t }));
+  let ra2 = null;
+  const i1 = out.findIndex((t) => t.regel === "RA1");
+  if (i1 >= 0) {
+    const t = out[i1], s = t.seite || (/linken/.test(t.text) ? "links" : "rechts");
+    if (seiten[s].length) {
+      ra2 = s;
+      out[i1] = { regel: "RA2", seite: s, titel: "Das Fenster spiegelt den Schall", text: `${t.text.split(": meist")[0]}. Laut Raumscan ist dort ein Fenster. ${vorhang(s)}`,
+        wirkung: "Reflexion etwa 10 dB leiser ab 500 Hz, Stimmen klarer. Im Bass ändert sich nichts." };
+    }
+  }
+  const nurEine = !!seiten.links.length !== !!seiten.rechts.length ? (seiten.links.length ? "links" : "rechts") : null;
+  if (nurEine) {
+    const i3 = out.findIndex((t) => t.regel === "RA3");
+    if (i3 >= 0) out[i3] = { ...out[i3], text: `${out[i3].text} Laut Raumscan ist nur ${nurEine} ein Fenster. ${vorhang(nurEine)}` };
+    else if (ra2 !== nurEine) out.push({ regel: "RA3", seite: nurEine, titel: `Fenster nur ${nurEine}`,
+      text: `Laut Raumscan ist nur ${nurEine} von der Hörachse ein Fenster. Glas wirft den Schall härter zurück als die Wand gegenüber, das Klangbild kann leicht nach ${nurEine} kippen. ${vorhang(nurEine)} Auf der anderen Seite hilft ein Regal oder Paneel, damit beide Seiten ähnlich klingen.`,
+      wirkung: "Stabilere Mitte, Stimmen kleben nicht an einer Box." });
+  }
+  return out;
 }
 
 // --- Sweetspot-Finder -------------------------------------------------------------------------
 const SFELDER = ["breite", "laenge", "hoehe", "t60", "flx", "frx", "fy", "fz", "hx", "hy", "sx", "sy"];
-try { const g = JSON.parse(localStorage.getItem("raumcheck-sweetspot") || "{}"); for (const k of SFELDER) if (g[k] != null) $("s-" + k).value = g[k];
+try { const g = JSON.parse(lesen("raumcheck-sweetspot", "{}")); for (const k of SFELDER) if (g[k] != null) $("s-" + k).value = g[k];
   if (g.ohnesub) $("s-ohnesub").checked = true; if (g.eckig === false) $("s-eckig").checked = false; } catch (e) {}
-function grundriss(raum, start, ziel) {
-  const W = 300, s = Math.min((W - 20) / raum.breite, 260 / raum.laenge), H = raum.laenge * s + 20;
-  const X = (x) => 10 + x * s, Y = (y) => 10 + y * s;
-  const punkt = (p, farbe, r, t) => p ? `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="${r}" fill="${farbe}"/><text x="${(X(p[0]) + r + 2).toFixed(1)}" y="${(Y(p[1]) + 3).toFixed(1)}">${t}</text>` : "";
-  const box = (p, farbe) => `<rect x="${(X(p[0]) - 6).toFixed(1)}" y="${(Y(p[1]) - 6).toFixed(1)}" width="12" height="12" rx="2" fill="${farbe}"/>`;
-  let g = `<rect x="10" y="10" width="${(raum.breite * s).toFixed(1)}" height="${(raum.laenge * s).toFixed(1)}" fill="none" stroke="#2a3038" stroke-width="2"/>`;
-  g += `<text x="${X(raum.breite / 2)}" y="8" text-anchor="middle">Wand hinter den Boxen</text>`;
-  for (const [a, f] of [[start, "#5b6470"], [ziel, "#7fb0ff"]]) {
-    if (!a) continue;
-    g += `<line x1="${X(a.fl[0])}" y1="${Y(a.fl[1])}" x2="${X(a.hoerplatz[0])}" y2="${Y(a.hoerplatz[1])}" stroke="${f}" stroke-dasharray="3 3"/>`;
-    g += `<line x1="${X(a.fr[0])}" y1="${Y(a.fr[1])}" x2="${X(a.hoerplatz[0])}" y2="${Y(a.hoerplatz[1])}" stroke="${f}" stroke-dasharray="3 3"/>`;
-    g += box(a.fl, f) + box(a.fr, f) + punkt(a.hoerplatz, f, 6, a === ziel ? "Platz" : "") + punkt(a.sub, f, 7, a === ziel && a.sub ? "Sub" : "");
-  }
-  return `<svg viewBox="0 0 ${W} ${H.toFixed(0)}" width="100%" role="img" aria-label="Grundriss: grau heute, blau Vorschlag">${g}</svg>`;
-}
-$("s-rechnen").addEventListener("click", async () => {
+function felderMerken() {
   const v = {}; for (const k of SFELDER) v[k] = parseFloat(String($("s-" + k).value).replace(",", "."));
-  const ohneSub = $("s-ohnesub").checked, eckig = $("s-eckig").checked;
-  try { localStorage.setItem("raumcheck-sweetspot", JSON.stringify({ ...v, ohnesub: ohneSub, eckig })); } catch (e) {}
-  // Wächter für die Eingaben: nur plausible Zahlen, alles im Raum
-  const fehler = [];
+  schreiben("raumcheck-sweetspot", JSON.stringify({ ...v, ohnesub: $("s-ohnesub").checked, eckig: $("s-eckig").checked }));
+}
+// „Was ist erlaubt?“: Grenzen, in localStorage gemerkt
+const GRENZEN_STD = { sofaFest: true, sofaCm: 30, wandCm: 60, seiteCm: 30, sym: true, sub: "frei", subWand: true, laufwege: true };
+let grenzenUi = { ...GRENZEN_STD };
+try { grenzenUi = { ...GRENZEN_STD, ...JSON.parse(lesen("raumcheck-grenzen", "{}")) }; } catch (e) {}
+let fest = []; try { fest = JSON.parse(lesen("raumcheck-fest", "[]")); } catch (e) { fest = []; }
+let hierNicht = []; try { hierNicht = JSON.parse(lesen("raumcheck-hiernicht", "[]")); } catch (e) { hierNicht = []; }
+function grenzenZeigen() {
+  const g = grenzenUi;
+  $("g-sofa-fest").setAttribute("aria-pressed", g.sofaFest); $("g-sofa-darf").setAttribute("aria-pressed", !g.sofaFest);
+  $("g-sofa-regler").hidden = g.sofaFest; $("g-sofa").value = g.sofaCm; $("g-sofa-wert").textContent = `± ${g.sofaCm} cm`;
+  $("g-sofa-text").textContent = g.sofaFest ? "bleibt, wo es ist" : `darf ± ${g.sofaCm} cm wandern`;
+  $("g-wand").value = g.wandCm; $("g-wand-wert").textContent = `${g.wandCm} cm`;
+  $("g-seite").value = g.seiteCm; $("g-seite-wert").textContent = `± ${g.seiteCm} cm`;
+  $("g-sym").setAttribute("aria-checked", g.sym); $("g-subwand").setAttribute("aria-checked", g.subWand); $("g-lauf").setAttribute("aria-checked", g.laufwege);
+  document.querySelectorAll("[data-sub]").forEach((c) => c.setAttribute("aria-pressed", c.dataset.sub === g.sub));
+  const NAMEN = { fl: "linke Box", fr: "rechte Box", sub: "Sub", hoerplatz: "Hörplatz" };
+  $("s-fest").hidden = !fest.length; $("s-fest-text").textContent = fest.length ? `Geht nicht: ${fest.map((t) => NAMEN[t] || t).join(", ")} bleibt fest.` : "";
+}
+const grenzeSetzen = (k, v) => { grenzenUi[k] = v; schreiben("raumcheck-grenzen", JSON.stringify(grenzenUi)); grenzenZeigen(); };
+$("g-sofa-fest").addEventListener("click", () => grenzeSetzen("sofaFest", true));
+$("g-sofa-darf").addEventListener("click", () => grenzeSetzen("sofaFest", false));
+$("g-sofa").addEventListener("input", () => grenzeSetzen("sofaCm", +$("g-sofa").value));
+$("g-wand").addEventListener("input", () => grenzeSetzen("wandCm", +$("g-wand").value));
+$("g-seite").addEventListener("input", () => grenzeSetzen("seiteCm", +$("g-seite").value));
+for (const [id, k] of [["g-sym", "sym"], ["g-subwand", "subWand"], ["g-lauf", "laufwege"]]) $(id).addEventListener("click", () => { grenzeSetzen(k, !grenzenUi[k]); planZeigen(); });
+document.querySelectorAll("[data-sub]").forEach((c) => c.addEventListener("click", () => grenzeSetzen("sub", c.dataset.sub)));
+$("s-fest-weg").addEventListener("click", () => { fest = []; schreiben("raumcheck-fest", "[]"); grenzenZeigen(); });
+grenzenZeigen();
+// Grenzen im Schema von sweetspot.js / klangbox/sweetspot.py
+const grenzenSchema = () => ({ hoerplatz_m: grenzenUi.sofaFest ? 0 : grenzenUi.sofaCm / 100, boxen_wand_max_m: grenzenUi.wandCm / 100,
+  boxen_seitlich_max_m: grenzenUi.seiteCm / 100, boxen_symmetrisch: !!grenzenUi.sym, sub: grenzenUi.sub, sub_wandnah_m: grenzenUi.subWand ? 0.3 : null });
+// Laufwege: 80 cm breiter Gang vor jeder Tür und von der Tür bis zum Sofa (zwei Rechtecke, erst quer, dann längs)
+function laufwegZonen(sc) {
+  if (!sc) return [];
+  const z = [], sofa = sc.objekte.find((o) => o.art === "sofa"), g = { grund: "steht im Laufweg (Tür → Sofa)", grenze: true, art: "laufweg" };
+  for (const t of [...sc.tueren, ...sc.oeffnungen]) {
+    const p = v2.add(t.mitte, v2.mal(t.ni, 0.45));
+    z.push(rechteck(vorDerWand({ ...t, breite: Math.max(0.8, t.breite) }, 0.9), g));
+    if (!sofa) continue;
+    const bx = rechteck(sofa.ecken), ziel = [Math.min(bx.x1, Math.max(bx.x0, p[0])), Math.min(bx.y1, Math.max(bx.y0, p[1]))];
+    z.push(rechteck([[p[0], p[1] - 0.4], [ziel[0], p[1] + 0.4]], g), rechteck([[ziel[0] - 0.4, p[1]], [ziel[0] + 0.4, ziel[1]]], g));
+  }
+  return z.filter((r) => r.x1 - r.x0 > 0.01 && r.y1 - r.y0 > 0.01);
+}
+function aktuelleZonen() {
+  return [...(scan ? scan.ss.sperrzonen : []), ...(grenzenUi.laufwege ? laufwegZonen(scan && scan.ss) : []),
+    ...hierNicht.map((p) => ({ x0: p[0] - 0.25, y0: p[1] - 0.25, x1: p[0] + 0.25, y1: p[1] + 0.25, grund: "steht auf einer Fläche, die du gesperrt hast („hier nicht“)", grenze: true, art: "hiernicht" }))];
+}
+function felderLesen() {
+  const v = {}; for (const k of SFELDER) v[k] = parseFloat(String($("s-" + k).value).replace(",", "."));
+  const ohneSub = $("s-ohnesub").checked, eckig = $("s-eckig").checked, fehler = [];
   for (const k of SFELDER) if (!isFinite(v[k])) fehler.push(`Feld „${$("s-" + k).parentElement.firstChild.textContent}“ ist keine Zahl.`);
   if (!fehler.length) {
     if (v.breite < 2 || v.laenge < 2 || v.hoehe < 2 || v.breite > 15 || v.laenge > 20 || v.hoehe > 5) fehler.push("Raummaße unplausibel (2–15 m breit, 2–20 m lang, 2–5 m hoch).");
@@ -1885,26 +2572,166 @@ $("s-rechnen").addEventListener("click", async () => {
     if (v.frx <= v.flx) fehler.push("Die rechte Box muss weiter rechts stehen als die linke.");
     if (v.hy <= v.fy) fehler.push("Der Hörplatz muss vor den Boxen liegen.");
   }
-  if (fehler.length) { $("s-status").innerHTML = `<span class="warn">${fehler.map(esc).join(" ")}</span>`; return; }
-  const raum = { breite: v.breite, laenge: v.laenge, hoehe: v.hoehe, t60: v.t60, rechteckig: eckig };
+  const raum = { breite: v.breite, laenge: v.laenge, hoehe: v.hoehe, t60: v.t60, rechteckig: eckig, sperrzonen: aktuelleZonen().map(({ art, ...z }) => z) };
   const start = { hoerplatz: [v.hx, v.hy, 1.1], fl: [v.flx, v.fy, v.fz], fr: [v.frx, v.fy, v.fz], sub: ohneSub ? null : [v.sx, v.sy, 0.25] };
+  return { v, raum, start, fehler };
+}
+const P = (n) => n.toFixed(1);
+// Grundriss: echtes Polygon aus dem Scan (Türen als Lücke mit Bogen, Fenster hellblau doppelt, Möbel grau),
+// heute grau, Vorschlag als Geist in der Akzentfarbe
+function grundriss(raum, start, ziel, klickbar) {
+  const W = 340, s = Math.min((W - 20) / raum.breite, 300 / raum.laenge), H = raum.laenge * s + 28;
+  const X = (x) => P(10 + x * s), Y = (y) => P(18 + y * s), pt = (p) => `${X(p[0])},${Y(p[1])}`;
+  const sc = scan && scan.ss, BG = "#12161C";
+  let g = `<rect x="1" y="1" width="${W - 2}" height="${P(H - 2)}" rx="10" fill="${BG}" stroke="#2A313B" stroke-width="1"/>`;
+  g += `<text x="${X(raum.breite / 2)}" y="12" text-anchor="middle">Wand hinter den Boxen</text>`;
+  const zonen = aktuelleZonen().filter((z) => z.art === "laufweg" || z.art === "hiernicht");
+  for (const z of zonen) g += `<rect class="${z.art}" x="${X(z.x0)}" y="${Y(z.y0)}" width="${P((z.x1 - z.x0) * s)}" height="${P((z.y1 - z.y0) * s)}" fill="${z.art === "hiernicht" ? "rgba(255,154,112,.18)" : "rgba(255,181,71,.08)"}" stroke="${z.art === "hiernicht" ? "#FF9A70" : "none"}" stroke-dasharray="3 3"/>`;
+  if (sc) {
+    for (const o of sc.objekte) {
+      g += `<polygon class="moebel" points="${o.ecken.map(pt).join(" ")}" fill="${o.art === "sofa" ? "#3A4452" : "#2A313B"}"/>`;
+      const unten = Math.max(...o.ecken.map((p) => p[1])), oben = Math.min(...o.ecken.map((p) => p[1]));
+      if (o.art === "sofa") g += `<text x="${X(o.mitte[0])}" y="${P(+Y(unten) - 4)}" text-anchor="middle" style="fill:#F2F4F7">Sofa</text>`;
+      if (o.art === "fernseher") g += `<text x="${X(o.mitte[0])}" y="${P(+Y(oben) + 12)}" text-anchor="middle" style="fill:#F2F4F7">TV</text>`;
+    }
+    g += `<polygon points="${sc.poly.map(pt).join(" ")}" fill="none" stroke="#9AA3AD" stroke-width="3" stroke-linejoin="round"/>`;
+    const bw = sc.waende.find((w) => w.id === scan.wand);
+    if (bw) g += `<line class="boxenwand ak-s" x1="${X(bw.a[0])}" y1="${Y(bw.a[1])}" x2="${X(bw.b[0])}" y2="${Y(bw.b[1])}" stroke-width="5" stroke-linecap="round" opacity="${scan.sicher ? 0.5 : 1}"/>`;
+    const enden = (l) => { const h = v2.mal(l.t, l.breite / 2); return [v2.sub(l.mitte, h), v2.add(l.mitte, h)]; };
+    for (const t of sc.tueren) {
+      const [a, b] = enden(t), blatt = v2.add(a, v2.mal(t.ni, t.breite)), sweep = t.ni[0] * t.t[1] - t.ni[1] * t.t[0] > 0 ? 1 : 0;
+      g += `<g class="tuer"><line x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" stroke="${BG}" stroke-width="5"/>`
+        + `<path d="M${pt(a)} L${pt(blatt)} A${P(t.breite * s)},${P(t.breite * s)} 0 0 ${sweep} ${pt(b)}" fill="none" stroke="#9AA3AD" stroke-width="1.2"/></g>`;
+    }
+    for (const t of sc.oeffnungen) { const [a, b] = enden(t);
+      g += `<g class="oeffnung"><line x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" stroke="${BG}" stroke-width="5"/><line x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" stroke="#5B6470" stroke-dasharray="2 3"/></g>`; }
+    for (const f of sc.fenster) { const [a, b] = enden(f), d = v2.mal(f.ni, 1.6 / s);
+      g += `<g class="fenster"><line x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" stroke="${BG}" stroke-width="5"/>`
+        + [1, -1].map((k) => `<line x1="${X(a[0] + k * d[0])}" y1="${Y(a[1] + k * d[1])}" x2="${X(b[0] + k * d[0])}" y2="${Y(b[1] + k * d[1])}" stroke="#9CC8FF" stroke-width="1.5"/>`).join("") + `</g>`; }
+  } else g += `<rect x="10" y="18" width="${P(raum.breite * s)}" height="${P(raum.laenge * s)}" fill="none" stroke="#9AA3AD" stroke-width="3"/>`;
+  const box = (p, art) => art === "geist" ? `<rect x="${P(+X(p[0]) - 7)}" y="${P(+Y(p[1]) - 7)}" width="14" height="14" rx="3" fill="none" class="ak-s" stroke-width="2" stroke-dasharray="3 2"/>`
+    : `<rect x="${P(+X(p[0]) - 7)}" y="${P(+Y(p[1]) - 7)}" width="14" height="14" rx="3" fill="${art === "alt" ? "#5B6470" : "#E9ECF0"}"/>`;
+  const sub = (p, art) => p ? (art === "geist" ? `<rect x="${P(+X(p[0]) - 8)}" y="${P(+Y(p[1]) - 8)}" width="16" height="16" rx="4" fill="none" class="ak-s" stroke-width="2" stroke-dasharray="3 2"/>`
+    : `<rect x="${P(+X(p[0]) - 8)}" y="${P(+Y(p[1]) - 8)}" width="16" height="16" rx="4" fill="${art === "alt" ? "#5B6470" : "#9AA3AD"}"/><text x="${P(+X(p[0]) + 11)}" y="${P(+Y(p[1]) + 3)}">Sub</text>`) : "";
+  const pfeil = (a, b) => a && b && v2.len(v2.sub(a, b)) > 0.04 ? `<line x1="${X(a[0])}" y1="${Y(a[1])}" x2="${X(b[0])}" y2="${Y(b[1])}" class="ak-s" stroke-width="1.5"/>` : "";
+  const linien = (a, f) => `<line x1="${X(a.fl[0])}" y1="${Y(a.fl[1])}" x2="${X(a.hoerplatz[0])}" y2="${Y(a.hoerplatz[1])}" stroke="${f}" stroke-width="1.2" stroke-dasharray="3 3"/><line x1="${X(a.fr[0])}" y1="${Y(a.fr[1])}" x2="${X(a.hoerplatz[0])}" y2="${Y(a.hoerplatz[1])}" stroke="${f}" stroke-width="1.2" stroke-dasharray="3 3"/>`;
+  const art = ziel ? "alt" : "heute";
+  g += linien(ziel || start, "#3A4452") + box(start.fl, art) + box(start.fr, art) + sub(start.sub, art);
+  g += `<circle cx="${X(start.hoerplatz[0])}" cy="${Y(start.hoerplatz[1])}" r="7" ${ziel ? `fill="#5B6470"` : `class="ak-f"`}/>`;
+  if (ziel) {
+    g += pfeil(start.fl, ziel.fl) + pfeil(start.fr, ziel.fr) + pfeil(start.sub, ziel.sub) + pfeil(start.hoerplatz, ziel.hoerplatz);
+    const bewegt = (a, b) => a && b && v2.len(v2.sub(a, b)) > 0.04;
+    g += (bewegt(start.fl, ziel.fl) ? box(ziel.fl, "geist") : "") + (bewegt(start.fr, ziel.fr) ? box(ziel.fr, "geist") : "") + (bewegt(start.sub, ziel.sub) ? sub(ziel.sub, "geist") : "") + `<circle cx="${X(ziel.hoerplatz[0])}" cy="${Y(ziel.hoerplatz[1])}" r="7" class="ak-f"/><text x="${P(+X(ziel.hoerplatz[0]) + 10)}" y="${P(+Y(ziel.hoerplatz[1]) + 3)}" class="hell-f">Platz</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${P(H)}" width="100%" role="img" data-massstab="${s}" ${klickbar ? `data-klick="1"` : ""} aria-label="Grundriss: heute${ziel ? " grau, Vorschlag gestrichelt in der Akzentfarbe" : ""}${sc ? ", mit Türen, Fenstern und Möbeln aus dem Raumscan" : ""}">${g}</svg>`;
+}
+let planZiel = null;
+// 3D-Ansicht (raum3d.js + three.js neben der Seite, z. B. in der App): nur laden, wenn ein Raumscan da ist
+let ansicht3d = null, raum3dVersuch = null;
+function raum3dLaden(start) {
+  if (!scan || $("s-3d") === null || document.querySelector('.schritt[data-s="8"]').hidden) { if (!scan && ansicht3d) { ansicht3d.v.zerstoeren(); ansicht3d = null; $("s-3d").hidden = true; } return; }
+  const lade = (src, da) => new Promise((ok, fehler) => { if (da()) return ok(); const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = fehler; document.head.appendChild(el); });
+  if (!raum3dVersuch) raum3dVersuch = lade("three.min.js", () => window.THREE).then(() => lade("raum3d.js", () => window.Raum3D)).then(() => true, () => false);
+  raum3dVersuch.then((ok) => {
+    if (!ok || !scan) return;
+    const vorschlag = {};  // nur bewegte Teile als Geist
+    if (planZiel) for (const k of ["fl", "fr", "sub", "hoerplatz"]) if (planZiel[k] && start[k] && v2.len(v2.sub(planZiel[k], start[k])) > 0.04) vorschlag[k] = planZiel[k];
+    const anlage = { ...start, ...(Object.keys(vorschlag).length ? { vorschlag } : {}) };
+    try {
+      if (ansicht3d && ansicht3d.scan === scan) { ansicht3d.v.aktualisieren(anlage); return; }
+      if (ansicht3d) ansicht3d.v.zerstoeren();
+      $("s-3d").innerHTML = ""; $("s-3d").hidden = false;
+      ansicht3d = { scan, v: window.Raum3D.zeigen($("s-3d"), scan.ss.raum3d, anlage, {}) };
+    } catch (e) { ansicht3d = null; $("s-3d").hidden = true; }
+  });
+}
+function planZeigen(ziel) {
+  if (ziel !== undefined) planZiel = ziel;
+  const { raum, start, fehler } = felderLesen();
+  if (fehler.length) { $("s-plan").innerHTML = ""; $("s-geometrie").innerHTML = `<p class="klein warn">${fehler.map(esc).join(" ")}</p>`; return; }
+  $("s-plan").innerHTML = grundriss(raum, start, planZiel, true);
+  raum3dLaden(start);
+  $("s-geometrie").innerHTML = SSH.geometrie(start, raum).map((k) => `<div class="zeile"><i class="ampel ${k.ampel}" aria-label="${k.ampel}"></i><span><b>${esc(k.thema)} ${esc(k.zahl)}</b> – ${esc(k.satz)}</span></div>`).join("");
+}
+// „Hier nicht“: Tipp in die Skizze markiert 50 × 50 cm, Tipp auf eine Markierung entfernt sie
+$("s-plan").addEventListener("click", (ev) => {
+  const svg = ev.target.closest("svg[data-klick]"); if (!svg) return;
+  const b = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, s = +svg.dataset.massstab;
+  const x = ((ev.clientX - b.left) * vb.width / b.width - 10) / s, y = ((ev.clientY - b.top) * vb.height / b.height - 18) / s;
+  if (scan && !scan.sicher) {  // erst die Wand hinter den Boxen antippen
+    const w = scan.ss.waende.map((w) => [abstandStrecke([x, y], w.a, w.b), w]).sort((p, q) => p[0] - q[0])[0];
+    if (w && w[0] < 0.4) scanAnwenden(scan.roh, { wand: w[1].id, felder: w[1].id !== scan.wand, bestaetigt: true, quelle: scan.quelle });
+    else $("s-status").innerHTML = `<span class="warn">Bitte direkt auf eine Wand tippen.</span>`;
+    return;
+  }
+  const { v } = felderLesen();
+  if (!(x >= 0 && y >= 0 && x <= v.breite && y <= v.laenge)) return;
+  const i = hierNicht.findIndex((p) => Math.abs(p[0] - x) <= 0.25 && Math.abs(p[1] - y) <= 0.25);
+  if (i >= 0) hierNicht.splice(i, 1); else hierNicht.push([Math.round(x * 100) / 100, Math.round(y * 100) / 100]);
+  schreiben("raumcheck-hiernicht", JSON.stringify(hierNicht));
+  planZeigen();
+  $("s-status").textContent = hierNicht.length ? `${hierNicht.length} Fläche(n) „hier nicht“ markiert. Vorschläge neu berechnen, damit sie zählen.` : "";
+});
+SFELDER.concat(["ohnesub", "eckig"]).forEach((k) => $("s-" + k).addEventListener("change", () => { felderMerken(); planZiel = null; planZeigen(); }));
+
+let letzteSweetspot = null;  // { raum, start, ergebnis } der letzten Rechnung
+async function sweetspotRechnen() {
+  const { raum, start, fehler } = felderLesen();
+  felderMerken();
+  if (scan && !scan.sicher && !$("s-bestaetigt").checked) fehler.push("Bitte oben beim Raumscan bestätigen, dass die Wand hinter den Boxen und der Hörplatz stimmen (oder die Wand ändern).");
+  if (fehler.length) { $("s-status").innerHTML = `<span class="warn">${fehler.map(esc).join(" ")}</span>`; return; }
+  const grenzen = grenzenSchema();
   $("s-rechnen").disabled = true;
   $("s-status").innerHTML = `<span class="laeuft">Rechnet viele tausend Aufstellungen durch…</span>`;
-  const r = await imWorker({ art: "sweetspot", raum, start, modus });
+  const r = await imWorker({ art: "sweetspot", raum, start, modus, fest, grenzen });
   $("s-rechnen").disabled = false;
   if (!r.ok) { $("s-status").innerHTML = `<span class="warn">Rechnung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
   const e = r.ergebnis, h = e.heute;
+  letzteSweetspot = { raum, start, ergebnis: e };
   $("s-status").innerHTML = (e.start_waechter || []).length ? `<span class="warn">Heute: ${esc(e.start_waechter.join(" · "))}</span>` : "";
-  const f1 = (x) => x.toLocaleString("de-DE", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
-  const kopf = h ? `<p class="klein">Heute (berechnet): Bass-Unterschied zwischen den Plätzen ${f1(h.streu_db)} dB, Bass-Welligkeit am Hörplatz ${f1(h.glatt_db)} dB, Stereowinkel ±${Math.round(h.winkel_grad)}°.</p>` : "";
-  if (!e.vorschlaege.length) {
-    const t = e.hinweis.startsWith("Nach dem") ? "Deine Aufstellung ist schon gut: Kein Vorschlag bringt sicher mehr (auch wenn die Raummaße ein paar Zentimeter abweichen). So lassen." : e.hinweis;
-    $("s-ergebnis").innerHTML = kopf + `<p>${esc(t)}</p>`; return;
-  }
-  $("s-ergebnis").innerHTML = kopf + e.vorschlaege.map((p) => `<div class="vorschlag"><b>${esc(p.titel)}</b>
+  const ziel = (e.feinjustage[0] || e.vorschlaege[0] || {}).aufstellung || null;
+  planZeigen(ziel);
+  let html = "";
+  if (h) html += `<div class="kasten"><span class="marke">Heute (berechnet)</span><div class="zeilen">
+      <div class="zeile"><span><b>Korrekturbedarf ${f1(h.korrektur_db)} dB</b> – so viel muss die Raumanpassung am Hörplatz ausgleichen${h.loecher_db >= 1 ? `, davon Löcher ${f1(h.loecher_db)} dB (die kann kein EQ füllen, nur die Aufstellung)` : ""}.</span></div>
+      <div class="zeile"><span>Bass-Unterschied zwischen den Plätzen ${f1(h.streu_db)} dB · Welligkeit am Hörplatz ${f1(h.glatt_db)} dB · Stereowinkel ±${Math.round(h.winkel_grad)}°</span></div></div></div>`;
+  if (e.feinjustage.length) html += `<h2>Kleine Schritte, große Wirkung</h2>` + e.feinjustage.map((f, i) => {
+    const rel = h.korrektur_db > 0 ? 1 - f.bewertung.korrektur_db / h.korrektur_db : 0, [kopf, rest] = f.satz.split(": ");
+    return `<div class="vorschlag fein"><span class="marke">Kleiner Schritt, große Wirkung</span>
+      <div class="wirkung"><span class="gross">${rel >= 0 ? "−" : "+"}${Math.round(Math.abs(rel) * 100)} %</span><span class="klein">weniger Korrektur nötig</span></div>
+      <h3>${esc(kopf)}</h3><span class="klein">${esc(rest.replace(/^Korrekturbedarf [^,]+, /, ""))}. Auch bei ungenauen Raummaßen besser.</span>
+      <div class="knoepfe breit" style="grid-template-columns: 2fr 1fr"><button type="button" data-gemacht="f${i}">Gemacht · nachmessen</button><button type="button" class="zweit" data-gehtnicht="f${i}">Geht nicht</button></div></div>`; }).join("");
+  if (e.vorschlaege.length) html += `<h2>Im erlaubten Rahmen</h2>` + e.vorschlaege.map((p, i) => `<div class="vorschlag"><h3>${esc(p.titel)}</h3>
       <ol>${p.schritte.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>
-      <span class="klein">Bass-Unterschied ${f1(h.streu_db)} → <b>${f1(p.bewertung.streu_db)} dB</b> · Welligkeit ${f1(h.glatt_db)} → <b>${f1(p.bewertung.glatt_db)} dB</b> · Winkel ±${Math.round(p.bewertung.winkel_grad)}°</span>
-      ${grundriss(raum, start, p.aufstellung)}</div>`).join("") + `<p class="klein">${esc(e.hinweis)} Vorschläge erscheinen nur, wenn sie auch bei ±3 % Raummaß und ±25 % Nachhall besser bleiben (Wächter).</p>`;
+      <span class="klein">Korrekturbedarf ${f1(h.korrektur_db)} → <b>${f1(p.bewertung.korrektur_db)} dB</b> · Bass-Unterschied ${f1(h.streu_db)} → <b>${f1(p.bewertung.streu_db)} dB</b> · Winkel ±${Math.round(p.bewertung.winkel_grad)}°</span>
+      ${grundriss(raum, start, p.aufstellung)}
+      <div class="knoepfe breit" style="grid-template-columns: 2fr 1fr"><button type="button" data-gemacht="v${i}">Gemacht · nachmessen</button><button type="button" class="zweit" data-gehtnicht="v${i}">Geht nicht</button></div></div>`).join("");
+  if (!e.vorschlaege.length && !e.feinjustage.length) {
+    const t = !e.hinweis.startsWith("Nach dem") ? e.hinweis
+      : "Deine Aufstellung ist im erlaubten Rahmen schon die beste – die Klang-Box holt den Rest per Raumanpassung.";
+    html += `<div class="vorschlag"><p style="color: var(--ink)">${esc(t)}</p></div>`;
+  }
+  if (e.ohne_grenzen) {
+    const og = e.ohne_grenzen, m = og.satz.match(/^Mit deinen Grenzen erreichst du (\d+) % (.*)$/);
+    html += `<div class="rahmen"><span class="klein">Ohne Grenzen wäre möglich</span><span style="font-size:15px; line-height:1.45">${m
+      ? `<span class="gross">${m[1]} %</span> ${esc(m[2])}` : esc(og.satz)}</span></div>`;
+  }
+  html += `<p class="klein">${esc(e.hinweis)} Vorschläge erscheinen nur, wenn sie auch bei ±3 % Raummaß und ±25 % Nachhall besser bleiben (Wächter).</p>`;
+  $("s-ergebnis").innerHTML = html;
+}
+$("s-rechnen").addEventListener("click", sweetspotRechnen);
+// „Geht nicht“: Teil festsetzen, neu rechnen; „Gemacht“: Positionen übernehmen und nachmessen
+$("s-ergebnis").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-gehtnicht], [data-gemacht]"); if (!b || !letzteSweetspot) return;
+  const k = b.dataset.gehtnicht || b.dataset.gemacht, e = letzteSweetspot.ergebnis, v = k[0] === "f" ? e.feinjustage[+k.slice(1)] : e.vorschlaege[+k.slice(1)];
+  if (!v) return;
+  if (b.dataset.gehtnicht) {
+    fest = [...new Set([...fest, ...v.geht_nicht])]; schreiben("raumcheck-fest", JSON.stringify(fest)); grenzenZeigen(); sweetspotRechnen(); return;
+  }
+  const a = v.aufstellung, setze = (id, x) => { $("s-" + id).value = r2(x); };
+  setze("hx", a.hoerplatz[0]); setze("hy", a.hoerplatz[1]); setze("flx", a.fl[0]); setze("frx", a.fr[0]); setze("fy", (a.fl[1] + a.fr[1]) / 2);
+  if (a.sub) { setze("sx", a.sub[0]); setze("sy", a.sub[1]); }
+  felderMerken(); planZiel = null; dateien = []; hauptDaten = null; zeigeDateien(); zeigeSchritt(4);
 });
 // Nachhall aus der letzten Messung übernehmen
 function nachhallUebernehmen() { const r = runden.find((x) => x.e && x.e.score_heute && x.e.score_heute.werte && x.e.score_heute.werte.raum); if (r) $("s-t60").value = (Math.round(r.e.score_heute.werte.raum * 100) / 100).toString(); }
@@ -1914,15 +2741,32 @@ function zeigeAlles() {
   const gueltig = runden.filter((r) => !r.e.fehler);
   $("vergleich-karte").hidden = gueltig.length < 1;
   $("vergleich").innerHTML = gueltig.map((r) => `<tr><td>${esc(r.anlage)}</td><td>${r.modus === "kino" ? "Kino" : "Stereo"}</td>
-    <td class="n" style="color: var(--heute)">${r.e.score_heute.gesamt}</td><td class="n" style="color: var(--prog)">${r.e.score_prognose.gesamt}</td></tr>`).join("");
+    <td class="n" style="color: var(--heute)">${r.e.score_heute.gesamt}</td><td class="n" style="color: var(--akzent)">${r.e.score_prognose.gesamt}</td></tr>`).join("");
 }
 $("ergebnisse").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-loeschen]");
   if (!b) return;
   runden.splice(+b.dataset.loeschen, 1);
-  try { localStorage.setItem("raumcheck-runden", JSON.stringify(runden)); } catch (e) {}
+  schreiben("raumcheck-runden", JSON.stringify(runden));
   zeigeAlles();
 });
+// App: Reiter wechseln und neuer Raumscan
+if (nativ) window.klangboxNativ.zeige = (tab) => zeigeSchritt(tab === "sweetspot" ? 8 : (runden.length ? 7 : 1));
+window.addEventListener("klangboxtab", (ev) => zeigeSchritt(ev.detail === "sweetspot" ? 8 : (runden.length ? 7 : 1)));
+window.addEventListener("klangboxraum", (ev) => {
+  try { scanAnwenden(ev.detail, { felder: true, quelle: "App" }); $("s-status").textContent = ""; }
+  catch (e) { $("s-status").innerHTML = `<span class="warn">Raumscan ließ sich nicht lesen: ${esc(e.message || e)}</span>`; }
+});
+// Raumscan beim Start: von der App (hat Vorrang) oder der zuletzt geladene raum.json
+(() => {
+  let gemerkt = null; try { gemerkt = JSON.parse(lesen("raumcheck-raumscan", "") || "null"); } catch (e) {}
+  try {
+    if (nativ && nativ.raum) {
+      const gleich = gemerkt && JSON.stringify(gemerkt.raum) === JSON.stringify(nativ.raum);
+      scanAnwenden(nativ.raum, { wand: gleich ? gemerkt.wand : null, felder: !gleich, bestaetigt: gleich && gemerkt.bestaetigt, quelle: "App" });
+    } else if (gemerkt && gemerkt.raum) scanAnwenden(gemerkt.raum, { wand: gemerkt.wand, felder: false, bestaetigt: gemerkt.bestaetigt, quelle: "Datei" });
+  } catch (e) { $("s-status").innerHTML = `<span class="warn">Raumscan ließ sich nicht lesen: ${esc(e.message || e)}</span>`; }
+})();
 zeigeAlles();
 zeigeDateien();
 nachhallUebernehmen();

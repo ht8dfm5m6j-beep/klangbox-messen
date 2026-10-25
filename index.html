@@ -891,12 +891,17 @@ function analysiere(rec0, fo = FOLGE, mikro = null) {
     const start = Math.round(a + sweepZeit(i, fo) * FS) - pre, seg = new Float64Array(nfft);
     for (let j = 0; j < n + pre; j++) { const q = start + j; if (q >= 0 && q < rec.length) seg[j] = rec[q]; }
     const S = spektrum(seg, nfft), re = new Float64Array(nfft), im = new Float64Array(nfft), W = new Float64Array(nfft);
+    // Sweep-Spektrum mal Mikrofon-Kalibrierung (die steckt in der Impulsantwort): für den unerklärten Rest
+    const Xc = mikro ? { re: new Float64Array(nfft), im: new Float64Array(nfft) } : X;
     for (let k = 0; k < nfft; k++) {
       const f = Math.min(k, nfft - k) * FS / nfft;
       let w = Math.min(1, Math.max(0, (Math.log2(Math.max(f, 1e-3)) - Math.log2(14)) / Math.log2(20 / 14)));
       w *= Math.min(1, Math.max(0, (Math.log2(21500) - Math.log2(Math.max(f, 1e-3))) / Math.log2(21500 / 19000)));
       W[k] = w;
-      if (mikro) w /= mikroFaktor(mikro, f);  // Mikrofon-Korrektur herausrechnen (wie mic_cal in Python)
+      if (mikro) {  // Mikrofon-Korrektur herausrechnen (wie mic_cal in Python)
+        const c = mikroFaktor(mikro, f);
+        w /= c; Xc.re[k] = X.re[k] * c; Xc.im[k] = X.im[k] * c;
+      }
       const d = X.re[k] ** 2 + X.im[k] ** 2 + 1e-6 * maxX;
       const ir = (X.re[k] * w) / d, ii = (-X.im[k] * w) / d;
       re[k] = S.re[k] * ir - S.im[k] * ii; im[k] = S.re[k] * ii + S.im[k] * ir;
@@ -907,7 +912,7 @@ function analysiere(rec0, fo = FOLGE, mikro = null) {
     for (let k = 0; k < nfft; k++) spitze = Math.max(spitze, re[k] * re[k]);
     for (let k = r0; k < r1; k++) rs += re[k] * re[k];
     stoer[key] = 10 * Math.log10(rs / (r1 - r0) / (spitze + 1e-30) + 1e-30);
-    rest[key] = restAusreisser(S, W, X, re, pre, n, fo.sweepS);
+    rest[key] = restAusreisser(S, W, Xc, re, pre, n, fo.sweepS);
     // 1,2 s Impulsantwort: genug für das Nachklingen im Bass. Laufzeit aus den ersten 0,6 s.
     const ir = re.slice(0, pre + Math.floor(1.2 * FS));
     messungen[key] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
@@ -1581,23 +1586,55 @@ function bassJePlatz(H, cals, modus) {
     return mean(kan.map((x) => bassAbweichung(glaetten(leistung(x), 6), ziel)));
   });
 }
-// Wächter: Kein Platz darf im Bass schlechter werden. Solange einer schlechter wird, fliegt der Filter
-// raus, dessen Wegfall am meisten hilft.
+// Spitzen-Wächter in der Einmessung (wie SPITZE_ABSTAND_DB in raumcheck.py): keine Raummode deutlich stärker
+// anheben als den übrigen Bass, mit 0,5 dB Abstand zur Grenze der Nachprüfung
+const SPITZE_ABSTAND_DB = 0.5;
+function spitzeJePlatz(H, cals) {  // vorhergesagte Spitzen-Anhebung (wie spitzenAnhebung) an jedem Platz, je [FL, FR]
+  const k = { FL: kettenH({ ...cals.FL, gain_db: 0 }), FR: kettenH({ ...cals.FR, gain_db: 0 }) };
+  return H.map((h) => {
+    const pv = [], pn = [];
+    for (const ch of ["FL", "FR"]) {
+      const v = new Float64Array(NF), n = new Float64Array(NF);
+      for (let i = 0; i < NF; i++) {
+        const r = h[ch].re[i], m = h[ch].im[i], nr = r * k[ch].re[i] - m * k[ch].im[i], ni = r * k[ch].im[i] + m * k[ch].re[i];
+        v[i] = r * r + m * m; n[i] = nr * nr + ni * ni;
+      }
+      pv.push(v); pn.push(n);
+    }
+    return [0, 1].map((c) => spitzeAusLeistung([pv[c]], [pn[c]])[0]);
+  });
+}
+// Wie _anhebung_begrenzen in raumcheck.py: fällt ein Absenk-Filter weg, dürfen die übrigen zusammen trotzdem
+// nirgends mehr als 3 dB anheben; solange zu viel, fliegt der Filter mit der größten Anhebung
+function anhebungBegrenzen(eq) {
+  eq = eq.slice();
+  while (eq.length && Math.max(...summeDb(eq)) > 3.05) {
+    let j = 0; for (let k = 1; k < eq.length; k++) if (eq[k].gain > eq[j].gain) j = k;
+    eq.splice(j, 1);
+  }
+  return eq;
+}
+// Wächter: Kein Platz darf im Bass schlechter werden, und an keinem Platz darf eine Raummode deutlich stärker
+// steigen als der übrige Bass. Solange eins davon verletzt ist, fliegt der Filter raus, dessen Wegfall am
+// meisten hilft (erst gegen die Spitze, als Summe über alle Plätze und beide Boxen, dann gegen den Bass).
 function waechterEq(punkte, cals, modus, toleranz = 0.1) {
   const H = punkte.map((p) => ({ FL: antwort(p.messungen.FL), FR: antwort(p.messungen.FR), C: p.messungen.C ? antwort(p.messungen.C) : null }));
   const aus = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
-  const vorher = bassJePlatz(H, aus, modus), schlimm = (c) => Math.max(...bassJePlatz(H, c, modus).map((v, i) => v - vorher[i]));
+  const grenze = NP.spitzeMax - SPITZE_ABSTAND_DB;
+  const vorher = bassJePlatz(H, aus, modus);
+  const zustand = (c) => [spitzeJePlatz(H, c).flat().reduce((s, v) => s + Math.max(v - grenze, 0), 0), Math.max(...bassJePlatz(H, c, modus).map((v, i) => v - vorher[i]))];
+  const besser = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
   const hinweise = [];
   for (;;) {
-    const jetzt = schlimm(cals);
-    if (jetzt <= toleranz) break;
+    const [spitze, jetzt] = zustand(cals);
+    if (jetzt <= toleranz && spitze <= 0) break;
     let best = null;
     for (const ch of ["FL", "FR"]) cals[ch].eq.forEach((q, i) => {
-      const v = { FL: cals.FL, FR: cals.FR }; v[ch] = { ...cals[ch], eq: cals[ch].eq.filter((_, j) => j !== i) };
-      const w = schlimm(v); if (!best || w < best.w) best = { w, v, ch, q };
+      const v = { FL: cals.FL, FR: cals.FR }; v[ch] = { ...cals[ch], eq: anhebungBegrenzen(cals[ch].eq.filter((_, j) => j !== i)) };
+      const w = zustand(v); if (!best || besser(w, best.w)) best = { w, v, ch, q };
     });
     if (!best) { hinweise.push(`Wächter: Ein Platz bleibt im Bass ${jetzt.toFixed(1)} dB schlechter (Laufzeit/Pegel für die Bühne).`); break; }
-    hinweise.push(`Wächter: Filter ${best.ch} ${best.q.freq.toFixed(0)} Hz ${best.q.gain >= 0 ? "+" : ""}${best.q.gain.toFixed(1)} dB entfernt, er hätte einen Platz verschlechtert.`);
+    hinweise.push(`Wächter: Filter ${best.ch} ${best.q.freq.toFixed(0)} Hz ${best.q.gain >= 0 ? "+" : ""}${best.q.gain.toFixed(1)} dB entfernt, er hätte ${spitze > 0 ? "eine Raummode angehoben" : "einen Platz verschlechtert"}.`);
     cals = best.v;
   }
   return { cals, hinweise };
@@ -2256,7 +2293,7 @@ function waechterErgebnis(e) {
 
 if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, zahlText,
   nachpruefen, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
-  baender, abklingzeit, fruehAbklingzeit };
+  baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort };
 </script>
 <script type="application/json" id="klangprofile-daten">{
   "schema_version": 1,

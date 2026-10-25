@@ -1135,53 +1135,116 @@ function stuecke(x, st) {
 }
 function steigung(x, y) { const mx = mean(x), my = mean(y); let a = 0, b = 0; for (let i = 0; i < x.length; i++) { a += (x[i] - mx) * (y[i] - my); b += (x[i] - mx) ** 2; } return a / b; }
 
-// Nullphasige Bandfilter (Gauß über log f), mit passender Unterabtastung
+// Nullphasige Bandfilter (Gauß über log f), mit passender Unterabtastung (wie baender in Python).
+// Liefert je Band das analytische Signal (x Realteil, y Imaginärteil; der Betrag ist die Hüllkurve).
+// Kein Umlaufen: FFT mindestens doppelt so lang wie die Impulsantwort, dahinter Nullen. Am Ende fehlt
+// dem Filter die Fortsetzung; deshalb endet das Band eine Standardabweichung seiner Impulsantwort früher.
 function baender(ir, mitten, frac) {
   const n = naechste2(2 * ir.length), X = spektrum(ir, n), sigma = (1 / frac) / 2.3548;
   return mitten.map((fc) => {
     const d = 1 << Math.max(0, Math.floor(Math.log2(FS / 2 / (3 * fc)))), m = n / d;
     const re = new Float64Array(m), im = new Float64Array(m);
-    for (let k = 0; k <= m / 2; k++) {
-      const f = k * FS / n, g = Math.exp(-0.5 * (Math.log2(Math.max(f, 1e-3) / fc) / sigma) ** 2);
-      re[k] = X.re[k] * g; im[k] = X.im[k] * g;
-      if (k > 0 && k < m / 2) { re[m - k] = re[k]; im[m - k] = -im[k]; }
+    for (let k = 0; k < m / 2; k++) {
+      const f = k * FS / n, g = Math.exp(-0.5 * (Math.log2(Math.max(f, 1e-3) / fc) / sigma) ** 2), s = k === 0 ? 1 : 2;
+      re[k] = s * X.re[k] * g; im[k] = s * X.im[k] * g;
     }
     fft(re, im, true);
-    return { x: re.slice(0, Math.floor(ir.length / d)), d };
+    const sigmaT = 1 / (2 * Math.PI * fc * Math.LN2 * sigma), rand = Math.ceil(sigmaT * FS / d);
+    const L = Math.max(0, Math.floor(ir.length / d) - rand);
+    return { x: re.slice(0, L), y: im.slice(0, L), d };
   });
 }
-// Schroeder-Abklingkurve eines Bandsignals (wie _abklingkurve in Python)
-function abklingkurve(x, start, fs) {
-  const w = Math.max(1, Math.round(0.005 * fs)), nb = Math.floor((x.length - start) / w);
-  if (nb < 20) return null;
-  const blk = new Float64Array(nb);
-  for (let b = 0; b < nb; b++) { let s = 0; for (let j = 0; j < w; j++) s += x[start + b * w + j] ** 2; blk[b] = s / w; }
-  let p = 0; for (let b = 1; b < Math.floor(nb / 2); b++) if (blk[b] > blk[p]) p = b;
-  const nr = Math.max(3, Math.floor(nb / 10)); let rausch = 0; for (let b = nb - nr; b < nb; b++) rausch += blk[b]; rausch = rausch / nr + 1e-30;
-  const dyn = 10 * Math.log10(blk[p] / rausch);
-  if (dyn < 20) return null;
-  let cut = p + 1; while (cut < nb && blk[cut] > rausch * Math.pow(10, 0.5)) cut++;
-  const L = cut - p, edc = new Float64Array(L);
-  let acc = 0; for (let i = L - 1; i >= 0; i--) { acc += Math.max(blk[p + i] - rausch, 0); edc[i] = acc; }
-  const db = new Float64Array(L), t = new Float64Array(L); let minDb = 0;
-  for (let i = 0; i < L; i++) { db[i] = 10 * Math.log10(Math.max(edc[i] / edc[0], 1e-30)); t[i] = i * w / fs; minDb = Math.min(minDb, db[i]); }
-  return { db, t, dyn, minDb };
+// Ausgleichsgerade y = a + b·t, wahlweise mit Gewichten g (wie _gerade_ls in Python)
+function geradeLs(t, y, g) {
+  let sg = 0, st = 0, sy = 0;
+  for (let i = 0; i < t.length; i++) { const w = g ? g[i] : 1; sg += w; st += w * t[i]; sy += w * y[i]; }
+  const mt = st / sg, my = sy / sg; let z = 0, nn = 0;
+  for (let i = 0; i < t.length; i++) { const w = g ? g[i] : 1; z += w * (t[i] - mt) * (y[i] - my); nn += w * (t[i] - mt) ** 2; }
+  const b = z / nn;
+  return [my - b * mt, b];
 }
-function gerade(k, oben, unten) {
-  const ts = [], ys = [];
-  for (let i = 0; i < k.db.length; i++) if (k.db[i] <= oben && k.db[i] >= unten) { ts.push(k.t[i]); ys.push(k.db[i]); }
-  if (ts.length < 3) return null;
-  const s = steigung(ts, ys);
-  return s < 0 ? -60 / s : null;
+function bloecke(e, w, fs) {  // mittlere Energie in Blöcken: Pegel in dB, Blockmitte in s
+  const nb = Math.floor(e.length / w), lv = new Float64Array(nb), t = new Float64Array(nb);
+  for (let b = 0; b < nb; b++) { let s = 0; for (let j = 0; j < w; j++) s += e[b * w + j]; lv[b] = 10 * Math.log10(Math.max(s / w, 1e-300)); t[b] = (b + 0.5) * w / fs; }
+  return { lv, t };
 }
-function abklingzeit(x, start, fs) {
-  const k = abklingkurve(x, start, fs);
-  if (!k || k.minDb > -12) return null;
-  return gerade(k, -5, k.dyn >= 35 ? -25 : -15);
+const mittelAb = (e, i0) => { let s = 0; for (let i = i0; i < e.length; i++) s += e[i]; return s / (e.length - i0); };
+// Rauschboden und Schnittpunkt nach Lundeby et al. (1995), ISO 3382-1 (wie _lundeby in Python)
+function lundeby(e, fs) {
+  const n = e.length, dauer = n / fs, w = Math.max(1, Math.round(0.01 * fs));
+  const { lv, t } = bloecke(e, w, fs), nb = lv.length;
+  if (nb < 10) return null;
+  let p = 0; for (let b = 1; b < Math.floor(nb / 2); b++) if (lv[b] > lv[p]) p = b;
+  const spitze = lv[p], zehntel = Math.max(2, Math.floor(n / 10));
+  let roh = mittelAb(e, n - zehntel) + 1e-300, rdb = 10 * Math.log10(roh);
+  if (lv[p] - rdb < 20) return null;  // zu wenig Dynamik
+  let ende = p; for (let b = p; b < nb; b++) if (lv[b] > rdb + 10) ende = b;  // bis 10 dB über dem Rauschen
+  if (ende - p < 2) return null;
+  let [a, b] = geradeLs(t.subarray(p, ende + 1), lv.subarray(p, ende + 1));
+  if (!(b < 0)) return null;
+  let tc = Math.min(dauer, (rdb - a) / b), rein = roh;
+  const lo = new Float64Array(nb); for (let i = 0; i < nb; i++) lo[i] = i * w / fs;
+  const fenster = (t1, t2) => { const g = new Float64Array(nb); let s = 0;
+    for (let i = 0; i < nb; i++) { g[i] = Math.min(1, Math.max(0, (Math.min(t2, lo[i] + w / fs) - Math.max(t1, lo[i])) * fs / w)); s += g[i]; }
+    return { g, s }; };
+  const verlauf = []; let fertig = false;
+  for (let it = 0; it < 20 && !fertig; it++) {
+    const i0 = Math.max(0, Math.min(Math.trunc((tc + 10 / -b) * fs), n - zehntel));  // Rauschen ab 10 dB unter dem Schnittpunkt
+    roh = mittelAb(e, i0) + 1e-300;
+    let linie = 0; for (let i = i0; i < n; i++) linie += Math.pow(10, (a + b * ((i + 0.5) / fs)) / 10);
+    linie /= n - i0;
+    rein = Math.max(roh - linie, 0); rdb = 10 * Math.log10(roh);
+    let t2 = Math.min(dauer, (rdb + 7 - a) / b), t1 = Math.max(lo[p], t2 - 20 / -b);  // späte Gerade 27 bis 7 dB über dem Rauschen
+    if (t2 - t1 < 3 * w / fs) { t1 = Math.max(lo[p], 0.5 * (t1 + t2) - 1.5 * w / fs); t2 = Math.min(dauer, t1 + 3 * w / fs); }
+    const f = fenster(t1, t2);
+    if (f.s < 2) return null;
+    let [an, bn] = geradeLs(t, lv, f.g);
+    if (!(bn < 0)) { [an, bn] = geradeLs(t, lv, fenster(lo[p], t2).g); if (!(bn < 0)) return null; }
+    an = 0.5 * (a + an); bn = 0.5 * (b + bn);  // gedämpft
+    const tcn = Math.min(dauer, (rdb - an) / bn);
+    fertig = Math.abs(tcn - tc) < 1e-4 && Math.abs(bn - b) < 1e-4 * Math.abs(b);
+    a = an; b = bn; tc = tcn;
+    verlauf.push([tc, a, b, roh, rein]);
+  }
+  if (!fertig) [tc, a, b, roh, rein] = verlauf[verlauf.length - 1].map((u, i) => 0.5 * (u + verlauf[verlauf.length - 2][i]));
+  if (tc <= lo[p]) return null;
+  return { tc, a, b, roh, rein, dyn: spitze - 10 * Math.log10(roh) };
 }
-function fruehAbklingzeit(x, start, fs) {  // EDT: 0 bis -10 dB
-  const k = abklingkurve(x, start, fs);
-  if (!k || k.minDb > -12) return null;
+// Schroeder-Abklingkurve nach ISO 3382-1 (wie _abklingkurve in Python): Hüllkurve des Bandes, Schnittpunkt
+// nach Lundeby, rückwärts integriert bis dorthin, Korrekturterm für die abgeschnittene Energie, Rauschen abgezogen
+function abklingkurve(band, start, fs) {
+  const n = band.x.length - start;
+  if (n < 0.2 * fs || n < 20) return null;
+  const e = new Float64Array(n);
+  for (let i = 0; i < n; i++) e[i] = band.x[start + i] ** 2 + band.y[start + i] ** 2;
+  const lu = lundeby(e, fs);
+  if (!lu) return null;
+  let p = 0; for (let i = 1; i < Math.floor(n / 2); i++) if (e[i] > e[p]) p = i;
+  const nc = Math.trunc(lu.tc * fs);
+  if (nc - p < 10) return null;
+  const k = -lu.b * Math.log(10) / 10, rest = Math.min(Math.pow(10, (lu.a + lu.b * lu.tc) / 10), lu.roh) / k;
+  const L = nc - p, edc = new Float64Array(L);
+  let acc = 0; for (let i = L - 1; i >= 0; i--) { acc += e[p + i] - lu.rein; edc[i] = acc / fs + rest; }
+  const db = new Float64Array(L), t = new Float64Array(L);
+  for (let i = 0; i < L; i++) { db[i] = 10 * Math.log10(Math.max(edc[i] / edc[0], 1e-30)); t[i] = i / fs; }
+  return { db, t, dyn: lu.dyn };
+}
+// Gerade der Abklingkurve zwischen oben und unten (dB), Grenzen weich über 2 dB (wie _gerade in Python)
+function gerade(k, oben, unten, rampe = 2) {
+  const g = new Float64Array(k.db.length); let s = 0;
+  for (let i = 0; i < g.length; i++) { g[i] = Math.min(1, Math.max(0, (oben + 0.5 * rampe - k.db[i]) / rampe)) * Math.min(1, Math.max(0, (k.db[i] - unten + 0.5 * rampe) / rampe)); s += g[i]; }
+  if (s < 3) return null;
+  const st = geradeLs(k.t, k.db, g)[1];
+  return st < 0 ? -60 / st : null;
+}
+function abklingzeit(band, start, fs) {  // T20, bei wenig Dynamik stetig kürzer, nie über -15 dB; unter 20 dB: null
+  const k = abklingkurve(band, start, fs);
+  if (!k || k.dyn < 20) return null;
+  return gerade(k, -5, Math.max(-25, Math.min(-15, 10 - k.dyn)));
+}
+function fruehAbklingzeit(band, start, fs) {  // EDT: 0 bis -10 dB
+  const k = abklingkurve(band, start, fs);
+  if (!k || k.dyn < 20) return null;
   return gerade(k, 0, -10);
 }
 function reflexionDb(m) { return reflexion(m)[0]; }
@@ -1213,8 +1276,8 @@ function rechner(hausDb) {
     leistung: (m) => c(m, "p", () => leistung(antwort(m))),
     nachhall: (m) => c(m, "rt", () => {
       const mitten = [250, 500, 1000, 2000, 4000], out = {};
-      baender(m.ir, mitten, 1).forEach(({ x, d }, i) => {
-        const t = abklingzeit(x, Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / d), FS / d);
+      baender(m.ir, mitten, 1).forEach((band, i) => {
+        const t = abklingzeit(band, Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / band.d), FS / band.d);
         if (t !== null) out[mitten[i]] = t;
       });
       return out;
@@ -1223,8 +1286,8 @@ function rechner(hausDb) {
       const mitten = [31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250].filter((f) => f >= F_LO * 0.99);
       const rt = r.nachhall(m), tm = [500, 1000].filter((f) => f in rt).map((f) => rt[f]);
       const boden = tm.length ? 1.2 * mean(tm) : 0, werte = [];
-      baender(m.ir, mitten, 3).forEach(({ x, d }, i) => {
-        const t = abklingzeit(x, Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / d), FS / d);
+      baender(m.ir, mitten, 3).forEach((band, i) => {
+        const t = abklingzeit(band, Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / band.d), FS / band.d);
         if (t !== null) { const s = Math.max(31 / mitten[i], boden); werte.push([t / s, mitten[i], t, s]); }
       });
       if (werte.length < 2) return null;
@@ -1511,8 +1574,8 @@ function raumTipps(haupt, sh, raumM3) {
     text: `${nk.satz || ""} Die Klang-Box senkt die lauteste Spitze ab. Gegen langes Nachschwingen an allen Plätzen helfen nur Aufstellung (Sweetspot-Finder), ein zweiter Sub oder große Bassfallen in den Ecken.`,
     wirkung: "Mit EQ: Spitze leiser. Mit Bassfallen: kürzeres Nachschwingen (Wirkung erst ab etwa 60 Hz)." });
   const werte = [];
-  for (const m of [haupt.FL, haupt.FR]) baender(m.ir, [500, 1000], 1).forEach(({ x, d }) => {
-    const st = Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / d), tt = abklingzeit(x, st, FS / d), e = fruehAbklingzeit(x, st, FS / d);
+  for (const m of [haupt.FL, haupt.FR]) baender(m.ir, [500, 1000], 1).forEach((band) => {
+    const d = band.d, st = Math.floor(Math.max(0, m.zero - Math.floor(0.01 * FS)) / d), tt = abklingzeit(band, st, FS / d), e = fruehAbklingzeit(band, st, FS / d);
     if (tt && e) werte.push([e, tt]);
   });
   if (werte.length) {
@@ -2075,7 +2138,8 @@ function waechterErgebnis(e) {
 }
 
 if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS, FOLGE_BEWEGT, FOLGE, profilAnwenden, profilDbAn, zahlText,
-  nachpruefen, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber };
+  nachpruefen, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
+  baender, abklingzeit, fruehAbklingzeit };
 </script>
 <script type="application/json" id="klangprofile-daten">{
   "schema_version": 1,

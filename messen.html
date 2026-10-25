@@ -107,10 +107,6 @@ details summary { cursor: pointer; color: var(--ink2); font-size: 14px; min-heig
 .haltung { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .haltung li { display: flex; gap: 12px; align-items: center; font-size: 15px; line-height: 1.4; color: var(--ink); }
 .haltung svg { flex: none; }
-.bewegen-bild { position: relative; display: grid; place-items: center; }
-.bewegen-bild .rest { position: absolute; top: 33%; display: grid; justify-items: center; pointer-events: none; }
-.bewegen-bild .rest .gross { font-size: 44px; line-height: 1; }
-#ring { transition: stroke-dashoffset .3s linear; }
 .felder { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
 .felder label { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink2); min-width: 0; }
 .felder input { min-height: 44px; border-radius: 12px; border: 0; background: var(--panel2); color: var(--ink); padding: 0 10px; width: 100%; font-size: 16px; }
@@ -149,7 +145,7 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
 /* Ab dem Ergebnis: drei Werte, Profil-Karten, Urteil der Nachmessung */
 .zahldrei { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .zahldrei .zahlkarte { padding: 12px; } .zahldrei .zahl { font-size: 36px; } .zahldrei .lbl { font-size: 12px; line-height: 1.25; min-height: 30px; }
-#g-geraet, .felder select { width: 100%; min-width: 0; max-width: 100%; }
+#g-geraet, .felder select, #sub-anschluss, #raum, #handy { width: 100%; min-width: 0; max-width: 100%; }
 .felder select { min-height: 44px; border-radius: 12px; background: var(--panel2); font-size: 15px; }
 .zahlkarte.geraet { background: var(--flaeche); outline: 1.5px dashed var(--line2); }
 .profile { display: grid; gap: 10px; }
@@ -160,6 +156,49 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
 .profil details summary { min-height: 28px; font-size: 13px; }
 .urteil.gut { outline: 1.5px solid var(--ok); } .urteil.zurueck { outline: 1.5px solid var(--warn); }
 .plan.klickbar svg { cursor: crosshair; }
+/* Haltung beim Messen: große Bilder mit Schrittliste daneben (Teil 1 Hörplatz, Teil 2 Bewegen) */
+.bild { background: var(--flaeche); border-radius: 16px; padding: 10px; display: grid; gap: 8px; }
+.bild svg { display: block; width: 100%; height: auto; }
+.bild svg text { fill: var(--ink2); font-size: 11px; }
+.bild svg text.hell { fill: var(--ink); font-weight: 600; }
+.bild svg text.ak { fill: var(--akzent-hell); font-weight: 600; }
+.bildzeile { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: center; }
+ol.tun { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink); font-size: 15px; line-height: 1.4; }
+ol.tun b { font-weight: 600; }
+.nicht { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; color: var(--ink2); }
+.nicht li::before { content: "✕"; color: var(--heute); font-weight: 700; margin-right: 8px; }
+.dauer { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.dauer .gross { font-size: 28px; color: var(--akzent); line-height: 1; }
+/* Mess-Ansicht: Vollbild, beim Messen um 180° gedreht (Handy steht Kopf, Mikrofon oben, Hand weg vom Mikrofon) */
+.messlage { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: grid; transition: opacity .35s ease; }
+.messlage.zu { opacity: 0; pointer-events: none; }
+.ml-dreh { display: grid; align-content: center; justify-items: center; gap: 16px; text-align: center; min-height: 0;
+  padding: max(24px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  transition: transform .7s ease-in-out; }
+.messlage.gedreht .ml-dreh { transform: rotate(180deg); }
+.ml-dreh > * { max-width: 420px; width: 100%; }
+.ml-gross { font-family: var(--zahlen); font-weight: 700; font-size: 34px; line-height: 1.1; color: var(--ink); letter-spacing: -0.02em; }
+.ml-tun { font-size: 20px; font-weight: 600; color: var(--ink); min-height: 28px; }
+.ml-uhr { position: relative; width: 220px; height: 220px; display: grid; place-items: center; }
+.ml-uhr svg { position: absolute; inset: 0; }
+.ml-uhr .zahl { font-size: 76px; line-height: 1; font-variant-numeric: tabular-nums; }
+.ml-uhr .klein { position: absolute; top: 148px; }
+#ml-ring { transition: stroke-dashoffset .25s linear; }
+.ml-spur { position: relative; height: 44px; width: min(100%, 320px); }
+.ml-spur::before { content: ""; position: absolute; left: 22px; right: 22px; top: 21px; height: 2px; background: var(--line2); }
+.ml-spur i { position: absolute; top: 8px; left: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--akzent); }
+.ml-spur span { position: absolute; top: 30px; font-size: 12px; color: var(--ink2); }
+.ml-telefon { width: 120px; height: 120px; }
+.ml-telefon .kippen { transform-box: view-box; transform-origin: 60px 60px; animation: kippen 2s ease-in-out infinite; }
+.ml-telefon.zurueck .kippen { animation-name: kippen-zurueck; }
+@keyframes kippen { 0%, 20% { transform: rotate(0deg); } 55%, 100% { transform: rotate(180deg); } }
+@keyframes kippen-zurueck { 0%, 20% { transform: rotate(180deg); } 55%, 100% { transform: rotate(0deg); } }
+.ml-warn { color: var(--warn); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) {
+  .ml-dreh, .messlage, #ml-ring { transition: none; }
+  .ml-telefon .kippen { animation: none; transform: rotate(180deg); }
+  .ml-telefon.zurueck .kippen { transform: none; }
+}
 </style>
 
 <main>
@@ -202,6 +241,23 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
     <label class="klein" for="anlage-modell">Hersteller und Modell (freiwillig)</label>
     <input type="text" id="anlage-modell" placeholder="so, wie es auf dem Gerät steht" autocomplete="off">
     <div id="anlage-hinweis" class="klein" hidden></div>
+    <!-- Subwoofer: bei jeder Art der Anlage, denn er zählt, egal wie er angeschlossen ist -->
+    <div class="kasten" id="sub-frage">
+      <div class="reihe"><div><h3>Subwoofer</h3><span class="klein">Spielt ein eigener Bass-Lautsprecher mit?</span></div>
+        <div class="seg" role="group" aria-label="Subwoofer"><button type="button" id="sub-nein" aria-pressed="true">Nein</button><button type="button" id="sub-ja" aria-pressed="false">Ja</button></div></div>
+      <div id="sub-wie" hidden style="display: grid; gap: 8px;">
+        <label class="klein" for="sub-anschluss">Wie ist er angeschlossen?</label>
+        <select id="sub-anschluss">
+          <option value="hochpegel">Lautsprecherkabel vom Verstärker (High-Level, „Speaker In“)</option>
+          <option value="line">Cinch vom Verstärker (Sub-Out oder Pre-Out, „Line In“)</option>
+          <option value="lfe">LFE-Kabel vom AV-Receiver oder von der Klang-Box</option>
+          <option value="boxen">Am Sub-Ausgang der Boxen oder der Soundbar</option>
+          <option value="funk">Kabellos (Funk)</option>
+          <option value="weiss">Weiß nicht</option>
+        </select>
+        <p class="klein" id="sub-hinweis"></p>
+      </div>
+    </div>
     <label class="klein" for="raum">Wie groß ist der Raum?</label>
     <select id="raum">
       <option value="">Weiß nicht (typisches Wohnzimmer)</option>
@@ -226,6 +282,7 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
       <li><label><input type="checkbox" class="pflicht"> Lautstärke wie beim normalen Hören (Gespräch gut möglich, nicht laut)</label></li>
       <li><label><input type="checkbox" class="pflicht"> Ruhe im Raum: Fenster zu, Lüfter, Spülmaschine, Waschmaschine aus</label></li>
       <li><label><input type="checkbox" class="pflicht"> Türen, Vorhänge und Möbel so wie beim Hören</label></li>
+      <li id="sperre-zeile" hidden><label><input type="checkbox" id="sperre-haken"> Automatische Sperre kurz auf „Nie“ (Einstellungen → Anzeige &amp; Helligkeit), danach zurück. Dieser Browser kann den Bildschirm sonst nicht wach halten.</label></li>
       <li><label><input type="checkbox" class="pflicht"> Klangeinstellungen der Boxen so lassen wie im Alltag (hat die Anlage eine eigene Raumeinmessung: so, wie im Namen angegeben)</label></li>
     </ul>
     <h3>Woher kommt das Messsignal?</h3>
@@ -265,11 +322,26 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
   <section class="card schritt" data-s="5" hidden aria-labelledby="h-platz">
     <span class="eyebrow">Klang messen · Teil 1 von 2</span>
     <h1 id="h-platz">Am Hörplatz messen</h1>
-    <div id="platz-bild"></div>
-    <ul class="haltung">
-      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Sitz auf deinem Hörplatz, iPhone auf Ohrhöhe, Kopf genau zwischen den Boxen</li>
-      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M12 21v-2"/></svg>Mikrofon (Unterseite) zeigt zu den Boxen. Ruhig halten, nicht sprechen (etwa 25 Sekunden)</li>
-    </ul>
+    <p>Setz dich auf deinen Hörplatz, Kopf mittig zwischen den Boxen.</p>
+    <div class="bild" id="platz-bild"></div>
+    <div class="bildzeile">
+      <svg viewBox="0 0 96 170" role="img" aria-label="Handy umgedreht in der Hand: Mikrofon und USB-C-Buchse oben, Bildschirm zu dir, Hand unten">
+        <path d="M48,24 V6 M41,13 L48,4 L55,13" fill="none" class="ak-s" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="22" y="28" width="52" height="104" rx="10" fill="#171B21" stroke="#9AA3AD" stroke-width="2"/>
+        <rect x="27" y="34" width="42" height="92" rx="6" fill="#0B0D10"/>
+        <rect x="42" y="26" width="12" height="4" rx="2" fill="#9AA3AD"/>
+        <circle cx="32" cy="28" r="6.5" fill="none" class="ak-s" stroke-width="2"/><circle cx="32" cy="28" r="2" class="ak-f"/>
+        <text x="48" y="72" text-anchor="middle" class="hell" style="font-size: 17px">25</text><text x="48" y="86" text-anchor="middle" style="font-size: 9px">noch s</text>
+        <rect x="16" y="112" width="64" height="48" rx="20" fill="#9AA3AD"/><ellipse cx="34" cy="116" rx="10" ry="7" fill="#C4CAD2"/>
+      </svg>
+      <ol class="tun">
+        <li><b>Handy umdrehen:</b> das Mikrofon (Unterseite, neben USB-C) zeigt zur Decke.</li>
+        <li>Bildschirm zu dir. Die Hand hält das Handy unten, weg vom Mikrofon.</li>
+        <li><b>Ohrhöhe</b>, eine Handbreit vor dem Gesicht. Arm locker, der Ellbogen darf aufliegen.</li>
+        <li><b>Still halten</b>, nicht sprechen.</li>
+      </ol>
+    </div>
+    <div class="dauer"><span class="gross">≈ 25 s</span><span class="klein">Der Bildschirm dreht sich mit, bleibt an und zeigt die Restzeit.</span></div>
     <button type="button" id="messen">Messen</button>
     <button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button>
     <div class="balken" aria-hidden="true"><div id="pegel"></div></div>
@@ -295,24 +367,16 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
   <!-- Schritt 6: Bewegen (durch den Hörbereich) -->
   <section class="card schritt" data-s="6" hidden aria-labelledby="h-bewegen">
     <span class="eyebrow">Klang messen · Teil 2 von 2</span>
-    <h1 id="h-bewegen">Langsam um die Plätze gehen</h1>
-    <div class="bewegen-bild">
-      <svg viewBox="0 0 320 320" width="100%" style="max-width: 320px" role="img" aria-label="Fortschritt und Draufsicht: langsam um das Sofa gehen und das iPhone auf und ab bewegen">
-        <circle cx="160" cy="160" r="150" fill="none" stroke="#1C2129" stroke-width="10"/>
-        <circle id="ring" class="ak-s" cx="160" cy="160" r="150" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="942.5" stroke-dashoffset="942.5" transform="rotate(-90 160 160)"/>
-        <rect x="112" y="78" width="16" height="16" rx="3" fill="#9AA3AD"/><rect x="192" y="78" width="16" height="16" rx="3" fill="#9AA3AD"/>
-        <rect x="100" y="190" width="120" height="34" rx="10" fill="#2A313B"/>
-        <path id="weg" d="M160,148 A92,52 0 1,0 160.1,148 Z" fill="none" stroke="#3A4452" stroke-width="2" stroke-dasharray="5 6"/>
-        <g><circle r="12" class="ak-f"/><rect x="-5" y="-8" width="10" height="16" rx="2.5" fill="#0B0D10"><animateTransform attributeName="transform" type="translate" values="0,-3;0,3;0,-3" dur="1.6s" repeatCount="indefinite"/></rect>
-          <animateMotion dur="14s" repeatCount="indefinite"><mpath href="#weg"/></animateMotion></g>
-      </svg>
-      <div class="rest"><span class="gross" id="ring-sek">63 s</span><span class="klein">noch</span></div>
-    </div>
-    <ul class="haltung">
-      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><path d="M12 3v18M7 8l5-5 5 5M7 16l5 5 5-5"/></svg>iPhone dabei langsam auf und ab, zwischen Brust und Kopf</li>
-      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><path d="M4 12a8 8 0 1 0 8-8"/><path d="M12 4l-3-2M12 4l-3 2"/></svg>Etwa eine Minute rund um die Sitzplätze, dort wo gehört wird</li>
-      <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Nicht sprechen. Ein kurzes Geräusch ist nicht schlimm, dieser Teil wird weggelassen</li>
+    <h1 id="h-bewegen">Handy langsam hin und her führen</h1>
+    <p>Du bleibst sitzen, nur das Handy wandert: auf Ohrhöhe von links nach rechts und zurück. So höre ich, wie es an den Plätzen rund um dich klingt.</p>
+    <div class="bild" id="bewegen-bild"></div>
+    <ol class="tun" id="bewegen-schritte"></ol>
+    <ul class="nicht">
+      <li>nicht aufstehen, nicht ums Sofa gehen</li>
+      <li>nicht um die eigene Achse drehen, das Handy nicht kippen oder drehen</li>
+      <li>nicht sprechen (ein kurzes Geräusch ist nicht schlimm, dieser Teil fällt weg)</li>
     </ul>
+    <div class="dauer"><span class="gross">63 s</span><span class="klein">gut eine Minute. So lange braucht das Messsignal: 12 kurze Töne, je 4 von links, rechts und beiden.</span></div>
     <button type="button" id="bewegen-start">Start</button>
     <button type="button" id="bewegen-abbrechen" class="zweit" hidden>Abbrechen</button>
     <div class="balken" aria-hidden="true"><div id="bewegen-pegel"></div></div>
@@ -439,7 +503,7 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
       <h2 id="h-nach">Jetzt nachmessen</h2>
       <p id="a-text"></p>
       <ul class="haltung">
-        <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Genau wie vorhin: Hörplatz, iPhone auf Ohrhöhe, Mikrofon zu den Boxen, gleiche Lautstärke</li>
+        <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Genau wie vorhin: Hörplatz, Ohrhöhe, Handy umgedreht (Mikrofon nach oben), gleiche Lautstärke</li>
       </ul>
       <div id="a-vorher-zeile" class="kasten" hidden>
         <span class="klein" id="a-vorher-text"></span>
@@ -473,7 +537,8 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
       <select id="g-geraet"></select>
       <div id="g-eigen" hidden style="display: grid; gap: 8px;"><h3>Welche Regler hat dein Gerät?</h3><ul class="haken" id="g-eigen-liste"></ul></div>
       <p class="klein" id="g-hinweis"></p>
-      <div class="reihe" id="g-sub-zeile"><div><span style="font-size: 15px; font-weight: 600;">Ein Subwoofer spielt mit</span><span class="klein">am Sub-Ausgang der Lautsprecher</span></div><button type="button" class="schalter" role="switch" id="g-sub" aria-checked="false" aria-label="Ein Subwoofer spielt mit"></button></div>
+      <p class="klein" id="g-sub-hinweis"></p>
+      <div class="reihe" id="g-sub-zeile"><div><span style="font-size: 15px; font-weight: 600;">Ein Subwoofer spielt mit</span><span class="klein" id="g-sub-text"></span></div><button type="button" class="schalter" role="switch" id="g-sub" aria-checked="false" aria-label="Ein Subwoofer spielt mit"></button></div>
     </div>
     <details class="kasten" id="g-heute" open><summary>So ist es heute eingestellt</summary>
       <p class="klein">Lies die Werte am Gerät oder in seiner App ab. Weißt du sie nicht, lass die Werkseinstellung stehen.</p>
@@ -551,6 +616,34 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
     <div class="kasten"><div class="reihe"><div><h3>Signal am Eingang</h3><span class="klein" id="e-signal-text">Spiel am Fernseher etwas ab.</span></div><i class="ampel" id="e-signal-ampel"></i></div></div>
     <div class="knoepfe breit"><button type="button" class="zweit" data-zu="15" id="e-zurueck-5">Zurück</button><button type="button" id="e-fertig">Weiter: Klang einmessen</button></div>
   </section>
+  <!-- Mess-Ansicht (Vollbild): erst „Handy umdrehen“, dann dreht sich alles um 180°, groß Restzeit und Abbrechen -->
+  <div class="messlage" id="messlage" hidden role="dialog" aria-modal="true" aria-labelledby="ml-titel">
+    <div class="ml-dreh">
+      <span class="eyebrow" id="ml-titel"></span>
+      <div id="ml-hinweis" style="display: grid; gap: 10px; justify-items: center;">
+        <svg class="ml-telefon" id="ml-telefon" viewBox="0 0 120 120" aria-hidden="true">
+          <path d="M18,60 A42,42 0 0 1 60,18" fill="none" stroke="#3A4452" stroke-width="3" stroke-linecap="round"/><path d="M102,60 A42,42 0 0 1 60,102" fill="none" stroke="#3A4452" stroke-width="3" stroke-linecap="round"/>
+          <g class="kippen"><rect x="44" y="28" width="32" height="64" rx="7" fill="#171B21" stroke="#E9ECF0" stroke-width="2.5"/>
+            <rect x="54" y="32" width="12" height="3" rx="1.5" fill="#3A4452"/><rect x="55" y="90" width="10" height="3" rx="1.5" fill="#9AA3AD"/>
+            <circle cx="50" cy="91" r="3.2" class="ak-f"/></g>
+        </svg>
+        <span class="ml-gross" id="ml-hinweis-text">Handy umdrehen</span>
+        <span class="klein" id="ml-hinweis-klein">Mikrofon nach oben zur Decke, Bildschirm zu dir</span>
+      </div>
+      <div id="ml-mess" hidden style="display: grid; gap: 14px; justify-items: center;">
+        <div class="ml-uhr">
+          <svg viewBox="0 0 220 220" aria-hidden="true"><circle cx="110" cy="110" r="96" fill="none" stroke="#1C2129" stroke-width="12"/>
+            <circle id="ml-ring" class="ak-s" cx="110" cy="110" r="96" fill="none" stroke-width="12" stroke-linecap="round" stroke-dasharray="603.2" stroke-dashoffset="603.2" transform="rotate(-90 110 110)"/></svg>
+          <span class="zahl" id="ml-sek">3</span><span class="klein" id="ml-sek-text">gleich geht's los</span>
+        </div>
+        <div class="ml-tun" id="ml-tun"></div>
+        <div class="ml-spur" id="ml-spur" hidden aria-hidden="true"><i id="ml-punkt"></i><span style="left: 0">links</span><span style="right: 0">rechts</span></div>
+      </div>
+      <div class="klein" id="ml-status" aria-live="polite"></div>
+      <div class="ml-warn" id="ml-warn" hidden></div>
+      <button type="button" class="zweit" id="ml-abbrechen">Abbrechen</button>
+    </div>
+  </div>
   <audio id="signal" src="raumcheck.wav" preload="auto" x-webkit-airplay="allow" playsinline></audio>
 </main>
 
@@ -3837,7 +3930,7 @@ const SS = (() => {
 
 if (typeof module !== "undefined") module.exports = SS;
 </script>
-<script type="application/json" id="mikrofone-daten">{"iphone-17-pro": {"modell": "iPhone 17 Pro", "kennungen": [], "mikrofon": "unteres Mikrofon (neben USB-C), iOS-Messmodus", "quelle": "Faber Acoustical: Measured: iPhone 17 Pro microphone frequency response and directivity (2025), https://www.faberacoustical.com/blog/2025/ios/iphone/measured-iphone-17-pro-microphone-frequency-response-and-directivity/", "verfahren": "Schalltoter Raum, Referenz PCB 378B02 ca. 1 mm vor dem Mikrofon, 180° gedreht gemittelt, 1/24-Oktave geglättet", "abgelesen": "Von Hand aus dem Diagramm (Screenshot des Nutzers) abgelesen, Ablesefehler etwa ±0,5 dB; ein einzelnes Gerät, Streuung zwischen Geräten unbekannt", "frequenzen_hz": [18, 20, 22, 25, 30, 35, 40, 50, 60, 70, 100, 150, 200, 300, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 12000], "druck_db": [-18, -15, -12, -10.5, -7, -5.5, -4.3, -3.0, -2.3, -1.8, -1.2, -0.8, -0.5, -0.3, -0.1, 0.0, 0.0, 0.0, 0.0, -0.3, -0.8, -1.5, -2.3, -3.5, -5.0, 4.6], "freifeld_db": [-18, -15, -12, -10.5, -7, -5.5, -4.3, -3.0, -2.3, -1.8, -1.2, -0.8, -0.5, -0.3, -0.1, 0.0, 0.1, 0.4, 0.8, 1.3, 1.6, 1.8, 1.7, 1.3, 0.5, 11.5], "gueltig_hz": [25, 8000], "unsicherheit_db": {"25-40": 1.5, "40-5000": 0.5, "5000-8000": 1.5}, "hinweis": "Über 8 kHz schwankt die Empfindlichkeit je nach Schallrichtung um bis zu ±10 dB: dort nicht bewerten. Handy beim Messen immer gleich halten (Unterseite zu den Boxen)."}, "messmikro": {"modell": "Messmikrofon mit Kalibrierdatei (z. B. miniDSP UMIK-1)", "kennungen": [], "mikrofon": "USB-Messmikrofon, Kalibrierdatei des Herstellers eingerechnet", "quelle": "Annahme: nach Einrechnen der Kalibrierdatei bleibt ein Restfehler von etwa ±0,2 dB", "verfahren": "–", "abgelesen": "–", "frequenzen_hz": [10, 24000], "druck_db": [0.0, 0.0], "freifeld_db": [0.0, 0.0], "gueltig_hz": [10, 24000], "unsicherheit_db": {"20-20000": 0.2}, "hinweis": "Referenz für den Vergleich im Prüfstand."}}</script>
+<script type="application/json" id="mikrofone-daten">{"iphone-17-pro": {"modell": "iPhone 17 Pro", "kennungen": [], "mikrofon": "unteres Mikrofon (neben USB-C), iOS-Messmodus", "quelle": "Faber Acoustical: Measured: iPhone 17 Pro microphone frequency response and directivity (2025), https://www.faberacoustical.com/blog/2025/ios/iphone/measured-iphone-17-pro-microphone-frequency-response-and-directivity/", "verfahren": "Schalltoter Raum, Referenz PCB 378B02 ca. 1 mm vor dem Mikrofon, 180° gedreht gemittelt, 1/24-Oktave geglättet", "abgelesen": "Von Hand aus dem Diagramm (Screenshot des Nutzers) abgelesen, Ablesefehler etwa ±0,5 dB; ein einzelnes Gerät, Streuung zwischen Geräten unbekannt", "frequenzen_hz": [18, 20, 22, 25, 30, 35, 40, 50, 60, 70, 100, 150, 200, 300, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 12000], "druck_db": [-18, -15, -12, -10.5, -7, -5.5, -4.3, -3.0, -2.3, -1.8, -1.2, -0.8, -0.5, -0.3, -0.1, 0.0, 0.0, 0.0, 0.0, -0.3, -0.8, -1.5, -2.3, -3.5, -5.0, 4.6], "freifeld_db": [-18, -15, -12, -10.5, -7, -5.5, -4.3, -3.0, -2.3, -1.8, -1.2, -0.8, -0.5, -0.3, -0.1, 0.0, 0.1, 0.4, 0.8, 1.3, 1.6, 1.8, 1.7, 1.3, 0.5, 11.5], "gueltig_hz": [25, 8000], "unsicherheit_db": {"25-40": 1.5, "40-3000": 0.5, "3000-5000": 1.0, "5000-8000": 3.0}, "hinweis": "Über 8 kHz schwankt die Empfindlichkeit je nach Schallrichtung um bis zu ±10 dB: dort nicht bewerten. Handy beim Messen immer gleich halten: umgedreht, Mikrofon nach oben, Ohrhöhe.", "ausrichtung": "Beim Messen Mikrofon nach oben (Handy umgedreht, Unterseite zur Decke, Bildschirm zum Hörer), auf Ohrhöhe. Faber misst nicht 'auf Achse': die Referenz sitzt ca. 1 mm vor der Mikrofonöffnung und die Halterung wird um 180° gedreht gemittelt. Die Kurve beschreibt also das Mikrofon an seiner Öffnung, nicht eine Einfallsrichtung. Die Richtwirkung kommt vom Gehäuse (Abschattung, Faber-Polardiagramme: bei 1 kHz rund, ab etwa 4 kHz gerichtet, die Öffnung sitzt seitlich an der Unterkante). Mit Mikrofon nach oben kommen alle Boxen (vorne, hinten, links, rechts) streifend von der Seite (90°), an jedem Platz und auch beim Bewegen gleich; zur Box gerichtet wären die Fronts auf Achse, die Rückkanäle und Wandreflexionen aber abgeschattet, und die Richtung schwankt mit der Haltung. Erwartete Abweichung der 90°-Haltung gegenüber der Kurve: bis 3 kHz unter 0,5 dB, 3 bis 5 kHz etwa ±1 dB, 5 bis 8 kHz bis etwa −3 dB (Schätzung aus der Gehäusegröße und den Polardiagrammen, nicht gemessen). Deshalb die größere Unsicherheit ab 3 kHz; die Korrektur selbst bleibt."}, "messmikro": {"modell": "Messmikrofon mit Kalibrierdatei (z. B. miniDSP UMIK-1)", "kennungen": [], "mikrofon": "USB-Messmikrofon, Kalibrierdatei des Herstellers eingerechnet", "quelle": "Annahme: nach Einrechnen der Kalibrierdatei bleibt ein Restfehler von etwa ±0,2 dB", "verfahren": "–", "abgelesen": "–", "frequenzen_hz": [10, 24000], "druck_db": [0.0, 0.0], "freifeld_db": [0.0, 0.0], "gueltig_hz": [10, 24000], "unsicherheit_db": {"20-20000": 0.2}, "hinweis": "Referenz für den Vergleich im Prüfstand."}}</script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -3989,6 +4082,7 @@ function zeigeSchritt(n) {
   $("schritt-text").textContent = n >= 12 ? `Klang-Box einrichten · ${n - 11} von 5 · ${SCHRITTE[n]}` : n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
   einrichtenZeigen(n);
   if (n === 5) $("platz-bild").innerHTML = platzBild();
+  if (n === 6) bewegenZeigen();
   pegelSchrittGewechselt(n);
   if (n === 8) planZeigen();
   if (n === 9) profilZeigen();
@@ -4010,10 +4104,42 @@ function zeigeChips() {
   $("anlage-hinweis").textContent = "Hat deine Anlage eine eigene Raumeinmessung? Dann miss einmal mit und einmal ohne sie und gib beiden Runden einen eigenen Namen. Ich vergleiche danach.";
 }
 function setzeArt(a) {
-  anlageArt = a; schreiben("raumcheck-art", a); zeigeChips();
+  anlageArt = a; schreiben("raumcheck-art", a); zeigeChips(); subZeigen();
   if (!lesen("raumcheck-geraet-selbst", "")) { geraetWahl = artProfil(a); geraetFormular(); }
 }
 document.querySelectorAll("[data-anlage-art]").forEach((c) => c.addEventListener("click", () => setzeArt(c.dataset.anlageArt)));
+// Subwoofer (jede Art der Anlage): "" = keiner, sonst der Anschluss. Er bestimmt die Hinweise zu Trennfrequenz und Phase
+// und welche Sub-Regler in Schritt 11 mitrechnen.
+const SUB_VORSCHLAG = { aktiv: "boxen", kette: "line", soundbar: "funk", avr: "lfe", heimkino: "lfe" };
+const SUB_NAME = { hochpegel: "über Lautsprecherkabel (High-Level)", line: "über Cinch vom Verstärker (Line)", lfe: "am LFE-Ausgang", boxen: "am Sub-Ausgang der Boxen", funk: "kabellos", weiss: "Anschluss unbekannt" };
+let subAnschluss = lesen("raumcheck-sub", null);
+if (subAnschluss === null) subAnschluss = lesen("raumcheck-geraet-sub", "0") === "1" ? "boxen" : "";
+function subHinweis(a, art) {
+  const ganzAuf = "Am Sub die Trennfrequenz ganz aufdrehen (Maximum oder „LFE/Bypass“), sonst trennt es doppelt.";
+  return {
+    hochpegel: "Die Boxen spielen weiter den ganzen Bass, der Sub ergänzt nur unten. Trennfrequenz am Sub dort, wo die Boxen leiser werden (kleine Boxen etwa 80 Hz, Standboxen 40 bis 50 Hz). Die Lautstärke am Verstärker regelt beide. Phase 0° oder 180°: das zeigt die Messung.",
+    line: "Am Sub- oder Pre-Out kommt meist der volle Bass, die Boxen werden nicht entlastet. Dann wie bei Lautsprecherkabel: Trennfrequenz am Sub dort, wo die Boxen leiser werden, Phase nach der Messung. Hat der Verstärker selbst eine Trennfrequenz (Bassmanagement), stellst du sie dort ein. " + ganzAuf,
+    lfe: art === "heimkino" ? "Die Klang-Box trennt selbst (80 Hz) und stellt die Laufzeit ein. " + ganzAuf + " Phase am Sub auf 0°."
+      : "Die Trennung macht der Receiver: Boxen auf „Klein“, meist 80 Hz. " + ganzAuf + " Abstand und Phase stellt der Receiver ein.",
+    boxen: "Die Boxen trennen selbst (in ihrer App: Sub-Trennfrequenz, Hochpass für die Boxen). " + ganzAuf + " Phase in der App der Boxen oder am Sub.",
+    funk: "Die Funkstrecke verzögert den Bass um einige Millisekunden. Trennung und Pegel stellt meist die App von Soundbar oder Boxen ein. Ob die Phase passt, zeigt die Messung.",
+    weiss: "Schau hinten am Sub: Lautsprecherkabel (Klemmen „High Level“, „Speaker In“), ein Cinchkabel („LFE“ oder „Line In“) oder gar kein Kabel (Funk)?",
+  }[a] || "";
+}
+function subZeigen() {
+  $("sub-nein").setAttribute("aria-pressed", !subAnschluss); $("sub-ja").setAttribute("aria-pressed", !!subAnschluss);
+  $("sub-wie").hidden = !subAnschluss;
+  if (subAnschluss) $("sub-anschluss").value = subAnschluss;
+  $("sub-hinweis").textContent = subHinweis(subAnschluss, anlageArt);
+}
+function setzeSub(a) {
+  subAnschluss = a; schreiben("raumcheck-sub", a); schreiben("raumcheck-geraet-sub", a ? "1" : "0"); geraetGedreht = null; subZeigen();
+  const o = $("s-ohnesub"); if (o && o.checked !== !a) { o.checked = !a; o.dispatchEvent(new Event("change")); }
+  if (typeof geraetFormular === "function") geraetFormular();
+}
+$("sub-nein").addEventListener("click", () => setzeSub(""));
+$("sub-ja").addEventListener("click", () => setzeSub(subAnschluss || SUB_VORSCHLAG[anlageArt] || "weiss"));
+$("sub-anschluss").addEventListener("change", () => setzeSub($("sub-anschluss").value));
 $("anlage").addEventListener("input", () => { schreiben("raumcheck-anlage", $("anlage").value); zeigeChips(); });
 $("anlage-modell").addEventListener("input", () => { schreiben("raumcheck-modell", $("anlage-modell").value); zeigeChips(); });
 // Wächter Vorbereitung: alles abgehakt und eine gültige Signalquelle
@@ -4036,13 +4162,64 @@ $("vorb-weiter").addEventListener("click", () => {
   $("vorb-status").textContent = "";
   zeigeSchritt(4);
 });
+// Teil 1, Hörplatz (Seitenansicht): sitzen, Handy umgedreht auf Ohrhöhe, Mikrofon zur Decke, Arm locker.
+// Mikrofon nach oben: alle Boxen kommen von der Seite (90°), an jedem Platz gleich; siehe daten/mikrofone/iphone-17-pro.json.
 function platzBild() {
-  let g = `<rect x="1" y="1" width="318" height="208" rx="12" fill="#12161C" stroke="#2A313B" stroke-width="2"/>`;
-  g += `<rect x="70" y="24" width="18" height="18" rx="3" fill="#9AA3AD"/><rect x="232" y="24" width="18" height="18" rx="3" fill="#9AA3AD"/><text x="160" y="38" text-anchor="middle">Boxen</text>`;
-  g += `<line x1="79" y1="42" x2="160" y2="150" stroke="#3A4452" stroke-dasharray="3 3"/><line x1="241" y1="42" x2="160" y2="150" stroke="#3A4452" stroke-dasharray="3 3"/>`;
-  g += `<rect x="80" y="162" width="160" height="28" rx="9" fill="#2A313B"/><text x="160" y="203" text-anchor="middle">Sofa</text>`;
-  g += `<circle cx="160" cy="150" r="12" class="${hauptDaten ? "" : "ak-f"}" ${hauptDaten ? `fill="var(--ok)" style="fill: var(--ok)"` : ""}/><text x="160" y="154" text-anchor="middle" style="fill:#0B0D10; font-weight:700; font-size: 12px">${hauptDaten ? "✓" : "1"}</text>`;
-  return `<svg viewBox="0 0 320 210" width="100%" role="img" aria-label="Draufsicht: iPhone am Hörplatz">${g}</svg>`;
+  const P = "#9AA3AD", D = "#5B6470";
+  let g = `<line x1="0" y1="206" x2="340" y2="206" stroke="#2A313B" stroke-width="2"/>`;
+  g += `<rect x="14" y="72" width="30" height="134" rx="4" fill="#2A313B" stroke="${D}"/><circle cx="29" cy="88" r="5" fill="${D}"/><circle cx="29" cy="120" r="10" fill="${D}"/><text x="29" y="64" text-anchor="middle">Box</text>`;
+  g += `<path d="M52,78 Q58,88 52,98 M62,73 Q70,88 62,103 M72,68 Q82,88 72,108" fill="none" class="ak-s" stroke-width="1.6" opacity=".6"/>`;
+  g += `<line x1="48" y1="87" x2="296" y2="87" stroke="#3A4452" stroke-dasharray="4 4"/><text x="92" y="81">Ohrhöhe</text>`;
+  g += `<rect x="196" y="146" width="128" height="28" rx="8" fill="#2A313B"/><rect x="300" y="78" width="26" height="96" rx="9" fill="#2A313B"/><rect x="196" y="172" width="130" height="20" rx="4" fill="#20262E"/>`;
+  g += `<g stroke="${P}" stroke-linecap="round"><line x1="286" y1="106" x2="292" y2="146" stroke-width="24"/><line x1="288" y1="152" x2="238" y2="152" stroke-width="20"/>`
+    + `<line x1="236" y1="156" x2="230" y2="198" stroke-width="15"/><line x1="230" y1="202" x2="214" y2="202" stroke-width="9"/>`
+    + `<line x1="282" y1="114" x2="262" y2="140" stroke-width="10"/><line x1="262" y1="140" x2="233" y2="104" stroke-width="9"/></g>`;
+  g += `<circle cx="280" cy="84" r="15" fill="${P}"/><path d="M266,82 L261,88 L266,90 Z" fill="${P}"/><circle cx="283" cy="86" r="3" fill="${D}"/>`;
+  g += `<rect x="223" y="62" width="14" height="42" rx="3" fill="#171B21" stroke="#E9ECF0" stroke-width="1.5"/><circle cx="230" cy="64" r="2.6" class="ak-f"/><circle cx="231" cy="101" r="7" fill="${P}"/>`;
+  g += `<path d="M230,57 V33 M224,41 L230,31 L236,41" fill="none" class="ak-s" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><text x="222" y="40" text-anchor="end" class="ak" style="font-size: 12px">Mikrofon nach oben</text>`;
+  if (hauptDaten) g += `<circle cx="312" cy="36" r="14" style="fill: var(--ok)"/><text x="312" y="41" text-anchor="middle" style="fill:#0B0D10; font-weight:700; font-size: 14px">✓</text>`;
+  return `<svg viewBox="0 0 340 214" role="img" aria-label="Seitenansicht: Person sitzt auf dem Sofa und hält das Handy umgedreht auf Ohrhöhe vor dem Gesicht, Mikrofon nach oben">${g}</svg>`;
+}
+// Teil 2, Bewegen (Blick von hinten aufs Sofa): sitzen bleiben, das Handy wandert auf Ohrhöhe von links nach rechts und
+// zurück, sanft auf und ab. Die Auswertung (bewegte_punkte in klangbox/raumcheck.py, bewegtePunkte in analyse.js) macht
+// aus je drei Tönen (links, rechts, beide; zusammen ≈ 13,5 s) einen Messpunkt, 4 Punkte in 63 s. Kino: ein Weg ≈ 13,5 s
+// über die Nachbarplätze (≈ ±60 cm), damit jeder Punkt eine Strecke über das Sofa mittelt; Stereo: ±30 cm um den Kopf
+// (wie Diracs „eng“), ein Weg ≈ 7 s. Beides ≈ 9 cm/s: eine Handbreit pro Sekunde (Moving Mic: höchstens 10 cm/s).
+const BEWEGEN = { kino: { cm: 60, weg_s: 13.5 }, stereo: { cm: 30, weg_s: 7 } };
+function bewegenBild(m) {
+  const b = BEWEGEN[m] || BEWEGEN.kino, E = Math.round(b.cm * 1.43), cx = 170, y = 118, A = 14;
+  const D = "#5B6470";
+  let g = `<rect x="36" y="16" width="24" height="40" rx="3" fill="#2A313B" stroke="${D}"/><rect x="280" y="16" width="24" height="40" rx="3" fill="#2A313B" stroke="${D}"/>`
+    + `<rect x="120" y="24" width="100" height="30" rx="3" fill="none" stroke="#3A4452"/><text x="170" y="43" text-anchor="middle">vorne: Boxen</text>`;
+  if (m !== "stereo") g += [84, 256].map((x) => `<circle cx="${x}" cy="${y}" r="15" fill="none" stroke="${D}" stroke-dasharray="3 3"/>`).join("");
+  g += `<circle cx="${cx}" cy="${y}" r="16" fill="${D}"/><rect x="140" y="134" width="60" height="50" rx="20" fill="${D}"/>`;
+  g += `<rect x="20" y="150" width="24" height="72" rx="10" fill="#2A313B"/><rect x="296" y="150" width="24" height="72" rx="10" fill="#2A313B"/><rect x="30" y="160" width="280" height="62" rx="12" fill="#2A313B"/>`
+    + `<line x1="116" y1="170" x2="116" y2="214" stroke="#20262E" stroke-width="2"/><line x1="224" y1="170" x2="224" y2="214" stroke="#20262E" stroke-width="2"/>`;
+  g += `<rect x="${cx - E - 8}" y="${y - A - 9}" width="${2 * E + 16}" height="${2 * A + 18}" rx="16" class="ak-f ak-s" fill-opacity=".1" stroke-opacity=".5" stroke-dasharray="4 4"/>`;
+  // Welle: zwei Bögen je Seite
+  const n = m === "stereo" ? 2 : 4, w = (2 * E) / n;
+  let d = `M${cx - E},${y}`; for (let i = 0; i < n; i++) d += ` q${w / 2},${i % 2 ? A * 2 : -A * 2} ${w},0`;
+  g += `<path id="bw-weg" d="${d}" fill="none" class="ak-s" stroke-width="2.5" stroke-linecap="round"/>`;
+  g += `<path d="M${cx - E + 9},${y - 6} L${cx - E - 2},${y} L${cx - E + 9},${y + 6} M${cx + E - 9},${y - 6} L${cx + E + 2},${y} L${cx + E - 9},${y + 6}" fill="none" class="ak-s" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  g += `<g><rect x="-6" y="-11" width="12" height="22" rx="2.5" fill="#0B0D10" stroke="#E9ECF0" stroke-width="1.5"/><circle cx="-2" cy="-9" r="2" class="ak-f"/>`
+    + `<animateMotion dur="${2 * b.weg_s}s" repeatCount="indefinite" keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="linear"><mpath href="#bw-weg"/></animateMotion></g>`;
+  g += `<line x1="${cx - E}" y1="80" x2="${cx + E}" y2="80" stroke="#9AA3AD"/><line x1="${cx - E}" y1="75" x2="${cx - E}" y2="85" stroke="#9AA3AD"/><line x1="${cx + E}" y1="75" x2="${cx + E}" y2="85" stroke="#9AA3AD"/>`
+    + `<line x1="${cx}" y1="76" x2="${cx}" y2="84" stroke="#9AA3AD"/><text x="${cx}" y="72" text-anchor="middle" class="hell">je ≈ ${b.cm} cm nach links und rechts</text>`;
+  const vx = cx + E + 16;
+  g += `<path d="M${vx},${y - A} V${y + A} M${vx - 4},${y - A} H${vx + 4} M${vx - 4},${y + A} H${vx + 4}" stroke="#9AA3AD" fill="none"/><text x="${vx + 7}" y="${y + 4}">± 15 cm</text>`;
+  g += `<text x="170" y="240" text-anchor="middle" class="ak">langsam: etwa eine Handbreit pro Sekunde</text>`;
+  return `<svg viewBox="0 0 340 250" role="img" aria-label="Blick von hinten aufs Sofa: das Handy wandert auf Ohrhöhe in einer flachen Welle ${b.cm} cm nach links und rechts, langsam">${g}</svg>`;
+}
+function bewegenZeigen() {
+  const b = BEWEGEN[modus] || BEWEGEN.kino, kino = modus !== "stereo";
+  $("bewegen-bild").innerHTML = bewegenBild(modus);
+  $("bewegen-schritte").innerHTML = [
+    `<b>Sitzen bleiben</b> auf deinem Hörplatz. Handy wie in Teil 1: umgedreht, Mikrofon nach oben, Ohrhöhe.`,
+    kino ? `<b>Start links:</b> Arm ausstrecken, Handy über den linken Nachbarplatz (≈ 60 cm).` : `<b>Start links:</b> Handy etwa 30 cm links neben den Kopf.`,
+    kino ? `Langsam nach rechts bis über den rechten Nachbarplatz, dann zurück. Dabei sanft auf und ab, zwischen Kinn und Scheitel.`
+      : `Langsam nach rechts bis 30 cm rechts neben den Kopf, dann zurück. Dabei sanft auf und ab, zwischen Kinn und Scheitel.`,
+    `Ein Weg dauert etwa ${Math.round(b.weg_s)} Sekunden. Immer weiter hin und her, bis die Zeit um ist. Der Bildschirm zeigt dir die Richtung.`,
+  ].map((t) => `<li>${t}</li>`).join("") + (kino ? `<li class="klein" style="list-style: none; margin-left: -20px">Großes Sofa? Rutsch langsam mit, damit das Handy auch über die äußeren Plätze kommt.</li>` : "");
 }
 let hauptDaten = null;  // saubere Aufnahme am Hörplatz
 $("naechste-anlage").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); $("anlage").value = ""; $("anlage-modell").value = ""; zeigeChips(); zeigeSchritt(2); });
@@ -4117,6 +4294,95 @@ setzeQuelle(boxBereit() ? "box" : quelle);
 if (!kannAufnehmen) { $("messen").disabled = true; $("filter").innerHTML = `<span class="warn">Aufnehmen geht hier nicht (nur über https in Safari/Chrome). Unten Sprachmemos-Dateien nutzen.</span>`; }
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// --- Bildschirm wach halten (Prüfen und Messen dauern bis gut eine Minute, sonst sperrt das iPhone) -----------------
+// Screen Wake Lock (Safari ab 16.4), nach dem Zurückkommen (visibilitychange) neu anfordern. In der App zusätzlich
+// {art: "wachHalten", an} an die App: sie setzt UIApplication.isIdleTimerDisabled. Bewusst kein NoSleep-Video
+// (stumm laufendes Inline-Video) als Rückfall: ein spielendes Video kann unter iOS das AirPlay-Ziel und die
+// Audio-Sitzung der Aufnahme an sich ziehen. Ohne Wake Lock bitten wir stattdessen um „Automatische Sperre: Nie“.
+const wach = (() => {
+  const kann = typeof navigator !== "undefined" && !!navigator.wakeLock && typeof navigator.wakeLock.request === "function";
+  let zaehler = 0, sperre = null, fehlgeschlagen = false;
+  const holen = () => {
+    if (!kann || sperre || document.visibilityState !== "visible") return Promise.resolve(!!sperre);
+    // request() direkt im Klick aufrufen (vor dem ersten await), sonst verweigert Safari ihn
+    return navigator.wakeLock.request("screen").then((s) => {
+      if (zaehler === 0) { s.release().catch(() => {}); return false; }
+      sperre = s; fehlgeschlagen = false; s.addEventListener("release", () => { if (sperre === s) sperre = null; }); return true;
+    }, () => { fehlgeschlagen = true; return false; });
+  };
+  document.addEventListener("visibilitychange", () => { if (zaehler > 0 && document.visibilityState === "visible") holen(); });
+  const melden = (an) => { if (nativ) nativ.ereignis({ art: "wachHalten", an }); };
+  window.addEventListener("pagehide", () => { if (zaehler > 0) melden(false); });
+  return {
+    kann,
+    an() { if (zaehler++ === 0) melden(true); return holen(); },
+    aus() { if (zaehler === 0) return; if (--zaehler === 0) { melden(false); const s = sperre; sperre = null; if (s) s.release().catch(() => {}); } },
+    // ohne App und ohne Wake Lock (oder abgelehnt): kann das iPhone mitten in der Messung sperren
+    get unsicher() { return !nativ && (!kann || (fehlgeschlagen && !sperre)); },
+  };
+})();
+if (!nativ && !wach.kann) { $("sperre-zeile").hidden = false; $("sperre-haken").classList.add("pflicht"); }
+
+// --- Mess-Ansicht: Vollbild, um 180° gedreht. Wie bei Trueplay hält man das Handy verkehrt herum: das Mikrofon an der
+// Unterseite zeigt nach oben, die Hand ist weit weg davon. Ablauf: „Handy umdrehen“ (Bild kippt), Ansicht dreht sich
+// weich (0,7 s), 3 s Vorlauf, Messung mit großer Restzeit; danach weich zurück. prefers-reduced-motion: sofort.
+const messLage = (() => {
+  const el = $("messlage"), UMFANG = 603.2;
+  let lauf = 0, abbruch = false, art = "platz", start = 0, weg = 13.5, raf = 0;
+  const ruhig = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+  const teil = (welcher) => { $("ml-hinweis").hidden = welcher !== "hinweis"; $("ml-mess").hidden = welcher !== "mess"; };
+  const hinweis = (gross, klein, zurueck) => { $("ml-hinweis-text").textContent = gross; $("ml-hinweis-klein").textContent = klein; $("ml-telefon").classList.toggle("zurueck", !!zurueck); teil("hinweis"); };
+  const uhr = (zahl, text, anteil) => { $("ml-sek").textContent = zahl; $("ml-sek-text").textContent = text; $("ml-ring").setAttribute("stroke-dashoffset", (UMFANG * (1 - Math.min(1, Math.max(0, anteil)))).toFixed(1)); };
+  function punkt() {
+    if (art !== "bewegen" || !start) return;
+    const t = (Date.now() - start) / 1000 / weg, hin = Math.floor(t) % 2 === 0, x = hin ? t % 1 : 1 - (t % 1);
+    const spur = $("ml-spur"), breite = Math.max(0, spur.clientWidth - 28);
+    $("ml-punkt").style.transform = `translateX(${(x * breite).toFixed(1)}px)`;
+    $("ml-tun").textContent = hin ? "→ langsam nach rechts" : "← langsam zurück nach links";
+    raf = requestAnimationFrame(punkt);
+  }
+  async function oeffnen(o) {
+    const ich = ++lauf; abbruch = false; art = o.art || "platz"; start = 0; weg = (BEWEGEN[modus] || BEWEGEN.kino).weg_s;
+    cancelAnimationFrame(raf);
+    $("ml-titel").textContent = o.titel || ""; $("ml-status").innerHTML = ""; $("ml-warn").hidden = true; $("ml-spur").hidden = art !== "bewegen";
+    $("ml-punkt").style.transform = "translateX(0px)";
+    hinweis("Handy umdrehen", "Mikrofon nach oben zur Decke, Bildschirm zu dir", false);
+    el.classList.remove("gedreht", "zu"); el.hidden = false; $("ml-abbrechen").hidden = false;
+    const r = ruhig();
+    await warte(r ? 1200 : 1900); if (abbruch || ich !== lauf) return false;
+    el.classList.add("gedreht");
+    await warte(r ? 100 : 750); if (abbruch || ich !== lauf) return false;
+    teil("mess");
+    const los = art === "bewegen" ? "Start links: Handy links halten" : "Ruhig halten · nicht sprechen";
+    for (let n = 3; n > 0; n--) { uhr(n, "gleich geht's los", 0); $("ml-tun").textContent = los; await warte(1000); if (abbruch || ich !== lauf) return false; }
+    if (wach.unsicher) { $("ml-warn").hidden = false; $("ml-warn").textContent = "Der Bildschirm bleibt hier evtl. nicht an. Sperrt das iPhone, bricht die Messung ab: Automatische Sperre kurz auf „Nie“."; }
+    $("ml-abbrechen").hidden = false;
+    uhr("", "", 0);
+    return true;
+  }
+  // rest: Sekunden bis zum Ende, anteil: 0 … 1
+  function zeit(rest, anteil) {
+    if (!lauf || el.hidden) return;
+    if (!start) { start = Date.now(); if (art === "bewegen") { cancelAnimationFrame(raf); raf = requestAnimationFrame(punkt); } }
+    uhr(Math.max(0, Math.ceil(rest)), "Sekunden noch", anteil);
+  }
+  function vorlauf(n, text) { if (!el.hidden) { uhr(n, text, 0); } }
+  async function schliessen(ok) {
+    const ich = lauf; cancelAnimationFrame(raf); start = 0;
+    if (el.hidden) return;
+    hinweis(ok ? "✓ Fertig" : "Gestoppt", "Handy wieder normal halten", true); $("ml-abbrechen").hidden = true;
+    const r = ruhig();
+    await warte(r ? 600 : 900); if (ich !== lauf) return;
+    el.classList.remove("gedreht");
+    await warte(r ? 100 : 750); if (ich !== lauf) return;
+    el.classList.add("zu");
+    await warte(r ? 50 : 380); if (ich !== lauf) return;
+    el.hidden = true; el.classList.remove("zu");
+  }
+  $("ml-abbrechen").addEventListener("click", () => { abbruch = true; abbrechen(); });
+  return { oeffnen, zeit, vorlauf, schliessen, status: (h) => { $("ml-status").innerHTML = h; }, get abbruch() { return abbruch; } };
+})();
 // Mikrofon öffnen: über die App (nativ) oder getUserMedia ohne Filter.
 // Gibt {stopp(): Promise<{daten, rate, spitze} | {fehler}>, schliessen(), kaputt} oder {fehler} zurück.
 async function mikrofonOeffnen(ui) {
@@ -4163,8 +4429,29 @@ async function mikrofonOeffnen(ui) {
 }
 // Eine Aufnahme: Mikrofon öffnen, Signal abspielen (AirPlay) oder Countdown fürs andere Gerät,
 // automatisch stoppen. Gibt die Aufnahme zurück (oder null mit Hinweis im Status).
+// ui.lage = {titel, art: "platz" | "bewegen"}: in der gedrehten Vollbild-Ansicht messen (Hörplatz, Bewegen, Nachmessen)
 async function aufnehmen(ui, src, sekundenExtern, tick) {
-  const status = (h) => { $(ui.status).innerHTML = h; };
+  if (quelle === "box" && !boxBereit()) { $(ui.status).innerHTML = `<span class="warn">Die Klang-Box ist nicht eingerichtet. Bitte in Schritt 3 eine andere Quelle wählen.</span>`; return null; }
+  if (quelle === "airplay" && kannAirplay && !drahtlos() && !airplayBestaetigt) { $(ui.status).innerHTML = `<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`; return null; }
+  wach.an();  // noch im Klick: Safari gibt den Wake Lock nur dann
+  let d = null;
+  try {
+    if (ui.lage) {
+      $(ui.start).disabled = true;
+      const ok = await messLage.oeffnen(ui.lage);
+      $(ui.start).disabled = false;
+      if (!ok) { $(ui.status).textContent = "Abgebrochen."; return null; }
+    }
+    d = await aufnehmenKern(ui, src, sekundenExtern, tick);
+    return d;
+  } finally {
+    wach.aus();
+    if (ui.lage) messLage.schliessen(!!d);
+  }
+}
+async function aufnehmenKern(ui, src, sekundenExtern, tick) {
+  const status = (h) => { $(ui.status).innerHTML = h; if (ui.lage) messLage.status(h); };
+  const lz = (rest, r) => { if (ui.lage) messLage.zeit(rest, r); };
   if (quelle === "box" && !boxBereit()) { status(`<span class="warn">Die Klang-Box ist nicht eingerichtet. Bitte in Schritt 3 eine andere Quelle wählen.</span>`); return null; }
   if (quelle === "airplay" && kannAirplay && !drahtlos() && !airplayBestaetigt) { status(`<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`); return null; }
   const mic = await mikrofonOeffnen(ui);
@@ -4195,7 +4482,7 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
     const startS = Number.isFinite(+a.start_in_ms) ? +a.start_in_ms / 1000 : +a.start_ms > 1e11 ? Math.min(60, Math.max(0, (+a.start_ms - Date.now()) / 1000)) : (+a.start_ms || 0) / 1000;
     const gesamt = startS + (+a.dauer_s || sekundenExtern) + 2.5;  // 2,5 s Nachlauf: Funk und Nachhall
     while (!laeuft.abbruch && Date.now() - t0 < gesamt * 1000) { const r = (Date.now() - t0) / 1000 / gesamt;
-      if (tick) tick(r); status(`<span class="laeuft">Misst… noch ${Math.ceil(gesamt * (1 - r))} s</span>`); await warte(250); }
+      if (tick) tick(r); lz(gesamt * (1 - r), r); status(`<span class="laeuft">Misst… noch ${Math.ceil(gesamt * (1 - r))} s</span>`); await warte(250); }
     zurueck();
   } else if (quelle === "airplay") {
     if (!sig.src.endsWith(src)) { sig.src = src; sig.load(); }
@@ -4206,15 +4493,17 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
     if (kannAirplay && !drahtlos() && !airplayBestaetigt) { sig.pause(); ende(); setzeQuelle("extern");
       status(`<span class="warn">iOS hat AirPlay beim Aufnehmen abgeschaltet. Ich habe auf „Von anderem Gerät“ umgestellt: bitte das Messsignal dort abspielen.</span>`); return null; }
     const gesamt = (sig.duration / (sig.playbackRate || 1) || sekundenExtern) + 3;
-    await new Promise((r) => { const t = setInterval(() => { if (tick) tick((Date.now() - t0) / 1000 / gesamt);
+    const schritt = () => { const r = (Date.now() - t0) / 1000 / gesamt; if (tick) tick(r); lz(gesamt * (1 - r), r); };
+    if (ui.lage) status("");
+    await new Promise((r) => { const t = setInterval(() => { schritt();
       if (sig.ended || laeuft.abbruch) { clearInterval(t); r(); } }, 250); });
     const e0 = Date.now();
-    while (!laeuft.abbruch && Date.now() - e0 < 3000) { if (tick) tick((Date.now() - t0) / 1000 / gesamt); await warte(250); }  // AirPlay spielt verzögert
+    while (!laeuft.abbruch && Date.now() - e0 < 3000) { schritt(); await warte(250); }  // AirPlay spielt verzögert
   } else {
-    for (let n = 5; n > 0 && !laeuft.abbruch; n--) { status(`<b>Jetzt am anderen Gerät „${src.replace(/\.wav$/, "")}“ starten</b> · ${n}`); await warte(1000); }
+    for (let n = 5; n > 0 && !laeuft.abbruch; n--) { status(`<b>Jetzt am anderen Gerät „${src.replace(/\.wav$/, "")}“ starten</b> · ${n}`); if (ui.lage) messLage.vorlauf(n, "dort starten"); await warte(1000); }
     const t1 = Date.now();
     while (!laeuft.abbruch && Date.now() - t1 < sekundenExtern * 1000) { const r = (Date.now() - t1) / 1000 / sekundenExtern;
-      if (tick) tick(r); status(`<span class="laeuft">Misst… noch ${Math.ceil(sekundenExtern * (1 - r))} s</span>`); await warte(250); }
+      if (tick) tick(r); lz(sekundenExtern * (1 - r), r); status(`<span class="laeuft">Misst… noch ${Math.ceil(sekundenExtern * (1 - r))} s</span>`); await warte(250); }
   }
   const abgebrochen = laeuft.abbruch;
   const r = await mic.stopp();
@@ -4296,7 +4585,7 @@ async function boxPegelAutomatik() {
   const st = (h) => { $("check-status").innerHTML = h; };
   const laeuft = (t) => st(`<span class="laeuft">${esc(t)}</span>`);
   const selbst = (grund) => { kefSelbst = true; kefModusZeigen(); st(`<span class="warn">${esc(grund)} Stell die Lautstärke bitte selbst ein und tippe auf „Prüfen“.</span>`); };
-  pegelLaeuft = true; pegelAbbruch = false;
+  pegelLaeuft = true; pegelAbbruch = false; wach.an();
   $("check-start").disabled = true; $("check-abbrechen").hidden = false;
   try {
     if (!(await pegelSkript)) return selbst("Die Pegelautomatik ließ sich nicht laden.");
@@ -4337,7 +4626,7 @@ async function boxPegelAutomatik() {
     st(`<span class="ok">✓ Passt: ${Math.round(e.abstand_db)} dB Abstand zum Raumgeräusch bei ${e.lautstaerke - 80} dB an der Klang-Box.</span> Nach der Messung stelle ich das zurück.`);
     await warte(1500); zeigeSchritt(5);
   } finally {
-    pegelLaeuft = false; pegelAbbruch = false;
+    pegelLaeuft = false; pegelAbbruch = false; wach.aus();
     $("check-start").disabled = false; $("check-abbrechen").hidden = true;
   }
 }
@@ -4346,7 +4635,7 @@ async function pegelAutomatik() {
   const st = (h) => { $("check-status").innerHTML = h; };
   const laeuft = (t) => st(`<span class="laeuft">${esc(t)}</span>`);
   const selbst = (grund) => { kefSelbst = true; kefModusZeigen(); st(`<span class="warn">${esc(grund)} Stell die Lautstärke bitte selbst ein und tippe auf „Prüfen“.</span>`); };
-  pegelLaeuft = true; pegelAbbruch = false;
+  pegelLaeuft = true; pegelAbbruch = false; wach.an();
   $("check-start").disabled = true; $("check-abbrechen").hidden = false;
   try {
     if (!(await pegelSkript)) return selbst("Die Pegelautomatik ließ sich nicht laden.");
@@ -4413,7 +4702,7 @@ async function pegelAutomatik() {
     st(`<span class="ok">✓ ${esc(e.text)}</span> Vorher stand sie auf ${ursprung}; nach der Messung stelle ich das zurück.`);
     await warte(1500); zeigeSchritt(5);
   } finally {
-    pegelLaeuft = false; pegelAbbruch = false;
+    pegelLaeuft = false; pegelAbbruch = false; wach.aus();
     $("check-start").disabled = false; $("check-abbrechen").hidden = true;
   }
 }
@@ -4421,19 +4710,18 @@ async function pegelAutomatik() {
 // Schritt 5: Hörplatz
 $("messen").addEventListener("click", async () => {
   const kanaele = messKanaele();
-  const d = await aufnehmen({ status: "status", pegel: "pegel", filter: "filter", start: "messen", abbrechen: "abbrechen", kanaele }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
+  const d = await aufnehmen({ status: "status", pegel: "pegel", filter: "filter", start: "messen", abbrechen: "abbrechen", kanaele, lage: { titel: "Teil 1 von 2 · Hörplatz", art: "platz" } }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
   if (!d) return;
   if (await neueAufnahme("Hörplatz", d, kanaele)) { hauptDaten = d; $("platz-bild").innerHTML = platzBild(); await warte(1200); zeigeSchritt(6); }
 });
 
 // Schritt 6: Bewegen (durch den Hörbereich): Ring mit Restsekunden
+// 63 s braucht es: 12 Sweeps (4 × links, rechts, beide) ergeben 4 Messpunkte; kürzer hieße weniger Punkte im Hörbereich.
 const BEWEGEN_S = 63;
-const ring = (r) => { r = Math.min(1, Math.max(0, r));
-  $("ring").setAttribute("stroke-dashoffset", (942.5 * (1 - r)).toFixed(1)); $("ring-sek").textContent = `${Math.ceil(BEWEGEN_S * (1 - r))} s`; };
 $("bewegen-start").addEventListener("click", async () => {
-  ring(0);
-  $("bewegen-status").innerHTML = `<span class="laeuft">Jetzt langsam gehen und das iPhone auf und ab bewegen…</span>`;
-  const d = await aufnehmen({ status: "bewegen-status", pegel: "bewegen-pegel", start: "bewegen-start", abbrechen: "bewegen-abbrechen" }, "bewegen.wav", BEWEGEN_S, ring);
+  $("bewegen-status").textContent = "";
+  const d = await aufnehmen({ status: "bewegen-status", pegel: "bewegen-pegel", start: "bewegen-start", abbrechen: "bewegen-abbrechen",
+    lage: { titel: "Teil 2 von 2 · hin und her führen", art: "bewegen" } }, "bewegen.wav", BEWEGEN_S);
   if (!d) return;
   $("bewegen-status").innerHTML = `<span class="laeuft">Prüfe die Bewegungs-Messung…</span>`;
   const p = await imWorker({ art: "bewegtPruefen", daten: d });
@@ -4533,6 +4821,19 @@ function kurveSvg(k) {
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Bassverlauf am Hauptplatz, heute und mit Klang-Box">${s}</svg>`;
 }
 
+// Titel der Hebel-Karte: Problem und Ziel statt Name der Kennzahl („Bass klingt nicht nach“ klang wie ein Befund)
+const HEBEL_TITEL = { bass_glaette: "Bass dröhnt bei einzelnen Tönen – so wird er gleichmäßiger", nachklingen: "Bass klingt nach – so wird er trockener",
+  plaetze: "Bass klingt je Platz anders – so wird er überall ähnlich", tiefgang: "Wenig Tiefbass – so reicht er tiefer",
+  sub: "Sub und Boxen löschen sich teils aus – so spielen sie zusammen", pegel: "Kanäle unterschiedlich laut – so werden sie gleich",
+  laufzeit: "Kanäle kommen nicht gleichzeitig an – so treffen sie sich", klang_lr: "Links und rechts klingen verschieden – so werden sie gleich",
+  tonal: "Klangbalance schief – so wird sie ausgewogen", raum: "Raum hallt – so wird er ruhiger" };
+// Mit Subwoofer (Schritt 2): erst den vorhandenen Sub einstellen und nachmessen, dann das Sofa, erst zuletzt ein zweiter Sub
+function hebelMassnahme(h) {
+  if (!subAnschluss || !["bass_glaette", "nachklingen", "plaetze", "tiefgang", "sub"].includes(h.kennzahl)) return h.massnahme;
+  const tf = ["lfe", "boxen", "funk"].includes(subAnschluss) ? "Trennfrequenz (im Receiver oder in der App der Boxen)" : "Trennfrequenz am Sub";
+  return `Zuerst deinen Sub einstellen: Pegel, ${tf} und Phase, jeweils mit Nachmessung („Ohne Klang-Box: die Regler“ rechnet das vor). `
+    + "Hilft das nicht genug, das Sofa 20 bis 40 cm nach vorne oder hinten rücken und neu messen. Erst zuletzt: ein zweiter Sub.";
+}
 function karte(r, i) {
   const e = r.e;
   const pruef = `<ul class="klein" style="margin:0; padding-left:18px">${e.aufnahmen.map((a) =>
@@ -4557,7 +4858,7 @@ function karte(r, i) {
     return `<div class="kachel"><div class="titel"><span>${esc(b.titel)}</span><i class="ampel ${b.ampel}" aria-label="${b.ampel === "gruen" ? "gut" : b.ampel === "gelb" ? "mittel" : b.ampel === "rot" ? "schwach" : "nicht gemessen"}"></i></div>
       <div class="pz">${a.punkte ?? "–"} → <span style="color: var(--akzent)">${b.punkte ?? "–"}</span></div>
       <p>${esc(b.satz)}</p></div>`; }).join("");
-  const hebelKarte = (h, wann) => h ? `<div class="hebel"><span class="marke">Größter Hebel ${wann}</span><b>${esc(h.name)}</b><p style="font-size:14px; line-height:1.45">${esc(h.massnahme)}</p>
+  const hebelKarte = (h, wann) => h ? `<div class="hebel"><span class="marke">Größter Hebel ${wann}</span><b>${esc(HEBEL_TITEL[h.kennzahl] || h.name)}</b><p style="font-size:14px; line-height:1.45">${esc(hebelMassnahme(h))}</p>
       <span class="klein">Bis zu +${h.bis_zu_punkte} Punkte (geschätzt)</span></div>` : "";
   const zeilen = Object.entries(sp.kennzahlen).filter(([, b]) => b.gewicht || b.punkte !== null).map(([k, b]) => { const a = sh.kennzahlen[k];
     const ca = b.konfidenz > 0 && b.konfidenz < 1 ? " ca." : "";
@@ -5208,7 +5509,7 @@ $("a-zurueck").addEventListener("click", () => zeigeSchritt(anwendenArt === "ger
 async function nachAufnahme(ui, mitEinstellungen = true) {
   const r = aktuelleRunde(), kanaele = (r && r.kanaele) || K2;
   if (kanaele.length === 4 && quelle !== "box") { $("a-status").innerHTML = `<span class="warn">Diese Runde wurde über die Klang-Box mit vier Kanälen gemessen. Bitte in Schritt 3 „Über die Klang-Box“ wählen.</span>`; return null; }
-  const d = await aufnehmen({ status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen", kanaele, mitEinstellungen }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
+  const d = await aufnehmen({ status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen", kanaele, mitEinstellungen, lage: { titel: "Nachmessen · Hörplatz", art: "platz" } }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
   if (!d) return null;
   $("a-status").innerHTML = `<span class="laeuft">Prüfe die Aufnahme…</span>`;
   const p = await imWorker({ art: "pruefen", daten: d, kanaele });
@@ -5346,16 +5647,25 @@ const lesenJson = (k, std) => { try { const v = JSON.parse(lesen(k, "")); return
 // Profil je Art der Anlage (daten/geraete/typ_*.json, alles geschätzt); eine eigene Wahl merkt sich die Seite
 const artProfil = (a) => (GERAETE.find((g) => g.anlage_art === (a === "heimkino" ? "avr" : a)) || GERAETE.find((g) => !g.generisch) || { id: "eigenes" }).id;
 let geraetWahl = lesen("raumcheck-geraet-selbst", "") ? lesen("raumcheck-geraet", artProfil(anlageArt)) : artProfil(anlageArt);
-let geraetSub = lesen("raumcheck-geraet-sub", "0") === "1", geraetGedreht = null;
+let geraetGedreht = null;
 let eigeneRegler = lesenJson("raumcheck-eigene-regler", []), geraetHeute = lesenJson("raumcheck-geraet-heute", {});
 const nurSub = (g) => g.regler.length > 0 && g.regler.every((r) => r.teil === "sub");
 const subSinnvoll = (g) => g.regler.some((r) => r.teil === "sub" || r.nur_mit_sub || r.bei_sub_nur_zerlegt);
 const kannZerlegen = (g) => g.regler.some((r) => r.teil === "sub" && r.filter.art === "polaritaet");
 function geraetProfil() {
   const g = geraetWahl === "eigenes" ? null : GERAETE.find((x) => x.id === geraetWahl);
-  return g || AJ.reglerZusammensetzen(eigeneRegler, GERAETE);
+  return mitSubReglern(g || AJ.reglerZusammensetzen(eigeneRegler, GERAETE));
 }
-const mitSub = (g) => nurSub(g) || (geraetSub && subSinnvoll(g));
+// Profil ohne eigene Sub-Regler (z. B. Stereo-Kette, Aktivboxen) und ein Sub spielt mit: die Regler am Sub selbst dazu.
+// Trennt schon der Receiver, die Klang-Box oder die Boxen (LFE, Sub-Ausgang der Boxen, Funk), bleibt die Trennfrequenz am
+// Sub ganz offen und rechnet nicht mit.
+function mitSubReglern(g) {
+  const s = GERAETE.find((x) => x.id === "generisch_subwoofer");
+  if (!subAnschluss || !s || !g.regler.length || subSinnvoll(g)) return g;
+  const weg = ["lfe", "boxen", "funk"].includes(subAnschluss) ? ["sub_trennfrequenz_hz"] : [];
+  return { ...g, regler: [...g.regler, ...s.regler.filter((r) => !weg.includes(r.id))], wo: `${g.wo} und an deinem Subwoofer`, zerlegung: g.zerlegung || s.zerlegung };
+}
+const mitSub = (g) => nurSub(g) || (!!subAnschluss && subSinnvoll(g));
 const sichtbar = (g, r) => !((r.teil === "sub" || r.nur_mit_sub) && !mitSub(g));
 function geraetFormular() {
   const opt = (v, t) => `<option value="${esc(v)}"${v === geraetWahl ? " selected" : ""}>${esc(t)}</option>`;
@@ -5367,8 +5677,10 @@ function geraetFormular() {
     `<li><label><input type="checkbox" data-eigen="${esc(r.id)}"${eigeneRegler.includes(r.id) ? " checked" : ""}> ${esc(r.name)}${r.teil === "sub" ? " (Subwoofer)" : ""}</label></li>`).join("");
   const g = geraetProfil();
   $("g-hinweis").textContent = g.regler.length ? (g.hinweis || "") : "Wähle oben die Regler, die dein Gerät hat.";
-  $("g-sub-zeile").hidden = nurSub(g) || !subSinnvoll(g);
-  $("g-sub").setAttribute("aria-checked", geraetSub);
+  $("g-sub-zeile").hidden = nurSub(g);
+  $("g-sub").setAttribute("aria-checked", !!subAnschluss);
+  $("g-sub-text").textContent = subAnschluss ? SUB_NAME[subAnschluss] || "" : "Anschluss wählst du in Schritt 2";
+  $("g-sub-hinweis").textContent = subAnschluss ? subHinweis(subAnschluss, anlageArt) : "";
   const heute = geraetHeute[g.id] || {};
   $("g-felder").innerHTML = g.regler.filter((r) => sichtbar(g, r)).map((r) => {
     const ws = AJ.reglerWerte(r), wert = r.id in heute && ws.some((w) => w === heute[r.id]) ? heute[r.id] : r.werks;
@@ -5388,11 +5700,11 @@ function geraetAktuell() {
 $("g-geraet").addEventListener("change", () => { geraetWahl = $("g-geraet").value; geraetGedreht = null; schreiben("raumcheck-geraet", geraetWahl); schreiben("raumcheck-geraet-selbst", "1"); geraetFormular(); });
 $("g-eigen-liste").addEventListener("change", (ev) => { const c = ev.target.closest("[data-eigen]"); if (!c) return;
   eigeneRegler = [...document.querySelectorAll("[data-eigen]")].filter((x) => x.checked).map((x) => x.dataset.eigen); schreiben("raumcheck-eigene-regler", JSON.stringify(eigeneRegler)); geraetFormular(); });
-$("g-sub").addEventListener("click", () => { geraetSub = !geraetSub; schreiben("raumcheck-geraet-sub", geraetSub ? "1" : "0"); geraetFormular(); });
+$("g-sub").addEventListener("click", () => setzeSub(subAnschluss ? "" : SUB_VORSCHLAG[anlageArt] || "weiss"));
 $("g-felder").addEventListener("change", () => { geraetHeute[geraetProfil().id] = geraetAktuell(); schreiben("raumcheck-geraet-heute", JSON.stringify(geraetHeute)); });
 $("g-werks").addEventListener("click", () => { delete geraetHeute[geraetProfil().id]; schreiben("raumcheck-geraet-heute", JSON.stringify(geraetHeute)); geraetFormular(); });
 $("g-gedreht-messen").addEventListener("click", async () => {
-  const d = await aufnehmen({ status: "g-mess-status", pegel: "g-pegel", filter: "g-filter", start: "g-gedreht-messen", abbrechen: "g-abbrechen" }, "raumcheck.wav", 26);
+  const d = await aufnehmen({ status: "g-mess-status", pegel: "g-pegel", filter: "g-filter", start: "g-gedreht-messen", abbrechen: "g-abbrechen", lage: { titel: "Sub-Polarität umgedreht · Hörplatz", art: "platz" } }, "raumcheck.wav", 26);
   if (!d) return;
   const pr = await imWorker({ art: "pruefen", daten: d });
   if (!pr.ok || !pr.ergebnis.sauber) { $("g-mess-status").innerHTML = `<span class="warn">Nicht verwendet: ${esc(pr.ok ? pr.ergebnis.probleme.join(" ") : pr.fehler)} Bitte noch einmal.</span>`; return; }
@@ -5829,7 +6141,7 @@ geraetFormular();
 zeigeAlles();
 zeigeDateien();
 nachhallUebernehmen();
-zeigeChips();
+zeigeChips(); subZeigen();
 // Neue Klang-Box gemeldet und noch nichts eingerichtet: die App führt zuerst durch die Einrichtung
 zeigeSchritt(runden.length ? 7 : (nativ && nativ.boxen && !boxBereit() && nativ.boxen.neue ? 12 : 1));
 </script>

@@ -3986,7 +3986,14 @@ $("vorb-weiter").addEventListener("click", () => {
   if (!kannAufnehmen) { $("vorb-status").innerHTML = `<span class="warn">Dieser Browser darf hier nicht aufnehmen. Bitte in Safari öffnen, oder am Hörplatz Sprachmemos-Dateien nutzen.</span>`; }
   else if (quelle === "box" && !boxBereit()) { setzeQuelle("airplay"); $("vorb-status").innerHTML = `<span class="warn">Die Klang-Box ist nicht mehr eingerichtet. Ich messe per AirPlay.</span>`; return; }
   else if (quelle === "airplay" && !kannAirplay && !nativ) { $("vorb-status").innerHTML = `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Wähle „Von anderem Gerät“ oder öffne die Seite in Safari.</span>`; return; }
-  else if (quelle === "airplay" && !drahtlos()) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst „AirPlay-Lautsprecher wählen“ und deine Anlage antippen. Sonst misst du den iPhone-Lautsprecher.</span>`; return; }
+  else if (quelle === "airplay" && !drahtlos() && !airplayBestaetigt) {
+    // Safari meldet die AirPlay-Wahl oft erst, wenn wirklich etwas spielt: nicht festhalten, nachfragen.
+    // Spielt doch das iPhone selbst, fällt das in Schritt 4 (Lautstärke) und am Wächter der Aufnahme auf.
+    $("vorb-status").innerHTML = `<span class="warn">Safari meldet noch keinen AirPlay-Lautsprecher. Hast du deine Anlage im AirPlay-Fenster angetippt?</span>
+      <button type="button" class="zweit klein" id="airplay-bestaetigen">Ja, Anlage ist gewählt – weiter</button>`;
+    $("airplay-bestaetigen").addEventListener("click", () => { airplayBestaetigt = true; $("vorb-status").textContent = ""; zeigeSchritt(4); });
+    return;
+  }
   $("vorb-status").textContent = "";
   zeigeSchritt(4);
 });
@@ -4033,7 +4040,7 @@ $("datei").addEventListener("change", async (ev) => {
 
 // --- Ein-Knopf-Messung: aufnehmen, Messsignal abspielen (AirPlay), automatisch stoppen, sofort prüfen ---
 const sig = $("signal");
-let quelle = lesen("raumcheck-quelle", "airplay"), laeuft = null;
+let quelle = lesen("raumcheck-quelle", "airplay"), laeuft = null, airplayBestaetigt = false;
 const kannAirplay = !!sig.webkitShowPlaybackTargetPicker;
 const nativAufnahme = !!(nativ && nativ.kannAufnehmen);
 const kannAufnehmen = nativAufnahme || !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext);

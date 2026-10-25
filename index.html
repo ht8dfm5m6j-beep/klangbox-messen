@@ -226,12 +226,15 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
   <!-- Schritt 4: Ruhe und Lautstärke prüfen -->
   <section class="card schritt" data-s="4" hidden aria-labelledby="h-check">
     <h1 id="h-check">Ruhe und Lautstärke prüfen</h1>
-    <p>Setz dich auf deinen Hörplatz. Ein kurzer Rauschton läuft, das iPhone hört zu. Danach weißt du, ob es zu leise, zu laut oder genau richtig ist.</p>
+    <p id="check-text">Setz dich auf deinen Hörplatz. Ein kurzer Rauschton läuft, das iPhone hört zu. Danach weißt du, ob es zu leise, zu laut oder genau richtig ist.</p>
+    <p id="check-kef-text" hidden>Setz dich auf deinen Hörplatz. Die App stellt die Lautstärke deiner KEF selbst ein: erst leise, dann Schritt für Schritt lauter, bis der Rauschton sauber ankommt. Das dauert etwa ein bis zwei Minuten. Nach der Messung stellt sie die alte Lautstärke wieder her.</p>
+    <div id="check-kef" class="klein" hidden></div>
     <button type="button" id="check-start">Prüfen</button>
     <button type="button" id="check-abbrechen" class="zweit" hidden>Abbrechen</button>
     <div class="balken" aria-hidden="true"><div id="check-pegel"></div></div>
     <div id="check-status" class="klein" aria-live="polite"></div>
     <div id="check-filter" class="klein"></div>
+    <button type="button" class="zweit klein" id="check-selbst" hidden>Lautstärke selbst einstellen</button>
     <div class="knoepfe"><button type="button" class="zweit" data-zu="3">Zurück</button><button type="button" class="zweit" id="check-ueberspringen">Überspringen</button></div>
   </section>
 
@@ -528,7 +531,9 @@ function findeMarker(rec, f = FOLGE) {
   const N = rec.length, corr = new Float64Array(N);
   for (let i = 0; i < N; i++) corr[i] = Math.hypot(re[i], im[i]);
   const lokal = gleitMittel(corr, Math.floor(0.1 * FS)), scharf = new Float64Array(N);
-  for (let i = 0; i < N; i++) scharf[i] = corr[i] / (lokal[i] + 1e-12);
+  // Nur echte Gipfel: ein winziges Rauschzucken in der Stille ist auch „scharf“ (−30 dB-Schwelle wie Python)
+  let cMax = 0; for (let i = 0; i < N; i++) cMax = Math.max(cMax, corr[i]);
+  for (let i = 0; i < N; i++) scharf[i] = corr[i] < 0.03 * cMax ? 0 : corr[i] / (lokal[i] + 1e-12);
   const sched = f.kanaele.map((_, i) => Math.round((markerZeit(i, f) - markerZeit(0, f)) * FS));
   const nOff = N - sched[sched.length - 1] - 1;
   if (nOff <= 0) throw new Error("Aufnahme zu kurz für das Messsignal");
@@ -546,15 +551,24 @@ function findeMarker(rec, f = FOLGE) {
   const grob = [], suche = Math.floor(0.025 * FS);
   for (const s of sched) {
     const c = p0 + s + Math.floor(0.02 * FS), lo = Math.max(1, c - suche), hi = Math.min(N - 1, c + suche);
-    let p = lo; for (let i = lo; i < hi; i++) if (scharf[i] > scharf[p]) p = i;
-    grob.push(p);
+    grob.push(ersterGipfel(corr, scharf, lo, hi));
   }
   return { zeiten: markerFein(corr, grob), corr };
 }
 // Alle Marker gleich ausrichten (wie _marker_fein): Muster aus Direktschall und Reflexionen auf das
 // des ersten Markers legen (±2 ms), damit ein Sprung auf eine Reflexion den Takt nicht verschiebt
+// Direktschall des Markers: der früheste deutliche Gipfel (eine Reflexion kann lauter sein als er)
+function ersterGipfel(corr, scharf, lo, hi) {
+  let sMax = 0, cMax = 0, p = lo;
+  for (let i = lo; i < hi; i++) { if (scharf[i] > sMax) { sMax = scharf[i]; p = i; } cMax = Math.max(cMax, corr[i]); }
+  for (let i = lo; i < hi; i++) if (scharf[i] >= 0.5 * sMax && corr[i] >= 0.5 * cMax) {
+    let j = i; for (let k = i; k <= Math.min(hi - 1, i + Math.floor(0.0005 * FS)); k++) if (corr[k] > corr[j]) j = k;
+    return j;
+  }
+  return p;
+}
 function markerFein(corr, grob) {
-  const w = Math.floor(0.01 * FS), s = Math.floor(0.006 * FS), p0 = grob[0], t0 = p0 + parabel(corr, p0), zeiten = [t0];
+  const w = Math.floor(0.01 * FS), s = Math.floor(0.002 * FS), p0 = grob[0], t0 = p0 + parabel(corr, p0), zeiten = [t0];
   for (const p of grob.slice(1)) {
     if (p - w - s < 0 || p + w + s + 1 > corr.length || p0 - w < 0) { zeiten.push(p); continue; }
     const kk = [];
@@ -1417,8 +1431,9 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null) {
   Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, bericht: ein.zeilen, tipps: ein.tipps,
                        raum_tipps: raumTipps(punkte[0].messungen, sh, raumM3),
                        kurve: { f: kh.f, heute: kh.v, prognose: kn.v }, einstellungen: ein.cals });
-  // Nie verschlimmbessern: bringt die Raumanpassung insgesamt nichts, bleibt die Box neutral
-  if (sn.gesamt < sh.gesamt) {
+  // Nie verschlimmbessern: bringt die Raumanpassung nicht mindestens einen Punkt, bleibt die Box neutral
+  // (ein vorhergesagtes „gleich gut“ ist nur Risiko; wie MINDEST_GEWINN in raumcheck.py)
+  if (sn.gesamt < sh.gesamt + 1) {
     erg.score_prognose = { ...sh }; erg.kurve.prognose = kh.v;
     erg.einstellungen = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
     erg.bericht.push("Wächter: Die Raumanpassung würde hier insgesamt nichts verbessern. Die Box bleibt neutral.");
@@ -1926,6 +1941,14 @@ const nativ = (() => {
     return true;
   };
   n.aufnahmeFehler = (id, text) => { const o = offen.get(id); if (!o) return false; offen.delete(id); o.fehler(String(text || "Aufnahme fehlgeschlagen.")); return true; };
+  // KEF-Lautsprecher (App: KEFSteuerung.swift): Antwort auf {art: "kef…", reqId}. Zusätzlich Ereignis „klangboxkef“.
+  const kefOffen = new Map(); let kefZaehler = 0;
+  n.kefAntwort = (reqId, daten) => {
+    try { window.dispatchEvent(new CustomEvent("klangboxkef", { detail: { reqId, daten } })); } catch (e) {}
+    const o = kefOffen.get(reqId); if (!o) return false; kefOffen.delete(reqId); clearTimeout(o.t);
+    o.ok(daten && typeof daten === "object" ? daten : { ok: false, grund: "format", fehler: "Leere Antwort der App." });
+    return true;
+  };
   const handler = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.klangbox);
   return {
     raum: n.raum || null,
@@ -1940,6 +1963,17 @@ const nativ = (() => {
       return { id, ergebnis, stopp: () => senden({ art: "aufnahmeStopp", id }) };
     },
     raumNeuScannen: () => senden({ art: "raumNeuScannen" }),
+    kefVerfuegbar: !!(n.kef && n.kef.verfuegbar) && handler,
+    kefMaximum: n.kef && Number.isFinite(+n.kef.maximum) ? Math.min(75, +n.kef.maximum) : 60,
+    // KEF-Befehl an die App: Promise auf die Antwort (immer mit ok; bei Fehler fehler und grund), nie abgelehnt
+    kef(art, daten, zeitMs = 20000) {
+      const reqId = `k${++kefZaehler}-${Date.now()}`;
+      return new Promise((ok) => {
+        const t = setTimeout(() => { kefOffen.delete(reqId); ok({ ok: false, grund: "zeitueberschreitung", fehler: "Die App hat nicht rechtzeitig geantwortet." }); }, zeitMs);
+        kefOffen.set(reqId, { ok, t });
+        if (!senden({ ...(daten || {}), art, reqId })) { clearTimeout(t); kefOffen.delete(reqId); ok({ ok: false, grund: "keine_app", fehler: "Die App antwortet nicht." }); }
+      });
+    },
     ereignis: (m) => senden(m),
   };
 })();
@@ -1984,6 +2018,7 @@ function zeigeSchritt(n) {
   document.querySelectorAll("#fortschritt span").forEach((s, i) => s.classList.toggle("an", i < n));
   $("schritt-text").textContent = n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
   if (n === 5) $("platz-bild").innerHTML = platzBild();
+  pegelSchrittGewechselt(n);
   if (n === 8) planZeigen();
   window.scrollTo(0, 0);
 }
@@ -2150,7 +2185,7 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
   if (r.fehler) { status(`<span class="warn">Aufnahme über die App fehlgeschlagen: ${r.fehler}</span>`); return null; }
   if (abgebrochen) { status("Abgebrochen."); return null; }
   if (r.rate !== 48000) { status(`<span class="warn">Abtastrate ${r.rate} Hz statt 48000 Hz. Bitte Sprachmemos nutzen.</span>`); return null; }
-  if (r.spitze < 0.003) { status(`<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`); return null; }
+  if (r.spitze < 0.003 && !ui.leiseOk) { status(`<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`); return null; }
   return r.daten;
 }
 function abbrechen() { if (laeuft) { laeuft.abbruch = true; sig.pause(); } }
@@ -2170,6 +2205,8 @@ function pegelBewerten(d) {
   return { rausch, ton, abstand: ton - rausch, spitze_db: 20 * Math.log10(spitze + 1e-12) };
 }
 $("check-start").addEventListener("click", async () => {
+  if (pegelLaeuft) return;
+  if (kefDa && !kefSelbst) return pegelAutomatik();
   const d = await aufnehmen({ status: "check-status", pegel: "check-pegel", filter: "check-filter", start: "check-start", abbrechen: "check-abbrechen" }, "pegel.wav", 11);
   if (!d) return;
   const p = pegelBewerten(d), st = (h) => { $("check-status").innerHTML = h; };
@@ -2182,6 +2219,107 @@ $("check-start").addEventListener("click", async () => {
   await warte(1200); zeigeSchritt(5);
 });
 $("check-ueberspringen").addEventListener("click", () => zeigeSchritt(5));
+
+// Schritt 4 mit KEF (nur in der App, window.klangboxNativ.kef.verfuegbar): Die App stellt die Lautstärke,
+// die Seite spielt pegel.wav, misst über aufnehmen() und bewertet mit pegelBewerten(). Logik: pegelautomatik.js.
+// Ohne App bleibt Schritt 4 wie oben. Nach der Messung (ab Schritt 7), beim Zurückgehen vor Schritt 4 und beim
+// Verlassen stellt die App die alte Lautstärke und Quelle wieder her; die App selbst stellt zusätzlich bei
+// Abbruch, im Hintergrund, nach 15 Minuten Ruhe und beim nächsten Start zurück.
+var kefDa = !!(nativ && nativ.kefVerfuegbar), kefSelbst = false, kefSitzung = null, pegelLaeuft = false, pegelAbbruch = false;
+let pegelSkript = null;
+function ladeSkript(src, da) {
+  return new Promise((ok, fehler) => { if (da()) return ok(); const el = document.createElement("script"); el.src = src; el.onload = () => (da() ? ok() : fehler()); el.onerror = fehler; document.head.appendChild(el); });
+}
+function kefModusZeigen() {
+  const an = kefDa && !kefSelbst;
+  $("check-text").hidden = an; $("check-kef-text").hidden = !an; $("check-selbst").hidden = !an; $("check-kef").hidden = !an;
+}
+if (kefDa) { kefModusZeigen(); pegelSkript = ladeSkript("pegelautomatik.js", () => window.PegelAutomatik).then(() => true, () => false); }
+$("check-selbst").addEventListener("click", () => { if (pegelLaeuft) return; kefSelbst = true; kefModusZeigen(); $("check-status").textContent = ""; });
+$("check-abbrechen").addEventListener("click", () => { if (pegelLaeuft) pegelAbbruch = true; });
+function kefZurueck() {
+  if (!kefSitzung || !nativ) return Promise.resolve(true);
+  const s = kefSitzung;
+  return nativ.kef("kefWiederherstellen", { id: s.id }).then((a) => { if (a.ok && kefSitzung === s) kefSitzung = null; return !!a.ok; });
+}
+function pegelSchrittGewechselt(n) { if (kefSitzung && !pegelLaeuft && (n <= 3 || n >= 7)) kefZurueck(); }
+window.addEventListener("pagehide", () => { if (kefSitzung) kefZurueck(); });
+const QUELLEN = { wifi: "WLAN/Stream", bluetooth: "Bluetooth", tv: "TV (HDMI)", optical: "Optisch", optic: "Optisch", coaxial: "Koaxial", analog: "Analog", usb: "USB", standby: "Standby" };
+async function pegelAutomatik() {
+  const st = (h) => { $("check-status").innerHTML = h; };
+  const laeuft = (t) => st(`<span class="laeuft">${esc(t)}</span>`);
+  const selbst = (grund) => { kefSelbst = true; kefModusZeigen(); st(`<span class="warn">${esc(grund)} Stell die Lautstärke bitte selbst ein und tippe auf „Prüfen“.</span>`); };
+  pegelLaeuft = true; pegelAbbruch = false;
+  $("check-start").disabled = true; $("check-abbrechen").hidden = false;
+  try {
+    if (!(await pegelSkript)) return selbst("Die Pegelautomatik ließ sich nicht laden.");
+    laeuft("Suche deine KEF im Heimnetz …");
+    const such = await nativ.kef("kefSuchen", {}, 30000);
+    if (pegelAbbruch) return st("Abgebrochen.");
+    if (!such.ok || !such.geraete || !such.geraete.length) return selbst(such.ok ? "Keine KEF-Box im Heimnetz gefunden." : `Die KEF-Suche ging nicht: ${such.fehler || such.grund}.`);
+    const g = such.geraete[0], id = g.id;
+    $("check-kef").textContent = `Lautsprecher: ${g.modell} · ${g.name}`;
+    let l = await nativ.kef("kefLesen", { id });
+    if (!l.ok) return selbst(`Die KEF antwortet nicht (${l.fehler || l.grund}).`);
+    if (l.quelle !== "wifi") {
+      laeuft(l.quelle === "standby" || l.status === "standby" ? "Die KEF ist aus, ich schalte sie ein …"
+        : `Die KEF steht auf „${QUELLEN[l.quelle] || l.quelle}“, ich stelle auf WLAN/Stream um (dort kommt AirPlay an) …`);
+      const q = await nativ.kef("kefQuelle", { id, quelle: "wifi" });
+      if (!q.ok) {
+        kefSitzung = { id, ursprung: l.lautstaerke }; await kefZurueck();
+        return st(`<span class="warn">Die KEF ließ sich nicht auf WLAN/Stream umstellen: ${esc(q.fehler || q.grund)} Bitte an der Box oder in der KEF-App umstellen und noch einmal.</span>`);
+      }
+      l = await nativ.kef("kefLesen", { id });  // die Lautstärke gilt je Quelle
+      if (!l.ok) return selbst(`Die KEF antwortet nicht (${l.fehler || l.grund}).`);
+    }
+    // Ursprung: bei einem zweiten Durchlauf der Wert vor dem ersten (die App merkt ihn sich ebenfalls)
+    if (!kefSitzung || kefSitzung.id !== id) kefSitzung = { id, ursprung: l.lautstaerke };
+    const ursprung = kefSitzung.ursprung;
+    const max = Math.min(Number.isFinite(+l.maximum) ? +l.maximum : nativ.kefMaximum, nativ.kefMaximum, 75);
+    let wiedergabe = null;
+    const ui = { status: "check-status", pegel: "check-pegel", filter: "check-filter", start: "check-start", abbrechen: "check-abbrechen", leiseOk: true };
+    const e = await window.PegelAutomatik.einpegeln({
+      ursprung, max, start: Math.max(10, Math.min(30, ursprung - 10, max)),
+      abbruch: () => pegelAbbruch,
+      setzeLautstaerke: async (v) => {
+        const a = await nativ.kef("kefLautstaerke", { id, wert: v });
+        if (!a.ok) throw new Error(a.fehler || a.grund);
+        return { wert: a.wert };
+      },
+      messe: async () => {
+        // während der Rauschton läuft, fragt die Seite die Box, ob sie wirklich spielt (für die Ursache)
+        const probe = warte(3500).then(() => nativ.kef("kefLesen", { id })).then((x) => { wiedergabe = x.ok ? x.wiedergabe : null; });
+        const d = await aufnehmen(ui, "pegel.wav", 11);
+        $("check-start").disabled = true; $("check-abbrechen").hidden = false;
+        await probe.catch(() => {});
+        if (!d) throw new Error($("check-status").textContent || "Aufnahme fehlgeschlagen.");
+        const p = pegelBewerten(d);
+        return { pegel_db: p.ton, stoer_db: p.rausch, spitze_db: p.spitze_db, clip: p.spitze_db > -3 };
+      },
+      ursache: async () => {
+        const x = await nativ.kef("kefLesen", { id });
+        if (!x.ok) return { grund: "box_weg", text: "Die KEF antwortet nicht mehr im Heimnetz." };
+        if (x.status === "standby" || x.quelle === "standby") return { grund: "box_aus", text: "Die KEF ist ausgeschaltet. Schalte sie ein und versuche es noch einmal." };
+        if (x.quelle !== "wifi") return { grund: "falsche_quelle", text: `Die KEF steht auf „${QUELLEN[x.quelle] || x.quelle}“ statt WLAN/Stream.` };
+        if (wiedergabe && wiedergabe !== "playing") return { grund: "airplay", text: "Die KEF spielt den Ton nicht: AirPlay ist nicht mit ihr verbunden. Tippe oben rechts auf das AirPlay-Symbol und wähle die KEF." };
+        return { grund: "unklar", text: "Die KEF ist an und steht auf WLAN/Stream. Läuft der AirPlay-Ton auf ihr (oben rechts), und ist das Mikrofon unten am iPhone frei?" };
+      },
+      zurueckstellen: () => kefZurueck(),
+      melde: (i) => {
+        if (i.art === "setze") laeuft(`Stelle die Lautstärke auf ${i.lautstaerke} …`);
+        if (i.art === "messe") laeuft(`Prüfton läuft (Lautstärke ${i.lautstaerke}, Versuch ${i.versuch}) …`);
+        if (i.art === "zurueck") laeuft(`Stelle die alte Lautstärke (${i.lautstaerke}) wieder her …`);
+      },
+      zeitSetzenMs: 25000,
+    });
+    if (!e.ok) { if (e.wiederhergestellt) kefSitzung = null; return st(`<span class="warn">${esc(e.text)}</span>`); }
+    st(`<span class="ok">✓ ${esc(e.text)}</span> Vorher stand sie auf ${ursprung}; nach der Messung stelle ich das zurück.`);
+    await warte(1500); zeigeSchritt(5);
+  } finally {
+    pegelLaeuft = false; pegelAbbruch = false;
+    $("check-start").disabled = false; $("check-abbrechen").hidden = true;
+  }
+}
 
 // Schritt 5: Hörplatz
 $("messen").addEventListener("click", async () => {

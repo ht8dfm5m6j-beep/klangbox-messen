@@ -1,4 +1,4 @@
-// Pegelautomatik: stellt die Lautstärke der Box (KEF über die iPhone-App) in kleinen Schritten ein, bis das
+// Pegelautomatik: stellt die Lautstärke (Lautsprecher-Adapter der App oder Klang-Box) in kleinen Schritten ein, bis das
 // Prüfsignal (pegel.wav: 2 s Stille, 3 s rosa Rauschen, 2 s Stille) sauber und mit genug Abstand zum
 // Raumgeräusch am Mikrofon ankommt. Reine Logik, ohne Browser: läuft auch in node (tests/pegelautomatik_test.js).
 //
@@ -12,8 +12,8 @@
 // Wächter:
 // - nie über `max`; meldet die App weniger als verlangt (Grenze der Box), gilt das als neue Obergrenze;
 //   nach einer Übersteuerung nie wieder bis zu dieser Stufe,
-// - je Schritt höchstens 3 dB und höchstens 6 Stufen. Wie viele dB eine KEF-Stufe sind, ist nicht belegt
-//   (ios/KEF-PROTOKOLL.md, die Faustregel 0,5 dB ist ungeprüft): Der erste Schritt mit Signal ist darum nur
+// - je Schritt höchstens 3 dB und höchstens 6 Stufen. Wie viele dB eine Lautstärke-Stufe sind, ist je Gerät verschieden
+//   (beim Lautsprecher-Adapter ist die Faustregel 0,5 dB ungeprüft): Der erste Schritt mit Signal ist darum nur
 //   1 Stufe; danach rechnet die Automatik mit der gemessenen Steigung (Ausgleichsgerade über die letzten
 //   Messungen) plus Sicherheitszuschlag für das Messrauschen. Solange gar kein Signal ankommt, ist die Steigung
 //   nicht messbar; dann höchstens 3 Stufen je Schritt und insgesamt höchstens 6 Stufen „blind“,
@@ -42,7 +42,7 @@
     raum_zu_laut: (e) => `Im Raum ist es zu laut (${Math.round(e.abstand_db)} dB Abstand, nötig ${ZIEL.abstand_db} dB). Fenster zu, Geräte aus, still sein, dann noch einmal.`,
     zu_leise_bei_max: (e) => `Auch bei der höchsten erlaubten Lautstärke (${e.grenze}) ist der Prüfton zu leise (${Math.round(e.abstand_db)} dB Abstand, nötig ${ZIEL.abstand_db} dB). Setz dich näher an die Boxen oder erhöhe das Maximum in den Einstellungen der App.`,
     uebersteuert: () => "Das Mikrofon übersteuert schon bei leiser Lautstärke. Halte das iPhone weiter weg von den Boxen.",
-    lautstaerke_wirkt_nicht: () => "Die Lautstärke der Box ändert sich, aber der Prüfton wird nicht lauter. Spielt er wirklich über die KEF (AirPlay)?",
+    lautstaerke_wirkt_nicht: () => "Die Lautstärke ändert sich, aber der Prüfton wird nicht lauter. Spielt er wirklich über deine Lautsprecher?",
     zeitueberschreitung: (e) => `${e.was} hat zu lange gedauert. Ich habe abgebrochen.`,
     abgebrochen: () => "Abgebrochen.",
     versuche_aus: () => "Ich habe nach mehreren Versuchen keine passende Lautstärke gefunden.",

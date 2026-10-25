@@ -190,13 +190,18 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
   <!-- Schritt 2: Anlage und Raum -->
   <section class="card schritt" data-s="2" hidden aria-labelledby="h-anlage">
     <h1 id="h-anlage">Welche Anlage, welcher Raum?</h1>
-    <div class="chips" role="group" aria-label="Anlage wählen">
-      <button type="button" class="chip" data-anlage="KEF LS50 + REL">KEF LS50 + REL</button>
-      <button type="button" class="chip" data-anlage="Sonos ohne Trueplay">Sonos ohne Trueplay</button>
-      <button type="button" class="chip" data-anlage="Sonos mit Trueplay">Sonos mit Trueplay</button>
+    <div class="wahl" role="group" aria-label="Art der Anlage" id="anlage-art">
+      <button type="button" data-anlage-art="aktiv" aria-pressed="true">Aktivboxen<small>WLAN, Bluetooth oder Kabel</small></button>
+      <button type="button" data-anlage-art="kette" aria-pressed="false">Stereo-Kette<small>Verstärker oder Vor-/Endstufe, passive Boxen</small></button>
+      <button type="button" data-anlage-art="soundbar" aria-pressed="false">Soundbar<small>eine Leiste am Fernseher</small></button>
+      <button type="button" data-anlage-art="avr" aria-pressed="false">AV-Receiver<small>Heimkino-Verstärker, mehrere Boxen</small></button>
+      <button type="button" data-anlage-art="heimkino" aria-pressed="false">Heimkino mit Klang-Box<small>die Klang-Box spielt alle Boxen</small></button>
     </div>
-    <label class="klein" for="anlage">Name der Anlage (für den Vergleich)</label>
-    <input type="text" id="anlage" value="KEF LS50 + REL">
+    <label class="klein" for="anlage">Name (für den Vergleich)</label>
+    <input type="text" id="anlage" value="Wohnzimmer">
+    <label class="klein" for="anlage-modell">Hersteller und Modell (freiwillig)</label>
+    <input type="text" id="anlage-modell" placeholder="so, wie es auf dem Gerät steht" autocomplete="off">
+    <div id="anlage-hinweis" class="klein" hidden></div>
     <label class="klein" for="raum">Wie groß ist der Raum?</label>
     <select id="raum">
       <option value="">Weiß nicht (typisches Wohnzimmer)</option>
@@ -221,13 +226,15 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
       <li><label><input type="checkbox" class="pflicht"> Lautstärke wie beim normalen Hören (Gespräch gut möglich, nicht laut)</label></li>
       <li><label><input type="checkbox" class="pflicht"> Ruhe im Raum: Fenster zu, Lüfter, Spülmaschine, Waschmaschine aus</label></li>
       <li><label><input type="checkbox" class="pflicht"> Türen, Vorhänge und Möbel so wie beim Hören</label></li>
-      <li><label><input type="checkbox" class="pflicht"> Klangeinstellungen der Boxen so lassen wie im Alltag (für den Sonos-Vergleich: Trueplay wie im Namen angegeben)</label></li>
+      <li><label><input type="checkbox" class="pflicht"> Klangeinstellungen der Boxen so lassen wie im Alltag (hat die Anlage eine eigene Raumeinmessung: so, wie im Namen angegeben)</label></li>
     </ul>
     <h3>Woher kommt das Messsignal?</h3>
     <div class="wahl" role="group" aria-label="Wiedergabe">
+      <button type="button" id="q-box" aria-pressed="false" hidden>Über die Klang-Box<small id="q-box-text">spielt alle Boxen selbst, auch hinten</small></button>
       <button type="button" id="q-airplay" aria-pressed="true">Von diesem iPhone<small>per AirPlay an die Anlage</small></button>
       <button type="button" id="q-extern" aria-pressed="false">Von anderem Gerät<small>Apple TV, Mac, iPad</small></button>
     </div>
+    <div id="box-zeile" class="klein" hidden>Die Klang-Box spielt das Messsignal über deine Boxen, Kanal für Kanal. Das iPhone hört nur zu.</div>
     <div id="airplay-zeile" style="display: grid; gap: 8px;">
       <button type="button" id="airplay" class="zweit">AirPlay-Lautsprecher wählen</button>
       <div id="ziel" class="klein" aria-live="polite"></div>
@@ -243,7 +250,7 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
   <section class="card schritt" data-s="4" hidden aria-labelledby="h-check">
     <h1 id="h-check">Ruhe und Lautstärke prüfen</h1>
     <p id="check-text">Setz dich auf deinen Hörplatz. Ein kurzer Rauschton läuft, das iPhone hört zu. Danach weißt du, ob es zu leise, zu laut oder genau richtig ist.</p>
-    <p id="check-kef-text" hidden>Setz dich auf deinen Hörplatz. Die App stellt die Lautstärke deiner KEF selbst ein: erst leise, dann Schritt für Schritt lauter, bis der Rauschton sauber ankommt. Das dauert etwa ein bis zwei Minuten. Nach der Messung stellt sie die alte Lautstärke wieder her.</p>
+    <p id="check-kef-text" hidden>Setz dich auf deinen Hörplatz. Die App stellt die Lautstärke selbst ein: erst leise, dann Schritt für Schritt lauter, bis der Rauschton sauber ankommt. Das dauert etwa ein bis zwei Minuten. Nach der Messung stellt sie die alte Lautstärke wieder her.</p>
     <div id="check-kef" class="klein" hidden></div>
     <button type="button" id="check-start">Prüfen</button>
     <button type="button" id="check-abbrechen" class="zweit" hidden>Abbrechen</button>
@@ -285,7 +292,7 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
     <div class="knoepfe"><button type="button" class="zweit" data-zu="4">Zurück</button><span></span></div>
   </section>
 
-  <!-- Schritt 6: Bewegen (wie Trueplay) -->
+  <!-- Schritt 6: Bewegen (durch den Hörbereich) -->
   <section class="card schritt" data-s="6" hidden aria-labelledby="h-bewegen">
     <span class="eyebrow">Klang messen · Teil 2 von 2</span>
     <h1 id="h-bewegen">Langsam um die Plätze gehen</h1>
@@ -330,7 +337,7 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
         <thead><tr><th>Anlage</th><th>Modus</th><th class="n">heute</th><th class="n">mit Klang-Box</th></tr></thead>
         <tbody id="vergleich"></tbody>
       </table></div>
-      <p class="klein">„Mit Klang-Box“ ist eine Prognose: die Raumanpassung der Klang-Box auf genau diese Messungen gerechnet. Bei Sonos vergleicht das die Rechenverfahren, denn die Box kann Sonos-Lautsprecher nicht selbst ansteuern.</p>
+      <p class="klein">„Mit Klang-Box“ ist eine Prognose: die Raumanpassung der Klang-Box auf genau diese Messungen gerechnet. Bei Anlagen mit eigener Raumeinmessung vergleicht das die Rechenverfahren, denn die Klang-Box kann solche Lautsprecher nicht selbst ansteuern.</p>
     </section>
   </section>
 
@@ -424,6 +431,10 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
   <section class="schritt" data-s="10" hidden style="display: grid; gap: 14px;" aria-labelledby="h-anwenden">
     <h1 id="h-anwenden">Einstellungen anwenden</h1>
     <div class="card" id="a-zusammen"></div>
+    <div class="card" id="a-box" hidden>
+      <button type="button" id="a-box-senden">Einstellungen an die Klang-Box senden</button>
+      <div id="a-box-antwort" class="klein" aria-live="polite"></div>
+    </div>
     <section class="card" aria-labelledby="h-nach">
       <h2 id="h-nach">Jetzt nachmessen</h2>
       <p id="a-text"></p>
@@ -483,6 +494,63 @@ select { min-height: 48px; border-radius: 13px; border: 0; background: var(--pan
     <div id="g-ergebnis" style="display: grid; gap: 12px;"></div>
     <div class="knoepfe"><button type="button" class="zweit" data-zu="7">Zurück zum Ergebnis</button><span></span></div>
   </section>
+  <!-- Klang-Box einrichten (nur in der App mit klangboxNativ.boxen): ein Schritt pro Bildschirm, danach Einmessen -->
+  <section class="card schritt" data-s="12" hidden aria-labelledby="h-gefunden">
+    <h1 id="h-gefunden">Klang-Box gefunden</h1>
+    <p id="e-such-text">Ich suche deine Klang-Boxen im Heimnetz und kopple sie mit diesem iPhone.</p>
+    <div class="zeilen" id="e-boxen" aria-live="polite"></div>
+    <div id="e-such-status" class="klein" aria-live="polite"></div>
+    <button type="button" id="e-weiter-1" disabled>Weiter</button>
+    <div class="knoepfe"><button type="button" class="zweit" id="e-nochmal">Noch einmal suchen</button><button type="button" class="zweit" id="e-ohne">Ohne Klang-Box</button></div>
+  </section>
+
+  <section class="card schritt" data-s="13" hidden aria-labelledby="h-quelle">
+    <h1 id="h-quelle">Wo kommen Bild und Ton her?</h1>
+    <p>Die Box, an der Fernseher oder Beamer hängt, ist die <b style="color: var(--ink)">Hauptbox</b>. Steht der Beamer hinten, ist die Box hinten die Hauptbox.</p>
+    <div class="wahl" role="group" aria-label="Wo steht die Quelle?">
+      <button type="button" data-quelle="vorne" aria-pressed="true">Vorne<small>Fernseher oder Beamer beim Bild</small></button>
+      <button type="button" data-quelle="hinten" aria-pressed="false">Hinten<small>Beamer hinten im Raum</small></button>
+    </div>
+    <div id="e-welche" class="kasten" hidden>
+      <h3>Welche Box steht wo?</h3>
+      <div class="zeilen" role="group" aria-label="Platz der Boxen" id="e-vorne-wahl"></div>
+      <span class="klein">Alle Boxen sind gleich gebaut und austauschbar. Stehen sie anders, tippst du einfach um – das geht jederzeit. Bei drei Boxen schlage ich eine je Rear-Lautsprecher vor: dann läuft hinten kein Kabel zwischen links und rechts.</span>
+      <span class="klein ok" id="e-haupt-text"></span>
+    </div>
+    <div id="e-rolle-status" class="klein" aria-live="polite"></div>
+    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="12">Zurück</button><button type="button" id="e-weiter-2">Weiter</button></div>
+  </section>
+
+  <section class="card schritt" data-s="14" hidden aria-labelledby="h-wo">
+    <h1 id="h-wo">Welche Lautsprecher hängen wo?</h1>
+    <div class="chips" role="group" aria-label="Lautsprecher" id="e-layout"></div>
+    <div class="plan" id="e-skizze"></div>
+    <p class="klein" id="e-skizze-hilfe"></p>
+    <div class="kasten" id="e-rueck" hidden>
+      <div class="reihe"><div><span style="font-size: 15px; font-weight: 600;">Kein Kabel zwischen hinten links und rechts</span><span class="klein" id="e-rueck-text"></span></div>
+        <button type="button" class="schalter" role="switch" id="e-kein-kabel" aria-checked="false" aria-label="Kein Kabel zwischen hinten links und rechts"></button></div>
+    </div>
+    <div class="zeilen" id="e-zuordnung"></div>
+    <div id="e-kanal-status" class="klein" aria-live="polite"></div>
+    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="13">Zurück</button><button type="button" id="e-weiter-3">Weiter</button></div>
+  </section>
+
+  <section class="card schritt" data-s="15" hidden aria-labelledby="h-funk">
+    <h1 id="h-funk">Funk zwischen den Boxen</h1>
+    <p>Die Hauptbox spannt ein eigenes Funknetz auf und schickt die Kanäle für hinten zur zweiten Box. Dein WLAN bleibt, wie es ist.</p>
+    <button type="button" id="e-funk-einrichten">Einrichten</button>
+    <div id="e-funk" style="display: grid; gap: 10px;" aria-live="polite"></div>
+    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="14">Zurück</button><button type="button" id="e-weiter-4" disabled>Weiter</button></div>
+  </section>
+
+  <section class="card schritt" data-s="16" hidden aria-labelledby="h-anschliessen">
+    <h1 id="h-anschliessen">Anschließen</h1>
+    <div class="chips" role="group" aria-label="Wie hängt deine Anlage dran?" id="e-art"></div>
+    <div id="e-anleitung" style="display: grid; gap: 10px;"></div>
+    <div id="e-satelliten" style="display: grid; gap: 10px;"></div>
+    <div class="kasten"><div class="reihe"><div><h3>Signal am Eingang</h3><span class="klein" id="e-signal-text">Spiel am Fernseher etwas ab.</span></div><i class="ampel" id="e-signal-ampel"></i></div></div>
+    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="15" id="e-zurueck-5">Zurück</button><button type="button" id="e-fertig">Weiter: Klang einmessen</button></div>
+  </section>
   <audio id="signal" src="raumcheck.wav" preload="auto" x-webkit-airplay="allow" playsinline></audio>
 </main>
 
@@ -503,6 +571,8 @@ function folgeAus(cfg) {
   return f;
 }
 const FOLGE = folgeAus({ lead: 1.0, kanaele: ["FL", "FR"] });
+const FOLGE_4 = folgeAus({ lead: 1.0, kanaele: ["FL", "FR", "SL", "SR"] });  // Layout 4.0: Messfolge über die Klang-Box
+const folgeFuer = (kanaele) => (kanaele && kanaele.includes("SL") ? FOLGE_4 : FOLGE);
 const FOLGE_BEWEGT = folgeAus({ lead: 2.0, sweepS: 2.5, tail: 1.5, pruefton: false, bewegt: true,
                                 kanaele: ["FL", "FR", "C", "FL", "FR", "C", "FL", "FR", "C", "FL", "FR", "C"] });
 const markerZeit = (i, f = FOLGE) => f.lead + f.pruefDauer + i * f.periode;
@@ -624,9 +694,9 @@ function findeMarker(rec, f = FOLGE) {
   const N = rec.length, corr = new Float64Array(N);
   for (let i = 0; i < N; i++) corr[i] = Math.hypot(re[i], im[i]);
   const lokal = gleitMittel(corr, Math.floor(0.1 * FS)), scharf = new Float64Array(N);
-  // Nur echte Gipfel: ein winziges Rauschzucken in der Stille ist auch „scharf“ (−30 dB-Schwelle wie Python)
+  // Nur echte Gipfel: ein winziges Rauschzucken in der Stille ist auch „scharf“ (−20 dB-Schwelle wie Python)
   let cMax = 0; for (let i = 0; i < N; i++) cMax = Math.max(cMax, corr[i]);
-  for (let i = 0; i < N; i++) scharf[i] = corr[i] < 0.03 * cMax ? 0 : corr[i] / (lokal[i] + 1e-12);
+  for (let i = 0; i < N; i++) scharf[i] = corr[i] < 0.1 * cMax ? 0 : corr[i] / (lokal[i] + 1e-12);
   const sched = f.kanaele.map((_, i) => Math.round((markerZeit(i, f) - markerZeit(0, f)) * FS));
   const nOff = N - sched[sched.length - 1] - 1;
   if (nOff <= 0) throw new Error("Aufnahme zu kurz für das Messsignal");
@@ -654,7 +724,7 @@ function findeMarker(rec, f = FOLGE) {
 function ersterGipfel(corr, scharf, lo, hi) {
   let sMax = 0, cMax = 0, p = lo;
   for (let i = lo; i < hi; i++) { if (scharf[i] > sMax) { sMax = scharf[i]; p = i; } cMax = Math.max(cMax, corr[i]); }
-  for (let i = lo; i < hi; i++) if (scharf[i] >= 0.5 * sMax && corr[i] >= 0.5 * cMax) {
+  for (let i = lo; i < hi; i++) if (scharf[i] >= 0.25 * sMax && corr[i] >= 0.25 * cMax) {  // −12 dB wie Python
     let j = i; for (let k = i; k <= Math.min(hi - 1, i + Math.floor(0.0005 * FS)); k++) if (corr[k] > corr[j]) j = k;
     return j;
   }
@@ -1079,6 +1149,37 @@ function einmessen(punkte, hausDb) {
     }
   }
   return { cals, zeilen: zeilen.concat(notizen.map((n) => "Hinweis: " + n)), tipps };
+}
+
+// --- Regel 4.0: Fronts führen, Rückkanäle bis 35 ms später, nie früher als die Fronts ------------------
+// Wie einmessung.laufzeiten_fronts_fuehren in Python. Die Rückkanäle kommen über den Funk der zweiten
+// Klang-Box; die Messung misst das mit. Vorne wartet nie auf hinten; hinten wartet, falls es früher wäre.
+const RUECK_SPAETER_MAX_MS = 35, RUECK_NAMEN = { SL: "Hinten links", SR: "Hinten rechts", BL: "Hinten links (2)", BR: "Hinten rechts (2)" };
+function laufzeitenFrontsFuehren(ankunftMs) {
+  const fronts = ["FL", "FR", "C"].filter((c) => c in ankunftMs);
+  if (!fronts.length) throw new Error("Regel 4.0: ohne Front-Kanal gibt es keine Bezugszeit");
+  const r3 = (x) => Math.round(x * 1000) / 1000, vorne = Math.max(...fronts.map((c) => ankunftMs[c])), verz = {}, hinweise = [];
+  for (const c of fronts) verz[c] = r3(vorne - ankunftMs[c]);
+  for (const c of ["SL", "SR", "BL", "BR"]) {
+    if (!(c in ankunftMs)) continue;
+    const spaeter = ankunftMs[c] - vorne;
+    verz[c] = r3(Math.max(0, -spaeter));
+    if (spaeter > RUECK_SPAETER_MAX_MS) hinweise.push(`${RUECK_NAMEN[c]} kommt ${spaeter.toFixed(0)} ms nach vorne an (gewollt sind höchstens ${RUECK_SPAETER_MAX_MS} ms). Vorne wartet nicht auf den Funk: bitte die Funkverbindung prüfen.`);
+  }
+  return { verz, hinweise };
+}
+// Layout 4.0: Rückkanäle nur Pegel (am Hauptplatz wie vorne, nie anheben) und Laufzeit (Regel 4.0), kein EQ
+function rueckkanaeleEinmessen(haupt, fronts) {
+  const mitte = {}; for (const ch of Object.keys(haupt)) mitte[ch] = bandDb(dbArr(glaetten(leistung(antwort(haupt[ch])), 3)), 500, 2000);
+  const vorne = (mitte.FL + fronts.FL.gain_db + mitte.FR + fronts.FR.gain_db) / 2;
+  const { verz, hinweise } = laufzeitenFrontsFuehren(Object.fromEntries(Object.keys(haupt).map((ch) => [ch, haupt[ch].delay * 1000])));
+  const aus = {};
+  for (const ch of ["SL", "SR"]) {
+    const g = vorne - mitte[ch];
+    if (g > 0.5) hinweise.push(`${RUECK_NAMEN[ch]} ist ${g.toFixed(1)} dB leiser als vorne. Dreh die hintere Box etwas lauter (die Klang-Box hebt nie an).`);
+    aus[ch] = { gain_db: Math.round(Math.max(-20, Math.min(g, 0)) * 100) / 100, delay_ms: verz[ch], eq: [] };
+  }
+  return { aus, hinweise };
 }
 
 // --- Score v2 (klangbox/bewertung.py) ----------------------------------------------------
@@ -1587,18 +1688,20 @@ function raumTipps(haupt, sh, raumM3) {
   return tipps;
 }
 
-function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null) {
-  const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null;
+function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null) {
+  const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null, folge = folgeFuer(kanaele);
   const erg = { aufnahmen: [], fehler: null, modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
   const punkte = [];
   for (const { name, daten } of aufnahmen) {
     let a;
-    try { a = analysiere(daten, FOLGE, mikro); }
+    try { a = analysiere(daten, folge, mikro); }
     catch (e) { erg.aufnahmen.push({ platz: name, sauber: false, probleme: [`Messsignal nicht gefunden (${e.message}). Lief es während der Aufnahme?`] }); continue; }
     erg.aufnahmen.push({ platz: name, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme, drift_ppm: Math.round(a.drift_ppm * 10) / 10, pruefton: a.pruefung.treppe_stufen_db });
     if (a.pruefung.sauber) punkte.push({ name, messungen: a.messungen });
   }
   if (!punkte.length) { erg.fehler = "Keine saubere Aufnahme dabei. Bitte ohne Filter aufnehmen (Sprachmemos „Verlustfrei“) und wiederholen."; return erg; }
+  // Hauptplatz unbrauchbar: nicht mit einem anderen Platz weiterrechnen (wie raumcheck.py)
+  if (aufnahmen.length && erg.aufnahmen.length && !erg.aufnahmen[0].sauber) { erg.fehler = "Die Messung am Hauptplatz ist nicht sauber (siehe Hinweis oben). Bitte dort noch einmal messen – die anderen Plätze bleiben."; return erg; }
   if (bewegt) { const b = bewegtePunkte(bewegt, mikro); erg.aufnahmen.push(b.info); punkte.push(...b.punkte); }
   const ein = einmessen(punkte, HAUSKURVE[modus]);
   // Bühne: links/rechts genau am Hauptplatz gleich laut (die Einmessung mittelt über alle Plätze)
@@ -1633,6 +1736,12 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
     erg.score_prognose = { ...sh }; erg.kurve.prognose = kh.v; erg.kurve_voll.prognose = vh.v;
     erg.einstellungen = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
     erg.bericht.push("Wächter: Die Raumanpassung würde hier insgesamt nichts verbessern. Die Box bleibt neutral.");
+  }
+  if (folge === FOLGE_4) {  // Layout 4.0: Rückkanäle dazu (nur Pegel und Laufzeit, Regel 4.0); neutral bleibt neutral
+    const r = rueckkanaeleEinmessen(punkte[0].messungen, erg.einstellungen);
+    if (sn.gesamt < sh.gesamt + 1) for (const ch of ["SL", "SR"]) r.aus[ch] = { gain_db: 0, delay_ms: 0, eq: [] };
+    Object.assign(erg.einstellungen, r.aus); erg.tipps = erg.tipps.concat(r.hinweise);
+    erg.bericht.push("Rückkanäle: " + ["SL", "SR"].map((ch) => `${RUECK_NAMEN[ch]} ${r.aus[ch].gain_db.toFixed(1)} dB, ${r.aus[ch].delay_ms.toFixed(1)} ms`).join(", "));
   }
   // Wächter: lieber kein Ergebnis als ein falsches
   const v = waechterErgebnis(erg);
@@ -1718,7 +1827,7 @@ function profilDbAn(fl, freqs) {
 }
 
 // --- Nachmessung mit Rücknahme (klangbox/nachpruefung.py) ---------------------------------------
-const NP = { rausch: 0.5, minTol: 0.3, teil: 5, score: 3, neigung: 0.3, spitzeMax: 4, spitzeProminenz: 2,
+const NP = { rausch: 0.5, minTol: 0.3, teil: 5, score: 3, neigung: 0.3, spitzeMax: 4, spitzeUnerwartet: 3, spitzeProminenz: 2,
   methodeB: { B1: 3, B2: 2, B3: 2, B4: 1.5, B5: 1.5, B6: 1.5, B7: 2, B8: 3 } };
 const PRUEFBAENDER = [["B1 Tiefbass", 20, 60], ["B2 Bass", 60, 150], ["B3 Grundton", 150, 300], ["B4 Untere Mitten", 300, 1000],
   ["B5 Praesenz", 1000, 4000], ["B6 Brillanz", 4000, 8000], ["B7 Hoehen", 8000, 12500], ["B8 Luft", 12500, 16000]];
@@ -1734,9 +1843,14 @@ function bassFormAmPlatz(m) {
 // Spitzen-Wächter (wie spitzen_anhebung): um wie viel stieg eine vorhandene Bass-Spitze stärker als der übrige Bass?
 const medianEcht = (a) => { const s = [...a].sort((x, y) => x - y), n = s.length; return n % 2 ? s[(n - 1) / 2] : 0.5 * (s[n / 2 - 1] + s[n / 2]); };
 const prominenz = (p) => { const a = dbArr(glaetten(p, 6)), b = dbArr(glaetten(p, 1)); return a.map((v, i) => v - b[i]); };
+// Stärkste Bass-Spitze, nur dort, wo die Boxen spielen (über ihrer gemessenen −6-dB-Grenze, mindestens 40 Hz)
+function untereGrenzeBox(m) {
+  const lf = leistung(antwort(m.FL)), lr = leistung(antwort(m.FR)), p = lf.map((v, i) => 0.5 * (v + lr[i]));
+  return untereGrenze(p, bandDb(dbArr(glaetten(p, 3)), 500, 2000));
+}
 function staerksteRaummode(m) {
-  const pl = prominenz(leistung(antwort(m.FL))), pr = prominenz(leistung(antwort(m.FR)));
-  let best = -1; for (let i = 0; i < NF; i++) if (F[i] >= F_LO && F[i] <= 200 && (best < 0 || 0.5 * (pl[i] + pr[i]) > 0.5 * (pl[best] + pr[best]))) best = i;
+  const pl = prominenz(leistung(antwort(m.FL))), pr = prominenz(leistung(antwort(m.FR))), ab = Math.max(F_LO, untereGrenzeBox(m)), bis = 250;
+  let best = -1; for (let i = 0; i < NF; i++) if (F[i] >= ab && F[i] <= bis && (best < 0 || 0.5 * (pl[i] + pr[i]) > 0.5 * (pl[best] + pr[best]))) best = i;
   return [F[best], 0.5 * (pl[best] + pr[best])];
 }
 function spitzenAnhebung(v, n) { return spitzeAusLeistung(["FL", "FR"].map((ch) => leistung(antwort(v[ch]))), ["FL", "FR"].map((ch) => leistung(antwort(n[ch])))); }
@@ -1827,13 +1941,17 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     gruende: ["keine Messung vorher und nachher am selben Platz"], je_platz: [], hinweise: [], profil_pruefung: null, vergleich: null };
   const haupt = plaetze[0].name, z = zahlText;
   const v = plaetze.map((p) => mitMitte(vorher[p.name])), nRoh = plaetze.map((p) => mitMitte(p.messungen)), nRk = plaetze.map((p) => mitMitte(ohneProfil(p.messungen, profil)));
+  const vh = plaetze.map((p) => vorhersageMessung(vorher[p.name], einstellungen, vorhersageKette));  // Prognose je Platz
   const tol = Math.max(NP.minTol, toleranz), jePlatz = [], schlechter = [], gruende = [], hinweise = [];
   plaetze.forEach((p, k) => {
     const a = bassAmPlatz(v[k]), b = bassAmPlatz(nRk[k]), fa = bassFormAmPlatz(v[k]), fb = bassFormAmPlatz(nRk[k]);
-    const [sp, fSp] = spitzenAnhebung(v[k], nRk[k]), sb = b > a + tol, ss = sp > NP.spitzeMax, r2 = (x) => Math.round(x * 100) / 100;
+    const [sp, fSp] = spitzenAnhebung(v[k], nRk[k]), [su, fSu] = spitzenAnhebung(vh[k], nRk[k]);  // gegen die Prognose
+    const sb = b > a + tol, ss = sp > NP.spitzeMax, su2 = su > NP.spitzeUnerwartet, r2 = (x) => Math.round(x * 100) / 100;
     jePlatz.push({ platz: p.name, bass_vorher_db: r2(a), bass_nachher_db: r2(b), form_vorher_db: r2(fa), form_nachher_db: r2(fb),
-      spitze_db: r2(sp), spitze_hz: Math.round(fSp * 10) / 10, toleranz_db: tol, schlechter: sb || ss });
-    if (sb || ss) schlechter.push(p.name);
+      spitze_db: r2(sp), spitze_hz: Math.round(fSp * 10) / 10, spitze_unerwartet_db: r2(su), spitze_unerwartet_hz: Math.round(fSu * 10) / 10,
+      toleranz_db: tol, schlechter: sb || ss || su2 });
+    if (sb || ss || su2) schlechter.push(p.name);
+    if (su2 && !ss) gruende.push(`${p.name}: Raummode bei ${z(fSu, 0)} Hz um ${z(su)} dB stärker als vorhergesagt (erlaubt ${z(NP.spitzeUnerwartet)} dB): Das dröhnt.`);
     if (sb) gruende.push(`${p.name}: Bass ${z(a)} → ${z(b)} dB Abweichung (schlechter um ${z(b - a)} dB, Toleranz ${z(tol)} dB)`);
     if (ss) gruende.push(`${p.name}: Raummode bei ${z(fSp, 0)} Hz um ${z(sp)} dB stärker angehoben als der übrige Bass (erlaubt ${z(NP.spitzeMax)} dB): Das dröhnt.`);
   });
@@ -1875,7 +1993,6 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     }
   }
   // Theorie gegen Praxis
-  const vh = plaetze.map((p) => vorhersageMessung(vorher[p.name], einstellungen, vorhersageKette));
   const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr);
   if (vgl.ueber_toleranz) hinweise.push(`Prognose und Messung weichen ab (Score ${z(vgl.score.vorhergesagt, 0)} vorhergesagt, ${z(vgl.score.gemessen, 0)} gemessen; Bass im Mittel ${z(vgl.bass_kurve.mittel_abweichung_db)} dB). Mögliche Ursachen: ${vgl.ursachen.join(" ")} Danach am besten neu einmessen.`);
   return { ok: !zurueck, empfehlung: zurueck ? "zuruecknehmen" : "behalten", satz, status: zurueck ? "zurueckgenommen" : "bestaetigt", gruende, je_platz: jePlatz, hauptplatz: haupt,
@@ -2137,7 +2254,7 @@ function waechterErgebnis(e) {
   return v;
 }
 
-if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS, FOLGE_BEWEGT, FOLGE, profilAnwenden, profilDbAn, zahlText,
+if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, zahlText,
   nachpruefen, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
   baender, abklingzeit, fruehAbklingzeit };
 </script>
@@ -3242,7 +3359,7 @@ if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS,
     }
   ]
 }</script>
-<script type="application/json" id="geraete-daten">[{"schema_version": 1, "id": "generisch_bass_hoehen", "hersteller": "", "modell": "Bass/Höhen-Regler", "name": "deine Lautsprecher", "generisch": true, "wo": "an den Klangreglern deiner Lautsprecher (oder in ihrer App)", "hinweis": "Allgemeines Profil für Geräte mit Bass- und Höhenregler. Typische Werte (Kuhschwanz bei etwa 100 Hz und 10 kHz, ±6 dB), keine Messung eines bestimmten Geräts: alles geschätzt. Die Nachmessung zeigt, ob es passt.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "bass_db", "name": "Bass", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 100, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 100 Hz, Q 0,7, Stufen in dB (typischer Klangregler)"}, {"id": "hoehen_db", "name": "Höhen", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 10000, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 10 kHz, Q 0,7, Stufen in dB (typischer Klangregler)"}]}, {"schema_version": 1, "id": "generisch_subwoofer", "hersteller": "", "modell": "Subwoofer mit Pegel, Phase und Trennfrequenz", "name": "dein Subwoofer", "generisch": true, "wo": "an deinem Subwoofer", "zerlegung": "Dreh am Subwoofer die Phase kurz um (0° ↔ 180°) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Allgemeines Profil für einen Subwoofer mit Pegel-, Phasen- (0°/180°) und Trennfrequenz-Regler. Trennfrequenz als Linkwitz-Riley 4. Ordnung geschätzt, Regler am Gerät meist ohne Rastung: Werte ungefähr einstellen und nachmessen.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "sub_trennfrequenz_hz", "name": "Trennfrequenz (Crossover)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 150, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "geschaetzt": "Linkwitz-Riley 4. Ordnung, Bereich 40–150 Hz typisch"}, {"id": "sub_pegel_db", "name": "Pegel (Level)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "geschaetzt", "geschaetzt": "Pegel relativ zu heute in dB; die Skala am Gerät ist oft unbeschriftet"}, {"id": "sub_phase", "name": "Phase", "teil": "sub", "wirkt_auf": "bass", "werte": ["0", "180"], "werks": "0", "anzeige": {"namen": {"0": "0°", "180": "180°"}}, "filter": {"art": "polaritaet", "invertiert": "180"}, "status": "geschaetzt", "geschaetzt": "Phase nur als Umpolung (0°/180°); stufenlose Zwischenwerte sind nicht abgebildet"}]}, {"schema_version": 1, "id": "kef_ls50w2", "hersteller": "KEF", "adapter": "kef", "modell": "LS50 Wireless II", "name": "KEF LS50 Wireless II", "wo": "in KEF Connect (Expertenmodus, EQ-Einstellungen)", "zerlegung": "Stell in KEF Connect die Sub-Polarität kurz um (normal ↔ umgedreht) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Die Reglerbereiche sind belegt, die Filterformen teils geschätzt. Recherche Stand 25.10.2026 (Suchauszüge, kef.com und audiosciencereview.com ließen sich nicht direkt abrufen).", "quellen": ["https://www.manualslib.com/manual/2044332/Kef-Ls50-Wireless-Ii.html?page=57", "https://us.kef.com/blogs/news/kefs-room-desk-and-wall-eq-settings", "https://assets.kef.com/pdf_doc/LSX/LSXmanual_EN_v4-20200220.pdf", "https://www.home-assistant.io/integrations/kef/", "https://github.com/alexjuillardoff/KefBar/blob/main/docs/PROTOCOL.md", "https://assets.kef.com/archive/ls50_wireless/ls50_wireless_infosheet.pdf", "https://www.audiosciencereview.com/forum/index.php?threads/kef-ls50w-ii-measurements.36932/", "https://www.spinorama.org/speakers/KEF%20LS50%20Wireless%20II/ErinsAudioCorner/index_eac.html", "https://us.kef.com/blogs/news/optimizing-your-crossover-settings", "https://eu.kef.com/blogs/news/how-to-integrate-a-subwoofer-with-your-ls-wireless-speakers", "https://community.roonlabs.com/t/using-kef-ls50-wireless-ii-with-a-subwoofer/157545?page=3"], "regler": [{"id": "wandmodus", "name": "Wandmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 250, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch LS50 Wireless II); wirkt ab etwa 200 Hz abwärts (KEF), bis etwa 500 Hz (LSX-Handbuch)", "geschaetzt": "Form: Kuhschwanz 250 Hz, Q 0,7"}, {"id": "tischmodus", "name": "Tischmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "peaking", "freq": 180, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch); wirkt um etwa 180 Hz, eine Oktave nach oben und unten (KEF)", "geschaetzt": "Form: Glocke 180 Hz, Q 0,7"}, {"id": "bass_extension", "name": "Bass Extension", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "werte": ["less", "standard", "extra"], "werks": "standard", "anzeige": {"namen": {"less": "Less", "standard": "Standard", "extra": "Extra"}}, "filter": {"art": "hochpass_lr4", "freq_je_wert": {"less": 46, "standard": 43, "extra": 40}}, "status": "geschaetzt", "belegt": "−6 dB bei 40/43/46 Hz für Extra/Standard/Less (KEF, erste LS50 Wireless); LS50 Wireless II gemessen −6 dB bei 44,9 Hz (ASR-Forum) bzw. 45,4 Hz (Erin's Audio Corner)", "geschaetzt": "Übertrag der Werte der ersten Generation, Linkwitz-Riley 4. Ordnung"}, {"id": "hoehen_db", "name": "Treble Trim", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -4, "bis": 4, "schritt": 0.5}, "werks": 0, "anzeige": {"nachkomma": 1, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 2200, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich −4 bis +4 dB (Handbuch LS50 Wireless II)", "geschaetzt": "Form: Kuhschwanz ab 2,2 kHz, Q 0,7 (Frequenz nicht belegt)"}, {"id": "hochpass_hz", "name": "Hochpass (High-pass)", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "nur_mit_sub": true, "werte": {"von": 50, "bis": 120, "schritt": 5, "aus": null}, "werks": null, "aus_wert": null, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "hochpass_lr4"}, "status": "geschaetzt", "belegt": "Bereich 50–120 Hz in 5-Hz-Schritten (Home Assistant, erste Generation); KEF-Beispiel 70 Hz: −12 dB bei 56 Hz, −24 dB bei 35 Hz", "geschaetzt": "Linkwitz-Riley 4. Ordnung (KEF-Support nannte einmal auch 12 dB/Oktave Butterworth)"}, {"id": "sub_tiefpass_hz", "name": "Sub-Tiefpass (Sub out low-pass)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 250, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "belegt": "Bereich 40–250 Hz in 5-Hz-Schritten (Home Assistant, erste Generation; KEF-Blog)", "geschaetzt": "Linkwitz-Riley 4. Ordnung"}, {"id": "sub_gain_db", "name": "Sub-Pegel (Sub gain)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "belegt", "belegt": "Bereich −10 bis +10 dB (Home Assistant, erste Generation)"}, {"id": "sub_polaritaet", "name": "Sub-Polarität", "teil": "sub", "wirkt_auf": "bass", "werte": ["normal", "invertiert"], "werks": "normal", "anzeige": {"namen": {"normal": "normal", "invertiert": "umgedreht"}}, "filter": {"art": "polaritaet", "invertiert": "invertiert"}, "status": "belegt", "belegt": "Feld subwooferPolarity (kef:eqProfile/v2, KefBar)"}]}, {"schema_version": 1, "id": "kef_lsx2", "hersteller": "KEF", "adapter": "kef", "modell": "LSX II", "name": "KEF LSX II", "wo": "in KEF Connect (Expertenmodus, EQ-Einstellungen)", "zerlegung": "Stell in KEF Connect die Sub-Polarität kurz um (normal ↔ umgedreht) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Gleiche Plattform wie die LS50 Wireless II (KEF Connect, kef:eqProfile/v2): Bereiche und Filterformen von dort übernommen, für die LSX II selbst nicht einzeln belegt. Ein LSX II zeigte wallModeSetting −6,5 dB (KefBar), also mehr als die −6 dB der ersten LSX.", "quellen": ["https://www.manualslib.com/manual/2044332/Kef-Ls50-Wireless-Ii.html?page=57", "https://us.kef.com/blogs/news/kefs-room-desk-and-wall-eq-settings", "https://assets.kef.com/pdf_doc/LSX/LSXmanual_EN_v4-20200220.pdf", "https://www.home-assistant.io/integrations/kef/", "https://github.com/alexjuillardoff/KefBar/blob/main/docs/PROTOCOL.md", "https://assets.kef.com/archive/ls50_wireless/ls50_wireless_infosheet.pdf", "https://www.audiosciencereview.com/forum/index.php?threads/kef-ls50w-ii-measurements.36932/", "https://www.spinorama.org/speakers/KEF%20LS50%20Wireless%20II/ErinsAudioCorner/index_eac.html", "https://us.kef.com/blogs/news/optimizing-your-crossover-settings", "https://eu.kef.com/blogs/news/how-to-integrate-a-subwoofer-with-your-ls-wireless-speakers", "https://community.roonlabs.com/t/using-kef-ls50-wireless-ii-with-a-subwoofer/157545?page=3", "https://www.areadvd.de/tests/xxl-test-kef-lsx-ii-ultrakompakte-aktive-wireless-streaming-lautsprecher-der-extraklasse/"], "regler": [{"id": "wandmodus", "name": "Wandmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 250, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch LS50 Wireless II); wirkt ab etwa 200 Hz abwärts (KEF), bis etwa 500 Hz (LSX-Handbuch)", "geschaetzt": "Form: Kuhschwanz 250 Hz, Q 0,7; Bereich von der LS50 Wireless II übernommen"}, {"id": "tischmodus", "name": "Tischmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "peaking", "freq": 180, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch); wirkt um etwa 180 Hz, eine Oktave nach oben und unten (KEF)", "geschaetzt": "Form: Glocke 180 Hz, Q 0,7; Bereich von der LS50 Wireless II übernommen"}, {"id": "bass_extension", "name": "Bass Extension", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "werte": ["less", "standard", "extra"], "werks": "standard", "anzeige": {"namen": {"less": "Less", "standard": "Standard", "extra": "Extra"}}, "filter": {"art": "hochpass_lr4", "freq_je_wert": {"less": 46, "standard": 43, "extra": 40}}, "status": "geschaetzt", "belegt": "−6 dB bei 40/43/46 Hz für Extra/Standard/Less (KEF, erste LS50 Wireless); LS50 Wireless II gemessen −6 dB bei 44,9 Hz (ASR-Forum) bzw. 45,4 Hz (Erin's Audio Corner)", "geschaetzt": "Übertrag der Werte der ersten Generation, Linkwitz-Riley 4. Ordnung; Bereich von der LS50 Wireless II übernommen"}, {"id": "hoehen_db", "name": "Treble Trim", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -4, "bis": 4, "schritt": 0.5}, "werks": 0, "anzeige": {"nachkomma": 1, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 2200, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich −4 bis +4 dB (Handbuch LS50 Wireless II)", "geschaetzt": "Form: Kuhschwanz ab 2,2 kHz, Q 0,7 (Frequenz nicht belegt); Bereich von der LS50 Wireless II übernommen"}, {"id": "hochpass_hz", "name": "Hochpass (High-pass)", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "nur_mit_sub": true, "werte": {"von": 50, "bis": 120, "schritt": 5, "aus": null}, "werks": null, "aus_wert": null, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "hochpass_lr4"}, "status": "geschaetzt", "belegt": "Bereich 50–120 Hz in 5-Hz-Schritten (Home Assistant, erste Generation); KEF-Beispiel 70 Hz: −12 dB bei 56 Hz, −24 dB bei 35 Hz", "geschaetzt": "Linkwitz-Riley 4. Ordnung (KEF-Support nannte einmal auch 12 dB/Oktave Butterworth); Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_tiefpass_hz", "name": "Sub-Tiefpass (Sub out low-pass)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 250, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "belegt": "Bereich 40–250 Hz in 5-Hz-Schritten (Home Assistant, erste Generation; KEF-Blog)", "geschaetzt": "Linkwitz-Riley 4. Ordnung; Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_gain_db", "name": "Sub-Pegel (Sub gain)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "geschaetzt", "belegt": "Bereich −10 bis +10 dB (Home Assistant, erste Generation)", "geschaetzt": "Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_polaritaet", "name": "Sub-Polarität", "teil": "sub", "wirkt_auf": "bass", "werte": ["normal", "invertiert"], "werks": "normal", "anzeige": {"namen": {"normal": "normal", "invertiert": "umgedreht"}}, "filter": {"art": "polaritaet", "invertiert": "invertiert"}, "status": "geschaetzt", "belegt": "Feld subwooferPolarity (kef:eqProfile/v2, KefBar)", "geschaetzt": "Bereich von der LS50 Wireless II übernommen"}]}]</script>
+<script type="application/json" id="geraete-daten">[{"schema_version": 1, "id": "generisch_bass_hoehen", "hersteller": "", "modell": "Bass/Höhen-Regler", "name": "deine Lautsprecher", "generisch": true, "wo": "an den Klangreglern deiner Lautsprecher (oder in ihrer App)", "hinweis": "Allgemeines Profil für Geräte mit Bass- und Höhenregler. Typische Werte (Kuhschwanz bei etwa 100 Hz und 10 kHz, ±6 dB), keine Messung eines bestimmten Geräts: alles geschätzt. Die Nachmessung zeigt, ob es passt.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "bass_db", "name": "Bass", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 100, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 100 Hz, Q 0,7, Stufen in dB (typischer Klangregler)"}, {"id": "hoehen_db", "name": "Höhen", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 10000, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 10 kHz, Q 0,7, Stufen in dB (typischer Klangregler)"}]}, {"schema_version": 1, "id": "generisch_subwoofer", "hersteller": "", "modell": "Subwoofer mit Pegel, Phase und Trennfrequenz", "name": "dein Subwoofer", "generisch": true, "wo": "an deinem Subwoofer", "zerlegung": "Dreh am Subwoofer die Phase kurz um (0° ↔ 180°) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Allgemeines Profil für einen Subwoofer mit Pegel-, Phasen- (0°/180°) und Trennfrequenz-Regler. Trennfrequenz als Linkwitz-Riley 4. Ordnung geschätzt, Regler am Gerät meist ohne Rastung: Werte ungefähr einstellen und nachmessen.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "sub_trennfrequenz_hz", "name": "Trennfrequenz (Crossover)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 150, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "geschaetzt": "Linkwitz-Riley 4. Ordnung, Bereich 40–150 Hz typisch"}, {"id": "sub_pegel_db", "name": "Pegel (Level)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "geschaetzt", "geschaetzt": "Pegel relativ zu heute in dB; die Skala am Gerät ist oft unbeschriftet"}, {"id": "sub_phase", "name": "Phase", "teil": "sub", "wirkt_auf": "bass", "werte": ["0", "180"], "werks": "0", "anzeige": {"namen": {"0": "0°", "180": "180°"}}, "filter": {"art": "polaritaet", "invertiert": "180"}, "status": "geschaetzt", "geschaetzt": "Phase nur als Umpolung (0°/180°); stufenlose Zwischenwerte sind nicht abgebildet"}]}, {"schema_version": 1, "id": "kef_ls50w2", "hersteller": "KEF", "adapter": "kef", "modell": "LS50 Wireless II", "name": "KEF LS50 Wireless II", "wo": "in KEF Connect (Expertenmodus, EQ-Einstellungen)", "zerlegung": "Stell in KEF Connect die Sub-Polarität kurz um (normal ↔ umgedreht) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Die Reglerbereiche sind belegt, die Filterformen teils geschätzt. Recherche Stand 25.10.2026 (Suchauszüge, kef.com und audiosciencereview.com ließen sich nicht direkt abrufen).", "quellen": ["https://www.manualslib.com/manual/2044332/Kef-Ls50-Wireless-Ii.html?page=57", "https://us.kef.com/blogs/news/kefs-room-desk-and-wall-eq-settings", "https://assets.kef.com/pdf_doc/LSX/LSXmanual_EN_v4-20200220.pdf", "https://www.home-assistant.io/integrations/kef/", "https://github.com/alexjuillardoff/KefBar/blob/main/docs/PROTOCOL.md", "https://assets.kef.com/archive/ls50_wireless/ls50_wireless_infosheet.pdf", "https://www.audiosciencereview.com/forum/index.php?threads/kef-ls50w-ii-measurements.36932/", "https://www.spinorama.org/speakers/KEF%20LS50%20Wireless%20II/ErinsAudioCorner/index_eac.html", "https://us.kef.com/blogs/news/optimizing-your-crossover-settings", "https://eu.kef.com/blogs/news/how-to-integrate-a-subwoofer-with-your-ls-wireless-speakers", "https://community.roonlabs.com/t/using-kef-ls50-wireless-ii-with-a-subwoofer/157545?page=3"], "regler": [{"id": "wandmodus", "name": "Wandmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 250, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch LS50 Wireless II); wirkt ab etwa 200 Hz abwärts (KEF), bis etwa 500 Hz (LSX-Handbuch)", "geschaetzt": "Form: Kuhschwanz 250 Hz, Q 0,7"}, {"id": "tischmodus", "name": "Tischmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "peaking", "freq": 180, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch); wirkt um etwa 180 Hz, eine Oktave nach oben und unten (KEF)", "geschaetzt": "Form: Glocke 180 Hz, Q 0,7"}, {"id": "bass_extension", "name": "Bass Extension", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "werte": ["less", "standard", "extra"], "werks": "standard", "anzeige": {"namen": {"less": "Less", "standard": "Standard", "extra": "Extra"}}, "filter": {"art": "hochpass_lr4", "freq_je_wert": {"less": 46, "standard": 43, "extra": 40}}, "status": "geschaetzt", "belegt": "−6 dB bei 40/43/46 Hz für Extra/Standard/Less (KEF, erste LS50 Wireless); LS50 Wireless II gemessen −6 dB bei 44,9 Hz (ASR-Forum) bzw. 45,4 Hz (Erin's Audio Corner)", "geschaetzt": "Übertrag der Werte der ersten Generation, Linkwitz-Riley 4. Ordnung"}, {"id": "hoehen_db", "name": "Treble Trim", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -4, "bis": 4, "schritt": 0.5}, "werks": 0, "anzeige": {"nachkomma": 1, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 2200, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich −4 bis +4 dB (Handbuch LS50 Wireless II)", "geschaetzt": "Form: Kuhschwanz ab 2,2 kHz, Q 0,7 (Frequenz nicht belegt)"}, {"id": "hochpass_hz", "name": "Hochpass (High-pass)", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "nur_mit_sub": true, "werte": {"von": 50, "bis": 120, "schritt": 5, "aus": null}, "werks": null, "aus_wert": null, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "hochpass_lr4"}, "status": "geschaetzt", "belegt": "Bereich 50–120 Hz in 5-Hz-Schritten (Home Assistant, erste Generation); KEF-Beispiel 70 Hz: −12 dB bei 56 Hz, −24 dB bei 35 Hz", "geschaetzt": "Linkwitz-Riley 4. Ordnung (KEF-Support nannte einmal auch 12 dB/Oktave Butterworth)"}, {"id": "sub_tiefpass_hz", "name": "Sub-Tiefpass (Sub out low-pass)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 250, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "belegt": "Bereich 40–250 Hz in 5-Hz-Schritten (Home Assistant, erste Generation; KEF-Blog)", "geschaetzt": "Linkwitz-Riley 4. Ordnung"}, {"id": "sub_gain_db", "name": "Sub-Pegel (Sub gain)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "belegt", "belegt": "Bereich −10 bis +10 dB (Home Assistant, erste Generation)"}, {"id": "sub_polaritaet", "name": "Sub-Polarität", "teil": "sub", "wirkt_auf": "bass", "werte": ["normal", "invertiert"], "werks": "normal", "anzeige": {"namen": {"normal": "normal", "invertiert": "umgedreht"}}, "filter": {"art": "polaritaet", "invertiert": "invertiert"}, "status": "belegt", "belegt": "Feld subwooferPolarity (kef:eqProfile/v2, KefBar)"}]}, {"schema_version": 1, "id": "kef_lsx2", "hersteller": "KEF", "adapter": "kef", "modell": "LSX II", "name": "KEF LSX II", "wo": "in KEF Connect (Expertenmodus, EQ-Einstellungen)", "zerlegung": "Stell in KEF Connect die Sub-Polarität kurz um (normal ↔ umgedreht) und miss am Hörplatz. Danach stellst du sie zurück.", "hinweis": "Gleiche Plattform wie die LS50 Wireless II (KEF Connect, kef:eqProfile/v2): Bereiche und Filterformen von dort übernommen, für die LSX II selbst nicht einzeln belegt. Ein LSX II zeigte wallModeSetting −6,5 dB (KefBar), also mehr als die −6 dB der ersten LSX.", "quellen": ["https://www.manualslib.com/manual/2044332/Kef-Ls50-Wireless-Ii.html?page=57", "https://us.kef.com/blogs/news/kefs-room-desk-and-wall-eq-settings", "https://assets.kef.com/pdf_doc/LSX/LSXmanual_EN_v4-20200220.pdf", "https://www.home-assistant.io/integrations/kef/", "https://github.com/alexjuillardoff/KefBar/blob/main/docs/PROTOCOL.md", "https://assets.kef.com/archive/ls50_wireless/ls50_wireless_infosheet.pdf", "https://www.audiosciencereview.com/forum/index.php?threads/kef-ls50w-ii-measurements.36932/", "https://www.spinorama.org/speakers/KEF%20LS50%20Wireless%20II/ErinsAudioCorner/index_eac.html", "https://us.kef.com/blogs/news/optimizing-your-crossover-settings", "https://eu.kef.com/blogs/news/how-to-integrate-a-subwoofer-with-your-ls-wireless-speakers", "https://community.roonlabs.com/t/using-kef-ls50-wireless-ii-with-a-subwoofer/157545?page=3", "https://www.areadvd.de/tests/xxl-test-kef-lsx-ii-ultrakompakte-aktive-wireless-streaming-lautsprecher-der-extraklasse/"], "regler": [{"id": "wandmodus", "name": "Wandmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 250, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch LS50 Wireless II); wirkt ab etwa 200 Hz abwärts (KEF), bis etwa 500 Hz (LSX-Handbuch)", "geschaetzt": "Form: Kuhschwanz 250 Hz, Q 0,7; Bereich von der LS50 Wireless II übernommen"}, {"id": "tischmodus", "name": "Tischmodus", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 0, "schritt": 0.5}, "werks": 0, "aus_wert": 0, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 1, "einheit": "dB"}, "filter": {"art": "peaking", "freq": 180, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich 0 bis −10 dB (Handbuch); wirkt um etwa 180 Hz, eine Oktave nach oben und unten (KEF)", "geschaetzt": "Form: Glocke 180 Hz, Q 0,7; Bereich von der LS50 Wireless II übernommen"}, {"id": "bass_extension", "name": "Bass Extension", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "werte": ["less", "standard", "extra"], "werks": "standard", "anzeige": {"namen": {"less": "Less", "standard": "Standard", "extra": "Extra"}}, "filter": {"art": "hochpass_lr4", "freq_je_wert": {"less": 46, "standard": 43, "extra": 40}}, "status": "geschaetzt", "belegt": "−6 dB bei 40/43/46 Hz für Extra/Standard/Less (KEF, erste LS50 Wireless); LS50 Wireless II gemessen −6 dB bei 44,9 Hz (ASR-Forum) bzw. 45,4 Hz (Erin's Audio Corner)", "geschaetzt": "Übertrag der Werte der ersten Generation, Linkwitz-Riley 4. Ordnung; Bereich von der LS50 Wireless II übernommen"}, {"id": "hoehen_db", "name": "Treble Trim", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -4, "bis": 4, "schritt": 0.5}, "werks": 0, "anzeige": {"nachkomma": 1, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 2200, "q": 0.7}, "status": "geschaetzt", "belegt": "Bereich −4 bis +4 dB (Handbuch LS50 Wireless II)", "geschaetzt": "Form: Kuhschwanz ab 2,2 kHz, Q 0,7 (Frequenz nicht belegt); Bereich von der LS50 Wireless II übernommen"}, {"id": "hochpass_hz", "name": "Hochpass (High-pass)", "teil": "lautsprecher", "wirkt_auf": "bass", "bei_sub_nur_zerlegt": true, "nur_mit_sub": true, "werte": {"von": 50, "bis": 120, "schritt": 5, "aus": null}, "werks": null, "aus_wert": null, "anzeige": {"aus": "aus", "vor": "an, ", "nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "hochpass_lr4"}, "status": "geschaetzt", "belegt": "Bereich 50–120 Hz in 5-Hz-Schritten (Home Assistant, erste Generation); KEF-Beispiel 70 Hz: −12 dB bei 56 Hz, −24 dB bei 35 Hz", "geschaetzt": "Linkwitz-Riley 4. Ordnung (KEF-Support nannte einmal auch 12 dB/Oktave Butterworth); Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_tiefpass_hz", "name": "Sub-Tiefpass (Sub out low-pass)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 250, "schritt": 5}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "belegt": "Bereich 40–250 Hz in 5-Hz-Schritten (Home Assistant, erste Generation; KEF-Blog)", "geschaetzt": "Linkwitz-Riley 4. Ordnung; Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_gain_db", "name": "Sub-Pegel (Sub gain)", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "geschaetzt", "belegt": "Bereich −10 bis +10 dB (Home Assistant, erste Generation)", "geschaetzt": "Bereich von der LS50 Wireless II übernommen"}, {"id": "sub_polaritaet", "name": "Sub-Polarität", "teil": "sub", "wirkt_auf": "bass", "werte": ["normal", "invertiert"], "werks": "normal", "anzeige": {"namen": {"normal": "normal", "invertiert": "umgedreht"}}, "filter": {"art": "polaritaet", "invertiert": "invertiert"}, "status": "geschaetzt", "belegt": "Feld subwooferPolarity (kef:eqProfile/v2, KefBar)", "geschaetzt": "Bereich von der LS50 Wireless II übernommen"}]}, {"schema_version": 1, "id": "typ_aktivboxen", "hersteller": "", "modell": "Aktivboxen mit Klangreglern", "name": "Aktivboxen mit Klangreglern", "anlage_art": "aktiv", "allgemein": true, "wo": "an den Reglern deiner Aktivboxen (oder in ihrer App)", "hinweis": "Allgemeines Profil, keine Messung eines bestimmten Geräts: alle Filterformen sind geschätzt. Deshalb ist die Nachmessung Pflicht. Wandanpassung als Absenkung unter 200 Hz.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "bass_db", "name": "Bass", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 100, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 100 Hz, Q 0,7, ±6 dB in 1-dB-Stufen (typischer Klangregler)"}, {"id": "hoehen_db", "name": "Höhen", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 10000, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 10 kHz, Q 0,7, ±6 dB in 1-dB-Stufen (typischer Klangregler)"}, {"id": "wand_db", "name": "Wandanpassung", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -6, "bis": 0, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 200, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 200 Hz, 0 bis −6 dB (Schalter „Wand/Ecke“ vieler Aktivboxen)"}]}, {"schema_version": 1, "id": "typ_av_receiver", "hersteller": "", "modell": "AV-Receiver", "name": "AV-Receiver (Bass/Höhen, Sub-Pegel, Trennfrequenz)", "anlage_art": "avr", "allgemein": true, "wo": "im Einstellungsmenü deines AV-Receivers (Lautsprecher-Einstellungen bzw. Klangregler)", "hinweis": "Allgemeines Profil, keine Messung eines bestimmten Geräts: alle Filterformen sind geschätzt. Deshalb ist die Nachmessung Pflicht. Den Lautsprecher-Abstand (Laufzeit) kennt das Profil noch nicht: dafür fehlt ein Filtermodell „Laufzeit“.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "bass_db", "name": "Bass", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 100, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 100 Hz, Q 0,7, ±6 dB in 1-dB-Stufen (typischer Klangregler)"}, {"id": "hoehen_db", "name": "Höhen", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -6, "bis": 6, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 10000, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 10 kHz, Q 0,7, ±6 dB in 1-dB-Stufen (typischer Klangregler)"}, {"id": "sub_pegel_db", "name": "Subwoofer-Pegel", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": -12, "bis": 12, "schritt": 0.5}, "werks": 0, "anzeige": {"nachkomma": 1, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "pegel"}, "status": "geschaetzt", "geschaetzt": "Pegel des Sub-Kanals in dB (Kanalpegel im Menü, typisch −12 bis +12 dB in 0,5-dB-Stufen)"}, {"id": "sub_trennfrequenz_hz", "name": "Trennfrequenz", "teil": "sub", "wirkt_auf": "bass", "werte": {"von": 40, "bis": 150, "schritt": 10}, "werks": 80, "anzeige": {"nachkomma": 0, "einheit": "Hz"}, "filter": {"art": "tiefpass_lr4", "max_faktor": 1.6}, "status": "geschaetzt", "geschaetzt": "Tiefpass des Sub als Linkwitz-Riley 4. Ordnung; der Hochpass der Boxen ist nicht abgebildet"}], "zerlegung": "Kehre im Menü die Phase bzw. Polarität des Subwoofers kurz um (oder am Sub selbst) und miss am Hörplatz. Danach zurückstellen."}, {"schema_version": 1, "id": "typ_soundbar", "hersteller": "", "modell": "Soundbar", "name": "Soundbar (Bass, Höhen, Dialog)", "anlage_art": "soundbar", "allgemein": true, "wo": "in der App oder Fernbedienung deiner Soundbar", "hinweis": "Allgemeines Profil, keine Messung eines bestimmten Geräts: alle Filterformen sind geschätzt. Deshalb ist die Nachmessung Pflicht. Dialog-Verstärkung als Anhebung um 4 dB bei 2,5 kHz.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "bass_db", "name": "Bass", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -5, "bis": 5, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 100, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 100 Hz, Q 0,7, ±5 dB in 1-dB-Stufen (typischer Klangregler)"}, {"id": "hoehen_db", "name": "Höhen", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -5, "bis": 5, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 10000, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 10 kHz, Q 0,7, ±5 dB in 1-dB-Stufen (typischer Klangregler)"}, {"id": "dialog", "name": "Dialog", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": ["aus", "an"], "werks": "aus", "anzeige": {"namen": {"aus": "aus", "an": "an"}}, "filter": {"art": "peaking", "freq": 2500, "q": 1.0, "gain_je_wert": {"aus": 0, "an": 4}}, "status": "geschaetzt", "geschaetzt": "Dialog als Glocke 2,5 kHz, Q 1, +4 dB (je Gerät verschieden)"}]}, {"schema_version": 1, "id": "typ_verstaerker", "hersteller": "", "modell": "Verstärker mit Klangreglern", "name": "Verstärker mit Bass/Höhen (und Loudness)", "anlage_art": "kette", "allgemein": true, "wo": "an den Klangreglern deines Verstärkers", "hinweis": "Allgemeines Profil, keine Messung eines bestimmten Geräts: alle Filterformen sind geschätzt. Deshalb ist die Nachmessung Pflicht. Loudness als Bass-Anhebung um 6 dB unter 100 Hz.", "quellen": ["https://www.w3.org/TR/audio-eq-cookbook/"], "regler": [{"id": "bass_db", "name": "Bass", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "lowshelf", "freq": 100, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 100 Hz, Q 0,7, ±10 dB in 1-dB-Stufen (typischer Klangregler)"}, {"id": "hoehen_db", "name": "Höhen", "teil": "lautsprecher", "wirkt_auf": "klang", "werte": {"von": -10, "bis": 10, "schritt": 1}, "werks": 0, "anzeige": {"nachkomma": 0, "vorzeichen": true, "einheit": "dB"}, "filter": {"art": "highshelf", "freq": 10000, "q": 0.7}, "status": "geschaetzt", "geschaetzt": "Kuhschwanz 10 kHz, Q 0,7, ±10 dB in 1-dB-Stufen (typischer Klangregler)"}, {"id": "loudness", "name": "Loudness", "teil": "lautsprecher", "wirkt_auf": "bass", "werte": ["aus", "an"], "werks": "aus", "anzeige": {"namen": {"aus": "aus", "an": "an"}}, "filter": {"art": "lowshelf", "freq": 100, "q": 0.7, "gain_je_wert": {"aus": 0, "an": 6}}, "status": "geschaetzt", "geschaetzt": "Loudness als Kuhschwanz 100 Hz +6 dB (bei leiser Lautstärke stärker, das ist nicht abgebildet)"}]}]</script>
 <script type="text/plain" id="sweetspot-src">// Sweetspot-Finder in JavaScript: dieselben Schritte wie klangbox/sweetspot.py (Modalsumme für den
 // Rechteckraum, Dämpfung je Mode nach Kuttruff, Zielfunktion, Rastersuche, Wächter).
 // Läuft im Browser (Web Worker) und in Node (für den Abgleich mit der Python-Fassung).
@@ -3703,6 +3820,12 @@ const schreiben = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }
 //   (Regler und Werte wie im Geräteprofil daten/geraete/<id>.json); App → Seite klangboxNativ.geraetAntwort(reqId,
 //   {ok, gesetzt: [Regler-id], nicht_unterstuetzt: [Regler-id]}). Sonst bleibt es bei der Anleitung zum Abtippen.
 // „Später nachmessen“: Seite → App {art: "nachmessenErinnern", runde, anlage} (die App darf daran erinnern).
+// Klang-Box (App: BoxSteuerung.swift, Schnittstelle docs/box/SCHNITTSTELLE.md): klangboxNativ.boxen = {verfuegbar: true,
+//   version, layout, haupt, boxen}. Seite → App {art: "box", reqId, box: <id oder null = Hauptbox>, aufruf, daten};
+//   aufruf = Pfad der Schnittstelle („status“, „rolle“, „kanaele“, „funk“, „einstellungen“, „bestaetigen“,
+//   „zuruecknehmen“, „aus“, „inhalt“, „messsignal“, „verzoegerung“ …) oder „suchen“, „koppeln“, „einrichtung“ (in der App).
+//   App → Seite klangboxNativ.boxAntwort(reqId, antwort): immer mit ok, bei Fehler fehler (Satz) und grund (Code).
+//   Statusänderungen: Ereignis „klangboxbox“ auf window (detail = {box, status}). Ohne boxen bleibt alles wie bisher.
 // Ohne App (normaler Browser) ist nativ null und alles läuft wie bisher.
 const nativ = (() => {
   const n = window.klangboxNativ;
@@ -3721,11 +3844,17 @@ const nativ = (() => {
     return true;
   };
   n.aufnahmeFehler = (id, text) => { const o = offen.get(id); if (!o) return false; offen.delete(id); o.fehler(String(text || "Aufnahme fehlgeschlagen.")); return true; };
-  // KEF-Lautsprecher (App: KEFSteuerung.swift): Antwort auf {art: "kef…", reqId}. Zusätzlich Ereignis „klangboxkef“.
+  // Lautsprecher mit WLAN-Adapter der App: Antwort auf {art: "kef…", reqId}. Zusätzlich Ereignis „klangboxkef“.
   const kefOffen = new Map(); let kefZaehler = 0;
   n.kefAntwort = (reqId, daten) => {
     try { window.dispatchEvent(new CustomEvent("klangboxkef", { detail: { reqId, daten } })); } catch (e) {}
     const o = kefOffen.get(reqId); if (!o) return false; kefOffen.delete(reqId); clearTimeout(o.t);
+    o.ok(daten && typeof daten === "object" ? daten : { ok: false, grund: "format", fehler: "Leere Antwort der App." });
+    return true;
+  };
+  const boxOffen = new Map(); let boxZaehler = 0;
+  n.boxAntwort = (reqId, daten) => {
+    const o = boxOffen.get(reqId); if (!o) return false; boxOffen.delete(reqId); clearTimeout(o.t);
     o.ok(daten && typeof daten === "object" ? daten : { ok: false, grund: "format", fehler: "Leere Antwort der App." });
     return true;
   };
@@ -3746,7 +3875,7 @@ const nativ = (() => {
     raumNeuScannen: () => senden({ art: "raumNeuScannen" }),
     kefVerfuegbar: !!(n.kef && n.kef.verfuegbar) && handler,
     kefMaximum: n.kef && Number.isFinite(+n.kef.maximum) ? Math.min(75, +n.kef.maximum) : 60,
-    // KEF-Befehl an die App: Promise auf die Antwort (immer mit ok; bei Fehler fehler und grund), nie abgelehnt
+    // Befehl an den Lautsprecher-Adapter der App: Promise auf die Antwort (immer mit ok; bei Fehler fehler und grund), nie abgelehnt
     kef(art, daten, zeitMs = 20000) {
       const reqId = `k${++kefZaehler}-${Date.now()}`;
       return new Promise((ok) => {
@@ -3756,6 +3885,17 @@ const nativ = (() => {
       });
     },
     ereignis: (m) => senden(m),
+    // Klang-Box: live gelesen, die App ergänzt boxen nach der Einrichtung
+    get boxen() { const b = window.klangboxNativ && window.klangboxNativ.boxen; return handler && b && typeof b === "object" && b.verfuegbar ? b : null; },
+    // Aufruf an eine Klang-Box: Promise auf die Antwort (immer mit ok), nie abgelehnt
+    box(aufruf, daten, { box = null, zeitMs = 15000 } = {}) {
+      const reqId = `b${++boxZaehler}-${Date.now()}`;
+      return new Promise((ok) => {
+        const t = setTimeout(() => { boxOffen.delete(reqId); ok({ ok: false, grund: "zeitueberschreitung", fehler: "Die App hat nicht rechtzeitig geantwortet." }); }, zeitMs);
+        boxOffen.set(reqId, { ok, t });
+        if (!senden({ art: "box", reqId, box, aufruf, daten: daten || {} })) { clearTimeout(t); boxOffen.delete(reqId); ok({ ok: false, grund: "keine_app", fehler: "Die App antwortet nicht." }); }
+      });
+    },
   };
 })();
 document.querySelectorAll("[data-scannen]").forEach((b) => { b.hidden = !nativ; b.addEventListener("click", () => nativ && nativ.raumNeuScannen()); });
@@ -3802,13 +3942,15 @@ $("m-kino").addEventListener("click", () => setzeModus("kino"));
 $("m-stereo").addEventListener("click", () => setzeModus("stereo"));
 setzeModus(modus);
 
-// --- Geführter Ablauf (wie die Sonos-Einmessung: die App führt, Schritt für Schritt) ------------
+// --- Geführter Ablauf (die App führt, Schritt für Schritt) --------------------------------------
 const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Ruhe und Lautstärke", "Hörplatz", "Bewegen", "Ergebnis", "Aufstellung",
-  "Klang wählen", "Anwenden und nachmessen", "Ohne Klang-Box"];
+  "Klang wählen", "Anwenden und nachmessen", "Ohne Klang-Box", "Gefunden", "Hauptbox", "Lautsprecher", "Funk", "Anschließen"];
 function zeigeSchritt(n) {
   document.querySelectorAll(".schritt").forEach((el) => { el.hidden = +el.dataset.s !== n; });
-  document.querySelectorAll("#fortschritt span").forEach((s, i) => s.classList.toggle("an", i < n));
-  $("schritt-text").textContent = n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
+  const an = n >= 12 ? Math.round((n - 11) / 5 * 7) : n;
+  document.querySelectorAll("#fortschritt span").forEach((s, i) => s.classList.toggle("an", i < an));
+  $("schritt-text").textContent = n >= 12 ? `Klang-Box einrichten · ${n - 11} von 5 · ${SCHRITTE[n]}` : n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
+  einrichtenZeigen(n);
   if (n === 5) $("platz-bild").innerHTML = platzBild();
   pegelSchrittGewechselt(n);
   if (n === 8) planZeigen();
@@ -3818,14 +3960,31 @@ function zeigeSchritt(n) {
   window.scrollTo(0, 0);
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zu]"); if (b) zeigeSchritt(+b.dataset.zu); });
-function zeigeChips() { document.querySelectorAll("[data-anlage]").forEach((c) => c.setAttribute("aria-pressed", c.dataset.anlage === $("anlage").value)); }
-document.querySelectorAll("[data-anlage]").forEach((c) => c.addEventListener("click", () => { $("anlage").value = c.dataset.anlage; zeigeChips(); }));
-$("anlage").addEventListener("input", zeigeChips);
+// Art der Anlage (herstellerneutral): bestimmt das passende Geräteprofil für „Ohne Klang-Box“ (Schritt 11)
+let anlageArt = lesen("raumcheck-art", "aktiv");
+$("anlage").value = lesen("raumcheck-anlage", "Wohnzimmer"); $("anlage-modell").value = lesen("raumcheck-modell", "");
+const anlageName = () => { const n = ($("anlage").value || "").trim() || "Anlage", m = ($("anlage-modell").value || "").trim(); return m ? `${n} (${m})` : n; };
+function zeigeChips() {
+  document.querySelectorAll("[data-anlage-art]").forEach((c) => c.setAttribute("aria-pressed", c.dataset.anlageArt === anlageArt));
+  // eigene Raumeinmessung der Anlage (z. B. bei Soundbars): Vergleich mit und ohne als Hinweis
+  const t = `${$("anlage").value} ${$("anlage-modell").value}`;
+  const eigene = anlageArt === "soundbar" || /soundbar|sonos|trueplay|raumeinmessung|room ?correction|dirac|audyssey/i.test(t);
+  $("anlage-hinweis").hidden = !eigene;
+  $("anlage-hinweis").textContent = "Hat deine Anlage eine eigene Raumeinmessung? Dann miss einmal mit und einmal ohne sie und gib beiden Runden einen eigenen Namen. Ich vergleiche danach.";
+}
+function setzeArt(a) {
+  anlageArt = a; schreiben("raumcheck-art", a); zeigeChips();
+  if (!lesen("raumcheck-geraet-selbst", "")) { geraetWahl = artProfil(a); geraetFormular(); }
+}
+document.querySelectorAll("[data-anlage-art]").forEach((c) => c.addEventListener("click", () => setzeArt(c.dataset.anlageArt)));
+$("anlage").addEventListener("input", () => { schreiben("raumcheck-anlage", $("anlage").value); zeigeChips(); });
+$("anlage-modell").addEventListener("input", () => { schreiben("raumcheck-modell", $("anlage-modell").value); zeigeChips(); });
 // Wächter Vorbereitung: alles abgehakt und eine gültige Signalquelle
 $("vorb-weiter").addEventListener("click", () => {
   const offen = [...document.querySelectorAll(".pflicht")].filter((c) => !c.checked).length;
   if (offen) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst alle Punkte abhaken (${offen} offen).</span>`; return; }
   if (!kannAufnehmen) { $("vorb-status").innerHTML = `<span class="warn">Dieser Browser darf hier nicht aufnehmen. Bitte in Safari öffnen, oder am Hörplatz Sprachmemos-Dateien nutzen.</span>`; }
+  else if (quelle === "box" && !boxBereit()) { setzeQuelle("airplay"); $("vorb-status").innerHTML = `<span class="warn">Die Klang-Box ist nicht mehr eingerichtet. Ich messe per AirPlay.</span>`; return; }
   else if (quelle === "airplay" && !kannAirplay && !nativ) { $("vorb-status").innerHTML = `<span class="warn">AirPlay-Auswahl gibt es nur in Safari. Wähle „Von anderem Gerät“ oder öffne die Seite in Safari.</span>`; return; }
   else if (quelle === "airplay" && !drahtlos()) { $("vorb-status").innerHTML = `<span class="warn">Bitte erst „AirPlay-Lautsprecher wählen“ und deine Anlage antippen. Sonst misst du den iPhone-Lautsprecher.</span>`; return; }
   $("vorb-status").textContent = "";
@@ -3840,7 +3999,7 @@ function platzBild() {
   return `<svg viewBox="0 0 320 210" width="100%" role="img" aria-label="Draufsicht: iPhone am Hörplatz">${g}</svg>`;
 }
 let hauptDaten = null;  // saubere Aufnahme am Hörplatz
-$("naechste-anlage").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); $("anlage").value = ""; zeigeChips(); zeigeSchritt(2); });
+$("naechste-anlage").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); $("anlage").value = ""; $("anlage-modell").value = ""; zeigeChips(); zeigeSchritt(2); });
 $("neu-messen").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); zeigeSchritt(4); });
 
 function zeigeDateien() {
@@ -3880,11 +4039,21 @@ const nativAufnahme = !!(nativ && nativ.kannAufnehmen);
 const kannAufnehmen = nativAufnahme || !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext);
 // In der App: fehlt das AirPlay-Attribut (WKWebView), nicht blockieren
 const drahtlos = () => (nativ && sig.webkitCurrentPlaybackTargetIsWireless === undefined) || !!sig.webkitCurrentPlaybackTargetIsWireless;
+// Klang-Box eingerichtet (App): dann spielt die Box das Messsignal selbst (POST /api/messsignal), auch hinten über den Funk
+const boxBereit = () => !!(nativ && nativ.boxen && nativ.boxen.haupt);
+const boxLayout = () => (boxBereit() && nativ.boxen.layout) || "2.0";
+const K2 = ["FL", "FR"], K4 = ["FL", "FR", "SL", "SR"];
+const messKanaele = () => (quelle === "box" && /^4\./.test(boxLayout()) ? K4 : K2);
+const BOX_FOLGE = { "raumcheck.wav": "standard", "bewegen.wav": "bewegt", "pegel.wav": "pegel" };
 function setzeQuelle(q) {
+  if (q === "box" && !boxBereit()) q = "airplay";
   quelle = q;
+  $("q-box").hidden = !boxBereit(); $("q-box").setAttribute("aria-pressed", q === "box");
+  $("q-box-text").textContent = /^4\./.test(boxLayout()) ? "spielt alle vier Boxen selbst, auch hinten" : "spielt deine Boxen selbst";
   $("q-airplay").setAttribute("aria-pressed", q === "airplay"); $("q-extern").setAttribute("aria-pressed", q === "extern");
-  $("airplay-zeile").hidden = q !== "airplay"; $("extern-zeile").hidden = q !== "extern";
-  schreiben("raumcheck-quelle", q);
+  $("airplay-zeile").hidden = q !== "airplay"; $("extern-zeile").hidden = q !== "extern"; $("box-zeile").hidden = q !== "box";
+  if (q !== "box") schreiben("raumcheck-quelle", q);
+  if (typeof kefModusZeigen === "function" && $("check-kef-text")) kefModusZeigen();
   if ($("vorb-status")) $("vorb-status").textContent = "";
   zeigeZiel();
 }
@@ -3894,10 +4063,11 @@ function zeigeZiel() {
   $("ziel").innerHTML = drahtlos() ? `<span class="ok">✓ Wiedergabe über AirPlay</span>` : `Noch kein AirPlay-Lautsprecher gewählt (sonst spielt das iPhone selbst).`;
 }
 $("q-airplay").addEventListener("click", () => setzeQuelle("airplay"));
+$("q-box").addEventListener("click", () => setzeQuelle("box"));
 $("q-extern").addEventListener("click", () => setzeQuelle("extern"));
 $("airplay").addEventListener("click", () => { if (kannAirplay) sig.webkitShowPlaybackTargetPicker(); else zeigeZiel(); });
 sig.addEventListener("webkitcurrentplaybacktargetiswirelesschanged", zeigeZiel);
-setzeQuelle(quelle);
+setzeQuelle(boxBereit() ? "box" : quelle);
 if (!kannAufnehmen) { $("messen").disabled = true; $("filter").innerHTML = `<span class="warn">Aufnehmen geht hier nicht (nur über https in Safari/Chrome). Unten Sprachmemos-Dateien nutzen.</span>`; }
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -3949,6 +4119,7 @@ async function mikrofonOeffnen(ui) {
 // automatisch stoppen. Gibt die Aufnahme zurück (oder null mit Hinweis im Status).
 async function aufnehmen(ui, src, sekundenExtern, tick) {
   const status = (h) => { $(ui.status).innerHTML = h; };
+  if (quelle === "box" && !boxBereit()) { status(`<span class="warn">Die Klang-Box ist nicht eingerichtet. Bitte in Schritt 3 eine andere Quelle wählen.</span>`); return null; }
   if (quelle === "airplay" && kannAirplay && !drahtlos()) { status(`<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`); return null; }
   const mic = await mikrofonOeffnen(ui);
   if (mic.fehler) { status(`<span class="warn">${mic.fehler}</span>`); return null; }
@@ -3956,7 +4127,31 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
   $(ui.start).disabled = true; $(ui.abbrechen).hidden = false;
   const ende = () => { mic.schliessen(); if (ui.pegel) $(ui.pegel).style.width = "0%"; $(ui.start).disabled = false; $(ui.abbrechen).hidden = true; laeuft = null; };
   const t0 = Date.now();
-  if (quelle === "airplay") {
+  if (quelle === "box") {
+    // Die Klang-Box spielt die Messfolge (identisch zu messung.Messfolge) über die echten Ausgänge, hinten über den Funk
+    // Die Box spielt das Messsignal durch die wirkenden Einstellungen. Neutral (Einmessen, „vorher“) heißt: kurz „Alles aus“.
+    const folge = BOX_FOLGE[src] || "standard";
+    status(`<span class="laeuft">Die Klang-Box startet das Messsignal…</span>`);
+    let ausGesetzt = false;
+    if (!ui.mitEinstellungen) {
+      const st = await nativ.box("status", {});
+      if (st.ok && st.einstellungen && st.einstellungen.id && !st.aus) {
+        const x = await nativ.box("aus", { aus: true });
+        if (!x.ok) { ende(); status(`<span class="warn">Die Klang-Box lässt sich nicht auf „Alles aus“ stellen: ${esc(x.fehler || x.grund)}</span>`); return null; }
+        ausGesetzt = true;
+      }
+    }
+    let a = await nativ.box("messsignal", { kanaele: folge === "standard" ? (ui.kanaele || messKanaele()) : K2, folge, start_in_ms: 1500 }, { zeitMs: 10000 });
+    if (!a.ok && folge === "pegel" && a.grund === "falsche_eingabe") a = await nativ.box("messsignal", { kanaele: K2, folge: "standard", start_in_ms: 1500 }, { zeitMs: 10000 });
+    const zurueck = () => { if (ausGesetzt) nativ.box("aus", { aus: false }); };
+    if (!a.ok) { zurueck(); ende(); status(`<span class="warn">Die Klang-Box spielt das Messsignal nicht: ${esc(a.fehler || a.grund)}</span>`); return null; }
+    // start_ms ist Unix-Zeit der Box; die Uhr des iPhones kann etwas abweichen, deshalb höchstens 60 s
+    const startS = Number.isFinite(+a.start_in_ms) ? +a.start_in_ms / 1000 : +a.start_ms > 1e11 ? Math.min(60, Math.max(0, (+a.start_ms - Date.now()) / 1000)) : (+a.start_ms || 0) / 1000;
+    const gesamt = startS + (+a.dauer_s || sekundenExtern) + 2.5;  // 2,5 s Nachlauf: Funk und Nachhall
+    while (!laeuft.abbruch && Date.now() - t0 < gesamt * 1000) { const r = (Date.now() - t0) / 1000 / gesamt;
+      if (tick) tick(r); status(`<span class="laeuft">Misst… noch ${Math.ceil(gesamt * (1 - r))} s</span>`); await warte(250); }
+    zurueck();
+  } else if (quelle === "airplay") {
     if (!sig.src.endsWith(src)) { sig.src = src; sig.load(); }
     sig.currentTime = 0;
     try { await sig.play(); } catch (e) { ende(); status(`<span class="warn">Wiedergabe ließ sich nicht starten.</span>`); return null; }
@@ -3983,7 +4178,7 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
   if (r.spitze < 0.003 && !ui.leiseOk) { status(`<span class="warn">Fast nichts aufgenommen. Lief das Messsignal? Lauter stellen und wiederholen.</span>`); return null; }
   return r.daten;
 }
-function abbrechen() { if (laeuft) { laeuft.abbruch = true; sig.pause(); } }
+function abbrechen() { if (laeuft) { laeuft.abbruch = true; sig.pause(); if (quelle === "box" && nativ) nativ.box("messsignal", { stopp: true }, { zeitMs: 5000 }); } }
 ["abbrechen", "check-abbrechen", "bewegen-abbrechen", "a-abbrechen", "g-abbrechen"].forEach((id) => $(id).addEventListener("click", abbrechen));
 
 // Schritt 4: Ruhe und Lautstärke. Rauschton (2 s Stille, 3 s Rauschen) aufnehmen und bewerten:
@@ -4001,7 +4196,8 @@ function pegelBewerten(d) {
 }
 $("check-start").addEventListener("click", async () => {
   if (pegelLaeuft) return;
-  if (kefDa && !kefSelbst) return pegelAutomatik();
+  if (!kefSelbst && boxPegelDa()) return boxPegelAutomatik();
+  if (kefDa && !kefSelbst && quelle !== "box") return pegelAutomatik();
   const d = await aufnehmen({ status: "check-status", pegel: "check-pegel", filter: "check-filter", start: "check-start", abbrechen: "check-abbrechen" }, "pegel.wav", 11);
   if (!d) return;
   const p = pegelBewerten(d), st = (h) => { $("check-status").innerHTML = h; };
@@ -4015,7 +4211,7 @@ $("check-start").addEventListener("click", async () => {
 });
 $("check-ueberspringen").addEventListener("click", () => zeigeSchritt(5));
 
-// Schritt 4 mit KEF (nur in der App, window.klangboxNativ.kef.verfuegbar): Die App stellt die Lautstärke,
+// Schritt 4 mit Lautsprecher-Adapter (nur in der App, window.klangboxNativ.kef.verfuegbar): Die App stellt die Lautstärke,
 // die Seite spielt pegel.wav, misst über aufnehmen() und bewertet mit pegelBewerten(). Logik: pegelautomatik.js.
 // Ohne App bleibt Schritt 4 wie oben. Nach der Messung (ab Schritt 7), beim Zurückgehen vor Schritt 4 und beim
 // Verlassen stellt die App die alte Lautstärke und Quelle wieder her; die App selbst stellt zusätzlich bei
@@ -4026,10 +4222,13 @@ function ladeSkript(src, da) {
   return new Promise((ok, fehler) => { if (da()) return ok(); const el = document.createElement("script"); el.src = src; el.onload = () => (da() ? ok() : fehler()); el.onerror = fehler; document.head.appendChild(el); });
 }
 function kefModusZeigen() {
-  const an = kefDa && !kefSelbst;
+  const an = !kefSelbst && (boxPegelDa() || (kefDa && quelle !== "box"));
   $("check-text").hidden = an; $("check-kef-text").hidden = !an; $("check-selbst").hidden = !an; $("check-kef").hidden = !an;
 }
-if (kefDa) { kefModusZeigen(); pegelSkript = ladeSkript("pegelautomatik.js", () => window.PegelAutomatik).then(() => true, () => false); }
+// Lautstärke über die Klang-Box (jede Anlage): POST /api/lautstaerke {fuehren: true, db} nur während der Messung
+function boxPegelDa() { return quelle === "box" && boxBereit(); }  // Funktion: setzeQuelle ruft das schon vorher
+if (kefDa || (nativ && nativ.boxen)) pegelSkript = ladeSkript("pegelautomatik.js", () => window.PegelAutomatik).then(() => true, () => false);
+if (kefDa || boxPegelDa()) kefModusZeigen();
 $("check-selbst").addEventListener("click", () => { if (pegelLaeuft) return; kefSelbst = true; kefModusZeigen(); $("check-status").textContent = ""; });
 $("check-abbrechen").addEventListener("click", () => { if (pegelLaeuft) pegelAbbruch = true; });
 function kefZurueck() {
@@ -4037,8 +4236,64 @@ function kefZurueck() {
   const s = kefSitzung;
   return nativ.kef("kefWiederherstellen", { id: s.id }).then((a) => { if (a.ok && kefSitzung === s) kefSitzung = null; return !!a.ok; });
 }
-function pegelSchrittGewechselt(n) { if (kefSitzung && !pegelLaeuft && (n <= 3 || n >= 7)) kefZurueck(); }
-window.addEventListener("pagehide", () => { if (kefSitzung) kefZurueck(); });
+function pegelSchrittGewechselt(n) { if (!pegelLaeuft && (n <= 3 || n >= 7)) { if (kefSitzung) kefZurueck(); if (boxPegelSitzung) boxPegelZurueck(); } }
+window.addEventListener("pagehide", () => { if (kefSitzung) kefZurueck(); if (boxPegelSitzung) boxPegelZurueck(); });
+// Klang-Box: vorher führte die Quelle (→ danach wieder {fuehren: false}) oder die Box mit einem Wert (→ zurück auf ihn)
+var boxPegelSitzung = null;
+function boxPegelZurueck() {
+  const s = boxPegelSitzung; if (!s || !nativ) return Promise.resolve(true);
+  return nativ.box("lautstaerke", s.fuehren ? { fuehren: true, db: s.db } : { fuehren: false }).then((a) => { if (a.ok && boxPegelSitzung === s) boxPegelSitzung = null; return !!a.ok; });
+}
+// Stufen für pegelautomatik.js: 0 … 80 = −80 … 0 dB an der Box (1 Stufe = 1 dB); lauter als 0 dB kann die Box nicht
+async function boxPegelAutomatik() {
+  const st = (h) => { $("check-status").innerHTML = h; };
+  const laeuft = (t) => st(`<span class="laeuft">${esc(t)}</span>`);
+  const selbst = (grund) => { kefSelbst = true; kefModusZeigen(); st(`<span class="warn">${esc(grund)} Stell die Lautstärke bitte selbst ein und tippe auf „Prüfen“.</span>`); };
+  pegelLaeuft = true; pegelAbbruch = false;
+  $("check-start").disabled = true; $("check-abbrechen").hidden = false;
+  try {
+    if (!(await pegelSkript)) return selbst("Die Pegelautomatik ließ sich nicht laden.");
+    const s = await nativ.box("status", {});
+    if (!s.ok) return selbst(`Die Klang-Box antwortet nicht (${s.fehler || s.grund}).`);
+    const l = s.lautstaerke || { fuehren: false, db: 0 };
+    if (!boxPegelSitzung) boxPegelSitzung = { fuehren: !!l.fuehren, db: +l.db || 0 };
+    const ursprung = boxPegelSitzung.fuehren ? Math.round(80 + boxPegelSitzung.db) : 80;
+    $("check-kef").textContent = "Lautstärke: über die Klang-Box (danach wie vorher)";
+    const ui = { status: "check-status", pegel: "check-pegel", filter: "check-filter", start: "check-start", abbrechen: "check-abbrechen", leiseOk: true };
+    const e = await window.PegelAutomatik.einpegeln({
+      ursprung, max: 80, start: 50, abbruch: () => pegelAbbruch,
+      setzeLautstaerke: async (v) => {
+        const a = await nativ.box("lautstaerke", { fuehren: true, db: Math.max(-80, Math.min(0, v - 80)) });
+        if (!a.ok) throw new Error(a.fehler || a.grund);
+        return { wert: Math.round(80 + (a.lautstaerke && Number.isFinite(+a.lautstaerke.db) ? +a.lautstaerke.db : v - 80)) };
+      },
+      messe: async () => {
+        const d = await aufnehmen(ui, "pegel.wav", 11);
+        $("check-start").disabled = true; $("check-abbrechen").hidden = false;
+        if (!d) throw new Error($("check-status").textContent || "Aufnahme fehlgeschlagen.");
+        const p = pegelBewerten(d);
+        return { pegel_db: p.ton, stoer_db: p.rausch, spitze_db: p.spitze_db, clip: p.spitze_db > -3 };
+      },
+      ursache: async () => ({ grund: "unklar", text: "Die Klang-Box spielt den Prüfton, aber am Mikrofon kommt nichts an. Sind Verstärker oder Boxen an und nicht stumm?" }),
+      zurueckstellen: () => boxPegelZurueck(),
+      melde: (i) => {
+        if (i.art === "setze") laeuft(`Stelle die Klang-Box auf ${i.lautstaerke - 80} dB …`);
+        if (i.art === "messe") laeuft(`Prüfton läuft (${i.lautstaerke - 80} dB, Versuch ${i.versuch}) …`);
+        if (i.art === "zurueck") laeuft("Stelle die Lautstärke wieder wie vorher …");
+      },
+      zeitSetzenMs: 15000,
+    });
+    if (!e.ok) {
+      if (e.wiederhergestellt) boxPegelSitzung = null;
+      return st(`<span class="warn">${esc(e.grund === "zu_leise_bei_max" ? "Auch ganz offen ist der Prüfton zu leise. Dreh die Quelle (Fernseher, Verstärker) lauter und prüf noch einmal." : e.text)}</span>`);
+    }
+    st(`<span class="ok">✓ Passt: ${Math.round(e.abstand_db)} dB Abstand zum Raumgeräusch bei ${e.lautstaerke - 80} dB an der Klang-Box.</span> Nach der Messung stelle ich das zurück.`);
+    await warte(1500); zeigeSchritt(5);
+  } finally {
+    pegelLaeuft = false; pegelAbbruch = false;
+    $("check-start").disabled = false; $("check-abbrechen").hidden = true;
+  }
+}
 const QUELLEN = { wifi: "WLAN/Stream", bluetooth: "Bluetooth", tv: "TV (HDMI)", optical: "Optisch", optic: "Optisch", coaxial: "Koaxial", analog: "Analog", usb: "USB", standby: "Standby" };
 async function pegelAutomatik() {
   const st = (h) => { $("check-status").innerHTML = h; };
@@ -4048,24 +4303,24 @@ async function pegelAutomatik() {
   $("check-start").disabled = true; $("check-abbrechen").hidden = false;
   try {
     if (!(await pegelSkript)) return selbst("Die Pegelautomatik ließ sich nicht laden.");
-    laeuft("Suche deine KEF im Heimnetz …");
+    laeuft("Suche deine Lautsprecher im Heimnetz …");
     const such = await nativ.kef("kefSuchen", {}, 30000);
     if (pegelAbbruch) return st("Abgebrochen.");
-    if (!such.ok || !such.geraete || !such.geraete.length) return selbst(such.ok ? "Keine KEF-Box im Heimnetz gefunden." : `Die KEF-Suche ging nicht: ${such.fehler || such.grund}.`);
+    if (!such.ok || !such.geraete || !such.geraete.length) return selbst(such.ok ? "Keine passenden Lautsprecher im Heimnetz gefunden." : `Die Suche ging nicht: ${such.fehler || such.grund}.`);
     const g = such.geraete[0], id = g.id;
     $("check-kef").textContent = `Lautsprecher: ${g.modell} · ${g.name}`;
     let l = await nativ.kef("kefLesen", { id });
-    if (!l.ok) return selbst(`Die KEF antwortet nicht (${l.fehler || l.grund}).`);
+    if (!l.ok) return selbst(`Die Lautsprecher antworten nicht (${l.fehler || l.grund}).`);
     if (l.quelle !== "wifi") {
-      laeuft(l.quelle === "standby" || l.status === "standby" ? "Die KEF ist aus, ich schalte sie ein …"
-        : `Die KEF steht auf „${QUELLEN[l.quelle] || l.quelle}“, ich stelle auf WLAN/Stream um (dort kommt AirPlay an) …`);
+      laeuft(l.quelle === "standby" || l.status === "standby" ? "Die Lautsprecher sind aus, ich schalte sie ein …"
+        : `Die Lautsprecher stehen auf „${QUELLEN[l.quelle] || l.quelle}“, ich stelle auf WLAN/Stream um (dort kommt AirPlay an) …`);
       const q = await nativ.kef("kefQuelle", { id, quelle: "wifi" });
       if (!q.ok) {
         kefSitzung = { id, ursprung: l.lautstaerke }; await kefZurueck();
-        return st(`<span class="warn">Die KEF ließ sich nicht auf WLAN/Stream umstellen: ${esc(q.fehler || q.grund)} Bitte an der Box oder in der KEF-App umstellen und noch einmal.</span>`);
+        return st(`<span class="warn">Die Lautsprecher ließen sich nicht auf WLAN/Stream umstellen: ${esc(q.fehler || q.grund)} Bitte an den Lautsprechern oder in ihrer App umstellen und noch einmal.</span>`);
       }
       l = await nativ.kef("kefLesen", { id });  // die Lautstärke gilt je Quelle
-      if (!l.ok) return selbst(`Die KEF antwortet nicht (${l.fehler || l.grund}).`);
+      if (!l.ok) return selbst(`Die Lautsprecher antworten nicht (${l.fehler || l.grund}).`);
     }
     // Ursprung: bei einem zweiten Durchlauf der Wert vor dem ersten (die App merkt ihn sich ebenfalls)
     if (!kefSitzung || kefSitzung.id !== id) kefSitzung = { id, ursprung: l.lautstaerke };
@@ -4093,11 +4348,11 @@ async function pegelAutomatik() {
       },
       ursache: async () => {
         const x = await nativ.kef("kefLesen", { id });
-        if (!x.ok) return { grund: "box_weg", text: "Die KEF antwortet nicht mehr im Heimnetz." };
-        if (x.status === "standby" || x.quelle === "standby") return { grund: "box_aus", text: "Die KEF ist ausgeschaltet. Schalte sie ein und versuche es noch einmal." };
-        if (x.quelle !== "wifi") return { grund: "falsche_quelle", text: `Die KEF steht auf „${QUELLEN[x.quelle] || x.quelle}“ statt WLAN/Stream.` };
-        if (wiedergabe && wiedergabe !== "playing") return { grund: "airplay", text: "Die KEF spielt den Ton nicht: AirPlay ist nicht mit ihr verbunden. Tippe oben rechts auf das AirPlay-Symbol und wähle die KEF." };
-        return { grund: "unklar", text: "Die KEF ist an und steht auf WLAN/Stream. Läuft der AirPlay-Ton auf ihr (oben rechts), und ist das Mikrofon unten am iPhone frei?" };
+        if (!x.ok) return { grund: "box_weg", text: "Die Lautsprecher antworten nicht mehr im Heimnetz." };
+        if (x.status === "standby" || x.quelle === "standby") return { grund: "box_aus", text: "Die Lautsprecher sind ausgeschaltet. Schalte sie ein und versuche es noch einmal." };
+        if (x.quelle !== "wifi") return { grund: "falsche_quelle", text: `Die Lautsprecher stehen auf „${QUELLEN[x.quelle] || x.quelle}“ statt WLAN/Stream.` };
+        if (wiedergabe && wiedergabe !== "playing") return { grund: "airplay", text: "Die Lautsprecher spielen den Ton nicht: AirPlay ist nicht mit ihnen verbunden. Tippe oben rechts auf das AirPlay-Symbol und wähle sie aus." };
+        return { grund: "unklar", text: "Die Lautsprecher sind an und stehen auf WLAN/Stream. Läuft der AirPlay-Ton auf ihnen (oben rechts), und ist das Mikrofon unten am iPhone frei?" };
       },
       zurueckstellen: () => kefZurueck(),
       melde: (i) => {
@@ -4118,12 +4373,13 @@ async function pegelAutomatik() {
 
 // Schritt 5: Hörplatz
 $("messen").addEventListener("click", async () => {
-  const d = await aufnehmen({ status: "status", pegel: "pegel", filter: "filter", start: "messen", abbrechen: "abbrechen" }, "raumcheck.wav", 26);
+  const kanaele = messKanaele();
+  const d = await aufnehmen({ status: "status", pegel: "pegel", filter: "filter", start: "messen", abbrechen: "abbrechen", kanaele }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
   if (!d) return;
-  if (await neueAufnahme("Hörplatz", d)) { hauptDaten = d; $("platz-bild").innerHTML = platzBild(); await warte(1200); zeigeSchritt(6); }
+  if (await neueAufnahme("Hörplatz", d, kanaele)) { hauptDaten = d; $("platz-bild").innerHTML = platzBild(); await warte(1200); zeigeSchritt(6); }
 });
 
-// Schritt 6: Bewegen (wie Trueplay): Ring mit Restsekunden
+// Schritt 6: Bewegen (durch den Hörbereich): Ring mit Restsekunden
 const BEWEGEN_S = 63;
 const ring = (r) => { r = Math.min(1, Math.max(0, r));
   $("ring").setAttribute("stroke-dashoffset", (942.5 * (1 - r)).toFixed(1)); $("ring-sek").textContent = `${Math.ceil(BEWEGEN_S * (1 - r))} s`; };
@@ -4144,14 +4400,14 @@ $("bewegen-start").addEventListener("click", async () => {
 $("ohne-bewegen").addEventListener("click", () => auswerten(null));
 
 // Jede Aufnahme sofort prüfen (Wächter): nur saubere Aufnahmen zählen
-async function neueAufnahme(name, daten) {
+async function neueAufnahme(name, daten, kanaele = K2) {
   $("status").innerHTML = `<span class="laeuft">Prüfe die Aufnahme…</span>`;
-  const p = await imWorker({ art: "pruefen", daten });
+  const p = await imWorker({ art: "pruefen", daten, kanaele });
   if (!p.ok) { $("status").innerHTML = `<span class="warn">${esc(name)}: Prüfung fehlgeschlagen (${esc(p.fehler)}).</span>`; return false; }
   const pr = p.ergebnis;
   if (!pr.sauber) { $("status").innerHTML = `<span class="warn">${esc(name)} nicht verwendet: ${esc(pr.probleme.join(" "))} Bitte noch einmal messen.</span>`; return false; }
   if (name === "Hörplatz") dateien = [];
-  dateien.push({ name, daten });
+  dateien.push({ name, daten, kanaele });
   zeigeDateien();
   $("status").innerHTML = `<span class="ok">✓ ${esc(name)}: Aufnahme sauber.</span>`;
   return true;
@@ -4162,10 +4418,10 @@ const workerCode = $("analyse-src").textContent + "\n" + $("sweetspot-src").text
 self.onmessage = (ev) => {
   try {
     if (ev.data.art === "sweetspot") { self.postMessage({ ok: true, ergebnis: SS.empfehlen(ev.data.raum, ev.data.start, ev.data.modus, ev.data.fest || [], ev.data.grenzen || null) }); return; }
-    if (ev.data.art === "pruefen") { self.postMessage({ ok: true, ergebnis: analysiere(new Float64Array(ev.data.daten)).pruefung }); return; }
+    if (ev.data.art === "pruefen") { self.postMessage({ ok: true, ergebnis: analysiere(new Float64Array(ev.data.daten), folgeFuer(ev.data.kanaele)).pruefung }); return; }
     if (ev.data.art === "bewegtPruefen") { self.postMessage({ ok: true, ergebnis: bewegtePunkte(new Float64Array(ev.data.daten)).info }); return; }
     if (ev.data.art === "nachpruefen") {
-      const an = (l) => l.map((d) => { const a = analysiere(new Float64Array(d.daten)); return { name: d.name, messungen: a.messungen, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme }; });
+      const an = (l) => l.map((d) => { const a = analysiere(new Float64Array(d.daten), folgeFuer(ev.data.kanaele)); return { name: d.name, messungen: a.messungen, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme }; });
       const v = an(ev.data.vorher), n = an(ev.data.nachher), schlecht = [...v, ...n].filter((x) => !x.sauber);
       if (schlecht.length) { self.postMessage({ ok: true, ergebnis: { fehler: "Eine Aufnahme ist nicht sauber (" + schlecht[0].name + "): " + schlecht[0].probleme.join(" ") + " Bitte noch einmal messen." } }); return; }
       let kette = null, ungefaehr = false;
@@ -4179,7 +4435,7 @@ self.onmessage = (ev) => {
         ev.data.raumM3, ev.data.sub, ev.data.gedreht ? new Float64Array(ev.data.gedreht) : null) }); return;
     }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
-    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null) });
+    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null) });
   } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
 };`;
 const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
@@ -4199,14 +4455,15 @@ async function auswerten(bewegt) {
   const ziel = bewegt ? "bewegen-status" : "status";
   $(ziel).innerHTML = `<span class="laeuft">Rechnet, etwa 10 bis 40 Sekunden…</span>`;
   $("auswerten").disabled = true;
+  const kanaele = dateien[0].kanaele || K2;
   const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null,
-                            mikrofon: MIKROFONE[$("handy").value] || null });
+                            mikrofon: MIKROFONE[$("handy").value] || null, kanaele });
   $("auswerten").disabled = !dateien.length;
   if (!r.ok) { $(ziel).innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
-  const runde = { id: `r${Date.now()}`, anlage: $("anlage").value || "Anlage", modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis, profil_id: "neutral", status: "vorhergesagt" };
+  const runde = { id: `r${Date.now()}`, anlage: anlageName(), art: anlageArt, modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis, profil_id: "neutral", status: "vorhergesagt", kanaele };
   runden.unshift(runde);
   schreiben("raumcheck-runden", JSON.stringify(runden.slice(0, 12)));
-  messdaten = r.ergebnis.fehler ? null : { id: runde.id, dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null };
+  messdaten = r.ergebnis.fehler ? null : { id: runde.id, dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null, kanaele };
   dateien = []; hauptDaten = null; zeigeDateien(); $(ziel).innerHTML = "";
   if (nativ && !r.ergebnis.fehler) nativ.ereignis({ art: "ergebnis", score: r.ergebnis.score_prognose.gesamt, ohne: r.ergebnis.score_heute.gesamt });
   zeigeAlles(); nachhallUebernehmen(); zeigeSchritt(7);
@@ -4709,8 +4966,9 @@ $("ergebnisse").addEventListener("click", (ev) => {
   zeigeAlles();
 });
 // App: Reiter wechseln und neuer Raumscan
-if (nativ) window.klangboxNativ.zeige = (tab) => zeigeSchritt(tab === "sweetspot" ? 8 : (runden.length ? 7 : 1));
-window.addEventListener("klangboxtab", (ev) => zeigeSchritt(ev.detail === "sweetspot" ? 8 : (runden.length ? 7 : 1)));
+const tabSchritt = (tab) => (tab === "sweetspot" ? 8 : tab === "einrichten" && nativ && nativ.boxen ? 12 : (runden.length ? 7 : 1));
+if (nativ) window.klangboxNativ.zeige = (tab) => zeigeSchritt(tabSchritt(tab));
+window.addEventListener("klangboxtab", (ev) => zeigeSchritt(tabSchritt(ev.detail)));
 window.addEventListener("klangboxraum", (ev) => {
   try { scanAnwenden(ev.detail, { felder: true, quelle: "App" }); $("s-status").textContent = ""; }
   catch (e) { $("s-status").innerHTML = `<span class="warn">Raumscan ließ sich nicht lesen: ${esc(e.message || e)}</span>`; }
@@ -4790,7 +5048,8 @@ $("p-weiter").addEventListener("click", () => { anwendenArt = "box"; zeigeSchrit
 function exportObjekt(r, stand, einst, profil, geraet) {
   const kanal = (c) => ({ gain_db: c.gain_db, delay_ms: c.delay_ms, eq: c.eq.map((q) => ({ freq: q.freq, gain: q.gain, q: q.q })) });
   return { art: "klangbox-einstellungen", version: 1, stand, status: r.status || "vorhergesagt", modus: r.modus, anlage: r.anlage, erstellt: new Date().toISOString(),
-    einstellungen: { FL: kanal(einst.FL), FR: kanal(einst.FR), profil: profil || { ...NEUTRAL } }, geraet_einstellungen: geraet || null };
+    einstellungen: { FL: kanal(einst.FL), FR: kanal(einst.FR), ...(einst.SL && einst.SR ? { SL: kanal(einst.SL), SR: kanal(einst.SR) } : {}), profil: profil || { ...NEUTRAL } },
+    geraet_einstellungen: geraet || null };
 }
 const NEUTRAL_EINST = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
 function herunterladen(obj, name) {
@@ -4815,7 +5074,8 @@ let nach = { vorher: {}, nachher: {}, extraName: null };  // Aufnahmen je Platz 
 function zusammenfassung(r) {
   const e = r.e.einstellungen, p = r.profil || { ...NEUTRAL };
   const kanal = (ch, n) => `<div class="zeile"><i class="ampel gut"></i><span><b>${n}</b>: Pegel ${zt(e[ch].gain_db, 1)} dB, Laufzeit ${zt(e[ch].delay_ms, 2)} ms, ${e[ch].eq.length} Bass-Filter</span></div>`;
-  return `<span class="marke">Raumanpassung</span><div class="zeilen">${kanal("FL", "Links")}${kanal("FR", "Rechts")}</div>
+  const hinten = (ch, n) => e[ch] ? `<div class="zeile"><i class="ampel gut"></i><span><b>${n}</b>: Pegel ${zt(e[ch].gain_db, 1)} dB, Laufzeit ${zt(e[ch].delay_ms, 2)} ms (vorne führt, hinten bis 35 ms später)</span></div>` : "";
+  return `<span class="marke">Raumanpassung</span><div class="zeilen">${kanal("FL", "Links")}${kanal("FR", "Rechts")}${hinten("SL", "Hinten links")}${hinten("SR", "Hinten rechts")}</div>
     <span class="marke">Klang</span><div class="zeile"><i class="ampel ${p.skala < 1 ? "hinweis" : "gut"}"></i><span><b>${esc(p.name)}</b>${p.filter.length ? ` · ${p.filter.length} Filter, Vorverstärkung ${zt(p.vorverstaerkung_db, 1)} dB${p.skala < 1 ? `, auf ${zt(p.skala * 100, 0)} % abgeschwächt` : ""}` : ""}</span></div>
     ${p.hinweise.map((h) => `<p class="klein">${esc(h)}</p>`).join("")}`;
 }
@@ -4831,6 +5091,14 @@ function anwendenZeigen() {
     $("a-text").textContent = "Pflicht in diesem Modus: Einige Regler-Wirkungen sind geschätzt. Erst die Nachmessung zeigt, ob es wirklich besser ist. Wenn nicht, sage ich dir, wie du zurückstellst.";
     $("a-weitere-text").textContent = "Für einen weiteren Platz misst du dort zweimal: erst mit den alten Werten, dann mit den neuen.";
     $("a-extra-vorher").textContent = "1 · Mit alten Werten messen"; $("a-extra-nachher").textContent = "2 · Mit neuen Werten messen";
+  } else if (boxModus(r)) {
+    // Klang-Box eingerichtet: die App schickt die Einstellungen selbst, die Box spielt die Messung neutral bzw. mit ihnen
+    $("a-zusammen").innerHTML = zusammenfassung(r) + `<details><summary>Als Datei speichern</summary><div id="a-export"></div></details>`;
+    exportAnbieten(exportObjekt(r, "neu", r.e.einstellungen, r.profil), "a-export", "Für die Klang-Box speichern");
+    $("a-text").textContent = r.box_geladen === r.id ? "Die Klang-Box spielt jetzt die neuen Einstellungen (vorhergesagt). Miss einmal am Hörplatz wie vorhin. Erst danach gelten sie als bestätigt."
+      : "Erst die Einstellungen an die Klang-Box senden. Danach misst du einmal am Hörplatz wie vorhin; erst dann gelten sie als bestätigt.";
+    $("a-weitere-text").textContent = "Für einen weiteren Platz misst du dort zweimal; die Klang-Box spielt das Messsignal einmal neutral und einmal mit den neuen Einstellungen.";
+    $("a-extra-vorher").textContent = "1 · Ohne Klang-Box messen"; $("a-extra-nachher").textContent = "2 · Mit Klang-Box messen";
   } else {
     $("a-zusammen").innerHTML = zusammenfassung(r) + `<div id="a-export"></div><p class="klein">Lade die Datei in die Klang-Box. Danach hier nachmessen: Ich prüfe, ob es wirklich besser wurde, und nehme es sonst zurück.</p>`;
     exportAnbieten(exportObjekt(r, "neu", r.e.einstellungen, r.profil), "a-export", "Für die Klang-Box speichern");
@@ -4838,6 +5106,8 @@ function anwendenZeigen() {
     $("a-weitere-text").textContent = "Dafür misst du am selben Platz zweimal: erst mit „Alles aus“ an der Klang-Box, dann wieder mit Klang-Box.";
     $("a-extra-vorher").textContent = "1 · „Alles aus“ messen"; $("a-extra-nachher").textContent = "2 · Mit Klang-Box messen";
   }
+  $("a-box").hidden = ohneBox || !boxModus(r);
+  if (!$("a-box").hidden) $("a-box-antwort").innerHTML = r.box_geladen === r.id ? `<span class="ok">✓ Die Klang-Box spielt diese Einstellungen (vorhergesagt).</span>` : "";
   // Messung von vorher am Hauptplatz: aus dieser Runde (im Speicher)
   if (!nach.rundeId || nach.rundeId !== r.id || nach.art !== anwendenArt) {
     nach = { rundeId: r.id, art: anwendenArt, vorher: {}, nachher: {}, extraName: null };
@@ -4848,10 +5118,29 @@ function anwendenZeigen() {
   $("a-vorher-zeile").hidden = !fehlt || ohneBox;
   $("a-vorher-text").textContent = "Die Messung von vorhin ist nicht mehr im Speicher (Seite neu geladen). Stell die Klang-Box auf „Alles aus“ und miss einmal vorher.";
   if (fehlt && ohneBox) $("a-status").innerHTML = `<span class="warn">Die Messung von vorhin ist nicht mehr im Speicher. Stell die alten Werte ein und miss neu (Schritt 4).</span>`;
-  $("a-messen").disabled = fehlt;
+  $("a-messen").disabled = fehlt || (!ohneBox && boxModus(r) && r.box_geladen !== r.id);
   plaetzeZeigen();
   urteilZeigen(r);
 }
+// Anwenden über die Klang-Box (App), wenn sie eingerichtet ist und das Messsignal spielt
+const boxModus = (r) => boxBereit() && quelle === "box" && anwendenArt === "box" && !!r;
+const REGEL_NAME = { form: "Form", felder: "Felder", pegel: "Pegel", laufzeit: "Laufzeit", leitplanken: "Leitplanke", summe: "Filter zusammen",
+  profil: "Klangprofil", pegelreserve: "Pegelreserve", waechter: "Wächter" };
+$("a-box-senden").addEventListener("click", async () => {
+  const r = aktuelleRunde(); if (!r || !boxModus(r)) return;
+  const b = $("a-box-senden"), ziel = $("a-box-antwort");
+  b.disabled = true; ziel.innerHTML = `<span class="laeuft">Sende an die Klang-Box…</span>`;
+  const a = await nativ.box("einstellungen", { einstellungen: exportObjekt(r, "neu", r.e.einstellungen, r.profil), profil: r.profil || null, runde: r.id }, { zeitMs: 20000 });
+  b.disabled = false;
+  if (!a.ok && !Array.isArray(a.abgelehnt)) { ziel.innerHTML = `<span class="warn">Das ging nicht: ${esc(a.fehler || a.grund)} Es bleibt der bisherige Stand.</span>`; return; }
+  const abgelehnt = (a.abgelehnt || []).map((x) => `<li><b>${esc(REGEL_NAME[x.regel] || x.regel || "Wächter")}:</b> ${esc(x.text)}</li>`).join("");
+  a.geladen = !!(a.ok && a.geladen);
+  const html = (a.geladen ? `<span class="ok">✓ Die Klang-Box spielt die neuen Einstellungen (vorhergesagt).</span>` : `<span class="warn">Die Klang-Box hat nichts davon geladen. Es bleibt der bisherige Stand.</span>`)
+    + (abgelehnt ? `<p class="klein warn" style="margin-top:6px">Nicht übernommen – die Wächter der Box schützen vor dem Verschlimmbessern:</p><ul class="klein" style="margin:0; padding-left:18px" id="a-box-abgelehnt">${abgelehnt}</ul>` : "")
+    + (a.hinweise || []).map((h) => `<p class="klein">${esc(h)}</p>`).join("");
+  if (a.geladen) { r.box_geladen = r.id; r.status = "vorhergesagt"; r.urteil = null; rundeSpeichern(); anwendenZeigen(); }
+  $("a-box-antwort").innerHTML = html;
+});
 // Neue oder gelöschte Messung: das alte Urteil gilt nicht mehr
 function urteilVerwerfen() { const r = aktuelleRunde(); if (r && r.urteil && r.urteil.art === anwendenArt) { r.urteil = null; rundeSpeichern(); } $("a-urteil").innerHTML = ""; }
 function plaetzeZeigen() {
@@ -4869,26 +5158,28 @@ $("a-spaeter").addEventListener("click", () => {
   zeigeAlles(); zeigeSchritt(7);
 });
 $("a-zurueck").addEventListener("click", () => zeigeSchritt(anwendenArt === "geraet" ? 11 : 9));
-async function nachAufnahme(ui) {
-  const d = await aufnehmen({ status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen" }, "raumcheck.wav", 26);
+async function nachAufnahme(ui, mitEinstellungen = true) {
+  const r = aktuelleRunde(), kanaele = (r && r.kanaele) || K2;
+  if (kanaele.length === 4 && quelle !== "box") { $("a-status").innerHTML = `<span class="warn">Diese Runde wurde über die Klang-Box mit vier Kanälen gemessen. Bitte in Schritt 3 „Über die Klang-Box“ wählen.</span>`; return null; }
+  const d = await aufnehmen({ status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen", kanaele, mitEinstellungen }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
   if (!d) return null;
   $("a-status").innerHTML = `<span class="laeuft">Prüfe die Aufnahme…</span>`;
-  const p = await imWorker({ art: "pruefen", daten: d });
+  const p = await imWorker({ art: "pruefen", daten: d, kanaele });
   if (!p.ok || !p.ergebnis.sauber) { $("a-status").innerHTML = `<span class="warn">Nicht verwendet: ${esc(p.ok ? p.ergebnis.probleme.join(" ") : p.fehler)} Bitte noch einmal.</span>`; return null; }
   $("a-status").innerHTML = `<span class="ok">✓ Aufnahme sauber.</span>`;
   return d;
 }
 $("a-vorher-messen").addEventListener("click", async () => {
-  const d = await nachAufnahme("a-vorher-messen"); if (!d) return;
+  const d = await nachAufnahme("a-vorher-messen", false); if (!d) return;
   nach.vorher[nach.haupt] = d; urteilVerwerfen(); $("a-vorher-zeile").hidden = true; $("a-messen").disabled = false; plaetzeZeigen();
 });
 $("a-messen").addEventListener("click", async () => { const d = await nachAufnahme("a-messen"); if (!d) return; nach.nachher[nach.haupt] = d; urteilVerwerfen(); plaetzeZeigen(); });
 $("a-extra-vorher").addEventListener("click", async () => {
   const name = ($("a-platzname").value || "").trim() || "Platz 2";
   if (name === nach.haupt) { $("a-status").innerHTML = `<span class="warn">Bitte einen anderen Namen als „${esc(nach.haupt)}“.</span>`; return; }
-  const d = await nachAufnahme("a-extra-vorher"); if (!d) return;
+  const d = await nachAufnahme("a-extra-vorher", false); if (!d) return;
   nach.vorher[name] = d; delete nach.nachher[name]; nach.extraName = name; plaetzeZeigen();
-  $("a-status").innerHTML += anwendenArt === "geraet" ? " Jetzt die neuen Werte einstellen und Schritt 2 messen." : " Jetzt die Klang-Box wieder einschalten und Schritt 2 messen.";
+  $("a-status").innerHTML += anwendenArt === "geraet" ? " Jetzt die neuen Werte einstellen und Schritt 2 messen." : boxModus(aktuelleRunde()) ? " Jetzt Schritt 2 messen." : " Jetzt die Klang-Box wieder einschalten und Schritt 2 messen.";
 });
 $("a-extra-nachher").addEventListener("click", async () => {
   if (!nach.extraName) return;
@@ -4900,7 +5191,7 @@ $("a-pruefen").addEventListener("click", async () => {
   const ohneBox = anwendenArt === "geraet", namen = [nach.haupt, ...Object.keys(nach.nachher).filter((n) => n !== nach.haupt)].filter((n) => nach.vorher[n] && nach.nachher[n]);
   $("a-pruefen").disabled = true; $("a-urteil").innerHTML = "";
   $("a-status").innerHTML = `<span class="laeuft">Vergleiche vorher und nachher…</span>`;
-  const res = await imWorker({ art: "nachpruefen", modus: r.modus, raumM3: +$("raum").value || null,
+  const res = await imWorker({ art: "nachpruefen", modus: r.modus, raumM3: +$("raum").value || null, kanaele: r.kanaele || K2,
     vorher: namen.map((n) => ({ name: n, daten: nach.vorher[n] })), nachher: namen.map((n) => ({ name: n, daten: nach.nachher[n] })),
     einstellungen: ohneBox ? {} : r.e.einstellungen, profil: ohneBox ? null : (r.profil || null),
     geraet: ohneBox ? r.geraet_profil : null, geraetAlt: ohneBox ? r.geraet.aktuell.werte : null, geraetNeu: ohneBox ? r.geraet.geraet_einstellungen.werte : null });
@@ -4917,6 +5208,16 @@ $("a-pruefen").addEventListener("click", async () => {
   }
   if (r.urteil.empfehlung === "behalten" && !ohneBox) schreiben("raumcheck-bestaetigt", JSON.stringify(exportObjekt(r, "bestaetigt", r.e.einstellungen, r.profil)));
   rundeSpeichern(); urteilZeigen(r);
+  // Pflicht-Nachmessung fertig: die Klang-Box bestätigen oder zurücknehmen lassen
+  if (!ohneBox && boxModus(r) && r.box_geladen === r.id) {
+    const behalten = r.urteil.empfehlung === "behalten";
+    const a = behalten ? await nativ.box("bestaetigen", { runde: r.id }) : await nativ.box("zuruecknehmen", {});
+    r.urteil.box = a.ok ? { ok: true, text: behalten ? "✓ Die Klang-Box hat die Einstellungen als bestätigt gespeichert."
+      : a.einstellungen && a.einstellungen.id ? "Die Klang-Box spielt wieder den letzten bestätigten Stand." : "Die Klang-Box spielt wieder ohne Raumanpassung (neutral)." }
+      : { ok: false, text: `Die Klang-Box hat nicht geantwortet (${a.fehler || a.grund}). ${behalten ? "Die Einstellungen spielen weiter, aber noch als „vorhergesagt“." : "Bitte die Datei unten laden oder auf „Zuhause“ „Alles aus“ wählen."}` };
+    if (!behalten && a.ok) r.box_geladen = null;
+    rundeSpeichern(); urteilZeigen(r);
+  }
 });
 // Theorie gegen Praxis: Prognose gegen Nachmessung (Kennzahlen, Bass-Kurve am Hauptplatz, Laufzeit und Pegel je Kanal)
 function vergleichHtml(u) {
@@ -4962,11 +5263,12 @@ function urteilZeigen(r) {
   const pp = u.profil_pruefung ? `<details class="kasten"><summary>Profilprüfung (Methode B): ${u.profil_pruefung.bestanden ? "passt" : "weicht ab, nur ein Hinweis"}</summary><div class="tabelle"><table><thead><tr><th>Band</th><th class="n">Abweichung</th><th class="n">Toleranz</th></tr></thead><tbody>${
     u.profil_pruefung.baender.map((b) => `<tr><td>${esc(b.band)}${b.nur_info ? " (Info)" : ""}</td><td class="n ${b.ok ? "ok" : "warn"}">${zt(b.abweichung_db, 1, true)} dB</td><td class="n">±${zt(b.toleranz_db)}</td></tr>`).join("")}</tbody></table></div>
     <p class="klein">Neigung 300 Hz – 10 kHz: ${zt(u.profil_pruefung.neigung.ist_db_okt, 2, true)} dB/Oktave, Ziel mit Profil ${zt(u.profil_pruefung.neigung.soll_db_okt, 2, true)}. ${esc(u.profil_pruefung.hinweis)}</p></details>` : "";
+  const boxZeile = u.box ? `<p class="${u.box.ok ? "ok" : "warn"}" id="a-box-urteil" style="font-size:15px">${esc(u.box.text)}</p>` : "";
   const hinweise = u.hinweise.filter((h) => !/^Profilprüfung|^Prognose und Messung/.test(h)).map((h) => `<p class="klein warn">${esc(h)}</p>`).join("") + vergleichHtml(u);
   if (u.empfehlung === "behalten") {
     $("a-urteil").innerHTML = `<section class="card urteil gut"><span class="marke" style="color: var(--ok)">Nachgemessen</span><h2>✓ ${esc(u.satz)}</h2>
       <div class="wirkung"><span class="gross zahl">${zt(u.score_nachher, 0)}</span><span class="klein">${esc(r.e.score_name)} nachgemessen, vorher ${zt(u.score_vorher, 0)}</span></div>
-      ${hinweise}${plaetze}${pp}</section>`;
+      ${boxZeile}${hinweise}${plaetze}${pp}</section>`;
     return;
   }
   // Zurücknehmen: alter Stand anbieten
@@ -4976,6 +5278,8 @@ function urteilZeigen(r) {
     const zeilen = g.regler.filter((x) => a[x.id] !== k[x.id]).map((x) => `<li>${esc(x.name)}: zurück auf ${esc(AJ.reglerText(x, a[x.id]))}</li>`).join("");
     alt = `<p style="font-size:15px">Stell ${esc(g.wo)} zurück:</p><ol class="klein" style="margin:0; padding-left:18px">${zeilen || "<li>nichts zu tun</li>"}</ol>
       ${geraetNativ(g) ? `<button type="button" id="a-geraet-zurueck">Alte Werte senden</button><div id="a-geraet-antwort" class="klein" aria-live="polite"></div>` : ""}`;
+  } else if (u.box && u.box.ok) {
+    alt = "";  // die Klang-Box hat selbst zurückgenommen
   } else {
     let b = null; try { b = JSON.parse(lesen("raumcheck-bestaetigt", "") || "null"); } catch (e) { b = null; }
     const gueltig = b && b.art === "klangbox-einstellungen" && b.einstellungen && b.einstellungen.FL;
@@ -4984,7 +5288,7 @@ function urteilZeigen(r) {
     setTimeout(() => exportAnbieten(obj, "a-alt-export", gueltig ? "Alten Stand speichern" : "Neutralen Stand speichern"), 0);
   }
   $("a-urteil").innerHTML = `<section class="card urteil zurueck"><span class="marke" style="color: var(--warn)">Nachgemessen</span><h2>${esc(u.satz)}</h2>
-    <ul class="klein" style="margin:0; padding-left:18px">${u.gruende.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>${alt}${hinweise}${plaetze}${pp}</section>`;
+    <ul class="klein" style="margin:0; padding-left:18px">${u.gruende.map((g) => `<li>${esc(g)}</li>`).join("")}</ul>${boxZeile}${alt}${hinweise}${plaetze}${pp}</section>`;
   const zb = $("a-geraet-zurueck"); if (zb) zb.addEventListener("click", () => geraetSendenZeigen(r.geraet_profil, r.geraet.aktuell.werte, "a-geraet-antwort"));
 }
 
@@ -4992,7 +5296,9 @@ function urteilZeigen(r) {
 let GERAETE = [];
 try { GERAETE = JSON.parse($("geraete-daten").textContent); } catch (e) { GERAETE = []; }
 const lesenJson = (k, std) => { try { const v = JSON.parse(lesen(k, "")); return v == null ? std : v; } catch (e) { return std; } };
-let geraetWahl = lesen("raumcheck-geraet", (GERAETE.find((g) => !g.generisch) || { id: "eigenes" }).id);
+// Profil je Art der Anlage (daten/geraete/typ_*.json, alles geschätzt); eine eigene Wahl merkt sich die Seite
+const artProfil = (a) => (GERAETE.find((g) => g.anlage_art === (a === "heimkino" ? "avr" : a)) || GERAETE.find((g) => !g.generisch) || { id: "eigenes" }).id;
+let geraetWahl = lesen("raumcheck-geraet-selbst", "") ? lesen("raumcheck-geraet", artProfil(anlageArt)) : artProfil(anlageArt);
 let geraetSub = lesen("raumcheck-geraet-sub", "0") === "1", geraetGedreht = null;
 let eigeneRegler = lesenJson("raumcheck-eigene-regler", []), geraetHeute = lesenJson("raumcheck-geraet-heute", {});
 const nurSub = (g) => g.regler.length > 0 && g.regler.every((r) => r.teil === "sub");
@@ -5006,7 +5312,8 @@ const mitSub = (g) => nurSub(g) || (geraetSub && subSinnvoll(g));
 const sichtbar = (g, r) => !((r.teil === "sub" || r.nur_mit_sub) && !mitSub(g));
 function geraetFormular() {
   const opt = (v, t) => `<option value="${esc(v)}"${v === geraetWahl ? " selected" : ""}>${esc(t)}</option>`;
-  $("g-geraet").innerHTML = GERAETE.filter((g) => !g.generisch).map((g) => opt(g.id, g.name)).join("")
+  const zuerst = (g) => (g.anlage_art === (anlageArt === "heimkino" ? "avr" : anlageArt) ? 0 : g.allgemein ? 1 : 2);
+  $("g-geraet").innerHTML = GERAETE.filter((g) => !g.generisch).sort((a, b) => zuerst(a) - zuerst(b)).map((g) => opt(g.id, g.allgemein ? `${g.name} (allgemein)` : g.name)).join("")
     + GERAETE.filter((g) => g.generisch).map((g) => opt(g.id, `${g.modell} (allgemein)`)).join("") + opt("eigenes", "Anderes Gerät: Regler selbst wählen");
   $("g-eigen").hidden = geraetWahl !== "eigenes";
   $("g-eigen-liste").innerHTML = GERAETE.filter((g) => g.generisch).flatMap((g) => g.regler).map((r) =>
@@ -5024,14 +5331,14 @@ function geraetFormular() {
   $("g-sub-messung").hidden = !(mitSub(g) && kannZerlegen(g));
   $("g-zerlegung-text").textContent = g.zerlegung || "Dreh die Sub-Polarität kurz um und miss am Hörplatz. Danach stellst du sie zurück.";
   $("g-mess-status").innerHTML = geraetGedreht ? `<span class="ok">✓ Messung mit umgedrehter Sub-Polarität liegt vor. Stell die Polarität wieder zurück.</span>` : "";
-  $("g-rechnen").disabled = !g.regler.length || !(messdaten && aktuelleRunde() && messdaten.id === aktuelleRunde().id);
+  $("g-rechnen").disabled = !g.regler.length || !(messdaten && aktuelleRunde() && messdaten.id === aktuelleRunde().id) || (messdaten.kanaele || K2).length !== 2;
 }
 function geraetAktuell() {
   const g = geraetProfil(), out = {};
   document.querySelectorAll("#g-felder select[data-regler]").forEach((s) => { const r = g.regler.find((x) => x.id === s.dataset.regler); if (r) out[r.id] = AJ.reglerWerte(r)[+s.value]; });
   return out;
 }
-$("g-geraet").addEventListener("change", () => { geraetWahl = $("g-geraet").value; geraetGedreht = null; schreiben("raumcheck-geraet", geraetWahl); geraetFormular(); });
+$("g-geraet").addEventListener("change", () => { geraetWahl = $("g-geraet").value; geraetGedreht = null; schreiben("raumcheck-geraet", geraetWahl); schreiben("raumcheck-geraet-selbst", "1"); geraetFormular(); });
 $("g-eigen-liste").addEventListener("change", (ev) => { const c = ev.target.closest("[data-eigen]"); if (!c) return;
   eigeneRegler = [...document.querySelectorAll("[data-eigen]")].filter((x) => x.checked).map((x) => x.dataset.eigen); schreiben("raumcheck-eigene-regler", JSON.stringify(eigeneRegler)); geraetFormular(); });
 $("g-sub").addEventListener("click", () => { geraetSub = !geraetSub; schreiben("raumcheck-geraet-sub", geraetSub ? "1" : "0"); geraetFormular(); });
@@ -5115,12 +5422,369 @@ function geraetErgebnisZeigen(r) {
   const s = $("g-senden"); if (s) s.addEventListener("click", () => geraetSendenZeigen(g, k.geraet_einstellungen.werte, "g-antwort"));
   const n = $("g-nachmessen"); if (n) n.addEventListener("click", () => { anwendenArt = "geraet"; zeigeSchritt(10); });
 }
+// --- Klang-Box einrichten (Schritte 12 bis 16; nur in der App mit klangboxNativ.boxen) -----------------------
+// Die App führt: finden und koppeln, festlegen wo jede Box steht (daraus die Hauptbox), Kanäle zuordnen, Funk je
+// Satellit, Anschließen mit Signal-Prüfung, danach direkt einmessen. Beliebig viele gleiche Boxen, z. B. eine je
+// Rear-Lautsprecher. Die Box bekommt alles über die Schnittstelle (docs/box/SCHNITTSTELLE.md).
+const BOX_LAYOUTS = { "2.0": ["FL", "FR"], "2.1": ["FL", "FR", "SUB"], "4.0": ["FL", "FR", "SL", "SR"], "4.1": ["FL", "FR", "SL", "SR", "SUB"] };
+const KANAL_NAME = { FL: "Front links", FR: "Front rechts", SL: "Hinten links", SR: "Hinten rechts", SUB: "Subwoofer" };
+const AUSGANG_NAME = { spdif: "Optisch", koax: "Koaxial", analog1: "Analog 1", analog2: "Analog 2" };
+const PLAETZE = { vorne: "vorne", hinten: "hinten", hl: "hinten links", hr: "hinten rechts", aus: "nicht benutzt" };
+const RUECK_OHNE_KABEL_M = 3;  // [eigene Festlegung] über ca. 3 m zwischen den Rears: eine Box je Rear vorschlagen
+let ein = { boxen: [], quelle: "vorne", platz: {}, layout: null, zuordnung: {}, ausgaenge: {}, art: "tv", keinKabel: false };
+try { ein = { ...ein, ...JSON.parse(lesen("raumcheck-einrichtung", "{}")) }; } catch (e) {}
+const einMerken = () => schreiben("raumcheck-einrichtung", JSON.stringify(ein));
+const gekoppelte = () => ein.boxen.filter((b) => b.gekoppelt);
+const boxAm = (p) => (gekoppelte().find((b) => ein.platz[b.id] === p) || {}).id || null;
+const platzName = (id) => PLAETZE[ein.platz[id]] || "";
+// Hauptbox: die Box, an der Bild und Ton ankommen (Beamer hinten: eine hintere Box)
+const einHaupt = () => (ein.quelle === "hinten" ? boxAm("hinten") || boxAm("hl") || boxAm("hr") : null) || boxAm("vorne") || (gekoppelte()[0] || {}).id || null;
+const einBenutzt = () => gekoppelte().map((b) => b.id).filter((id) => ein.platz[id] && ein.platz[id] !== "aus");
+const einSatelliten = () => einBenutzt().filter((id) => id !== einHaupt() && Object.values(ein.zuordnung).some((z) => z && z.box === id));
+const einStatus = (t, ziel) => { $(ziel).innerHTML = t; };
+// Abstand der Rear-Lautsprecher: aus dem Raumscan (Breite minus je 45 cm zur Wand), sonst unbekannt
+const rueckAbstand = () => (scan && scan.ss ? Math.max(0, scan.ss.breite - 0.9) : null);
+
+// Funk-Ampel aus status.funk (bzw. einem Eintrag von funk.partner): Stärke, Verzögerung, Schwankung, Verluste.
+// [eigene Festlegung: grün ab −67 dBm, höchstens 1 % Verluste und 2 ms Schwankung; rot unter −78 dBm, über 5 % oder 8 ms]
+function funkAmpel(f) {
+  if (!f || !f.verbunden) return { stufe: "rot", titel: "Keine Funkverbindung", tipps: ["Ist die Box am Strom und steht sie im selben Raum? Dann noch einmal „Einrichten“."] };
+  const st = +f.staerke_dbm, verl = +f.verluste_pct || 0, jit = +f.jitter_ms || 0, tipps = [];
+  const rot = st < -78 || verl > 5 || jit > 8, gruen = st >= -67 && verl <= 1 && jit <= 2;
+  if (st < -67) tipps.push("Stell die Box höher, zum Beispiel aufs Regal statt auf den Boden, und weg von Metall (Heizkörper, Metallregal, Rückseite des Fernsehers).");
+  if (verl > 1 || jit > 2) tipps.push("Andere Funknetze stören. Schließ die Hauptbox mit einem LAN-Kabel an den Router an: Dann hat ihr Funk nur noch die Boxen zu tun.");
+  if (st < -67 && verl <= 1 && jit <= 2 && !rot) tipps.push("Zwischen den Boxen sollte möglichst keine Wand und kein Schrank stehen.");
+  return { stufe: gruen ? "gruen" : rot ? "rot" : "gelb", titel: gruen ? "Funk gut" : rot ? "Funk zu schwach" : "Funk geht, aber knapp", tipps: gruen ? [] : tipps };
+}
+// Funk je Satellit: status.funk.partner als Liste (mehrere Satelliten) oder die bisherige Einzelform
+function funkJeBox(f) {
+  if (!f) return [];
+  if (Array.isArray(f.partner)) return f.partner.map((p) => ({ id: p.id, f: { ...p, ssid: f.ssid, verbunden: p.verbunden !== false && f.verbunden !== false } }));
+  return [{ id: f.partner || einSatelliten()[0] || null, f }];
+}
+// Vorschlag „wo steht welche Box“: Box 1 vorne, bei drei Boxen je eine hinten links und rechts, sonst eine hinten
+function platzVorschlag() {
+  const ids = gekoppelte().map((b) => b.id), frei = ids.filter((id) => !ein.platz[id]);
+  if (!frei.length) return;
+  const belegt = new Set(Object.values(ein.platz));
+  const reihe = ids.length >= 3 ? ["vorne", "hl", "hr"] : ["vorne", "hinten"];
+  for (const id of frei) { const p = reihe.find((x) => !belegt.has(x)) || "aus"; ein.platz[id] = p; belegt.add(p); }
+}
+// Standard-Zuordnung: vorne an die Box vorne, hinten an die Box(en) hinten; mit nur einer Box alles an sie
+function standardZuordnung(layout) {
+  const z = {}, vorne = boxAm("vorne") || einHaupt(), aus = (id) => ein.ausgaenge[id] || ["spdif", "analog1", "analog2"];
+  for (const ch of BOX_LAYOUTS[layout]) {
+    if (ch === "SUB") { z[ch] = { box: "fronts", ausgang: null }; continue; }  // meist am Sub-Ausgang der aktiven Boxen
+    let box = vorne;
+    if (ch === "SL") box = boxAm("hl") || boxAm("hinten") || boxAm("hr") || vorne;
+    if (ch === "SR") box = boxAm("hr") || boxAm("hinten") || boxAm("hl") || vorne;
+    const a = aus(box);
+    z[ch] = { box, ausgang: (ch === "SL" || ch === "SR") && box === vorne ? a[1] || a[0] : a[0] };
+  }
+  return z;
+}
+// Draufsicht: Raum (aus dem Scan, sonst ein Rechteck), Bild vorne, Boxen und Lautsprecher mit Zuordnung.
+// Zuordnen per Skizze: erst eine Box antippen, dann den Lautsprecher (Kanal).
+let skizzeBox = null;
+function aufstellungSkizze() {
+  const W = 320, H = 230, kanaele = BOX_LAYOUTS[ein.layout] || [], haupt = einHaupt();
+  let raum = `<rect x="20" y="20" width="280" height="190" rx="10" fill="#12161C" stroke="#9AA3AD" stroke-width="2"/>`;
+  if (scan && scan.ss && scan.ss.poly.length >= 3) {
+    const sc = scan.ss, m = Math.min(280 / sc.breite, 190 / sc.laenge), ox = 20 + (280 - sc.breite * m) / 2, oy = 20 + (190 - sc.laenge * m) / 2;
+    raum = `<polygon points="${sc.poly.map((p) => `${P(ox + p[0] * m)},${P(oy + p[1] * m)}`).join(" ")}" fill="#12161C" stroke="#9AA3AD" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+  const pos = { FL: [70, 46], FR: [250, 46], SL: [52, 186], SR: [268, 186], SUB: [36, 72] };
+  const boxPos = { vorne: [160, 70], hinten: [160, 176], hl: [104, 176], hr: [216, 176] };
+  const wo = (id) => boxPos[ein.platz[id]] || boxPos.vorne;
+  let g = raum + `<rect x="110" y="24" width="100" height="7" rx="3" fill="#E9ECF0"/><text x="160" y="44" text-anchor="middle">Bild</text>`;
+  g += `<rect x="128" y="126" width="64" height="20" rx="7" fill="#2A313B"/><text x="160" y="140" text-anchor="middle">Sofa</text>`;
+  for (const ch of kanaele) {
+    const z = ein.zuordnung[ch], [x, y] = pos[ch], [bx, by] = z && z.box === "fronts" ? pos.FL : z ? wo(z.box) : pos[ch];
+    g += `<line x1="${x}" y1="${y}" x2="${bx}" y2="${by}" stroke="#3A4452" stroke-dasharray="3 3"/>`;
+  }
+  for (const id of einBenutzt()) {
+    const [x, y] = wo(id), hb = id === haupt, an = id === skizzeBox;
+    g += `<g class="e-box" data-box="${esc(id)}" style="cursor:pointer"><rect x="${x - 17}" y="${y - 10}" width="34" height="20" rx="5" ${hb ? `class="ak-f"` : `fill="#5B6470"`} ${an ? `stroke="#F2F4F7" stroke-width="2.5"` : ""}/>`
+      + `<text x="${x}" y="${y + (ein.platz[id] === "vorne" ? 24 : -15)}" text-anchor="middle" ${hb ? `class="hell-f"` : ""}>${hb ? "Haupt" : "Box"} ${esc(platzName(id))}</text></g>`;
+  }
+  for (const ch of kanaele) { const [x, y] = pos[ch];
+    g += `<g class="e-lautsprecher" data-kanal="${ch}" style="cursor:pointer"><rect x="${x - 12}" y="${y - 12}" width="24" height="24" rx="${ch === "SUB" ? 6 : 4}" fill="#E9ECF0"/><text x="${x}" y="${y + 3.5}" text-anchor="middle" style="fill:#0B0D10; font-weight:700; font-size:9px">${ch}</text></g>`; }
+  if (ein.quelle === "hinten") g += `<rect x="146" y="200" width="28" height="10" rx="3" fill="#9AA3AD"/><text x="186" y="209">Beamer</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Draufsicht: Lautsprecher und Klang-Boxen${scan ? " im gescannten Raum" : ""}. Box antippen, dann den Lautsprecher.">${g}</svg>`;
+}
+// Anleitung „Anschließen“ passend zur Rolle der Box und zu den zugeordneten Ausgängen
+function anschlussAnleitung(art) {
+  const haupt = einHaupt(), out = [], kan = BOX_LAYOUTS[ein.layout] || [];
+  for (const id of [haupt, ...einSatelliten()].filter(Boolean)) {
+    const zeilen = [], hier = kan.filter((ch) => ein.zuordnung[ch] && ein.zuordnung[ch].box === id);
+    if (id === haupt && ein.zuordnung.SUB && ein.zuordnung.SUB.box === "fronts") zeilen.push("Subwoofer: bleibt am Sub-Ausgang deiner aktiven Boxen, die Klang-Box spielt ihn über die Fronts mit.");
+    if (id === haupt) {
+      if (art === "tv") zeilen.push("Optisch rein: Kabel vom optischen Ausgang des Fernsehers (oder Beamers) in „IN“ der Klang-Box.",
+        "Am Fernseher (und am Apple TV): Tonausgabe „Optisch“, Format „PCM“ statt „Dolby Digital“ oder „Auto“. Dolby Digital kann die Klang-Box nicht ohne Verzögerung entpacken.");
+      if (art === "tape") zeilen.push("Tape-Schleife: „Tape Out“ (oder „Rec Out“) des Verstärkers in den analogen Eingang der Klang-Box, ihren Ausgang in „Tape In“ (oder „Monitor“). Am Verstärker „Tape“ bzw. „Monitor“ einschalten.");
+      if (art === "analog") zeilen.push("Analog rein: Cinch-Kabel vom Ausgang der Quelle (Vorstufe, Streamer) in den analogen Eingang der Klang-Box.");
+    } else zeilen.push("Diese Box bekommt ihre Kanäle über den Funk der Hauptbox. Sie braucht nur Strom.");
+    const proAusgang = {};
+    for (const ch of hier) (proAusgang[ein.zuordnung[ch].ausgang] = proAusgang[ein.zuordnung[ch].ausgang] || []).push(ch);
+    for (const [a, chs] of Object.entries(proAusgang)) {
+      const wohin = chs.map((c) => KANAL_NAME[c]).join(" und ");
+      if (art === "tape" && id === haupt && a.startsWith("analog") && !chs.includes("SUB")) continue;  // geht zurück in den Verstärker
+      zeilen.push(a === "spdif" ? `Optisch raus: „${AUSGANG_NAME[a]}“ zu ${wohin} (aktive Box mit optischem Eingang; bei zwei Boxen in die, an der der Eingang ist).`
+        : `Analog raus: „${AUSGANG_NAME[a] || a}“ mit Cinch zu ${wohin}${chs.includes("SUB") ? " (Eingang „LFE“ oder „Line“ am Sub)" : " (Eingang „Aux“ oder „Line“ der Boxen)"}.`);
+    }
+    out.push({ id, titel: `${id === haupt ? "Hauptbox" : "Box"} ${platzName(id)}`, zeilen });
+  }
+  return out;
+}
+let suchLaeuft = false;
+async function boxenSuchen() {
+  if (suchLaeuft || !nativ || !nativ.boxen) return;
+  suchLaeuft = true; $("e-weiter-1").disabled = true;
+  einStatus(`<span class="laeuft">Suche Klang-Boxen im Heimnetz…</span>`, "e-such-status");
+  const r = await nativ.box("suchen", {}, { zeitMs: 20000 });
+  if (!r.ok) { suchLaeuft = false; return einStatus(`<span class="warn">Die Suche ging nicht: ${esc(r.fehler || r.grund)}</span>`, "e-such-status"); }
+  const vorher = ein.boxen, hauptVorher = einHaupt();
+  ein.boxen = (r.boxen || []).slice(0, 8).map((b) => ({ id: b.id, name: b.name, rolle: b.rolle, gekoppelt: !!b.gekoppelt, ueber: b.erreichbar_ueber || null }));
+  // Eingerichtete Satelliten sind nach dem Funk im Heimnetz nicht mehr zu finden (nur ein WLAN): behalten, über die Hauptbox
+  const satVorher = (b) => b.gekoppelt && b.id !== hauptVorher && (b.rolle === "satellit" || b.ueber === "haupt" || (ein.platz[b.id] && ein.platz[b.id] !== "aus"));
+  for (const b of vorher) if (satVorher(b) && !ein.boxen.some((x) => x.id === b.id)) ein.boxen.push({ ...b, text: "", ueber: "haupt" });
+  boxenZeigen();
+  // Neue Boxen koppelt die App gleich selbst (nur im Knopfdruck-Fenster nach dem Einschalten möglich)
+  for (const b of ein.boxen.filter((x) => !x.gekoppelt)) {
+    b.text = "koppelt…"; boxenZeigen();
+    const k = await nativ.box("koppeln", {}, { box: b.id, zeitMs: 15000 });
+    b.gekoppelt = !!k.ok; b.text = k.ok ? "" : (k.fehler || k.grund); boxenZeigen();
+  }
+  for (const b of gekoppelte()) {
+    const st = await boxRufe("status", {}, { box: b.id });
+    if (st.ok && Array.isArray(st.ausgaenge)) ein.ausgaenge[b.id] = st.ausgaenge.map((a) => a.id);
+    if (st.ok && st.erreichbar_ueber === "haupt") b.ueber = "haupt";
+  }
+  for (const id of Object.keys(ein.platz)) if (!gekoppelte().some((b) => b.id === id)) delete ein.platz[id];
+  platzVorschlag();
+  einMerken(); suchLaeuft = false;
+  const n = gekoppelte().length;
+  einStatus(!ein.boxen.length ? `<span class="warn">Keine Klang-Box gefunden. Ist sie am Strom und im selben WLAN wie das iPhone (oder per LAN-Kabel am Router)? Nach dem Einstecken braucht sie etwa eine Minute.</span>`
+    : n ? `<span class="ok">✓ ${n === 1 ? "Eine Klang-Box ist" : n === 2 ? "Beide Klang-Boxen sind" : `Alle ${n} Klang-Boxen sind`} gekoppelt.</span>` : "", "e-such-status");
+  $("e-weiter-1").disabled = !n;
+}
+function boxenZeigen() {
+  $("e-boxen").innerHTML = ein.boxen.map((b) => `<div class="kasten"><div class="reihe"><div><h3>${esc(b.name)}</h3><span class="klein ${b.text && b.text !== "koppelt…" ? "warn" : ""}">${
+    b.gekoppelt ? `gekoppelt${b.ueber === "haupt" ? " · über die Hauptbox erreichbar" : ""}` : esc(b.text || "neu")}</span></div><i class="ampel ${b.gekoppelt ? "gut" : b.text && b.text !== "koppelt…" ? "problem" : ""}"></i></div></div>`).join("");
+  const n = ein.boxen.length;
+  $("e-such-text").textContent = n >= 2 ? `${n} Klang-Boxen gefunden. Sie sind gleich gebaut – wo welche steht, legst du gleich fest. Fehlt eine? Steck sie ein und such noch einmal.`
+    : n === 1 ? "Eine Klang-Box gefunden. Hast du mehr? Steck sie ein und such noch einmal." : "Wie viele Klang-Boxen hast du? Ich suche sie im Heimnetz und kopple sie mit diesem iPhone.";
+}
+function quelleZeigen() {
+  document.querySelectorAll("[data-quelle]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.quelle === ein.quelle));
+  const gek = gekoppelte();
+  $("e-welche").hidden = gek.length < 2;
+  const wahl = gek.length >= 3 ? ["vorne", "hl", "hr", "hinten", "aus"] : ["vorne", "hinten", "aus"];
+  $("e-vorne-wahl").innerHTML = gek.map((b) => `<div class="reihe" style="flex-wrap: wrap"><b style="font-size:15px">${esc(b.name)}</b><div class="chips">${wahl.map((p) =>
+    `<button type="button" class="chip" data-platz-box="${esc(b.id)}" data-platz="${p}" aria-pressed="${ein.platz[b.id] === p}">${PLAETZE[p]}</button>`).join("")}</div></div>`).join("");
+  const h = einHaupt();
+  $("e-haupt-text").textContent = h ? `Hauptbox: ${boxName(h)} (${platzName(h)}).` : "";
+}
+const boxName = (id) => { const b = ein.boxen.find((x) => x.id === id); return b ? b.name : "Klang-Box"; };
+// Satellit ohne LAN: Er hat nur ein WLAN und ist nach dem Funk im Heimnetz nicht mehr direkt erreichbar, nur über die
+// Hauptbox (Schnittstelle: /api/satellit/<id>/<aufruf>, mit dem Token der Hauptbox). Die App nimmt den Umweg schon
+// selbst; antwortet sie trotzdem „nicht erreichbar“, versucht es die Seite über die Hauptbox.
+async function boxRufe(aufruf, daten, opt = {}) {
+  const r = await nativ.box(aufruf, daten, opt), id = opt.box, haupt = einHaupt();
+  if (r.ok) { if (r.erreichbar_ueber === "haupt") ein.ueberHaupt = { ...(ein.ueberHaupt || {}), [id]: true }; return r; }
+  if (!id || !haupt || id === haupt || !["keine_antwort", "zeitueberschreitung", "http"].includes(r.grund)) return r;
+  const u = await nativ.box(`satellit/${id}/${aufruf}`, daten, { ...opt, box: haupt });
+  if (!u.ok) return r;
+  ein.ueberHaupt = { ...(ein.ueberHaupt || {}), [id]: true };
+  return { ...u, erreichbar_ueber: "haupt" };
+}
+// Schritt „Anschließen“: antwortet jeder Satellit (nach dem Funk über die Hauptbox)?
+async function satellitenPruefen() {
+  const sat = einSatelliten();
+  if (!sat.length) { $("e-satelliten").innerHTML = ""; return; }
+  const zeilen = [];
+  for (const id of sat) {
+    const st = await boxRufe("status", {}, { box: id, zeitMs: 8000 }), ueber = st.ok && st.erreichbar_ueber === "haupt";
+    zeilen.push(`<div class="kasten e-satellit" data-box="${esc(id)}" data-erreichbar="${st.ok ? (ueber ? "haupt" : "direkt") : "nein"}"><div class="reihe"><div><h3>Box ${esc(platzName(id))}</h3><span class="klein">${
+      st.ok ? (ueber ? "✓ antwortet über die Hauptbox (sie ist jetzt nur im Funknetz der Boxen)" : "✓ antwortet")
+        : "antwortet nicht. Ist sie am Strom? Findet sie die Hauptbox 10 Minuten lang nicht, geht sie zurück ins Heim-WLAN."}</span></div><i class="ampel ${st.ok ? "gut" : "problem"}"></i></div></div>`);
+  }
+  $("e-satelliten").innerHTML = zeilen.join("");
+}
+// Vorschlag für hinten: eine Box je Rear, wenn sie weit auseinander stehen oder kein Kabel zwischen ihnen gehen soll
+function rueckVorschlagText() {
+  if (!/^4\./.test(ein.layout || "")) return "";
+  const je = boxAm("hl") && boxAm("hr"), d = rueckAbstand(), weit = d !== null && d > RUECK_OHNE_KABEL_M;
+  if (je) return "Hinten links und rechts haben je eine eigene Klang-Box: kein Kabel zwischen ihnen.";
+  if (ein.keinKabel || weit) return `${weit ? `Hinten liegen etwa ${zt(d, 1)} m zwischen links und rechts. ` : ""}Ohne Kabel zwischen hinten links und rechts brauchst du je eine Klang-Box pro Rear-Lautsprecher (${gekoppelte().length < 3 ? "noch eine Box dazu, dann neu suchen" : "unter „Wo kommen Bild und Ton her?“ hinten links und hinten rechts wählen"}).`;
+  return "Eine Box hinten bekommt beide Rear-Lautsprecher (ein Kabel zwischen hinten links und rechts).";
+}
+function layoutZeigen() {
+  if (!ein.layout) ein.layout = einBenutzt().length >= 2 ? "4.0" : "2.0";
+  $("e-layout").innerHTML = Object.keys(BOX_LAYOUTS).map((l) => `<button type="button" class="chip" data-layout="${l}" aria-pressed="${l === ein.layout}">${l}${l.startsWith("4") ? " (mit hinten)" : ""}</button>`).join("");
+  const kan = BOX_LAYOUTS[ein.layout], std = standardZuordnung(ein.layout), gueltig = (z) => z && z.box && (z.box === "fronts" || einBenutzt().includes(z.box));
+  ein.zuordnung = Object.fromEntries(kan.map((ch) => [ch, gueltig(ein.zuordnung[ch]) ? ein.zuordnung[ch] : std[ch]]));
+  const boxen = einBenutzt();
+  $("e-zuordnung").innerHTML = kan.map((ch) => { const z = ein.zuordnung[ch], aus = ein.ausgaenge[z.box] || ["spdif", "analog1", "analog2"];
+    return `<div class="kasten"><div class="reihe"><div><h3>${KANAL_NAME[ch]}</h3></div></div><div class="felder">
+      <label>Box<select data-zu-box="${ch}">${boxen.map((id) => `<option value="${esc(id)}"${id === z.box ? " selected" : ""}>Box ${esc(platzName(id))}${id === einHaupt() ? " (Haupt)" : ""}</option>`).join("")}${
+        ch === "SUB" ? `<option value="fronts"${z.box === "fronts" ? " selected" : ""}>an den Fronts (Sub-Ausgang der Boxen)</option>` : ""}</select></label>
+      ${z.box === "fronts" ? `<span class="klein">Die Klang-Box spielt dann nur die Hauptkanäle.</span>` : `<label>Ausgang<select data-zu-ausgang="${ch}">${aus.map((a) => `<option value="${esc(a)}"${a === z.ausgang ? " selected" : ""}>${esc(AUSGANG_NAME[a] || a)}</option>`).join("")}</select></label>`}</div></div>`; }).join("");
+  $("e-skizze").innerHTML = aufstellungSkizze();
+  $("e-skizze-hilfe").textContent = skizzeBox ? `Box ${platzName(skizzeBox)} gewählt: jetzt den Lautsprecher antippen.` : "Zuordnen per Skizze: erst eine Box antippen, dann den Lautsprecher.";
+  $("e-rueck").hidden = !/^4\./.test(ein.layout); $("e-kein-kabel").setAttribute("aria-checked", !!ein.keinKabel);
+  $("e-rueck-text").textContent = rueckVorschlagText();
+  einMerken();
+}
+function funkZeigen(f, fehler) {
+  if (fehler) { $("e-funk").innerHTML = `<p class="warn">${esc(fehler)}</p>`; $("e-weiter-4").disabled = true; return; }
+  if (!f) { $("e-funk").innerHTML = ""; return; }
+  const z = (x, n = 0) => (Number.isFinite(+x) && x !== null ? zt(+x, n) : "–");
+  const liste = funkJeBox(f), stufen = [];
+  $("e-funk").innerHTML = liste.map(({ id, f: p }) => { const a = funkAmpel(p); stufen.push(a.stufe);
+    return `<div class="kasten e-funk-ampel" ${liste.length === 1 ? `id="e-funk-ampel"` : ""} data-box="${esc(id || "")}" data-stufe="${a.stufe}"><div class="reihe"><div><h3>${id ? `Box ${esc(platzName(id))}: ` : ""}${esc(a.titel)}</h3><span class="klein">${esc(p.ssid || "")}</span></div><i class="ampel ${a.stufe}"></i></div>
+    <div class="zahldrei"><div class="zahlkarte"><span class="lbl">Stärke</span><span class="zahl" style="font-size:24px">${z(p.staerke_dbm)}</span><span class="klein">dBm</span></div>
+      <div class="zahlkarte"><span class="lbl">Verzögerung</span><span class="zahl" style="font-size:24px">${z(p.latenz_ms)}</span><span class="klein">ms (±${z(p.jitter_ms, 1)})</span></div>
+      <div class="zahlkarte"><span class="lbl">Verluste</span><span class="zahl" style="font-size:24px">${z(p.verluste_pct, 1)}</span><span class="klein">%</span></div></div>
+    ${a.tipps.map((t) => `<p style="font-size:14px; color: var(--ink)">${esc(t)}</p>`).join("")}</div>`; }).join("")
+    + `<button type="button" class="zweit klein" id="e-funk-pruefen">Noch einmal prüfen</button>
+    <p class="klein">Die Verzögerung des Funks misst die Einmessung mit. Vorne wartet nie auf hinten; hinten kommt über den Funk etwa 33 ms später (erlaubt bis 35 ms).</p>`;
+  $("e-weiter-4").disabled = !stufen.length || stufen.includes("rot");
+}
+var signalUhr = null;  // var: zeigeSchritt kann vor dieser Zeile laufen
+function signalZeigen(st) {
+  const e = st && st.ok ? st.eingang || {} : null;
+  $("e-signal-ampel").className = `ampel ${!e ? "problem" : e.signal ? "gut" : "hinweis"}`;
+  $("e-signal-text").innerHTML = !e ? `<span class="warn">Die Hauptbox antwortet nicht${st && st.fehler ? `: ${esc(st.fehler)}` : "."}</span>`
+    : e.signal ? `<span class="ok">✓ Signal am Eingang (${esc(e.art || "")}${e.rate ? `, ${zt(e.rate / 1000, 1)} kHz` : ""}${Number.isFinite(+e.pegel_dbfs) ? `, ${zt(+e.pegel_dbfs, 0)} dBFS` : ""}).</span>`
+    : `Noch kein Signal am Eingang. Spiel am Fernseher etwas ab. Kommt nichts an: Tonausgabe am Fernseher auf „Optisch“ und Format „PCM“ (nicht „Dolby Digital“ oder „Auto“), das Kabel ganz einstecken (es klickt).`;
+}
+async function signalPruefen() { if (!nativ || !nativ.boxen) return; signalZeigen(await nativ.box("status", {}, { box: einHaupt() })); }
+function einrichtenZeigen(n) {
+  if (signalUhr && n !== 16) { clearInterval(signalUhr); signalUhr = null; }
+  if (n < 12) return;
+  if (!nativ || !nativ.boxen) { zeigeSchritt(1); return; }
+  if (n === 12) { boxenZeigen(); $("e-weiter-1").disabled = !gekoppelte().length; if (!gekoppelte().length) boxenSuchen(); }
+  if (n === 13) { platzVorschlag(); quelleZeigen(); $("e-rolle-status").textContent = ""; }
+  if (n === 14) { skizzeBox = null; layoutZeigen(); $("e-kanal-status").textContent = ""; }
+  if (n === 15) funkZeigen(null);
+  if (n === 16) {
+    $("e-art").innerHTML = [["tv", "Fernseher → aktive Boxen"], ["tape", "Verstärker (Tape-Schleife)"], ["analog", "Analog (Vorstufe)"]].map(([k, t]) =>
+      `<button type="button" class="chip" data-art="${k}" aria-pressed="${k === ein.art}">${t}</button>`).join("");
+    $("e-anleitung").innerHTML = anschlussAnleitung(ein.art).map((b) => `<div class="kasten"><h3>${esc(b.titel)}</h3><ol class="klein" style="margin:0; padding-left:18px; color: var(--ink); font-size:14.5px">${b.zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ol></div>`).join("");
+    $("e-zurueck-5").dataset.zu = braucheFunk() ? "15" : "14";
+    satellitenPruefen();
+    signalPruefen(); if (!signalUhr) signalUhr = setInterval(() => { if (document.querySelector('.schritt[data-s="16"]').hidden) { clearInterval(signalUhr); signalUhr = null; } else signalPruefen(); }, 2500);
+  }
+}
+const braucheFunk = () => einSatelliten().length > 0;
+$("e-nochmal").addEventListener("click", () => boxenSuchen());  // eingerichtete Satelliten bleiben (siehe boxenSuchen)
+$("e-ohne").addEventListener("click", () => zeigeSchritt(1));
+$("e-weiter-1").addEventListener("click", () => zeigeSchritt(13));
+document.querySelectorAll("[data-quelle]").forEach((b) => b.addEventListener("click", () => { ein.quelle = b.dataset.quelle; einMerken(); quelleZeigen(); }));
+$("e-vorne-wahl").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-platz-box]"); if (!b) return;
+  const id = b.dataset.platzBox, p = b.dataset.platz;
+  // ein Platz gehört genau einer Box (außer „nicht benutzt“): die andere Box tauscht
+  const vorher = ein.platz[id], andere = p !== "aus" && gekoppelte().find((x) => x.id !== id && ein.platz[x.id] === p);
+  if (andere) ein.platz[andere.id] = vorher || "aus";
+  ein.platz[id] = p; ein.zuordnung = {}; einMerken(); quelleZeigen();
+});
+$("e-weiter-2").addEventListener("click", async () => {
+  const haupt = einHaupt(), b = $("e-weiter-2");
+  if (!haupt) return zeigeSchritt(12);
+  b.disabled = true; einStatus(`<span class="laeuft">Richte die Boxen ein…</span>`, "e-rolle-status");
+  const a = await nativ.box("rolle", { rolle: "haupt", name: `Klang-Box ${platzName(haupt)}` }, { box: haupt, zeitMs: 20000 });
+  let fehler = a.ok ? null : a;
+  for (const id of einBenutzt().filter((x) => x !== haupt)) {
+    if (fehler) break;
+    // schon im Funknetz (Einrichtung wiederholt): über die Hauptbox
+    const s = await boxRufe("rolle", { rolle: "satellit", name: `Klang-Box ${platzName(id)}` }, { box: id, zeitMs: 20000 });
+    if (!s.ok) fehler = s;
+    else { const x = ein.boxen.find((q) => q.id === id); if (x) x.rolle = "satellit"; }
+  }
+  b.disabled = false;
+  if (fehler) return einStatus(`<span class="warn">${esc(fehler.fehler || fehler.grund)}</span>`, "e-rolle-status");
+  einStatus("", "e-rolle-status"); zeigeSchritt(14);
+});
+$("e-layout").addEventListener("click", (ev) => { const b = ev.target.closest("[data-layout]"); if (!b) return; ein.layout = b.dataset.layout; ein.zuordnung = standardZuordnung(ein.layout); layoutZeigen(); });
+$("e-kein-kabel").addEventListener("click", () => { ein.keinKabel = !ein.keinKabel; layoutZeigen(); });
+$("e-skizze").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-box]"), k = ev.target.closest("[data-kanal]");
+  if (b) { skizzeBox = skizzeBox === b.dataset.box ? null : b.dataset.box; layoutZeigen(); return; }
+  if (k && skizzeBox) {
+    const ch = k.dataset.kanal, aus = ein.ausgaenge[skizzeBox] || ["spdif", "analog1", "analog2"], alt = ein.zuordnung[ch];
+    ein.zuordnung[ch] = { box: skizzeBox, ausgang: alt && alt.box === skizzeBox ? alt.ausgang : ch === "SUB" ? aus[aus.length - 1] : aus[0] };
+    skizzeBox = null; layoutZeigen();
+  }
+});
+$("e-zuordnung").addEventListener("change", (ev) => {
+  const s1 = ev.target.closest("[data-zu-box]"), s2 = ev.target.closest("[data-zu-ausgang]");
+  if (s1) { const ch = s1.dataset.zuBox, aus = ein.ausgaenge[s1.value] || ["spdif", "analog1", "analog2"]; ein.zuordnung[ch] = { box: s1.value, ausgang: s1.value === "fronts" ? null : aus.includes(ein.zuordnung[ch].ausgang) ? ein.zuordnung[ch].ausgang : aus[aus.length - 1] }; }
+  if (s2) ein.zuordnung[s2.dataset.zuAusgang] = { ...ein.zuordnung[s2.dataset.zuAusgang], ausgang: s2.value };
+  layoutZeigen();
+});
+// Kanäle an die Hauptbox; ohne „SUB“ hängt der Sub an den Fronts (Sub-Ausgang der aktiven Boxen)
+function kanaeleSenden() {
+  const kan = BOX_LAYOUTS[ein.layout].filter((ch) => ein.zuordnung[ch] && ein.zuordnung[ch].box !== "fronts");
+  return nativ.box("kanaele", { layout: ein.layout, zuordnung: Object.fromEntries(kan.map((ch) => [ch, { box: ein.zuordnung[ch].box, ausgang: ein.zuordnung[ch].ausgang }])) }, { box: einHaupt(), zeitMs: 20000 });
+}
+$("e-weiter-3").addEventListener("click", async () => {
+  einMerken();
+  if (braucheFunk()) return zeigeSchritt(15);  // erst der Funk, dann gehen Kanäle auf die anderen Boxen
+  const b = $("e-weiter-3");
+  b.disabled = true; einStatus(`<span class="laeuft">Ordne die Kanäle zu…</span>`, "e-kanal-status");
+  const a = await kanaeleSenden();
+  b.disabled = false;
+  if (!a.ok) return einStatus(`<span class="warn">${esc(a.fehler || a.grund)}</span>`, "e-kanal-status");
+  zeigeSchritt(16);
+});
+$("e-funk-einrichten").addEventListener("click", async () => {
+  const b = $("e-funk-einrichten"), sat = einSatelliten(); b.disabled = true;
+  $("e-funk").innerHTML = `<span class="laeuft">Die Hauptbox spannt das Funknetz auf und verbindet ${sat.length === 1 ? "die zweite Box" : `${sat.length} Boxen`}, etwa 20 Sekunden…</span>`;
+  // partner: die Satelliten (eine Box: Einzelform, mehrere: Liste); Adresse und Token ergänzt die App
+  const partner = sat.length === 1 ? { id: sat[0] } : sat.map((id) => ({ id }));
+  const a = await nativ.box("funk", { aktion: "einrichten", partner }, { box: einHaupt(), zeitMs: 45000 + 15000 * Math.max(0, sat.length - 1) });
+  b.disabled = false; b.textContent = "Noch einmal einrichten";
+  funkZeigen(a.ok ? a.funk : null, a.ok ? null : a.fehler || a.grund);
+});
+$("e-funk").addEventListener("click", async (ev) => {
+  if (!ev.target.closest("#e-funk-pruefen")) return;
+  const st = await nativ.box("status", {}, { box: einHaupt() });
+  funkZeigen(st.ok ? st.funk : null, st.ok ? null : st.fehler || st.grund);
+});
+$("e-weiter-4").addEventListener("click", async () => {
+  const b = $("e-weiter-4"); b.disabled = true;
+  const a = await kanaeleSenden();
+  b.disabled = false;
+  if (!a.ok) { $("e-funk").insertAdjacentHTML("beforeend", `<p class="warn" id="e-funk-kanaele">${esc(a.fehler || a.grund)}</p>`); return; }
+  zeigeSchritt(16);
+});
+$("e-art").addEventListener("click", (ev) => { const b = ev.target.closest("[data-art]"); if (!b) return; ein.art = b.dataset.art; einMerken(); einrichtenZeigen(16); });
+$("e-fertig").addEventListener("click", async () => {
+  const kan = BOX_LAYOUTS[ein.layout];
+  const a = await nativ.box("einrichtung", { layout: ein.layout, haupt: einHaupt(), satelliten: einSatelliten(), plaetze: Object.fromEntries(einBenutzt().map((id) => [id, platzName(id)])),
+    quelle: ein.quelle, zuordnung: Object.fromEntries(kan.map((ch) => [ch, ein.zuordnung[ch]])) });
+  if (!a.ok) { $("e-signal-text").innerHTML = `<span class="warn">Die App konnte die Einrichtung nicht speichern: ${esc(a.fehler || a.grund)}</span>`; return; }
+  // Die App ergänzt klangboxNativ.boxen (layout, haupt); falls nicht, merkt es sich die Seite selbst
+  if (window.klangboxNativ && (!window.klangboxNativ.boxen || !window.klangboxNativ.boxen.haupt)) window.klangboxNativ.boxen = { ...(window.klangboxNativ.boxen || {}), verfuegbar: true, layout: ein.layout, haupt: einHaupt() };
+  anlageArt = "heimkino"; schreiben("raumcheck-art", anlageArt); zeigeChips();
+  setzeQuelle("box"); zeigeSchritt(1);
+});
+window.addEventListener("klangboxbox", (ev) => {
+  const d = ev.detail || {}; if (!d.status) return;
+  if (!document.querySelector('.schritt[data-s="16"]').hidden && (!d.box || d.box === einHaupt())) signalZeigen({ ok: true, ...d.status });
+  if (!document.querySelector('.schritt[data-s="15"]').hidden && d.status.funk && (!d.box || d.box === einHaupt())) funkZeigen(d.status.funk);
+  if (!document.querySelector('.schritt[data-s="3"]').hidden) setzeQuelle(boxBereit() && quelle !== "extern" ? "box" : quelle);
+});
+
 geraetFormular();
 zeigeAlles();
 zeigeDateien();
 nachhallUebernehmen();
 zeigeChips();
-zeigeSchritt(runden.length ? 7 : 1);
+// Neue Klang-Box gemeldet und noch nichts eingerichtet: die App führt zuerst durch die Einrichtung
+zeigeSchritt(runden.length ? 7 : (nativ && nativ.boxen && !boxBereit() && nativ.boxen.neue ? 12 : 1));
 </script>
 
 </body>

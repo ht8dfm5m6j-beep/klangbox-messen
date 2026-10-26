@@ -9,7 +9,9 @@
 <title>Klang-Box Raum-Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0C1A16">
 <style>
 /* Raum-Check: geführte Messung, Ergebnis heute → mit Klang-Box, Sweetspot-Finder.
    Eine Spalte wie die iPhone-App (Stil: docs/app/mockups/STIL.md). Läuft auch offline in der App
@@ -101,6 +103,30 @@ details summary { cursor: pointer; color: var(--ink2); font-size: 14px; min-heig
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { min-height: 36px; border-radius: 18px; background: var(--panel); outline: 1px solid var(--line2); color: var(--ink); font-weight: 500; font-size: 13.5px; padding: 0 14px; }
 .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); outline: 0; font-weight: 600; }
+/* Meine Anlage (af-*): eine Frage pro Bildschirm, seitlich wischend. Bewusst klein, damit die CI es neu gestalten kann. */
+.af { display: grid; gap: 14px; min-width: 0; }
+.af-punkte { display: flex; gap: 6px; justify-content: center; min-height: 8px; }
+.af-punkte i { width: 8px; height: 8px; border-radius: 4px; background: var(--line2); transition: width .3s, background .3s; }
+.af-punkte i.an { width: 22px; background: var(--akzent); }
+.af-buehne { display: grid; overflow: hidden; margin: -4px; padding: 4px; }
+.af-seite { grid-area: 1 / 1; display: grid; gap: 12px; align-content: start; min-width: 0; transition: transform .38s cubic-bezier(.34, 1.36, .64, 1), opacity .25s ease; }
+.af-seite.rechts { transform: translateX(105%); opacity: 0; }
+.af-seite.links { transform: translateX(-105%); opacity: 0; }
+.af-layouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.af-layout { display: grid; gap: 2px; justify-items: center; align-content: start; padding: 8px 6px 10px; min-height: 0; background: var(--panel); color: var(--ink); border-radius: 16px; }
+.af-layout svg { width: 100%; max-width: 96px; height: auto; display: block; }
+.af-layout b { font-family: var(--zahlen); font-size: 18px; line-height: 1.1; }
+.af-layout small { font-size: 11.5px; color: var(--ink2); font-weight: 500; line-height: 1.25; }
+.af-layout[aria-pressed="true"], .af-karte[aria-pressed="true"] { background: var(--akzent-flaeche); outline: 2px solid var(--akzent); }
+.af-layout .r { fill: var(--flaeche); stroke: var(--line2); } .af-layout .bild { fill: var(--ink2); }
+.af-layout .ls { fill: var(--ink); } .af-layout .sub { fill: var(--akzent); } .af-layout .du { fill: var(--line2); }
+.af-mehr { justify-self: start; }
+.af .knoepfe.breit:has(> .af-zurueck[hidden]) { grid-template-columns: 1fr; }
+.af-karten { display: grid; gap: 8px; }
+.af-karte { display: grid; gap: 2px; justify-content: stretch; justify-items: start; align-content: center; text-align: left; padding: 12px 14px; min-height: 60px; background: var(--panel); color: var(--ink); border-radius: 16px; }
+.af-karte small { font-size: 12.5px; font-weight: 500; color: var(--ink2); }
+.modi button { align-content: start; } .modi .m-stand { opacity: 1; margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) { .af-seite, .af-punkte i { transition: none; } }
 .haken { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .haken label { display: flex; gap: 10px; align-items: flex-start; background: var(--panel); border-radius: 14px; padding: 12px; font-size: 15px; cursor: pointer; }
 .haken input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--akzent); }
@@ -200,6 +226,402 @@ ol.tun b { font-weight: 600; }
   .ml-telefon.zurueck .kippen { transform: none; }
 }
 </style>
+<!-- Marke „Welle × Bühne“ (docs/ci/CI.md): docs/raumcheck-seite/ci.css, beim Bauen eingesetzt -->
+<style>/* Klang-Box CI „Welle × Bühne“ für die Mess-Seite (docs/ci/CI.md, Tokens wie docs/ci/tokens.css).
+   Wird von werkzeuge/raumcheck_seite.py nach dem Grund-Stil eingesetzt und überschreibt ihn: Farben, Schrift,
+   Bauteile (Kiesel-System), feste Aktionsleiste unten, Ergebnis-Held mit Wellen. Dunkel zuerst, hell nach System. */
+
+:root {
+  --bg: #0C1A16; --panel: #15281F; --panel2: #1F3529; --flaeche: #11221B; --line: #21372D; --line2: #2E473B;
+  --ink: #EEF2EC; --ink2: #A6B6AC; --ink3: #6F8378; --heute: #9CC3D9; --warn: #F2A07E; --ok: #9AD9AE;
+  --akzent: #D9AE62; --akzent-hell: #E9C88C; --akzent-flaeche: #2B3423; --akzent-rand: #8A6B33; --prog: var(--akzent);
+  --knopf: #D9AE62; --knopf-ink: #2A1D05; --weiss: #EEF2EC; --glanz: rgba(217, 174, 98, .5); --welle: rgba(217, 174, 98, .5); --raum-ton: #2E6B52;
+  --scheibe: radial-gradient(circle at 32% 26%, #F6DDA9, #D9AE62 56%, #B58938);
+  --scheibe-schatten: 0 26px 50px -18px rgba(217, 174, 98, .5), inset -14px -18px 30px rgba(90, 60, 0, .3), inset 0 2px 0 rgba(255, 255, 255, .45);
+  --tiefe: 0 18px 30px -18px rgba(0, 0, 0, .75), 0 2px 6px -2px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .07);
+  --schrift: "Figtree", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --zahlen: "Bricolage Grotesque", ui-rounded, -apple-system, "SF Pro Rounded", system-ui, sans-serif;
+  --feder: cubic-bezier(.34, 1.5, .64, 1); --feder-weich: cubic-bezier(.34, 1.22, .64, 1); --aus: cubic-bezier(.2, .7, .3, 1);
+  color-scheme: dark;
+}
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --feder-weich: linear(0, .006, .025 2.8%, .101 6.1%, .539 18.9%, .721 25.3%, .849 31.5%, .937 38.1%, .968 41.8%, .991 45.7%, 1.006 50.1%, 1.015 55%, 1.017 63.9%, 1.001 85.9%, 1);
+    --feder: linear(0, .009, .035 2.1%, .141 4.4%, .723 12.9%, .938 16.7%, 1.017 19.4%, 1.067, 1.077 24.6%, 1.067 26.9%, 1.03 31.5%, .996 36.6%, .99 39.2%, .991 43.5%, 1.001 55.8%, 1);
+  }
+}
+/* Helles Thema: Leinen. Über die Systemeinstellung oder data-thema="hell" (die App kann es setzen). */
+@media (prefers-color-scheme: light) {
+  :root:not([data-thema="dunkel"]) {
+    --bg: #F3F1EA; --panel: #FFFFFF; --panel2: #F1EEE5; --flaeche: #ECE8DC; --line: #E5E1D5; --line2: #D4CFC0;
+    --ink: #10241D; --ink2: #525F58; --ink3: #7C877F; --heute: #2F6683; --warn: #A8432A; --ok: #24724A;
+    --akzent: #7F5B18; --akzent-hell: #7F5B18; --akzent-flaeche: #F8F0E3; --weiss: #C9C3B2; --akzent-rand: #D9AE62; --glanz: rgba(180, 130, 40, .42); --welle: rgba(127, 91, 24, .42); --raum-ton: #C9D8CC;
+    --scheibe-schatten: 0 22px 40px -18px rgba(160, 110, 20, .5), inset -12px -16px 26px rgba(90, 60, 0, .18), inset 0 2px 0 rgba(255, 255, 255, .5);
+    --tiefe: 0 14px 28px -14px rgba(60, 45, 30, .28), 0 2px 4px rgba(60, 45, 30, .06), inset 0 1px 0 rgba(255, 255, 255, .9);
+    color-scheme: light;
+  }
+}
+:root[data-thema="hell"] {
+  --bg: #F3F1EA; --panel: #FFFFFF; --panel2: #F1EEE5; --flaeche: #ECE8DC; --line: #E5E1D5; --line2: #D4CFC0;
+  --ink: #10241D; --ink2: #525F58; --ink3: #7C877F; --heute: #2F6683; --warn: #A8432A; --ok: #24724A;
+  --akzent: #7F5B18; --akzent-hell: #7F5B18; --akzent-flaeche: #F8F0E3; --weiss: #C9C3B2; --akzent-rand: #D9AE62; --glanz: rgba(180, 130, 40, .42); --welle: rgba(127, 91, 24, .42); --raum-ton: #C9D8CC;
+  --scheibe-schatten: 0 22px 40px -18px rgba(160, 110, 20, .5), inset -12px -16px 26px rgba(90, 60, 0, .18), inset 0 2px 0 rgba(255, 255, 255, .5);
+  --tiefe: 0 14px 28px -14px rgba(60, 45, 30, .28), 0 2px 4px rgba(60, 45, 30, .06), inset 0 1px 0 rgba(255, 255, 255, .9);
+  color-scheme: light;
+}
+/* Wählbare Akzente (Messing ist Standard). Knopf bleibt Messing-Familie, nur die Akzentfarbe wechselt. */
+:root[data-akzent="blau"] { --akzent: #8FB8F0; --akzent-hell: #B5CFF2; --akzent-rand: #4A6B96; --knopf: #8FB8F0; --knopf-ink: #0D1B2C; --glanz: rgba(143, 184, 240, .45); --welle: rgba(143, 184, 240, .45); }
+:root[data-akzent="mint"] { --akzent: #8CE0C4; --akzent-hell: #C4F1E2; --akzent-rand: #2B5A4C; --knopf: #8CE0C4; --knopf-ink: #0C241C; --glanz: rgba(140, 224, 196, .45); --welle: rgba(140, 224, 196, .45); }
+:root[data-akzent="violett"] { --akzent: #B79CFF; --akzent-hell: #D8CCFF; --akzent-rand: #47397A; --knopf: #B79CFF; --knopf-ink: #1A0F3A; --glanz: rgba(183, 156, 255, .45); --welle: rgba(183, 156, 255, .45); }
+
+/* --- Grund ----------------------------------------------------------------------------------------------------- */
+html { -webkit-text-size-adjust: 100%; }
+body { font: 16px/1.5 var(--schrift); -webkit-font-smoothing: antialiased;
+  background: radial-gradient(130% 60% at 50% 0, color-mix(in oklab, var(--bg), var(--raum-ton) 24%), var(--bg) 62%) fixed, var(--bg); }
+main { max-width: 520px; padding-block: 0 0; gap: 18px; overflow-x: clip; }
+h1, h2, .zahl, .gross { font-family: var(--zahlen); font-weight: 700; letter-spacing: -0.035em; }
+h1 { font-size: 34px; line-height: 1.02; }
+h2 { font-size: 24px; line-height: 1.1; letter-spacing: -0.025em; }
+h3 { font-size: 16px; font-weight: 700; }
+p { line-height: 1.45; }
+p, li, label { hyphens: auto; -webkit-hyphens: auto; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; color: var(--ink2); }
+.marke { font-size: 12px; letter-spacing: .12em; color: var(--akzent); }
+.klein { font-size: 13px; line-height: 1.4; }
+a { color: var(--akzent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--akzent) !important; outline-offset: 3px; }
+
+/* Kopf: fest oben, Fortschritt als fünf bis sieben weiche Segmente */
+main > header { position: sticky; top: 0; z-index: 30; margin-inline: -4px; padding: max(12px, env(safe-area-inset-top, 0px)) 4px 10px;
+  background: linear-gradient(var(--bg) 72%, color-mix(in oklab, var(--bg), transparent 100%)); gap: 10px !important; }
+.segmente { gap: 6px; }
+.segmente span { height: 8px; border-radius: 4px; background: var(--line); position: relative; overflow: hidden; transition: none; }
+.segmente span::after { content: ""; position: absolute; inset: 0; background: var(--knopf); transform: scaleX(0); transform-origin: left; transition: transform .6s var(--feder-weich); border-radius: 4px; }
+.segmente span.an { background: var(--line); }
+.segmente span.an::after { transform: scaleX(1); }
+#schritt-text { font-size: 12px; font-weight: 700; letter-spacing: .12em; }
+/* Schritt 2 hat eigene Punkte (Fragen von „Meine Anlage“): die große Leiste macht dort Platz */
+body[data-schritt="2"] #fortschritt { display: none; }
+
+/* --- Ein Bildschirm pro Schritt, Aktionsleiste unten fest -------------------------------------------------------- */
+.schritt.card:not([hidden]) { display: flex !important; flex-direction: column; gap: 16px; min-height: calc(100dvh - 92px); }
+.aktion, .schritt.card > .knoepfe:last-child, .af-seite > .knoepfe:last-child {
+  position: sticky; bottom: 0; z-index: 20; margin-top: auto; margin-inline: -16px;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(color-mix(in oklab, var(--bg), transparent 100%), var(--bg) 26%); display: grid; gap: 10px; }
+.af-seite > .knoepfe:last-child { margin-inline: -4px; padding-inline: 4px; }
+.aktion .knoepfe { margin: 0; }
+.knoepfe { gap: 10px; }
+.knoepfe.breit { grid-template-columns: 1fr 1.8fr; }
+.knoepfe > span:empty { display: none; }
+.knoepfe:has(> span:empty) { grid-template-columns: 1fr 1.8fr; }
+
+/* --- Knöpfe: Messing-Pille, Nebenknopf als Karte, leise Textknöpfe ------------------------------------------- */
+button, .knopf { min-height: 56px; border-radius: 28px; background: var(--knopf); color: var(--knopf-ink); font: 700 17px/1.1 var(--schrift);
+  box-shadow: 0 16px 30px -14px var(--glanz), inset 0 1px 0 rgba(255, 255, 255, .3); transition: transform .5s var(--feder), opacity .2s, box-shadow .3s; }
+button:active:not(:disabled), .knopf:active { transform: scale(.95); transition-duration: .12s; }
+button.zweit, .knopf.zweit, .kasten button.zweit, .card button.zweit, .kasten .knopf.zweit, .card .knopf.zweit {
+  background: var(--panel); color: var(--ink); box-shadow: var(--tiefe); font-weight: 600; }
+.kasten button.zweit, .card button.zweit, .kasten .knopf.zweit, .card .knopf.zweit { background: var(--panel2); box-shadow: none; }
+button.klein { min-height: 38px; border-radius: 19px; font-size: 14px; padding: 0 14px; }
+button.klein { color: var(--knopf-ink); } button.zweit.klein { color: var(--ink); }
+button.leise { background: transparent; box-shadow: none; color: var(--ink2); font-weight: 600; font-size: 15px; min-height: 40px; justify-self: center; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--line2); }
+button:disabled { opacity: .4; }
+
+/* --- Flächen: Karte, Kasten (Kiesel-Tiefe) ------------------------------------------------------------------------- */
+.card { background: var(--panel); border-radius: 26px; padding: 18px; box-shadow: var(--tiefe); }
+.schritt.card { background: transparent; padding: 0; box-shadow: none; }
+.kasten { background: var(--panel); border-radius: 22px; padding: 14px 16px; box-shadow: var(--tiefe); }
+input[type="text"], input[type="number"], select { min-height: 50px; border-radius: 16px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); font: 500 16px var(--schrift); padding: 0 14px; }
+.kasten input[type="text"], .kasten select, .felder input, .felder select { background: var(--panel2); border-color: transparent; }
+input[type="range"] { accent-color: var(--akzent); }
+input[type="checkbox"] { accent-color: var(--akzent); }
+details summary { color: var(--ink); font-weight: 600; min-height: 44px; list-style: none; gap: 8px; }
+details summary::-webkit-details-marker { display: none; }
+details > summary::after { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--ink2); border-bottom: 2px solid var(--ink2); transform: rotate(45deg) translateY(-2px); margin-left: auto; transition: transform .35s var(--feder); flex: none; }
+details[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+details.mehr { background: var(--panel); border-radius: 22px; padding: 4px 16px; box-shadow: var(--tiefe); }
+details.mehr[open] { padding-bottom: 14px; }
+details.mehr > :not(summary) { animation: aufklappen .45s var(--feder-weich); }
+@keyframes aufklappen { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* --- Auswahl: Karten, Chips, Segment, Schalter ---------------------------------------------------------------------- */
+.wahl { gap: 12px; }
+.wahl button { min-height: 92px; padding: 14px 16px; border-radius: 24px; background: var(--panel); color: var(--ink); box-shadow: var(--tiefe); gap: 4px;
+  font: 700 19px/1.1 var(--zahlen); letter-spacing: -.02em; transition: background .35s, color .35s, transform .5s var(--feder); }
+.wahl button small { font: 500 13px/1.3 var(--schrift); letter-spacing: 0; color: var(--ink2); opacity: 1; }
+.wahl button[aria-pressed="true"] { background: var(--knopf); color: var(--knopf-ink); box-shadow: 0 14px 28px -14px var(--glanz), inset 0 1px 0 rgba(255, 255, 255, .3); }
+.wahl button[aria-pressed="true"] small { color: var(--knopf-ink); opacity: .8; }
+.modi button { min-height: 128px; }
+.modi .m-stand { font-size: 12px !important; margin-top: auto !important; padding-top: 6px; }
+.chip { min-height: 42px; border-radius: 21px; background: var(--panel); outline: 0; box-shadow: var(--tiefe); font: 500 15px var(--schrift); padding: 0 16px; color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--knopf); color: var(--knopf-ink); box-shadow: 0 8px 18px -8px var(--glanz); font-weight: 700; }
+.seg { background: var(--bg); border-radius: 22px; padding: 4px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .25); }
+.seg button { min-height: 38px; border-radius: 18px; background: transparent; color: var(--ink2); box-shadow: none; font: 600 14px var(--schrift); }
+.seg button[aria-pressed="true"] { background: var(--knopf); color: var(--knopf-ink); box-shadow: 0 6px 14px -6px var(--glanz); }
+.schalter { width: 52px; min-height: 32px; border-radius: 16px; background: var(--line2); box-shadow: none; }
+.schalter::after { background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); transition: left .45s var(--feder); }
+.schalter[aria-checked="true"] { background: var(--knopf); }
+.schalter[aria-checked="true"]::after { left: 23px; background: #fff; }
+.farben button { box-shadow: none; background: transparent; color: var(--ink2); font: 600 14px var(--schrift); min-height: 44px; }
+.farben button i { color: #10241D; }
+
+/* --- Start (Schritt 1): Wellen von den zwei Boxen -------------------------------------------------------------- */
+.schritt[data-s="1"] { position: relative; }
+.wellen-deko { position: absolute; inset: -110px -16px auto; height: 420px; pointer-events: none; z-index: -1; overflow: hidden;
+  -webkit-mask: linear-gradient(#000 55%, transparent); mask: linear-gradient(#000 55%, transparent); }
+.wellen-deko b { position: absolute; top: 150px; width: 0; height: 0; }
+.wellen-deko b:nth-child(1) { left: 22%; } .wellen-deko b:nth-child(2) { left: 78%; }
+.wellen-deko i { position: absolute; left: -300px; top: -300px; width: 600px; height: 600px; border-radius: 50%; border: 1.5px solid var(--welle); opacity: 0;
+  animation: welle-lauf 7s var(--aus) infinite; animation-delay: calc(var(--k) * -1.4s); }
+.wellen-deko b:nth-child(2) i { animation-delay: calc(var(--k) * -1.4s - .7s); }
+@keyframes welle-lauf { 0% { transform: scale(.04); opacity: 0; } 8% { opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+.schritt[data-s="1"] > .farbwahl { box-shadow: none; background: transparent; padding: 0; }
+.ma-zeile { gap: 6px; }
+
+/* --- Meine Anlage (Schritt 2): Punkte als Fortschritt, Karten im Kiesel-System ---------------------------------- */
+.af-punkte { gap: 6px; justify-content: stretch; min-height: 8px; }
+.af-punkte i { flex: 1; width: auto; height: 8px; border-radius: 4px; background: var(--line); transition: background .4s; }
+.af-punkte i.an { width: auto; background: var(--knopf); }
+.af-buehne { margin: -4px; padding: 4px; overflow: visible; overflow-x: clip; }
+.af-seite { gap: 14px; transition: transform .6s var(--feder-weich), opacity .3s ease; min-height: calc(100dvh - 130px); align-content: start; }
+.af-seite.an { display: flex; flex-direction: column; }
+.af-layouts { gap: 10px; }
+.af-layout svg { max-width: 74px !important; }
+.af-layout { border-radius: 20px; background: var(--panel); box-shadow: var(--tiefe); padding: 8px 6px 10px; transition: transform .5s var(--feder), background .3s; }
+.af-layout b { font-family: var(--zahlen); font-size: 19px; }
+.af-layout[aria-pressed="true"], .af-karte[aria-pressed="true"] { background: var(--akzent-flaeche); outline: 2px solid var(--akzent); box-shadow: 0 12px 26px -14px var(--glanz); }
+.af-layout .r { fill: var(--flaeche); stroke: var(--line2); } .af-layout .ls { fill: var(--ink); } .af-layout .sub { fill: var(--akzent); }
+.af-karte { border-radius: 20px; background: var(--panel); box-shadow: var(--tiefe); color: var(--ink); font: 600 16px var(--schrift); }
+
+/* --- Vorbereiten (Schritt 3): kompakte Liste ------------------------------------------------------------------- */
+.haken { gap: 8px; }
+.haken label { border-radius: 18px; padding: 12px 14px; background: var(--panel); box-shadow: var(--tiefe); align-items: center; font-size: 15px; line-height: 1.3; }
+.haken input { appearance: none; -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line2); display: grid; place-items: center;
+  transition: background .3s, border-color .3s, transform .45s var(--feder); cursor: pointer; }
+.haken input:checked { background: var(--knopf); border-color: var(--knopf); transform: scale(1.06); }
+.haken input:checked::after { content: ""; width: 10px; height: 6px; border-left: 2.5px solid var(--knopf-ink); border-bottom: 2.5px solid var(--knopf-ink); transform: rotate(-45deg) translate(1px, -1px); }
+.haken small { display: block; color: var(--ink2); font-size: 12.5px; }
+.schritt[data-s="3"] .wahl button { min-height: 0; padding: 12px 14px; font-size: 17px; border-radius: 20px; }
+.schritt[data-s="3"] { gap: 12px !important; }
+.schritt[data-s="3"] .haken label { padding: 10px 14px; }
+.schritt[data-s="3"] h3 { margin-top: 4px; }
+
+/* --- Messen (Schritt 4–6) ------------------------------------------------------------------------------------- */
+.bild { background: var(--panel); border-radius: 24px; padding: 10px; box-shadow: var(--tiefe); }
+.bild svg text { fill: var(--ink2); font-family: var(--schrift); }
+.bild svg text.hell { fill: var(--ink); } .bild svg text.ak { fill: var(--akzent); }
+.dauer { align-items: center; gap: 10px; }
+.dauer .gross { font-size: 26px; color: var(--akzent); }
+.balken { height: 8px; border-radius: 4px; background: var(--line); }
+.balken > div { height: 8px; border-radius: 4px; background: var(--knopf); }
+ol.tun { font-size: 15px; gap: 8px; } ol.tun li::marker { color: var(--akzent); font-weight: 700; }
+.nicht li::before { color: var(--warn); }
+.laeuft::before { border-color: var(--line); border-top-color: var(--akzent); }
+#sitzmodus button { min-height: 72px; font-size: 16px; }
+/* SVG-Bilder: alte feste Farben auf die Tokens heben (gilt auch für erzeugte Skizzen) */
+svg [fill="#171B21" i] { fill: var(--panel); } svg [fill="#0B0D10" i] { fill: var(--bg); } svg [fill="#2A313B" i] { fill: var(--line2); }
+svg [fill="#20262E" i] { fill: var(--flaeche); } svg [fill="#9AA3AD" i] { fill: var(--ink2); } svg [fill="#5B6470" i] { fill: var(--ink3); }
+svg [fill="#C4CAD2" i] { fill: var(--ink); } svg [fill="#3A4452" i] { fill: var(--line2); }
+svg [stroke="#9AA3AD" i] { stroke: var(--ink2); } svg [stroke="#3A4452" i] { stroke: var(--line2); } svg [stroke="#2A313B" i] { stroke: var(--line); }
+svg [stroke="#5B6470" i] { stroke: var(--ink3); } svg [stroke="#E9ECF0" i] { stroke: var(--ink); } svg [stroke="#20262E" i] { stroke: var(--flaeche); }
+svg [stroke="#1C2129" i] { stroke: var(--line); }
+svg [fill="#12161C" i] { fill: var(--flaeche); } svg [fill="#E9ECF0" i], svg [fill="#F2F4F7" i] { fill: var(--weiss); }
+svg [stroke="#F2F4F7" i] { stroke: var(--ink); } svg [stroke="#FF9A70" i] { stroke: var(--heute); }
+
+/* Mess-Ansicht: Feder-Drehung, Messing-Ring, Wellen in der Uhr */
+.messlage { background: radial-gradient(120% 70% at 50% 50%, color-mix(in oklab, var(--bg), var(--raum-ton) 22%), var(--bg) 70%), var(--bg); }
+.ml-dreh { transition: transform 1s cubic-bezier(.34, 1.35, .64, 1); }
+.ml-gross { font-family: var(--zahlen); font-size: 40px; letter-spacing: -.03em; }
+.ml-uhr { width: 240px; height: 240px; }
+.ml-uhr::before { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: var(--panel); box-shadow: var(--tiefe); }
+.ml-uhr::after { content: ""; position: absolute; inset: 22px; border-radius: 50%; border: 1.5px solid var(--welle); animation: uhr-welle 1.8s var(--aus) infinite; }
+@keyframes uhr-welle { from { transform: scale(.2); opacity: 1; } to { transform: scale(1); opacity: 0; } }
+.ml-uhr svg { z-index: 1; } .ml-uhr .zahl { position: relative; z-index: 2; font-size: 84px; font-weight: 800; letter-spacing: -.04em; }
+.ml-uhr .klein { z-index: 2; top: 158px; }
+#ml-ring { stroke: var(--knopf); filter: drop-shadow(0 0 8px var(--glanz)); }
+.ml-spur i { background: var(--knopf); box-shadow: 0 0 16px var(--glanz); }
+.ml-telefon .kippen { animation-timing-function: cubic-bezier(.34, 1.35, .64, 1); }
+#ml-abbrechen { background: transparent; box-shadow: none; color: var(--ink2); min-height: 44px; }
+
+/* --- Ergebnis: Held mit zwei Scheiben, Wellen und Jubel --------------------------------------------------------- */
+.held { position: relative; height: 236px; margin-top: 4px; }
+.held-wellen { position: absolute; right: 106px; top: 112px; width: 0; height: 0; pointer-events: none; opacity: calc(.15 + var(--q, 1) * .85); }
+.held-wellen i { position: absolute; left: -210px; top: -210px; width: 420px; height: 420px; border-radius: 50%; border: 2.5px solid var(--welle); opacity: 0;
+  animation: welle-lauf 5s var(--aus) infinite; animation-delay: calc(var(--k) * -1s); }
+.held.feier .held-wellen i { animation-duration: 2.2s; animation-delay: calc(var(--k) * -.44s); }
+.scheibe { position: absolute; border-radius: 50%; display: grid; place-content: center; justify-items: center; text-align: center; animation: atmen 5s ease-in-out infinite; }
+@keyframes atmen { 0%, 100% { scale: 1; } 50% { scale: 1.03; } }
+.scheibe .lbl { font: 600 12.5px/1.2 var(--schrift); }
+.scheibe .zahl { font-variant-numeric: tabular-nums lining-nums; line-height: .9; }
+.scheibe .note { font: 600 12.5px/1.2 var(--schrift); margin-top: 4px; }
+.scheibe.gross { right: 8px; top: 14px; width: 196px; height: 196px; background: var(--scheibe); color: #2A1D05; box-shadow: var(--scheibe-schatten); transform: scale(calc(.55 + var(--qb, 1) * .45)); }
+.scheibe.gross .zahl { font-size: 94px; font-weight: 800; letter-spacing: -.05em; color: #2A1D05; }
+.scheibe.gross .note .pm { color: #5A4416; font-weight: 500; }
+.scheibe.klein { left: 6px; top: 96px; width: 120px; height: 120px; background: var(--panel); color: var(--ink2); box-shadow: var(--tiefe); animation-delay: -2.5s; transform: scale(calc(.6 + var(--qh, 1) * .4)); }
+.scheibe.klein .zahl { font-size: 50px; font-weight: 800; color: var(--heute); }
+.scheibe.klein .note { color: var(--ink2); }
+.held .plus { position: absolute; left: 84px; top: 26px; z-index: 2; font: 800 26px/1 var(--zahlen); color: var(--akzent); background: var(--panel); padding: 9px 15px; border-radius: 22px; box-shadow: var(--tiefe);
+  transform: scale(var(--qb, 1)); }
+.held.feier .scheibe.gross { animation: atmen 5s ease-in-out infinite, hops .9s var(--feder); }
+.held.feier .plus { animation: wackel .8s var(--feder); }
+@keyframes hops { 0% { translate: 0 0; } 25% { translate: 0 -12px; } 100% { translate: 0 0; } }
+@keyframes wackel { 0% { rotate: 0deg; } 25% { rotate: -10deg; } 55% { rotate: 7deg; } 100% { rotate: 0deg; } }
+.funke { position: fixed; left: var(--x); top: var(--y); width: 9px; height: 9px; border-radius: 50%; background: var(--akzent); z-index: 60; pointer-events: none;
+  animation: funke 1.5s cubic-bezier(.15, .8, .3, 1) forwards; }
+.funke.f1 { background: var(--ink); } .funke.f2 { width: 6px; height: 6px; background: #F6DDA9; }
+@keyframes funke { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 30px)) scale(1); opacity: 0; } }
+.puls { position: fixed; left: var(--x); top: var(--y); width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; border: 2px solid var(--akzent); z-index: 60; pointer-events: none;
+  animation: puls .9s var(--aus) forwards; }
+@keyframes puls { from { transform: scale(.4); opacity: .9; } to { transform: scale(7); opacity: 0; } }
+.runde { gap: 14px !important; }
+.runde > div:first-child h2 { font-size: 30px !important; }
+.zahlkarte { background: var(--panel); border-radius: 22px; box-shadow: var(--tiefe); }
+.zahlkarte.prog { background: var(--akzent-flaeche); outline: 2px solid var(--akzent-rand); }
+.zahlkarte .zahl { font-weight: 800; }
+.kacheln { gap: 10px; }
+.kachel { background: var(--panel); border-radius: 22px; padding: 13px 14px; box-shadow: var(--tiefe); }
+.kachel .titel { font: 700 15px var(--schrift); }
+.kachel .pz { font-size: 24px; font-weight: 800; }
+.kachel .pz > span { color: var(--akzent) !important; }
+.kachel p { font-size: 12.5px; }
+.ampel.gruen, .ampel.gut { background: var(--ok); } .ampel.gelb, .ampel.hinweis { background: #E8C56E; } .ampel.rot, .ampel.problem { background: var(--warn); }
+.hebel { border-radius: 24px; padding: 16px 18px; background: var(--panel); outline: 0; box-shadow: var(--tiefe), inset 0 0 0 1.5px var(--akzent-rand); }
+.hebel b { font: 700 18px/1.2 var(--zahlen); letter-spacing: -.01em; }
+.vorschlag, .raumtipps .vorschlag { border-radius: 20px; }
+.legende i { height: 4px; border-radius: 2px; }
+table th { color: var(--ink2); } td.n { font-family: var(--zahlen); }
+.frueher { margin-top: 6px; }
+.frueher > .runde { margin-top: 14px; }
+.profil { border-radius: 22px; box-shadow: var(--tiefe); }
+.profil[data-an="true"] { background: var(--akzent-flaeche); outline: 2px solid var(--akzent); }
+.urteil.gut { outline: 2px solid var(--ok); } .urteil.zurueck { outline: 2px solid var(--warn); }
+#wie-weiter { gap: 10px; }
+
+/* --- Bildschirmwechsel mit Feder ------------------------------------------------------------------------------- */
+.schritt.rein-vor { animation: rein-vor .65s var(--feder-weich); }
+.schritt.rein-zurueck { animation: rein-zurueck .65s var(--feder-weich); }
+@keyframes rein-vor { from { opacity: 0; transform: translateX(44px); } to { opacity: 1; transform: none; } }
+@keyframes rein-zurueck { from { opacity: 0; transform: translateX(-44px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .wellen-deko, .held-wellen, .ml-uhr::after { display: none; }
+  .scheibe, .held.feier .scheibe.gross, .held.feier .plus { animation: none; }
+  .schritt.rein-vor, .schritt.rein-zurueck, details.mehr > :not(summary) { animation: none; }
+  .ml-dreh, .segmente span::after, .af-seite, button, .schalter::after { transition: none; }
+}
+
+/* --- Zuhause (Schritt 18): Modus, Vorher/Nachher, zwei Einmessungen, schnelle Wege ------------------------------ */
+body[data-schritt="18"] main > header { display: none !important; }
+body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, env(safe-area-inset-top, 0px)); }
+.schritt[data-s="18"] { gap: 14px !important; }
+.zh-kopf { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.zh-kopf h1 { font-size: 38px; }
+.zh-held { position: relative; display: grid; gap: 12px; padding: 16px; border-radius: 28px; background: var(--panel); box-shadow: var(--tiefe); overflow: hidden; isolation: isolate; }
+.zh-wellen { inset: -60px -16px auto; height: 360px; z-index: -1; transition: opacity .6s, filter .6s; }
+.zh-wellen b { top: 120px; }
+.zh-held[data-ab="vorher"] .zh-wellen { opacity: .55; filter: grayscale(.9); }
+.zh-held[data-ab="vorher"] .zh-wellen i { animation-name: welle-unruhig; animation-duration: 3.2s; }
+@keyframes welle-unruhig { 0% { transform: scale(.04) translateX(0); opacity: 0; } 10% { opacity: .9; } 40% { transform: scale(.4) translateX(6px); } 70% { transform: scale(.7) translateX(-5px); } 100% { transform: scale(1); opacity: 0; } }
+.zh-held[data-ab="blind"] .zh-wellen { opacity: .3; }
+.zh-modus { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--bg); }
+.zh-modus:has(> #zh-auto[hidden]) { grid-template-columns: 1fr 1fr; }
+.zh-modus button { min-height: 44px; font: 700 16px var(--schrift); }
+.zh-quelle { color: var(--ink); font-size: 15px; line-height: 1.35; min-height: 20px; }
+.zh-quelle .klein { color: var(--ink2); }
+.zh-ab { display: grid; gap: 8px; }
+.zh-schalter { position: relative; display: grid; grid-template-columns: 1fr 1fr; min-height: 64px; padding: 5px; border-radius: 32px; background: var(--bg); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .3); }
+.zh-schalter::before { content: ""; position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc(50% - 5px); border-radius: 27px; background: var(--knopf); box-shadow: 0 10px 22px -10px var(--glanz), inset 0 1px 0 rgba(255, 255, 255, .3);
+  transition: transform .55s var(--feder), background .4s; }
+.zh-schalter[data-seite="rechts"]::before { transform: translateX(100%); }
+.zh-held[data-ab="vorher"] .zh-schalter::before { background: var(--panel2); box-shadow: var(--tiefe); }
+.zh-schalter span { position: relative; z-index: 1; display: grid; place-items: center; font: 800 20px var(--zahlen); letter-spacing: -.02em; color: var(--ink2); transition: color .3s; }
+.zh-schalter[data-seite="links"] span:first-child, .zh-schalter[data-seite="rechts"] span:last-child { color: var(--knopf-ink); }
+.zh-held[data-ab="vorher"] .zh-schalter[data-seite="links"] span:first-child { color: var(--ink); }
+.zh-ab-zeile { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.zh-ab-zeile .leise { min-height: 36px; font-size: 14px; }
+.zh-blind { display: grid; gap: 8px; } .zh-blind .knoepfe button { min-height: 46px; font: 800 18px var(--zahlen); }
+.zh-ohne { margin: 0; }
+.zh-karten { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.zh-karte { display: grid; gap: 4px; align-content: start; padding: 14px; border-radius: 24px; background: var(--panel); box-shadow: var(--tiefe); cursor: pointer; min-width: 0; transition: transform .5s var(--feder); }
+.zh-karte:active { transform: scale(.97); }
+.zh-karte.an { box-shadow: var(--tiefe), inset 0 0 0 1.5px var(--akzent-rand); }
+.zh-karte.leer { cursor: default; } .zh-karte.leer p { font-size: 14px; } .zh-karte.leer button { margin-top: 6px; }
+.zh-score { display: flex; align-items: baseline; gap: 6px; font-family: var(--zahlen); font-weight: 800; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -.03em; }
+.zh-score .h { font-size: 22px; color: var(--heute); } .zh-score .b { font-size: 38px; color: var(--akzent); } .zh-score em { font-style: normal; color: var(--ink2); font-size: 16px; }
+.zh-minis { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-top: 6px; }
+.zh-mini { display: grid; font-size: 11.5px; line-height: 1.2; min-width: 0; }
+.zh-mini i { font-style: normal; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zh-mini b { font: 800 13px var(--zahlen); font-variant-numeric: tabular-nums; color: var(--ink); } .zh-mini em { font-style: normal; color: var(--ink2); margin: 0 3px; font-weight: 400; }
+.zh-aktionen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.zh-aktion { min-height: 60px; display: grid; grid-template-columns: 32px 1fr; align-items: center; justify-content: start; column-gap: 10px; padding: 10px 12px; border-radius: 20px; text-align: left;
+  background: var(--panel); color: var(--ink); box-shadow: var(--tiefe); font: 700 14px/1.2 var(--schrift); }
+.zh-aktion > span:last-child { min-width: 0; }
+.zh-aktion small { display: block; font: 500 12px var(--schrift); color: var(--ink2); margin-top: 2px; }
+.zh-aktion[aria-pressed="true"] { box-shadow: var(--tiefe), inset 0 0 0 1.5px var(--akzent-rand); }
+.zh-ic { width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center; background: var(--akzent-flaeche); color: var(--akzent); }
+.zh-ic svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.zh-laut { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 22px; background: var(--panel); box-shadow: var(--tiefe); }
+#zh-zustand summary { gap: 10px; } #zh-zustand summary .ampel { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .zh-schalter::before, .zh-wellen { transition: none; } }
+/* Plätze für kommende Bausteine (hoerprobe, regler-waechter): volle Breite, Karte im Kiesel-System */
+.zh-platz { display: grid; gap: 10px; padding: 14px 16px; border-radius: 24px; background: var(--panel); box-shadow: var(--tiefe); }
+.zh-karten + .zh-platz { grid-column: 1 / -1; }
+
+/* --- Hörprobe „Wo ist die Kuh?“ (hoerprobe.js): Tokens für ihre --kb-* Variablen und das Kiesel-System ---------- */
+:root { --kb-bg: var(--bg); --kb-karte: var(--panel); --kb-karte-hoch: var(--panel2); --kb-text: var(--ink); --kb-text2: var(--ink2);
+  --kb-messing: var(--akzent); --kb-linie: var(--line); --kb-linie2: var(--line2); --kb-gut: var(--ok); --kb-hinweis: var(--warn); --kb-hauch: var(--akzent-flaeche); }
+html #hp { background: radial-gradient(130% 60% at 50% 0, color-mix(in oklab, var(--bg), var(--raum-ton) 24%), var(--bg) 62%), var(--bg); padding-bottom: 0; }
+html #hp .hp-innen { gap: 16px; min-height: calc(100dvh - 24px); grid-template-rows: auto; align-content: start; }
+html #hp h1 { font: 700 36px/1.02 var(--zahlen); letter-spacing: -.035em; }
+html #hp .hp-frage { font: 700 28px/1.08 var(--zahlen); letter-spacing: -.03em; text-wrap: balance; }
+html #hp .hp-kopf .marke { color: var(--akzent); }
+html #hp .hp-buehne { border-radius: 30px; padding: 8px; background: var(--panel); box-shadow: var(--tiefe); overflow: hidden; }
+html #hp .hp-ring { stroke: var(--line2); } html #hp .hp-ring2 { stroke: var(--line); }
+html #hp .hp-ls { fill: var(--panel2); stroke: var(--ink2); rx: 5; } html #hp .hp-ls.an { stroke: var(--akzent); }
+html #hp .hp-sofa { fill: var(--panel2); } html #hp .hp-kopfbild { fill: var(--ink); }
+html #hp .hp-du { fill: var(--heute); stroke: var(--panel); stroke-width: 3; }
+/* Auflösung: die Welle läuft vom richtigen Ort los – der Held-Moment der Hörprobe */
+html #hp .hp-soll { fill: var(--knopf); filter: drop-shadow(0 0 8px var(--glanz)); animation: hp-soll-puls 1.6s var(--feder) 1; transform-box: fill-box; transform-origin: center; }
+@keyframes hp-soll-puls { 0% { transform: scale(.2); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+html #hp .hp-welle { stroke: var(--knopf); stroke-width: 2.5; }
+html #hp .hp-welle.los { animation: hp-welle-ci 2.6s var(--aus) infinite; }
+@keyframes hp-welle-ci { 0% { opacity: .95; transform: scale(.12); } 70% { opacity: .35; } 100% { opacity: 0; transform: scale(3.1); } }
+html #hp .hp-bogen { stroke: var(--heute); stroke-width: 2; opacity: .9; }
+html #hp .hp-hoeren { stroke: var(--knopf); stroke-width: 2; }
+html #hp .hp-buehne.spielt .hp-hoeren { animation: hp-hoeren-ci 2.2s var(--aus) infinite; }
+@keyframes hp-hoeren-ci { 0% { opacity: .8; transform: scale(.25); } 100% { opacity: 0; transform: scale(1.2); } }
+html #hp svg text { fill: var(--ink2); font-family: var(--schrift); }
+html #hp .hp-balken { height: 8px; border-radius: 4px; background: var(--line); }
+html #hp .hp-balken i { background: var(--knopf); border-radius: 4px; }
+html #hp .hp-wahl button { min-height: 56px; border-radius: 22px; font: 600 16px var(--schrift); }
+/* Skala 1–5: weiche Kiesel-Tasten, gewählt in Messing */
+html #hp .hp-skala { gap: 8px; }
+html #hp .hp-skala button { min-height: 76px; border-radius: 22px; background: var(--panel); box-shadow: var(--tiefe); gap: 4px; padding: 6px 2px; }
+html #hp .hp-skala button b { font: 800 26px/1 var(--zahlen); letter-spacing: -.03em; }
+html #hp .hp-skala small { font: 600 10.5px/1.15 var(--schrift); color: var(--ink2); opacity: 1; hyphens: auto; }
+html #hp button[aria-pressed="true"] { outline: 0; background: var(--knopf); color: var(--knopf-ink); }
+html #hp .hp-urteil { font: 700 30px/1.05 var(--zahlen); letter-spacing: -.03em; }
+html #hp .hp-kachel { gap: 10px; }
+html #hp .hp-kachel div { border-radius: 22px; padding: 14px 12px; background: var(--panel); box-shadow: var(--tiefe); gap: 4px; }
+html #hp .hp-kachel b { font: 800 30px/1 var(--zahlen); letter-spacing: -.03em; color: var(--akzent); }
+html #hp .hp-kachel span { font-size: 12.5px; }
+html #hp ul.hp-liste { color: var(--ink2); }
+html #hp .hp-knoepfe:last-child, html #hp .hp-innen > .hp-knoepfe { position: sticky; bottom: 0; margin: auto -16px 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(color-mix(in oklab, var(--bg), transparent 100%), var(--bg) 26%); }
+.hp-karte .hp-ohr svg circle { fill: var(--akzent-flaeche); }
+/* Gehör-Check auf Zuhause */
+.zh-platz .hp-gehoer { background: transparent; box-shadow: none; padding: 0; }
+.hp-gehoer b { font-family: var(--zahlen); font-weight: 800; color: var(--akzent); letter-spacing: -.02em; }
+@media (prefers-reduced-motion: reduce) { html #hp .hp-welle.los, html #hp .hp-soll, html #hp .hp-buehne.spielt .hp-hoeren { animation: none; } }
+html #hp .hp-buehne svg { overflow: visible; }
+/* Ziel (Ästhetik / Ausgewogen / Extrem, regler-waechter): drei kompakte Karten in einer Reihe */
+#ziel-wahl { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+#ziel-wahl button { min-height: 72px; padding: 10px 10px; font-size: 15px; border-radius: 20px; }
+#ziel-wahl button small { font-size: 11.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.abwaegung .wahl button { min-height: 0; font-size: 16px; }
+#mess-wahl summary .klein { margin-left: 4px; font-weight: 500; } #mess-wahl[open] .wahl { margin-top: 10px; }
+</style>
 
 <main>
   <header style="display: grid; gap: 12px;">
@@ -207,98 +629,116 @@ ol.tun b { font-weight: 600; }
     <span class="eyebrow" id="schritt-text"></span>
   </header>
 
-  <!-- Schritt 1: Kino oder Stereo -->
+  <!-- Schritt 1: Was willst du einmessen? Stereo und Kino sind zwei getrennte Einmessungen mit eigener Geschichte -->
   <section class="card schritt" data-s="1" aria-labelledby="h-modus">
-    <h1 id="h-modus">Was willst du messen?</h1>
-    <p>Die Messung dauert etwa 5 Minuten. Ich führe dich Schritt für Schritt.</p>
-    <div class="wahl" role="group" aria-label="Modus">
-      <button type="button" id="m-kino" aria-pressed="true">Kino<small>Filme, alle Plätze, mehr Wucht</small></button>
-      <button type="button" id="m-stereo" aria-pressed="false">Stereo<small>Musik, Bühne am Hörplatz</small></button>
+    <div class="wellen-deko" aria-hidden="true"><b><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i></b><b><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i></b></div>
+    <h1 id="h-modus">Was willst du einmessen?</h1>
+    <p>Stereo misst die Boxen vorne und den Sub, Kino alle Lautsprecher. Beide bleiben getrennt gespeichert.</p>
+    <div class="wahl modi" role="group" aria-label="Was willst du einmessen?">
+      <button type="button" id="m-stereo" aria-pressed="false">Stereo<small>Musik · Boxen vorne</small><small class="m-stand" id="m-stand-stereo">noch nicht eingemessen</small></button>
+      <button type="button" id="m-kino" aria-pressed="true">Kino<small>Filme · alle Lautsprecher</small><small class="m-stand" id="m-stand-kino">noch nicht eingemessen</small></button>
     </div>
-    <button type="button" class="weiter" data-zu="2">Weiter</button>
-    <div class="kasten">
-      <span class="klein" id="farbe-text">Farbe: Blau</span>
+    <div class="kasten ma-zeile">
+      <div class="reihe"><div><h3>Meine Anlage</h3><span class="klein" id="ma-text"></span></div><button type="button" class="zweit klein" id="ma-aendern">ändern</button></div>
+      <span class="klein ok" id="ma-messe"></span>
+      <span class="klein warn" id="ma-box-hinweis" hidden></span>
+    </div>
+    <!-- Mit Klang-Box: welche der beiden Einmessungen wirkt gerade (POST /api/modus; ältere Box: einstellungen mit modus) -->
+    <div class="kasten" id="hoere" hidden>
+      <div class="reihe"><div><h3>Ich höre</h3><span class="klein" id="hoere-text"></span></div>
+        <div class="seg" role="group" aria-label="Ich höre"><button type="button" data-hoere="stereo" aria-pressed="false">Stereo</button><button type="button" data-hoere="kino" aria-pressed="false">Kino</button><button type="button" data-hoere="auto" aria-pressed="false">Automatisch</button></div></div>
+    </div>
+    <details class="mehr farbwahl"><summary><span class="klein" id="farbe-text">Farbe: Messing</span></summary>
       <div class="farben" role="radiogroup" aria-labelledby="farbe-text">
-        <button type="button" role="radio" data-akzent="blau" aria-checked="true"><i style="background:#7FB0FF"></i>Blau</button>
+        <button type="button" role="radio" data-akzent="messing" aria-checked="true"><i style="background:#D9AE62"></i>Messing</button>
+        <button type="button" role="radio" data-akzent="blau" aria-checked="false"><i style="background:#8FB8F0"></i>Blau</button>
         <button type="button" role="radio" data-akzent="mint" aria-checked="false"><i style="background:#8CE0C4"></i>Mint</button>
         <button type="button" role="radio" data-akzent="violett" aria-checked="false"><i style="background:#B79CFF"></i>Violett</button>
       </div>
-    </div>
+    </details>
+    <div class="aktion"><button type="button" class="leise" data-zu="18" id="zh-hin" hidden>Zur Übersicht</button><button type="button" class="weiter" id="m-weiter">Weiter</button></div>
   </section>
 
-  <!-- Schritt 2: Anlage und Raum -->
+  <!-- Schritt 2: Meine Anlage (einmal einrichten, später „ändern“). Eine Frage pro Bildschirm, seitlich wischend.
+       Markup bewusst schlicht (af-*), damit die CI es neu gestalten kann. Daten: siehe „Meine Anlage“ im Skript. -->
   <section class="card schritt" data-s="2" hidden aria-labelledby="h-anlage">
-    <h1 id="h-anlage">Welche Anlage, welcher Raum?</h1>
-    <div class="wahl" role="group" aria-label="Art der Anlage" id="anlage-art">
-      <button type="button" data-anlage-art="aktiv" aria-pressed="true">Aktivboxen<small>WLAN, Bluetooth oder Kabel</small></button>
-      <button type="button" data-anlage-art="kette" aria-pressed="false">Stereo-Kette<small>Verstärker oder Vor-/Endstufe, passive Boxen</small></button>
-      <button type="button" data-anlage-art="soundbar" aria-pressed="false">Soundbar<small>eine Leiste am Fernseher</small></button>
-      <button type="button" data-anlage-art="avr" aria-pressed="false">AV-Receiver<small>Heimkino-Verstärker, mehrere Boxen</small></button>
-      <button type="button" data-anlage-art="heimkino" aria-pressed="false">Heimkino mit Klang-Box<small>die Klang-Box spielt alle Boxen</small></button>
-    </div>
-    <label class="klein" for="anlage">Name (für den Vergleich)</label>
-    <input type="text" id="anlage" value="Wohnzimmer">
-    <label class="klein" for="anlage-modell">Hersteller und Modell (freiwillig)</label>
-    <input type="text" id="anlage-modell" placeholder="so, wie es auf dem Gerät steht" autocomplete="off">
-    <div id="anlage-hinweis" class="klein" hidden></div>
-    <!-- Subwoofer: bei jeder Art der Anlage, denn er zählt, egal wie er angeschlossen ist -->
-    <div class="kasten" id="sub-frage">
-      <div class="reihe"><div><h3>Subwoofer</h3><span class="klein">Spielt ein eigener Bass-Lautsprecher mit?</span></div>
-        <div class="seg" role="group" aria-label="Subwoofer"><button type="button" id="sub-nein" aria-pressed="true">Nein</button><button type="button" id="sub-ja" aria-pressed="false">Ja</button></div></div>
-      <div id="sub-wie" hidden style="display: grid; gap: 8px;">
-        <label class="klein" for="sub-anschluss">Wie ist er angeschlossen?</label>
-        <select id="sub-anschluss">
-          <option value="hochpegel">Lautsprecherkabel vom Verstärker (High-Level, „Speaker In“)</option>
-          <option value="line">Cinch vom Verstärker (Sub-Out oder Pre-Out, „Line In“)</option>
-          <option value="lfe">LFE-Kabel vom AV-Receiver oder von der Klang-Box</option>
-          <option value="boxen">Am Sub-Ausgang der Boxen oder der Soundbar</option>
-          <option value="funk">Kabellos (Funk)</option>
-          <option value="weiss">Weiß nicht</option>
-        </select>
-        <p class="klein" id="sub-hinweis"></p>
+    <div class="af" id="af">
+      <div class="af-punkte" id="af-punkte" aria-hidden="true"></div>
+      <div class="af-buehne" id="af-buehne">
+        <div class="af-seite" data-frage="lautsprecher">
+          <h1 id="h-anlage">Welche Lautsprecher hast du?</h1>
+          <p>Erzähl mir kurz, was bei dir steht – den Rest mache ich. Der Sub steckt in der „.1“.</p>
+          <div class="af-layouts" role="group" aria-label="Lautsprecher" id="af-layouts"></div>
+          <button type="button" class="chip af-mehr" id="af-mehr" aria-expanded="false">Mehr: 3.0, 5.0, 7.1</button>
+          <p class="klein">Weiß nicht genau? Wähl, was am nächsten kommt. Nach der ersten Messung prüft der Kanal-Check, was wirklich spielt, und sagt es dir.</p>
+          <p class="klein ok" id="af-messe"></p>
+          <label class="klein" for="anlage">Name (für den Vergleich)</label>
+          <input type="text" id="anlage" value="Wohnzimmer">
+          <div class="knoepfe breit"><button type="button" class="zweit af-zurueck">Zurück</button><button type="button" class="af-weiter">Weiter</button></div>
+        </div>
+        <div class="af-seite" data-frage="geraete" id="gk-block" hidden>
+          <span class="eyebrow">Freiwillig</span>
+          <h1>Welche Geräte sind es?</h1>
+          <p>Dann bekommst du nach der Messung Tipps für ihre Regler. Lass leer, was du nicht weißt.</p>
+          <label class="klein" for="gk-ls">Vorne</label>
+          <input type="text" id="gk-ls" list="gk-ls-liste" placeholder="Modell suchen" autocomplete="off"><datalist id="gk-ls-liste"></datalist>
+          <div id="gk-zeile-center" style="display:grid; gap:6px"><label class="klein" for="gk-center">Center</label>
+            <input type="text" id="gk-center" list="gk-ls-liste" placeholder="Modell suchen" autocomplete="off"></div>
+          <div id="gk-zeile-rear" style="display:grid; gap:6px"><label class="klein" for="gk-rear">Hinten</label>
+            <input type="text" id="gk-rear" list="gk-ls-liste" placeholder="Modell suchen" autocomplete="off"></div>
+          <label class="klein" for="gk-sub">Subwoofer</label>
+          <input type="text" id="gk-sub" list="gk-sub-liste" placeholder="ohne Sub: leer lassen" autocomplete="off"><datalist id="gk-sub-liste"></datalist>
+          <div id="gk-sub-mehr" hidden style="display:grid; gap:6px">
+            <label class="klein" for="gk-platz">Wo steht der Sub?</label>
+            <select id="gk-platz"><option value="">Weiß nicht</option><option value="ecke">In einer Ecke</option><option value="wand">An einer Wand</option><option value="frei">Frei im Raum</option></select>
+          </div>
+          <details><summary>Streamer, Wandler, Verstärker <span class="klein" id="gk-zustand"></span></summary><div id="gk-kette" style="display:grid; gap:4px"></div></details>
+          <div class="knoepfe breit"><button type="button" class="zweit af-zurueck">Zurück</button><button type="button" class="af-weiter">Weiter</button></div>
+        </div>
+        <div class="af-seite" data-frage="sub" hidden>
+          <span class="eyebrow">Subwoofer</span>
+          <h1>Wie hängt der Sub dran?</h1>
+          <p>Schau hinten am Sub, wo das Kabel herkommt. Davon hängen die Tipps zu Trennfrequenz und Phase ab.</p>
+          <div class="af-karten" role="group" aria-label="Anschluss des Subwoofers" id="af-sub"></div>
+          <p class="klein" id="sub-hinweis"></p>
+          <div class="knoepfe breit"><button type="button" class="zweit af-zurueck">Zurück</button><button type="button" class="af-weiter">Weiter</button></div>
+        </div>
       </div>
     </div>
-    <label class="klein" for="raum">Wie groß ist der Raum?</label>
-    <select id="raum">
-      <option value="">Weiß nicht (typisches Wohnzimmer)</option>
-      <option value="40">Klein, bis 16 m²</option>
-      <option value="70">Mittel, 16 bis 30 m²</option>
-      <option value="110">Groß, 30 bis 45 m²</option>
-      <option value="160">Sehr groß, über 45 m²</option>
-    </select>
-    <label class="klein" for="handy">Mit welchem Handy misst du?</label>
-    <select id="handy"><option value="">Anderes / weiß nicht (ohne Mikrofon-Korrektur)</option></select>
-    <div id="handy-hinweis" class="klein" hidden></div>
-    <div id="raum-hinweis" class="klein ok" hidden></div>
-    <button type="button" class="zweit" id="raum-scannen" data-scannen hidden>Raum neu scannen</button>
-    <!-- Geräte-Katalog (geraetewahl.js): eigene ids gk-*, freiwillig -->
-    <details class="kasten" id="gk-block">
-      <summary>Deine Geräte (freiwillig): Tipps für deine Regler <span class="klein" id="gk-zustand"></span></summary>
-      <label class="klein" for="gk-ls">Lautsprecher</label>
-      <input type="text" id="gk-ls" list="gk-ls-liste" placeholder="Modell suchen, z. B. Name der Box" autocomplete="off"><datalist id="gk-ls-liste"></datalist>
-      <label class="klein" for="gk-sub">Subwoofer</label>
-      <input type="text" id="gk-sub" list="gk-sub-liste" placeholder="ohne Sub: leer lassen" autocomplete="off"><datalist id="gk-sub-liste"></datalist>
-      <div id="gk-sub-mehr" hidden style="display:grid; gap:6px">
-        <label class="klein" for="gk-platz">Wo steht der Sub?</label>
-        <select id="gk-platz"><option value="">Weiß nicht</option><option value="ecke">In einer Ecke</option><option value="wand">An einer Wand</option><option value="frei">Frei im Raum</option></select>
-        <label class="klein" for="gk-messung">Bei dieser Messung war der Sub</label>
-        <select id="gk-messung"><option value="normal">an, Phase/Polarität normal (0°)</option><option value="umgedreht">an, Phase/Polarität umgedreht (180°)</option><option value="aus">aus</option></select>
-      </div>
-      <span class="klein">Weitere Geräte</span><div id="gk-kette" style="display:grid; gap:4px"></div>
-    </details>
-    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="1">Zurück</button><button type="button" class="weiter" data-zu="3">Weiter</button></div>
   </section>
 
   <!-- Schritt 3: Vorbereitung -->
   <section class="card schritt" data-s="3" hidden aria-labelledby="h-vorb">
     <h1 id="h-vorb">Vorbereiten</h1>
-    <p>Hake ab, was erledigt ist. Erst dann geht es weiter.</p>
+    <!-- Raum und Handy: nur gefragt, was nicht schon bekannt ist (Raumscan, Gerätekennung der App) -->
+    <div class="kasten" id="raum-handy">
+      <div id="raum-zeile" style="display: grid; gap: 6px;">
+        <label class="klein" for="raum">Wie groß ist der Raum?</label>
+        <select id="raum">
+          <option value="">Weiß nicht (typisches Wohnzimmer)</option>
+          <option value="40">Klein, bis 16 m²</option>
+          <option value="70">Mittel, 16 bis 30 m²</option>
+          <option value="110">Groß, 30 bis 45 m²</option>
+          <option value="160">Sehr groß, über 45 m²</option>
+        </select>
+      </div>
+      <div id="raum-hinweis" class="klein ok" hidden></div>
+      <button type="button" class="zweit klein" id="raum-scannen" data-scannen hidden>Raum neu scannen</button>
+      <div id="handy-zeile" style="display: grid; gap: 6px;">
+        <label class="klein" for="handy">Mit welchem Handy misst du?</label>
+        <select id="handy"><option value="">Anderes / weiß nicht (ohne Mikrofon-Korrektur)</option></select>
+      </div>
+      <div class="reihe" id="handy-erkannt" hidden><span class="klein ok" id="handy-erkannt-text"></span><button type="button" class="zweit klein" id="handy-aendern">ändern</button></div>
+      <div id="handy-hinweis" class="klein" hidden></div>
+      <div id="anlage-hinweis" class="klein" hidden></div>
+    </div>
+    <p class="klein">Hake ab, was erledigt ist. Erst dann geht es weiter.</p>
     <ul class="haken">
-      <li><label><input type="checkbox" class="pflicht"> Lautstärke wie beim normalen Hören (Gespräch gut möglich, nicht laut)</label></li>
-      <li><label><input type="checkbox" class="pflicht"> Ruhe im Raum: Fenster zu, Lüfter, Spülmaschine, Waschmaschine aus</label></li>
-      <li><label><input type="checkbox" class="pflicht"> Türen, Vorhänge und Möbel so wie beim Hören</label></li>
+      <li><label><input type="checkbox" class="pflicht"> <span>Lautstärke wie beim Hören<small>Gespräch gut möglich, nicht laut</small></span></label></li>
+      <li><label><input type="checkbox" class="pflicht"> <span>Ruhe im Raum<small>Fenster zu, Lüfter und Maschinen aus</small></span></label></li>
+      <li><label><input type="checkbox" class="pflicht"> <span>Türen, Vorhänge, Möbel wie beim Hören</span></label></li>
       <li id="sperre-zeile" hidden><label><input type="checkbox" id="sperre-haken"> Automatische Sperre kurz auf „Nie“ (Einstellungen → Anzeige &amp; Helligkeit), danach zurück. Dieser Browser kann den Bildschirm sonst nicht wach halten.</label></li>
-      <li><label><input type="checkbox" class="pflicht"> Klangeinstellungen der Boxen so lassen wie im Alltag (hat die Anlage eine eigene Raumeinmessung: so, wie im Namen angegeben)</label></li>
+      <li><label><input type="checkbox" class="pflicht"> <span>Klang-Einstellungen wie im Alltag<small>eigene Raumeinmessung: so, wie im Namen angegeben</small></span></label></li>
     </ul>
     <h3>Woher kommt das Messsignal?</h3>
     <div class="wahl" role="group" aria-label="Wiedergabe">
@@ -315,7 +755,7 @@ ol.tun b { font-weight: 600; }
       <a href="raumcheck.m4a" download>Messsignal (.m4a)</a> · <a href="raumcheck.wav" download>(.wav)</a>.
       Beim Messen zählt die Seite 5 Sekunden herunter, dann startest du es dort.</div>
     <div id="vorb-status" class="klein" aria-live="polite"></div>
-    <div class="knoepfe breit"><button type="button" class="zweit" data-zu="2">Zurück</button><button type="button" id="vorb-weiter">Weiter</button></div>
+    <div class="aktion"><div class="knoepfe breit"><button type="button" class="zweit" data-zu="1">Zurück</button><button type="button" id="vorb-weiter">Weiter</button></div></div>
   </section>
 
   <!-- Schritt 4: Ruhe und Lautstärke prüfen -->
@@ -324,13 +764,12 @@ ol.tun b { font-weight: 600; }
     <p id="check-text">Setz dich auf deinen Hörplatz. Ein kurzer Rauschton läuft, das iPhone hört zu. Danach weißt du, ob es zu leise, zu laut oder genau richtig ist.</p>
     <p id="check-kef-text" hidden>Setz dich auf deinen Hörplatz. Die App stellt die Lautstärke selbst ein: erst leise, dann Schritt für Schritt lauter, bis der Rauschton sauber ankommt. Das dauert etwa ein bis zwei Minuten. Nach der Messung stellt sie die alte Lautstärke wieder her.</p>
     <div id="check-kef" class="klein" hidden></div>
-    <button type="button" id="check-start">Prüfen</button>
-    <button type="button" id="check-abbrechen" class="zweit" hidden>Abbrechen</button>
     <div class="balken" aria-hidden="true"><div id="check-pegel"></div></div>
     <div id="check-status" class="klein" aria-live="polite"></div>
     <div id="check-filter" class="klein"></div>
     <button type="button" class="zweit klein" id="check-selbst" hidden>Lautstärke selbst einstellen</button>
-    <div class="knoepfe"><button type="button" class="zweit" data-zu="3">Zurück</button><button type="button" class="zweit" id="check-ueberspringen">Überspringen</button></div>
+    <div class="aktion"><button type="button" class="leise" id="check-ueberspringen">Überspringen</button>
+      <div class="knoepfe breit"><button type="button" class="zweit" data-zu="3">Zurück</button><button type="button" id="check-start">Prüfen</button><button type="button" id="check-abbrechen" class="zweit" hidden>Abbrechen</button></div></div>
   </section>
 
   <!-- Schritt 5: Am Hörplatz messen -->
@@ -339,6 +778,7 @@ ol.tun b { font-weight: 600; }
     <h1 id="h-platz">Am Hörplatz messen</h1>
     <p>Setz dich auf deinen Hörplatz, Kopf mittig zwischen den Boxen.</p>
     <div class="bild" id="platz-bild"></div>
+    <details class="mehr"><summary>So hältst du das Handy</summary>
     <div class="bildzeile">
       <svg viewBox="0 0 96 170" role="img" aria-label="Handy umgedreht in der Hand: Mikrofon und USB-C-Buchse oben, Bildschirm zu dir, Hand unten">
         <path d="M48,24 V6 M41,13 L48,4 L55,13" fill="none" class="ak-s" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -355,20 +795,29 @@ ol.tun b { font-weight: 600; }
         <li><b>Ohrhöhe</b>, eine Handbreit vor dem Gesicht. Arm locker, der Ellbogen darf aufliegen.</li>
         <li><b>Still halten</b>, nicht sprechen.</li>
       </ol>
-    </div>
+    </div></details>
     <div class="dauer"><span class="gross">≈ 25 s</span><span class="klein">Der Bildschirm dreht sich mit, bleibt an und zeigt die Restzeit.</span></div>
     <!-- Sitzmodus: allein (Bühne für den Hauptplatz) oder zu zweit (Mitte zwischen den gemessenen Sitzplätzen) -->
+    <details class="mehr" id="mess-wahl"><summary>Für diese Messung <span class="klein" id="mess-wahl-text"></span></summary>
     <div class="wahl" role="group" aria-label="Wer sitzt?" id="sitzmodus">
       <button type="button" data-sitzmodus="allein" aria-pressed="true">Ich sitze allein in der Mitte<small>Bühne genau für deinen Platz</small></button>
       <button type="button" data-sitzmodus="zwei" aria-pressed="false">Wir sitzen zu zweit (Sofa)<small>Mitte zwischen euren Plätzen: beide Plätze messen</small></button>
     </div>
-    <button type="button" id="messen">Messen</button>
-    <button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button>
+    <!-- Ziel: Ästhetik / Ausgewogen streng (kein Teilwert schlechter), Extrem bietet eine Abwägung an (abwaegung in analyse.js) -->
+    <div class="wahl" role="group" aria-label="Ziel" id="ziel-wahl">
+      <button type="button" data-ziel="aesthetik" aria-pressed="false">Ästhetik<small>nichts schlechter</small></button>
+      <button type="button" data-ziel="ausgewogen" aria-pressed="true">Ausgewogen<small>nichts schlechter</small></button>
+      <button type="button" data-ziel="extrem" aria-pressed="false">Extrem<small>auf Wunsch mehr von einem, dafür etwas weniger vom anderen</small></button>
+    </div>
+    </details>
+    <!-- nur mit gewähltem Sub-Modell (Meine Anlage): Stellung bei dieser Messung, für den Vergleich normal/umgedreht -->
+    <div class="kasten" id="gk-messung-zeile" hidden><label class="klein" for="gk-messung">Bei dieser Messung ist der Sub</label>
+      <select id="gk-messung"><option value="normal">an, Phase/Polarität normal (0°)</option><option value="umgedreht">an, Phase/Polarität umgedreht (180°)</option><option value="aus">aus</option></select></div>
     <div class="balken" aria-hidden="true"><div id="pegel"></div></div>
     <div id="status" class="klein" aria-live="polite"></div>
     <div id="filter" class="klein"></div>
     <ul class="dateien" id="dateien"></ul>
-    <details><summary>Ohne Mikrofon-Freigabe: Sprachmemos-Dateien</summary>
+    <details class="mehr"><summary>Ohne Mikrofon-Freigabe: Sprachmemos</summary>
       <ol class="schritte klein">
         <li>Einstellungen → Sprachmemos → Audioqualität „Verlustfrei“.</li>
         <li>Aufnahme starten, Messsignal abspielen, nach dem Ende stoppen. Hörplatz und 2 Plätze daneben.</li>
@@ -381,27 +830,27 @@ ol.tun b { font-weight: 600; }
         <button type="button" id="auswerten" class="zweit" disabled>Diese Dateien auswerten</button>
       </div>
     </details>
-    <div class="knoepfe"><button type="button" class="zweit" data-zu="4">Zurück</button><span></span></div>
+    <div class="aktion"><div class="knoepfe breit"><button type="button" class="zweit" data-zu="4">Zurück</button><button type="button" id="messen">Messen</button><button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button></div></div>
   </section>
 
   <!-- Schritt 6: Bewegen (durch den Hörbereich) -->
   <section class="card schritt" data-s="6" hidden aria-labelledby="h-bewegen">
     <span class="eyebrow">Klang messen · Teil 2 von 2</span>
     <h1 id="h-bewegen">Handy langsam hin und her führen</h1>
-    <p>Du bleibst sitzen, nur das Handy wandert: auf Ohrhöhe von links nach rechts und zurück. So höre ich, wie es an den Plätzen rund um dich klingt.</p>
+    <p>Du bleibst sitzen, nur das Handy wandert: auf Ohrhöhe von links nach rechts und zurück.</p>
     <div class="bild" id="bewegen-bild"></div>
+    <details class="mehr"><summary>Genau so geht's</summary>
     <ol class="tun" id="bewegen-schritte"></ol>
     <ul class="nicht">
       <li>nicht aufstehen, nicht ums Sofa gehen</li>
       <li>nicht um die eigene Achse drehen, das Handy nicht kippen oder drehen</li>
       <li>nicht sprechen (ein kurzes Geräusch ist nicht schlimm, dieser Teil fällt weg)</li>
-    </ul>
-    <div class="dauer"><span class="gross">63 s</span><span class="klein">gut eine Minute. So lange braucht das Messsignal: 12 kurze Töne, je 4 von links, rechts und beiden.</span></div>
-    <button type="button" id="bewegen-start">Start</button>
-    <button type="button" id="bewegen-abbrechen" class="zweit" hidden>Abbrechen</button>
+    </ul></details>
+    <div class="dauer"><span class="gross">63 s</span><span class="klein">gut eine Minute: 12 kurze Töne von links, rechts und beiden</span></div>
     <div class="balken" aria-hidden="true"><div id="bewegen-pegel"></div></div>
     <div id="bewegen-status" class="klein" aria-live="polite"></div>
-    <div class="knoepfe"><button type="button" class="zweit" data-zu="5">Zurück</button><button type="button" class="zweit" id="ohne-bewegen">Ohne Bewegen auswerten</button></div>
+    <div class="aktion"><button type="button" class="leise" id="ohne-bewegen">Ohne Bewegen auswerten</button>
+      <div class="knoepfe breit"><button type="button" class="zweit" data-zu="5">Zurück</button><button type="button" id="bewegen-start">Start</button><button type="button" id="bewegen-abbrechen" class="zweit" hidden>Abbrechen</button></div></div>
   </section>
 
   <!-- Schritt 7: Ergebnis -->
@@ -409,6 +858,7 @@ ol.tun b { font-weight: 600; }
     <div id="ergebnisse" style="display: grid; gap: 28px;"></div>
     <div class="card" id="wie-weiter">
       <h2>Wie weiter?</h2>
+      <button type="button" class="zweit" data-zu="18" id="zh-hin-ergebnis" hidden>Zur Übersicht (Zuhause)</button>
       <button type="button" data-zu="9">Klang wählen und Einstellungen übernehmen</button>
       <button type="button" class="zweit" data-zu="11">Ohne Klang-Box: nur die Regler deiner Lautsprecher</button>
       <button type="button" class="zweit" data-zu="8">Aufstellung verbessern (Sweetspot-Finder)</button>
@@ -521,6 +971,8 @@ ol.tun b { font-weight: 600; }
     </div>
     <section class="card" aria-labelledby="h-nach">
       <h2 id="h-nach">Jetzt nachmessen</h2>
+      <!-- Platz für die Hörprobe „Wo ist die Kuh?“ vor der Nachmessung (Zweig hoerprobe) -->
+      <div class="zh-platz" id="a-hoerprobe" hidden></div>
       <p id="a-text"></p>
       <ul class="haltung">
         <li><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA3AD" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Genau wie vorhin: Hörplatz, Ohrhöhe, Handy umgedreht (Mikrofon nach oben), gleiche Lautstärke</li>
@@ -647,6 +1099,33 @@ ol.tun b { font-weight: 600; }
     <div id="kc-aktionen" style="display: grid; gap: 10px;"></div>
     <div id="kc-status" class="klein" aria-live="polite"></div>
     <div class="knoepfe breit"><button type="button" class="zweit" id="kc-neu">Neu messen</button><button type="button" id="kc-weiter">Passt – weiter</button></div>
+  </section>
+  <!-- Schritt 18: Zuhause. Erster Bildschirm, wenn „Meine Anlage“ steht und mindestens ein Modus eingemessen ist:
+       Modus (Stereo/Kino/Auto) und Quelle, beide Einmessungen vorher → nachher, Vorher/Nachher-Schalter (POST /api/aus,
+       gleicher Pegel), schnelle Wege und Box-Zustand. Ohne Klang-Box: Scores und Tipps für die Regler der Geräte. -->
+  <section class="card schritt" data-s="18" hidden aria-labelledby="h-zuhause">
+    <div class="zh-kopf"><div><span class="eyebrow" id="zh-anlage"></span><h1 id="h-zuhause">Zuhause</h1></div>
+      <button type="button" class="zweit klein" data-zu="2">Meine Anlage</button></div>
+    <div class="zh-held" id="zh-held" data-ab="nachher">
+      <div class="wellen-deko zh-wellen" aria-hidden="true"><b><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i></b><b><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i></b></div>
+      <div class="seg zh-modus" role="group" aria-label="Modus" id="zh-modus"><button type="button" data-zh-modus="stereo" aria-pressed="false">Stereo</button><button type="button" data-zh-modus="kino" aria-pressed="false">Kino</button><button type="button" data-zh-modus="auto" aria-pressed="false" id="zh-auto">Auto</button></div>
+      <p class="zh-quelle" id="zh-quelle" aria-live="polite"></p>
+      <div class="zh-ab" id="zh-ab">
+        <button type="button" class="zh-schalter" id="zh-ab-schalter" role="switch" aria-checked="true" aria-label="Mit Klang-Box (nachher) oder ohne (vorher)">
+          <span data-seite="vorher" id="zh-ab-links">Vorher</span><span data-seite="nachher" id="zh-ab-rechts">Nachher</span></button>
+        <div class="zh-ab-zeile"><span class="klein" id="zh-ab-text">Gleicher Pegel, ohne Knacken.</span><button type="button" class="leise" id="zh-blind">Blindtest</button></div>
+        <div class="zh-blind" id="zh-blind-wahl" hidden><span class="klein">Welche gefällt dir?</span>
+          <div class="knoepfe"><button type="button" class="zweit" data-zh-mag="A">A</button><button type="button" class="zweit" data-zh-mag="B">B</button></div></div>
+      </div>
+      <p class="klein zh-ohne" id="zh-ab-ohne" hidden>Mit Klang-Box kannst du hier zwischen vorher und nachher umschalten, bei gleichem Pegel.</p>
+    </div>
+    <div class="zh-karten" id="zh-karten"></div>
+    <!-- Platz für die Karte „Gehör-Check“ (Zweig hoerprobe): eine Karte in voller Breite, Stil .zh-karte -->
+    <div class="zh-platz" id="zh-gehoer" hidden></div>
+    <div class="zh-aktionen" id="zh-aktionen"></div>
+    <div id="zh-status" class="klein" aria-live="polite"></div>
+    <details class="mehr" id="zh-zustand" hidden><summary><i class="ampel" id="zh-ampel"></i>Box-Zustand</summary><div class="zeilen" id="zh-zustand-zeilen"></div></details>
+    <details class="mehr" id="zh-tipps" hidden><summary>Einstellungen an deinen Geräten</summary><div id="zh-tipps-inhalt"></div></details>
   </section>
   <!-- Mess-Ansicht (Vollbild): erst „Handy umdrehen“, dann dreht sich alles um 180°, groß Restzeit und Abbrechen -->
   <div class="messlage" id="messlage" hidden role="dialog" aria-modal="true" aria-labelledby="ml-titel">
@@ -1916,6 +2395,23 @@ function kachelVerluste(vorher, nachher, tol = TEIL_UNSICHERHEIT) {
 }
 const verlustListe = (v, kacheln) => Object.entries(v).map(([k, [a, b]]) => `„${kacheln[k].titel}“ ${a} → ${b}`).join(" und ");
 const vz1 = (g) => `${g >= 0 ? "+" : ""}${g.toFixed(1)}`;
+// Ziel der Einmessung (wie ZIELE und abwaegung in bewertung.py): nur „extrem“ bietet eine Abwägung ohne Teilwert-Wächter
+// an, wenn sie auf einer Kachel mindestens ABWAEGUNG_MIN Punkte mehr bringt als die ausgewogene (voreingestellt bleibt die)
+const ZIELE = ["aesthetik", "ausgewogen", "extrem"], ABWAEGUNG_MIN = 2, ABWAEGUNG_PLAETZE = 2;  // Plätze: wie bewertung.py
+const plusText = (d) => (d > 0 ? `+${d}` : d < 0 ? `−${-d}` : "±0");
+function abwaegung(heute, ausgewogen, mehr) {
+  const d = {};
+  for (const [k, a] of Object.entries(ausgewogen)) if (a.punkte != null && mehr[k] && mehr[k].punkte != null) d[k] = mehr[k].punkte - a.punkte;
+  const ks = Object.keys(d);
+  if (!ks.length) return null;
+  let k = ks[0]; for (const x of ks) if (d[x] > d[k]) k = x;  // bei Gleichstand die erste
+  const verloren = kachelVerluste(heute, mehr), akz = Object.keys(verloren);
+  if (d[k] < ABWAEGUNG_MIN || !akz.length) return null;
+  const teile = [k, ...ks.filter((x) => x !== k && d[x] !== 0)], titel = mehr[k].titel;
+  const frage = `Mehr ${titel}: ` + teile.map((x) => `${mehr[x].titel} ${plusText(d[x])}`).join(", ") + " gegenüber ausgewogen, dafür "
+    + akz.map((x) => `„${mehr[x].titel}“ ${verloren[x][0]} → ${verloren[x][1]}`).join(" und ") + " gegenüber heute – oder ausgewogen ohne Verlust?";
+  return { kachel: k, titel, gewinn: d[k], aenderung: Object.fromEntries(teile.map((x) => [x, d[x]])), akzeptiert: akz, verloren, frage };
+}
 // Wie teilwerte_schuetzen in raumcheck.py: solange eine Kachel fällt, einen Filter halbieren (ab 1 dB) oder
 // entfernen, oder Pegel und Laufzeit neutral (Bühne und Phantom-Mitte); der Schritt mit dem kleinsten Verlust gewinnt
 function teilwerteSchuetzen(punkte, sitze, cals, modus, raumM3, buehneMit, heute) {
@@ -1954,8 +2450,17 @@ function teilwerteSchuetzen(punkte, sitze, cals, modus, raumM3, buehneMit, heute
   return { cals, hinweise };
 }
 
-function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null, sitzmodus = "allein") {
+// Center und Rückkanäle zu den Einstellungen der Fronts (einst wird ergänzt), wie _zusatz in raumcheck.py
+function zusatzDazu(einst, haupt, zusatz, neutral) {
+  const r = rueckkanaeleEinmessen(haupt, einst);
+  if (neutral) { r.aus = {}; for (const ch of zusatz) r.aus[ch] = { gain_db: 0, delay_ms: 0, eq: [] }; }
+  for (const ch of ["FL", "FR"]) if (ch in r.aus) { einst[ch] = { ...einst[ch], delay_ms: r.aus[ch].delay_ms }; delete r.aus[ch]; }
+  Object.assign(einst, r.aus);
+  return r;
+}
+function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null, sitzmodus = "allein", ziel = "ausgewogen") {
   if (!SITZMODI.includes(sitzmodus)) throw new Error(`Unbekannter Sitzmodus ${sitzmodus}`);
+  if (!ZIELE.includes(ziel)) throw new Error(`Unbekanntes Ziel ${ziel}`);
   const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null, folge = folgeFuer(kanaele);
   const erg = { aufnahmen: [], fehler: null, modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
   const punkte = [];
@@ -1975,7 +2480,7 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
   if (folge.kanaele.includes("C")) { extra.C = punkte[0].messungen.C; for (const p of punkte) { const m = { ...p.messungen }; delete m.C; p.messungen = m; } }
   // Sitzplätze: die festen Aufnahmen (die bewegte Messung ist kein Sitzplatz)
   const zwei = sitzmodus === "zwei" && punkte.length >= 2, ausgleich = zwei ? punkte.slice() : punkte.slice(0, 1), nSitze = punkte.length;
-  Object.assign(erg, { sitzmodus: zwei ? "zwei" : "allein", sitzmodus_gewaehlt: sitzmodus, sitzplaetze: ausgleich.map((p) => p.name) });
+  Object.assign(erg, { sitzmodus: zwei ? "zwei" : "allein", sitzmodus_gewaehlt: sitzmodus, sitzplaetze: ausgleich.map((p) => p.name), ziel, abwaegung: null });
   if (bewegt) { const b = bewegtePunkte(bewegt, mikro); erg.aufnahmen.push(b.info); punkte.push(...b.punkte); }
   const buehneMit = zwei ? punkte.map((_, i) => i < nSitze) : null;
   const ein = einmessen(punkte, HAUSKURVE[modus]);
@@ -1988,6 +2493,7 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
   // Score und Prognose an allen Plätzen (in beiden Sitzmodi)
   const vorher = punkte.map((p) => ({ FL: p.messungen.FL, FR: p.messungen.FR, C: p.messungen.C || mitte(p.messungen) }));
   const sh = score(vorher, modus, raumM3, null, true, false, buehneMit);
+  const ohneTw = { FL: ein.cals.FL, FR: ein.cals.FR };  // Extrem: die Variante ohne Teilwert-Wächter
   // Teilwert-Wächter: keine Kachel schlechter als ihre Unsicherheit (sonst Filter verringern oder entfernen)
   const tw = teilwerteSchuetzen(punkte, ausgleich, ein.cals, modus, raumM3, buehneMit, sh.kacheln);
   ein.cals = tw.cals; ein.zeilen = ein.zeilen.concat(tw.hinweise);
@@ -2011,13 +2517,24 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
   }
   const zusatz = ZUSATZ.filter((c) => folge.kanaele.includes(c));
   if (zusatz.length) {  // Center und Rückkanäle dazu (nur Pegel und Laufzeit, Regel 4.0); neutral bleibt neutral
-    const r = rueckkanaeleEinmessen({ ...punkte[0].messungen, ...extra }, erg.einstellungen);
-    if (neutral) { r.aus = {}; for (const ch of zusatz) r.aus[ch] = { gain_db: 0, delay_ms: 0, eq: [] }; }
-    for (const ch of ["FL", "FR"]) if (ch in r.aus) { erg.einstellungen[ch] = { ...erg.einstellungen[ch], delay_ms: r.aus[ch].delay_ms }; delete r.aus[ch]; }
-    Object.assign(erg.einstellungen, r.aus); erg.tipps = erg.tipps.concat(r.hinweise);
+    const r = zusatzDazu(erg.einstellungen, { ...punkte[0].messungen, ...extra }, zusatz, neutral);
+    erg.tipps = erg.tipps.concat(r.hinweise);
     if (zusatz.includes("C")) erg.bericht.push(`Center: ${r.aus.C.gain_db.toFixed(1)} dB, ${r.aus.C.delay_ms.toFixed(1)} ms`);
     const hinten = zusatz.filter((c) => c !== "C");
     if (hinten.length) erg.bericht.push("Rückkanäle: " + hinten.map((ch) => `${RUECK_NAMEN[ch]} ${r.aus[ch].gain_db.toFixed(1)} dB, ${r.aus[ch].delay_ms.toFixed(1)} ms`).join(", "));
+  }
+  // Extrem: dieselbe Rechnung ohne Teilwert-Wächter (alle anderen Wächter bleiben); zur Wahl nur mit Mindestgewinn und
+  // 2 Punkten mehr auf einer Kachel als die ausgewogene (wie raumcheck.py)
+  if (ziel === "extrem" && punkte.length >= ABWAEGUNG_PLAETZE) {
+    const nM = nachherAus(punkte, ohneTw), sM = score(nM, modus, raumM3, null, true, true, buehneMit);
+    const a = abwaegung(sh.kacheln, erg.score_prognose.kacheln, sM.kacheln);
+    if (a && sM.gesamt >= sh.gesamt + 1) {
+      const eM = { FL: { ...ohneTw.FL }, FR: { ...ohneTw.FR } };
+      if (zusatz.length) zusatzDazu(eM, { ...punkte[0].messungen, ...extra }, zusatz, false);
+      const kM = kurve(nM[0].C), vM = kurveVoll(nM[0].C);
+      Object.assign(a, { einstellungen: eM, score_prognose: sM, kurve: { f: kh.f, heute: kh.v, prognose: kM.v }, kurve_voll: { f: vh.f, heute: vh.v, prognose: vM.v } });
+      if (!waechterErgebnis({ ...erg, einstellungen: eM, score_prognose: sM }).length) erg.abwaegung = a;
+    }
   }
   // Wächter: lieber kein Ergebnis als ein falsches
   const v = waechterErgebnis(erg);
@@ -2365,13 +2882,35 @@ function methodeB(nachher, profil, modus) {
   return { methode: "B", bestanden, baender, neigung: { ist_db_okt: Math.round(dIst * 1000) / 1000, soll_db_okt: Math.round(dSoll * 1000) / 1000, toleranz: NP.neigung, ok: neigOk },
     plaetze: nachher.length, hinweis };
 }
-// vorher: {Platzname: messungen}, nachher: [{name, messungen}] (der erste gemeinsame Platz ist der Hauptplatz)
-function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", raumM3 = null, toleranz = NP.rausch, vorhersageKette = null, vorhersageUngefaehr = false, sitzmodus = "allein") {
+// Welcher verstellte Geräteregler hat die Kachel gekostet? (wie _regler_schuld in nachpruefung.py)
+function reglerSchuld(geaendert, alt, neu, nachher, modus, raumM3, buehneMit, kachel) {
+  if (geaendert.length <= 1) return geaendert.slice();
+  let best = null, wert = null;
+  for (const r of geaendert) {
+    if (r.teil !== "lautsprecher") continue;
+    let kette; try { kette = reglerKette(r, neu[r.id], alt[r.id]); } catch (e) { continue; }
+    const p = score(nachher.map((m) => vorhersageMessung(m, null, kette)), modus, raumM3, null, false, true, buehneMit, true).kacheln[kachel].punkte;
+    if (p != null && (wert === null || p > wert)) { best = r; wert = p; }
+  }
+  const jetzt = score(nachher, modus, raumM3, null, false, true, buehneMit, true).kacheln[kachel].punkte;
+  return best && jetzt != null && wert > jetzt ? [best] : geaendert.slice();
+}
+// vorher: {Platzname: messungen}, nachher: [{name, messungen}] (der erste gemeinsame Platz ist der Hauptplatz).
+// akzeptiert: im Ziel „extrem“ bewusst gewählte Kachel-Verluste (gegen die eigene Prognose geprüft); geraet: {profil, alt, neu}
+// der Geräteregler (nennt beim Zurücknehmen den Regler), wie nachpruefung.py
+function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", raumM3 = null, toleranz = NP.rausch, vorhersageKette = null, vorhersageUngefaehr = false, sitzmodus = "allein", akzeptiert = null, geraet = null) {
   const plaetze = nachher.filter((p) => p.name in vorher);
   if (!plaetze.length) return { ok: false, empfehlung: "zuruecknehmen", satz: "Ich kann nichts vergleichen: Zur Nachmessung fehlt die Messung vorher am selben Platz. Sicherheitshalber bleibt der alte Stand.",
     gruende: ["keine Messung vorher und nachher am selben Platz"], je_platz: [], hinweise: [], profil_pruefung: null, vergleich: null };
   const haupt = plaetze[0].name, z = zahlText;
   const v = plaetze.map((p) => mitMitte(vorher[p.name])), nRoh = plaetze.map((p) => mitMitte(p.messungen)), nRk = plaetze.map((p) => mitMitte(ohneProfil(p.messungen, profil)));
+  let reglerGeaendert = [], gAlt = null, gNeu = null;
+  if (geraet && geraet.profil) {
+    gAlt = reglerSauber(geraet.profil, geraet.alt); gNeu = geraet.neu;
+    reglerGeaendert = geraet.profil.regler.filter((r) => (r.id in gNeu ? gNeu[r.id] : gAlt[r.id]) !== gAlt[r.id]);
+    if (!vorhersageKette) vorhersageKette = reglerKetten(geraet.profil, gAlt, { ...gAlt, ...gNeu }).lautsprecher;
+  }
+  akzeptiert = (akzeptiert || []).slice();
   const vh = plaetze.map((p) => vorhersageMessung(vorher[p.name], einstellungen, vorhersageKette));  // Prognose je Platz
   const tol = Math.max(NP.minTol, toleranz), jePlatz = [], schlechter = [], gruende = [], hinweise = [];
   plaetze.forEach((p, k) => {
@@ -2395,18 +2934,28 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
   // Sitzmodus zu zweit: Bühne an allen nachgemessenen Plätzen (der schlechteste zählt), wie nachpruefung.py
   const buehneMit = sitzmodus === "zwei" && plaetze.length >= 2 ? plaetze.map(() => true) : null, wo = buehneMit ? "an den Sitzplätzen" : "am Hauptplatz";
   const sv = score(v, modus, raumM3, null, true, false, buehneMit), sn = score(nRk, modus, raumM3, null, true, true, buehneMit);
+  const spA = akzeptiert.length ? score(vh, modus, raumM3, null, true, true, buehneMit) : null;  // Prognose der gewählten Abwägung
   const teile = {}, teilSchlecht = [];
   for (const [key, name] of [["pegel", "Kanäle gleich laut"], ["laufzeit", "Kanäle gleichzeitig"]]) {
-    const a = sv.teile_roh[key], b = sn.teile_roh[key];
+    const a = (akzeptiert.includes("buehne") ? spA : sv).teile_roh[key], b = sn.teile_roh[key];
     teile[key] = [a == null ? null : Math.round(a), b == null ? null : Math.round(b)];
     if (a != null && b != null && b < a - NP.teil) { teilSchlecht.push(name); gruende.push(`${name} ${wo}: ${z(a, 0)} → ${z(b, 0)} Punkte`); }
   }
-  const kachelSchlecht = kachelVerluste(sv.kacheln, sn.kacheln, NP.kachel), kacheln = {};
+  const kb = Object.fromEntries(Object.keys(sv.kacheln).map((k) => [k, akzeptiert.includes(k) ? spA.kacheln[k] : sv.kacheln[k]]));
+  const kachelSchlecht = kachelVerluste(kb, sn.kacheln, NP.kachel), kacheln = {};
   for (const k of Object.keys(sv.kacheln)) kacheln[k] = [sv.kacheln[k].punkte, sn.kacheln[k].punkte];
-  for (const [k, [a, b]] of Object.entries(kachelSchlecht)) gruende.push(`Teilwert „${sv.kacheln[k].titel}“: ${a} → ${b} Punkte (Toleranz ${NP.kachel})`);
+  for (const [k, [a, b]] of Object.entries(kachelSchlecht)) gruende.push(`Teilwert „${sv.kacheln[k].titel}“: ${a} → ${b} Punkte${akzeptiert.includes(k) ? " (gegen die Prognose der gewählten Abwägung)" : ""} (Toleranz ${NP.kachel})`);
+  for (const k of akzeptiert) if (k in sv.kacheln) hinweise.push(`„${sv.kacheln[k].titel}“ hast du bewusst in Kauf genommen (Ziel Extrem): geprüft gegen die Prognose dieser Variante (${spA.kacheln[k].punkte} Punkte), nicht gegen vorher (${sv.kacheln[k].punkte}).`);
   const scoreSchlecht = sn.gesamt_roh < sv.gesamt_roh - NP.score;
   if (scoreSchlecht) gruende.push(`Gesamtscore ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}`);
   const absenkungSchlecht = !!(absenkung && !absenkung.ok);
+  // Geräteregler: welcher muss zurück, damit die Kachel wiederkommt? (wie nachpruefung.py)
+  let reglerRueck = "", schuld = [];
+  if (Object.keys(kachelSchlecht).length && reglerGeaendert.length) {
+    const k0 = Object.keys(kachelSchlecht)[0];
+    schuld = reglerSchuld(reglerGeaendert, gAlt, gNeu, nRk, modus, raumM3, buehneMit, k0);
+    reglerRueck = "Stell " + schuld.map((r) => `„${r.name}“ wieder auf ${reglerText(r, gAlt[r.id])} (eben ${reglerText(r, gNeu[r.id])})`).join(" und ") + `, sonst bleibt „${sv.kacheln[k0].titel}“ schlechter.`;
+  }
   const kachelErste = Object.keys(kachelSchlecht)[0], zurueck = !!(schlechter.length || teilSchlecht.length || kachelErste || scoreSchlecht || praesenzSchlecht || absenkungSchlecht);
   let satz;
   if (zurueck) {
@@ -2415,8 +2964,9 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     else if (absenkungSchlecht) satz = "Ich nehme es zurück – die Präsenz-Absenkung hat nicht wie gedacht gewirkt.";
     else if (schlechter.length) satz = `Ich nehme es zurück – es wurde an Platz „${schlechter[0]}“ schlechter` + (schlechter.length > 1 ? ` (und an ${schlechter.length - 1} weiteren)` : "") + ".";
     else if (teilSchlecht.length) satz = `Ich nehme es zurück – ${buehneMit ? wo : `am Hauptplatz „${haupt}“`} wurde die Bühne schlechter (${teilSchlecht[0]}).`;
-    else if (kachelErste) satz = `Ich nehme es zurück – „${sv.kacheln[kachelErste].titel}“ wurde schlechter (${kachelSchlecht[kachelErste][0]} → ${kachelSchlecht[kachelErste][1]} Punkte).`;
+    else if (kachelErste) satz = `Ich nehme es zurück – „${sv.kacheln[kachelErste].titel}“ wurde schlechter (${kachelSchlecht[kachelErste][0]} → ${kachelSchlecht[kachelErste][1]} Punkte).` + (reglerRueck ? " " + reglerRueck : "");
     else satz = `Ich nehme es zurück – insgesamt wurde es schlechter (Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}).`;
+    if (reglerRueck && !satz.includes(reglerRueck)) hinweise.push(reglerRueck);
   } else {
     satz = `Behalten: An ${plaetze.length === 1 ? "dem gemessenen Platz" : `allen ${plaetze.length} gemessenen Plätzen`} gleich gut oder besser (Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}).`;
     gruende.push(`Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}, an keinem Platz mehr Bass-Abweichung oder eine angehobene Raummode, Präsenz nicht lauter`);
@@ -2443,7 +2993,7 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
   const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr, buehneMit);
   if (vgl.ueber_toleranz) hinweise.push(`Prognose und Messung weichen ab (Score ${z(vgl.score.vorhergesagt, 0)} vorhergesagt, ${z(vgl.score.gemessen, 0)} gemessen; Bass im Mittel ${z(vgl.bass_kurve.mittel_abweichung_db)} dB). Mögliche Ursachen: ${vgl.ursachen.join(" ")} Danach am besten neu einmessen.`);
   return { ok: !zurueck, empfehlung: zurueck ? "zuruecknehmen" : "behalten", satz, status: zurueck ? "zurueckgenommen" : "bestaetigt", gruende, je_platz: jePlatz, hauptplatz: haupt,
-    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, kacheln, sitzmodus: buehneMit ? "zwei" : "allein", hinweise, profil_pruefung: profilPruefung, vergleich: vgl, praesenz, absenkung };
+    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, kacheln, sitzmodus: buehneMit ? "zwei" : "allein", akzeptiert, regler_zurueck: schuld.map((r) => r.id), hinweise, profil_pruefung: profilPruefung, vergleich: vgl, praesenz, absenkung };
 }
 
 // --- Modus „Ohne Box“: Regler der Lautsprecher selbst (klangbox/regler.py) ----------------------------------
@@ -2606,19 +3156,27 @@ function reglerKandidaten(p, alt, ids) {
   }
   return out;
 }
-// punkteListe: [{name, messungen}] (der erste ist der Hauptplatz), gedreht: Messungen am Hauptplatz mit umgedrehter Sub-Polarität
-function reglerOptimieren(punkteListe, p, aktuell, modus = "kino", raumM3 = null, sub = false, gedreht = null) {
-  if (!punkteListe.length) throw new Error("Keine Messung");
-  const alt = reglerSauber(p, aktuell), zerlegt = !!(sub && gedreht), hinweise = [];
-  const gesperrt = p.regler.filter((r) => !reglerErlaubt(r, sub, zerlegt) && !(r.nur_mit_sub && !sub) && !(r.teil === "sub" && !sub));
-  if (gesperrt.length) hinweise.push(`${gesperrt.map((r) => r.name).join(", ")}: bleibt, wie es ist. Dafür brauche ich eine zweite Messung am Hörplatz mit umgedrehter Sub-Polarität.`);
-  const teile = reglerTeile(zerlegt ? punkteListe.slice(0, 1) : punkteListe, zerlegt ? gedreht : null, reglerSubTrennung(p, alt));
-  if (zerlegt && punkteListe.length > 1) hinweise.push("Mit den Sub-Reglern rechne ich nur am Hauptplatz: Nur dort gibt es die zweite Messung.");
-  const bassIds = new Set(p.regler.filter((r) => reglerErlaubt(r, sub, zerlegt) && (r.wirkt_auf || "bass") === "bass").map((r) => r.id));
-  const klang = p.regler.filter((r) => reglerErlaubt(r, sub, zerlegt) && r.wirkt_auf === "klang");
+// Kacheln der Vorhersage für den Zustand neu (wie _kacheln in regler.py)
+const reglerKacheln = (p, teile, alt, neu, modus, raumM3, buehneMit) => score(reglerVorhersage(p, teile, alt, neu).map(mitMitte), modus, raumM3, null, false, false, buehneMit, true).kacheln;
+const reglerWechsel = (r, alt, neu) => `${r.name} ${reglerText(r, neu)} (statt ${reglerText(r, alt)})`;
+// Die Suche (wie _suche in regler.py): Bass-Regler Schritt für Schritt, dann die Klang-Regler; schuetzen: Teilwert-Wächter an
+function reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, schuetzen) {
+  const nachId = Object.fromEntries(p.regler.map((r) => [r.id, r])), hinweise = [], gemeldet = new Set();
+  let zustand = { ...alt };
+  const kachelOk = (neu) => {
+    if (!schuetzen) return true;
+    const v = kachelVerluste(heuteK, reglerKacheln(p, teile, alt, neu, modus, raumM3, buehneMit));
+    if (Object.keys(v).length) {
+      const id = Object.keys(neu).find((k) => neu[k] !== zustand[k]);
+      if (!gemeldet.has(id)) { gemeldet.add(id);
+        hinweise.push(`Teilwert-Wächter: ${reglerWechsel(nachId[id], alt[id], neu[id])} schlage ich nicht vor, sonst würde ${verlustListe(v, heuteK)} schlechter (erlaubt: ${TEIL_UNSICHERHEIT} Punkt).`); }
+      return false;
+    }
+    return true;
+  };
   const heute = reglerBassWerte(p, teile, alt, alt);
-  let zustand = { ...alt }, jJetzt = mean(heute.map((w) => w[0])), kand = reglerKandidaten(p, alt, bassIds);
-  for (let it = 0; it < 12; it++) {
+  let jJetzt = mean(heute.map((w) => w[0])), kand = reglerKandidaten(p, alt, bassIds), schritte = 0;
+  while (schritte < 12) {  // höchstens 12 übernommene Schritte; jede verworfene Änderung fällt aus den Kandidaten
     let best = null;
     for (const [id, v] of kand) {
       if (zustand[id] === v) continue;
@@ -2629,50 +3187,98 @@ function reglerOptimieren(punkteListe, p, aktuell, modus = "kino", raumM3 = null
     }
     if (!best || best.j > jJetzt - RG.gewinnMin) break;
     const neu = { ...zustand, [best.id]: best.v };
-    if (reglerZuViel(p, teile, alt, neu)) { kand = kand.filter(([k, v]) => !(k === best.id && v === best.v)); continue; }  // Leitplanke
-    zustand = neu; jJetzt = best.j;
+    if (reglerZuViel(p, teile, alt, neu) || !kachelOk(neu)) { kand = kand.filter(([k, v]) => !(k === best.id && v === best.v)); continue; }  // Leitplanke oder Teilwert
+    zustand = neu; jJetzt = best.j; schritte++;
   }
-  // Klang-Regler (Höhen): nach der Klangbalance, in den Leitplanken, nur wenn es deutlich hilft
+  // Klang-Regler (Höhen): nach der Klangbalance, in den Leitplanken, nur wenn es deutlich hilft, und nur was der Teilwert-Wächter zulässt
   for (const r of klang) {
-    const tAlt = reglerKlang(p, teile, alt, zustand); let bester = [tAlt, zustand[r.id]];
+    const tAlt = reglerKlang(p, teile, alt, zustand), werteR = [];
     for (const [id, v] of reglerKandidaten(p, alt, new Set([r.id])).concat([[r.id, alt[r.id]]])) {
       if (v === zustand[id]) continue;
       const neu = { ...zustand, [id]: v };
       if (reglerZuViel(p, teile, alt, neu)) continue;
-      const t = reglerKlang(p, teile, alt, neu); if (t > bester[0] + 1e-9) bester = [t, v];
+      werteR.push([reglerKlang(p, teile, alt, neu), v]);
     }
-    if (bester[0] >= tAlt + RG.klangMin) zustand[r.id] = bester[1];
+    werteR.sort((a, b) => b[0] - a[0]);
+    for (const [t, v] of werteR) {
+      if (t < tAlt + RG.klangMin) break;
+      if (kachelOk({ ...zustand, [r.id]: v })) { zustand = { ...zustand, [r.id]: v }; break; }
+    }
   }
-  // Wächter: insgesamt nie schlechter als heute
-  const vor = reglerVorhersage(p, teile, alt, alt);
-  let nach = reglerVorhersage(p, teile, alt, zustand);
-  const sh = score(vor.map(mitMitte), modus, raumM3);
-  let sg = score(nach.map(mitMitte), modus, raumM3), geaendert = p.regler.filter((r) => zustand[r.id] !== alt[r.id]).map((r) => r.id);
-  if (geaendert.length && sg.gesamt_roh < sh.gesamt_roh) {
-    hinweise.push(`Wächter: Die beste Kombination wäre insgesamt nicht besser (Score ${zahlText(sh.gesamt_roh, 0)} → ${zahlText(sg.gesamt_roh, 0)}). Ich empfehle, nichts zu ändern.`);
-    zustand = { ...alt }; sg = sh; nach = vor; geaendert = [];
-  }
+  return { zustand, hinweise };
+}
+// Ergebnis für einen Zustand (wie _vorschlag in regler.py)
+function reglerVorschlag(p, teile, alt, zustand, sh, sg, vor, heute) {
+  const nach = reglerVorhersage(p, teile, alt, zustand), geaendert = p.regler.filter((r) => zustand[r.id] !== alt[r.id]).map((r) => r.id);
   const neuW = reglerBassWerte(p, teile, alt, zustand), nachId = Object.fromEntries(p.regler.map((r) => [r.id, r]));
   const anleitung = geaendert.length ? [`Stell ${p.wo} ein:`, ...geaendert.map((k) => `${nachId[k].name}: ${reglerText(nachId[k], zustand[k])} (bisher ${reglerText(nachId[k], alt[k])})`),
     "Alles andere bleibt, wie es ist. Danach bitte nachmessen: Ohne Nachmessung weiß ich nicht, ob die Regler so wirken, wie ich rechne."]
     : ["Nichts ändern: Mit den Reglern finde ich hier keine Einstellung, die an allen Plätzen besser ist."];
   const r2 = (x) => Math.round(x * 100) / 100, kh = kurve(mitMitte(vor[0]).C), kn = kurve(mitMitte(nach[0]).C);
   return { geraet: p.id, geraet_name: p.name, geraet_einstellungen: { geraet: p.id, werte: Object.fromEntries(p.regler.map((r) => [r.id, zustand[r.id]])) },
-    aktuell: { geraet: p.id, werte: { ...alt } }, geaendert, anleitung, hinweise,
+    aktuell: { geraet: p.id, werte: { ...alt } }, geaendert, anleitung,
     geschaetzt: geaendert.filter((k) => nachId[k].status === "geschaetzt" && nachId[k].geschaetzt).map((k) => `${nachId[k].name}: ${nachId[k].geschaetzt}`),
-    sub_zerlegt: zerlegt, nachmessung_pflicht: true, hauptplatz: teile[0].name, score_heute: sh, score_geraet: sg,
+    nachmessung_pflicht: true, hauptplatz: teile[0].name, score_heute: sh, score_geraet: sg,
     je_platz: teile.map((t, i) => ({ platz: t.name, bass_heute_db: r2(heute[i][0]), bass_geraet_db: r2(neuW[i][0]), spitze_db: r2(neuW[i][1]) })),
     kurve: { f: kh.f, heute: kh.v, geraet: kn.v } };
 }
-// Aufnahmen rein, Vorschlag raus (wie raumcheck: nur saubere Aufnahmen, dazu die bewegte Messung)
-function reglerRaumcheck(aufnahmen, bewegt, p, aktuell, modus, raumM3, sub, gedrehtDaten) {
+// punkteListe: [{name, messungen}] (der erste ist der Hauptplatz), gedreht: Messungen am Hauptplatz mit umgedrehter Sub-Polarität.
+// sitzmodus/sitzplaetze/ziel wie regler_optimieren: Teilwert-Wächter immer, im Ziel „extrem“ dazu die Abwägung ohne ihn.
+function reglerOptimieren(punkteListe, p, aktuell, modus = "kino", raumM3 = null, sub = false, gedreht = null, sitzmodus = "allein", sitzplaetze = null, ziel = "ausgewogen") {
+  if (!punkteListe.length) throw new Error("Keine Messung");
+  if (!SITZMODI.includes(sitzmodus)) throw new Error(`Unbekannter Sitzmodus ${sitzmodus}`);
+  if (!ZIELE.includes(ziel)) throw new Error(`Unbekanntes Ziel ${ziel}`);
+  const alt = reglerSauber(p, aktuell), zerlegt = !!(sub && gedreht), hinweise = [];
+  const gesperrt = p.regler.filter((r) => !reglerErlaubt(r, sub, zerlegt) && !(r.nur_mit_sub && !sub) && !(r.teil === "sub" && !sub));
+  if (gesperrt.length) hinweise.push(`${gesperrt.map((r) => r.name).join(", ")}: bleibt, wie es ist. Dafür brauche ich eine zweite Messung am Hörplatz mit umgedrehter Sub-Polarität.`);
+  const teile = reglerTeile(zerlegt ? punkteListe.slice(0, 1) : punkteListe, zerlegt ? gedreht : null, reglerSubTrennung(p, alt));
+  if (zerlegt && punkteListe.length > 1) hinweise.push("Mit den Sub-Reglern rechne ich nur am Hauptplatz: Nur dort gibt es die zweite Messung.");
+  const namen = teile.map((t) => t.name), sitze = (sitzplaetze || namen).filter((n) => namen.includes(n));
+  const zwei = sitzmodus === "zwei" && sitze.length >= 2, buehneMit = zwei ? namen.map((n) => sitze.includes(n)) : null;
+  if (zwei) hinweise.push(`Sitzmodus zu zweit: Die Bühne zählt am schlechtesten der ${sitze.length} Sitzplätze.`);
+  else if (sitzmodus === "zwei") hinweise.push("Sitzmodus zu zweit braucht mindestens zwei Sitzplätze mit Messung: gerechnet wie allein (Hauptplatz).");
+  const bassIds = new Set(p.regler.filter((r) => reglerErlaubt(r, sub, zerlegt) && (r.wirkt_auf || "bass") === "bass").map((r) => r.id));
+  const klang = p.regler.filter((r) => reglerErlaubt(r, sub, zerlegt) && r.wirkt_auf === "klang");
+  const heute = reglerBassWerte(p, teile, alt, alt), vor = reglerVorhersage(p, teile, alt, alt);
+  const bewerten = (z) => score(reglerVorhersage(p, teile, alt, z).map(mitMitte), modus, raumM3, null, true, false, buehneMit);
+  const sh = score(vor.map(mitMitte), modus, raumM3, null, true, false, buehneMit), heuteK = sh.kacheln;
+  const su = reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, true);
+  let zustand = su.zustand; hinweise.push(...su.hinweise);
+  // Wächter: insgesamt nie schlechter als heute, und keine Kachel schlechter als ihre Unsicherheit (letzter Ausweg)
+  let sg = bewerten(zustand);
+  const geaendert = p.regler.some((r) => zustand[r.id] !== alt[r.id]), verluste = kachelVerluste(heuteK, sg.kacheln);
+  if (geaendert && (sg.gesamt_roh < sh.gesamt_roh || Object.keys(verluste).length)) {
+    if (Object.keys(verluste).length) hinweise.push(`Wächter: Mit der besten Kombination würde ${verlustListe(verluste, heuteK)} schlechter (erlaubt: ${TEIL_UNSICHERHEIT} Punkt). Ich empfehle, nichts zu ändern.`);
+    else hinweise.push(`Wächter: Die beste Kombination wäre insgesamt nicht besser (Score ${zahlText(sh.gesamt_roh, 0)} → ${zahlText(sg.gesamt_roh, 0)}). Ich empfehle, nichts zu ändern.`);
+    zustand = { ...alt }; sg = sh;
+  }
+  const out = reglerVorschlag(p, teile, alt, zustand, sh, sg, vor, heute);
+  Object.assign(out, { hinweise, sub_zerlegt: zerlegt, sitzmodus: zwei ? "zwei" : "allein", sitzmodus_gewaehlt: sitzmodus, sitzplaetze: zwei ? sitze : sitze.slice(0, 1), ziel, abwaegung: null });
+  // Extrem: dieselbe Suche ohne Teilwert-Wächter; zur Wahl, wenn sie auf einer Kachel 2 Punkte mehr bringt (voreingestellt: ausgewogen)
+  if (ziel === "extrem" && teile.length >= ABWAEGUNG_PLAETZE) {
+    const zM = reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, false).zustand;
+    if (p.regler.some((r) => zM[r.id] !== zustand[r.id])) {
+      const sM = bewerten(zM);
+      if (sM.gesamt_roh >= sh.gesamt_roh) {
+        const a = abwaegung(heuteK, sg.kacheln, sM.kacheln);
+        if (a) { const m = reglerVorschlag(p, teile, alt, zM, sh, sM, vor, heute);
+          for (const k of ["geraet_einstellungen", "geaendert", "anleitung", "geschaetzt", "score_geraet", "je_platz", "kurve"]) a[k] = m[k];
+          out.abwaegung = a; }
+      }
+    }
+  }
+  return out;
+}
+// Aufnahmen rein, Vorschlag raus (wie raumcheck: nur saubere Aufnahmen, dazu die bewegte Messung; die ist kein Sitzplatz)
+function reglerRaumcheck(aufnahmen, bewegt, p, aktuell, modus, raumM3, sub, gedrehtDaten, sitzmodus = "allein", ziel = "ausgewogen") {
   const punkte = [];
   for (const { name, daten } of aufnahmen) { const a = analysiere(daten); if (a.pruefung.sauber) punkte.push({ name, messungen: a.messungen }); }
   if (!punkte.length) return { fehler: "Keine saubere Aufnahme dabei." };
+  const sitze = punkte.map((q) => q.name);
   if (bewegt) punkte.push(...bewegtePunkte(bewegt).punkte);
   let gedreht = null;
   if (gedrehtDaten) { const g = analysiere(gedrehtDaten); if (!g.pruefung.sauber) return { fehler: "Die Messung mit umgedrehter Sub-Polarität ist nicht sauber: " + g.pruefung.probleme.join(" ") }; gedreht = g.messungen; }
-  return reglerOptimieren(punkte, p, aktuell, modus, raumM3, sub, gedreht);
+  return reglerOptimieren(punkte, p, aktuell, modus, raumM3, sub, gedreht, sitzmodus || "allein", sitze, ziel || "ausgewogen");
 }
 // Unbekanntes Gerät: ein Profil aus den Reglern der allgemeinen Profile, die es laut Nutzer hat (wie regler.zusammensetzen)
 function reglerZusammensetzen(ids, profile) {
@@ -2976,7 +3582,7 @@ function kanalCheckAufnahme(daten, kanaele, layout, opt = {}, mikrofon = null, b
   return kanalCheck(aw, kanaele, layout, o);
 }
 
-if (typeof module !== "undefined") module.exports = { raumcheck, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, zahlText,
+if (typeof module !== "undefined") module.exports = { raumcheck, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, zahlText,
   nachpruefen, praesenzAusLeistung, praesenzAnhebung, raumUeberhoehung, direktschall, direktFenster, absenkungPruefen, reflexion, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
   baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort, kanalCheck, kanalCheckAufnahme, bewegtProben, KC };
 </script>
@@ -4262,12 +4868,13 @@ const GT = (() => {
 })();
 if (typeof module !== "undefined") module.exports = GT;
 </script>
-<script>// Mess-Seite: Geräte-Auswahl in Schritt 2 und die Karte „Einstellungen an deinen Geräten“ im Ergebnis.
+<script>// Mess-Seite: Geräte-Auswahl in „Meine Anlage“ (je Platz: vorne, Center, hinten, Sub, dazu Streamer/Wandler/Verstärker)
+// und die Karte „Einstellungen an deinen Geräten“ im Ergebnis.
 // Eigenständig (eigene ids gk-*), nutzt nur GT (geraetetipps.js) und den Katalog aus <script id="katalog-daten">.
-// Gemerkt wie die anderen Angaben aus Schritt 2 (localStorage „raumcheck-geraete“); jede Messrunde bekommt
-// ihre Wahl mit (runde.katalog), damit eine Runde mit umgedrehter Sub-Polarität als Vergleich dienen kann.
-// Den Anschluss des Subs fragt Schritt 2 einmal für alle Anlagen (#sub-anschluss, gemerkt als „raumcheck-sub“);
-// diese Antwort gilt auch hier. Wer ein Sub-Modell wählt, bekommt sie vorgeschlagen, solange sie offen ist.
+// Gemerkt in localStorage „raumcheck-geraete“; jede Messrunde bekommt ihre Wahl mit (runde.katalog), damit eine Runde
+// mit umgedrehter Sub-Polarität als Vergleich dienen kann (die Stellung fragt Schritt 5, #gk-messung).
+// Den Anschluss des Subs fragt „Meine Anlage“ (gemerkt als „raumcheck-sub“); diese Antwort gilt auch hier. Wer ein
+// Sub-Modell wählt, bekommt sie vorgeschlagen, solange sie offen ist.
 const GW = (() => {
   let KAT = [];
   try { KAT = JSON.parse(document.getElementById("katalog-daten").textContent); } catch (e) { KAT = []; }
@@ -4289,6 +4896,7 @@ const GW = (() => {
   function anschlussZeigen() {
     const sub = KAT.find((e) => e.id === wahl.sub);
     el("gk-sub-mehr").hidden = !sub;
+    if (el("gk-messung-zeile")) el("gk-messung-zeile").hidden = !sub;
     if (!sub) return;
     el("gk-platz").value = wahl.sub_platz || ""; el("gk-messung").value = wahl.messung || "normal";
   }
@@ -4302,8 +4910,10 @@ const GW = (() => {
   function start() {
     if (!el("gk-block")) return;
     liste("gk-ls-liste", LS_TYPEN); liste("gk-sub-liste", ["sub"]);
-    const ls = KAT.find((e) => e.id === wahl.lautsprecher), sub = KAT.find((e) => e.id === wahl.sub);
-    el("gk-ls").value = ls ? anzeige(ls) : ""; el("gk-sub").value = sub ? anzeige(sub) : "";
+    const name = (id) => { const e = KAT.find((x) => x.id === id); return e ? anzeige(e) : ""; };
+    el("gk-ls").value = name(wahl.lautsprecher); el("gk-sub").value = name(wahl.sub);
+    if (el("gk-center")) el("gk-center").value = name(wahl.center);
+    if (el("gk-rear")) el("gk-rear").value = name(wahl.rear);
     el("gk-kette").innerHTML = KAT.filter((e) => KETTE.includes(e.typ)).map((e) =>
       `<label class="klein"><input type="checkbox" data-gk-kette="${h(e.id)}"${(wahl.kette || []).includes(e.id) ? " checked" : ""}> ${h(anzeige(e))}</label>`).join("");
     anschlussZeigen(); zustand();
@@ -4313,16 +4923,26 @@ const GW = (() => {
       merken(wahl); anschlussZeigen(); anschlussVorschlagen(); zustand();
     });
     feld("gk-ls", LS_TYPEN, "lautsprecher"); feld("gk-sub", ["sub"], "sub");
+    if (el("gk-center")) feld("gk-center", LS_TYPEN, "center");
+    if (el("gk-rear")) feld("gk-rear", LS_TYPEN, "rear");
     el("gk-platz").addEventListener("change", () => { wahl.sub_platz = el("gk-platz").value; merken(wahl); });
     el("gk-messung").addEventListener("change", () => { wahl.messung = el("gk-messung").value; merken(wahl); });
     el("gk-kette").addEventListener("change", () => { wahl.kette = [...document.querySelectorAll("[data-gk-kette]")].filter((x) => x.checked).map((x) => x.dataset.gkKette); merken(wahl); zustand(); });
   }
+  const anzahl = () => [wahl.lautsprecher, wahl.center, wahl.rear, wahl.sub].filter((x) => x).length + (wahl.kette || []).length;
   function zustand() {
-    const n = [wahl.lautsprecher, wahl.sub].filter((x) => x).length + (wahl.kette || []).length;
-    el("gk-zustand").textContent = n ? `${n} Gerät${n > 1 ? "e" : ""} gewählt` : "";
+    const n = (wahl.kette || []).length;
+    el("gk-zustand").textContent = n ? `${n} gewählt` : "";
   }
+  // nur die Plätze, die das Layout hat (Center bei x.0/x.1 mit C, hinten bei SL/SR)
+  function layoutZeigen(kanaele) {
+    if (el("gk-zeile-center")) el("gk-zeile-center").hidden = !kanaele.includes("C");
+    if (el("gk-zeile-rear")) el("gk-zeile-rear").hidden = !kanaele.includes("SL");
+  }
+  const frontTyp = () => { const e = KAT.find((x) => x.id === wahl.lautsprecher); return e ? e.typ : null; };
+  const namen = () => [wahl.lautsprecher, wahl.sub].map((id) => KAT.find((x) => x.id === id)).filter((e) => e && !e.generisch).map((e) => e.name).join(", ");
   // Wahl für eine neue Messrunde (Kopie)
-  const fuerRunde = () => (wahl.lautsprecher || wahl.sub || (wahl.kette || []).length ? { ...JSON.parse(JSON.stringify(wahl)), anschluss: subFrage() || null } : null);
+  const fuerRunde = () => (anzahl() ? { ...JSON.parse(JSON.stringify(wahl)), anschluss: subFrage() || null } : null);
   // Karte für eine Runde; runden: alle Runden (für die Vergleichsmessung mit der anderen Sub-Stellung)
   function karte(r, runden) {
     const w = r.katalog;
@@ -4340,7 +4960,7 @@ const GW = (() => {
       ${e.unsicher.length ? `<span class="klein">${e.unsicher.map(h).join(" ")}</span>` : ""}
       <span class="klein">Nach jeder Änderung neu messen. Die Werte sind Startpunkte aus dieser Messung und den Herstellerangaben.</span></div>`;
   }
-  return { start, fuerRunde, karte, katalog: () => KAT };
+  return { start, fuerRunde, karte, katalog: () => KAT, wahl: () => wahl, anzahl, frontTyp, namen, layoutZeigen };
 })();
 GW.start();
 </script>
@@ -4804,6 +5424,7 @@ const schreiben = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }
 //   (Regler und Werte wie im Geräteprofil daten/geraete/<id>.json); App → Seite klangboxNativ.geraetAntwort(reqId,
 //   {ok, gesetzt: [Regler-id], nicht_unterstuetzt: [Regler-id]}). Sonst bleibt es bei der Anleitung zum Abtippen.
 // „Später nachmessen“: Seite → App {art: "nachmessenErinnern", runde, anlage} (die App darf daran erinnern).
+// Zuhause (Schritt 18): Seite → App {art: "lippenSync"} öffnet die native Lippen-Sync-Ansicht.
 // Klang-Box (App: BoxSteuerung.swift, Schnittstelle docs/box/SCHNITTSTELLE.md): klangboxNativ.boxen = {verfuegbar: true,
 //   version, layout, haupt, boxen}. Seite → App {art: "box", reqId, box: <id oder null = Hauptbox>, aufruf, daten};
 //   aufruf = Pfad der Schnittstelle („status“, „rolle“, „kanaele“, „funk“, „einstellungen“, „bestaetigen“,
@@ -4884,47 +5505,255 @@ const nativ = (() => {
 })();
 document.querySelectorAll("[data-scannen]").forEach((b) => { b.hidden = !nativ; b.addEventListener("click", () => nativ && nativ.raumNeuScannen()); });
 
-// --- Akzentfarbe (Blau, Mint, Violett) ----------------------------------------------------------
-const AKZENTE = { blau: ["Blau", "#7FB0FF"], mint: ["Mint", "#8CE0C4"], violett: ["Violett", "#B79CFF"] };
+// --- Akzentfarbe (Messing ist die Marke; Blau, Mint, Violett wählbar) ------------------------------------
+const AKZENTE = { messing: ["Messing", "#D9AE62"], blau: ["Blau", "#8FB8F0"], mint: ["Mint", "#8CE0C4"], violett: ["Violett", "#B79CFF"] };
 function setzeAkzent(name, melden) {
-  if (!AKZENTE[name]) name = "blau";
-  if (name === "blau") document.documentElement.removeAttribute("data-akzent"); else document.documentElement.dataset.akzent = name;
+  if (!AKZENTE[name]) name = "messing";
+  if (name === "messing") document.documentElement.removeAttribute("data-akzent"); else document.documentElement.dataset.akzent = name;
   document.querySelectorAll("[data-akzent]").forEach((b) => { if (b.tagName === "BUTTON") { const an = b.dataset.akzent === name; b.setAttribute("aria-checked", an); b.querySelector("i").textContent = an ? "✓" : ""; } });
   $("farbe-text").textContent = `Farbe: ${AKZENTE[name][0]}`;
   if (melden) { schreiben("raumcheck-akzent", name); if (nativ) nativ.ereignis({ art: "akzent", wert: name }); }
   try { if (window.Raum3D) window.Raum3D.setAkzent(); } catch (e) {}
 }
 document.querySelectorAll("button[data-akzent]").forEach((b) => b.addEventListener("click", () => setzeAkzent(b.dataset.akzent, true)));
-setzeAkzent(nativ && AKZENTE[nativ.akzentStart] ? nativ.akzentStart : lesen("raumcheck-akzent", "blau"), false);
-window.klangboxAkzent = (name) => { setzeAkzent(name, false); schreiben("raumcheck-akzent", AKZENTE[name] ? name : "blau"); };
+setzeAkzent(nativ && AKZENTE[nativ.akzentStart] ? nativ.akzentStart : lesen("raumcheck-akzent", "messing"), false);
+window.klangboxAkzent = (name) => { setzeAkzent(name, false); schreiben("raumcheck-akzent", AKZENTE[name] ? name : "messing"); };
 
 let modus = "kino";
 let dateien = [];      // {name, daten: Float32Array}
-let runden = [];       // gespeicherte Ergebnisse
+let runden = [];       // gespeicherte Ergebnisse, Stereo und Kino nebeneinander (je Modus eigene Geschichte)
 try { runden = JSON.parse(lesen("raumcheck-runden", "[]")); } catch (e) { runden = []; }
-modus = lesen("raumcheck-modus", "kino");
+modus = lesen("raumcheck-modus", "kino") === "stereo" ? "stereo" : "kino";
+// je Modus höchstens 12 Runden: eine neue Kino-Messung verdrängt nie die Stereo-Geschichte
+const rundenBehalten = () => { const n = {}; return runden.filter((r) => (n[r.modus] = (n[r.modus] || 0) + 1) <= 12); };
 $("raum").value = lesen("raumcheck-raum", "");
 // Handy-Mikrofon: Korrekturkurven aus daten/mikrofone. In der App schlägt die Gerätekennung das Modell vor
-// (iPhone18,x = iPhone-17-Reihe); bestätigen muss der Nutzer, denn Pro und Nicht-Pro haben andere Mikrofone.
+// (iPhone18,1/2 = iPhone 17 Pro). Ist das Handy bekannt, zeigt Schritt 3 nur eine Zeile mit „ändern“.
 let MIKROFONE = {};
 try { MIKROFONE = JSON.parse($("mikrofone-daten").textContent); } catch (e) { MIKROFONE = {}; }
 for (const [k, d] of Object.entries(MIKROFONE)) if (k !== "messmikro") { const o = document.createElement("option"); o.value = k; o.textContent = d.modell; $("handy").appendChild(o); }
+function handyZeigen(offen) {
+  const v = $("handy").value, bekannt = !!(v && MIKROFONE[v]) && !offen;
+  $("handy-zeile").hidden = bekannt; $("handy-erkannt").hidden = !bekannt;
+  if (bekannt) $("handy-erkannt-text").textContent = `✓ Handy: ${MIKROFONE[v].modell}${lesen("raumcheck-handy", null) === null ? " (erkannt)" : ""}`;
+}
 { const gemerkt = lesen("raumcheck-handy", null), kennung = (nativ && nativ.geraet) || "";
   const vorschlag = gemerkt !== null ? gemerkt : (/^iPhone18,[12]$/.test(kennung) ? "iphone-17-pro" : "");
   $("handy").value = MIKROFONE[vorschlag] || vorschlag === "" ? vorschlag : "";
-  if (gemerkt === null && vorschlag) { $("handy-hinweis").hidden = false; $("handy-hinweis").textContent = "Erkannt – bitte kurz prüfen. Mit der richtigen Auswahl rechne ich die Eigenheiten deines Mikrofons heraus."; }
-  $("handy").addEventListener("change", () => { schreiben("raumcheck-handy", $("handy").value); $("handy-hinweis").hidden = true; }); }
+  $("handy").addEventListener("change", () => { schreiben("raumcheck-handy", $("handy").value); $("handy-hinweis").hidden = true; handyZeigen(false); });
+  $("handy-aendern").addEventListener("click", () => handyZeigen(true));
+  handyZeigen(false); }
 $("raum").addEventListener("change", () => schreiben("raumcheck-raum", $("raum").value));
 
+// --- Meine Anlage ---------------------------------------------------------------------------------------------
+// Einmal einrichten, später „ändern“. Gefragt wird nur, was Einmessung und Signalweg brauchen: das Layout (der Sub
+// steckt in „.1“), wie der Sub hängt (nur für die Tipps zu Trennfrequenz und Phase) und freiwillig die Geräte aus dem
+// Katalog (geraetewahl.js, eigener Speicher „raumcheck-geraete“). Was falsch angegeben ist, findet der Kanal-Check.
+// Gespeichert als ein Objekt „raumcheck-meine-anlage“:
+//   { v: 1, gespeichert: bool, layout: "2.0"…"7.1", sub_anschluss: "hochpegel"|"line"|"boxen"|"lfe"|"funk"|"weiss"|"", name }
+// Daraus: messKanaele (Kino über die Box: das ganze Layout, Stereo: vorne + Sub), Layout der Box-Einrichtung (Schritt 14,
+// danach Decoder-Zuordnung), Kanal-Check, subAnschluss (Tipps, Regler in Schritt 11), anlageArt (Geräteprofil).
+// Lautsprecher-Layouts der Box (wie klangbox/layouts.py): jede Quelle geht auf jedes Layout
+const BOX_LAYOUTS = { "2.0": ["FL", "FR"], "2.1": ["FL", "FR", "SUB"], "3.0": ["FL", "FR", "C"], "3.1": ["FL", "FR", "C", "SUB"],
+  "4.0": ["FL", "FR", "SL", "SR"], "4.1": ["FL", "FR", "SL", "SR", "SUB"], "5.0": ["FL", "FR", "C", "SL", "SR"],
+  "5.1": ["FL", "FR", "C", "SL", "SR", "SUB"], "7.1": ["FL", "FR", "C", "SL", "SR", "BL", "BR", "SUB"] };
+const AF_LAYOUTS = ["2.0", "2.1", "3.1", "4.0", "4.1", "5.1"], AF_MEHR = ["3.0", "5.0", "7.1"];
+const hatSub = (l) => (BOX_LAYOUTS[l] || []).includes("SUB");
+const layoutMitSub = (l) => (hatSub(l) ? l : BOX_LAYOUTS[l.replace(/\.0$/, ".1")] ? l.replace(/\.0$/, ".1") : l);
+const layoutOhneSub = (l) => (hatSub(l) && BOX_LAYOUTS[l.replace(/\.1$/, ".0")] ? l.replace(/\.1$/, ".0") : l);
+const stereoLayout = (l) => (hatSub(l) ? "2.1" : "2.0");
+function layoutText(l) {
+  const k = BOX_LAYOUTS[l] || [], t = ["vorne L/R"];
+  if (k.includes("C")) t.push("Mitte"); if (k.includes("SL")) t.push("hinten L/R"); if (k.includes("BL")) t.push("ganz hinten L/R"); if (k.includes("SUB")) t.push("Sub");
+  return `${l} – ${t.join(", ")}`;
+}
+function layoutKurz(l) { const k = BOX_LAYOUTS[l] || [], n = k.filter((c) => c !== "SUB").length; return `${n} Boxen${k.includes("SUB") ? " + Sub" : ""}`; }
+// Draufsicht als kleines Bild: Bild oben, du in der Mitte, Lautsprecher als Quadrate, Sub in Akzentfarbe
+function layoutBild(l) {
+  const P = { FL: [22, 18], FR: [78, 18], C: [50, 18], SL: [12, 54], SR: [88, 54], BL: [32, 71], BR: [68, 71], SUB: [88, 33] };
+  let g = `<rect class="r" x="3" y="3" width="94" height="78" rx="9" stroke-width="1.5"/><rect class="bild" x="32" y="7" width="36" height="3.5" rx="1.75"/><circle class="du" cx="50" cy="54" r="6"/>`;
+  for (const ch of BOX_LAYOUTS[l] || []) { const [x, y] = P[ch];
+    g += ch === "SUB" ? `<rect class="sub" x="${x - 6}" y="${y - 6}" width="12" height="12" rx="3.5"/>` : `<rect class="ls" x="${x - 4.5}" y="${y - 5}" width="9" height="10" rx="2"/>`; }
+  return `<svg viewBox="0 0 100 84" aria-hidden="true">${g}</svg>`;
+}
+const MA_KEY = "raumcheck-meine-anlage";
+function maLaden() {
+  let a = null; try { a = JSON.parse(lesen(MA_KEY, "") || "null"); } catch (e) { a = null; }
+  if (a && a.v === 1 && BOX_LAYOUTS[a.layout]) return { sub_anschluss: "", name: "Wohnzimmer", ...a };
+  // Übernahme der alten Angaben (Schritt 2 bis Okt. 2026): Art der Anlage, Sub-Frage, Layout der Box-Einrichtung, Name und Modell
+  const altSub = lesen("raumcheck-sub", null), altGeraetSub = lesen("raumcheck-geraet-sub", "0") === "1";
+  let einAlt = {}; try { einAlt = JSON.parse(lesen("raumcheck-einrichtung", "{}")) || {}; } catch (e) { einAlt = {}; }
+  const sub = altSub !== null ? !!altSub : altGeraetSub;
+  let layout = BOX_LAYOUTS[einAlt.layout] ? einAlt.layout : sub ? "2.1" : "2.0";
+  layout = sub ? layoutMitSub(layout) : layout;
+  const name = (lesen("raumcheck-anlage", "Wohnzimmer") || "").trim(), modell = (lesen("raumcheck-modell", "") || "").trim();
+  const benutzt = ["raumcheck-art", "raumcheck-sub", "raumcheck-runden", "raumcheck-geraete"].some((k) => lesen(k, null) !== null);
+  return { v: 1, gespeichert: benutzt, layout, sub_anschluss: hatSub(layout) ? (altSub || (altGeraetSub ? "boxen" : "weiss")) : "",
+    name: modell ? `${name || "Anlage"} (${modell})` : name || "Wohnzimmer" };
+}
+let MA = maLaden();
+// alte Bestätigung („letzter guter Stand“) gilt nur für ihren Modus
+{ const alt = lesen("raumcheck-bestaetigt", null);
+  if (alt) { let b = null; try { b = JSON.parse(alt); } catch (e) {} if (b && b.art) schreiben(`raumcheck-bestaetigt-${b.modus === "stereo" ? "stereo" : "kino"}`, alt); schreiben("raumcheck-bestaetigt", ""); } }
+// Sub-Anschluss: "" = kein Sub im Layout, sonst der Anschluss. Er bestimmt die Hinweise zu Trennfrequenz und Phase und
+// welche Sub-Regler in Schritt 11 mitrechnen. Die alten Schlüssel schreibt die Seite weiter (geraetewahl.js liest sie).
+let subAnschluss = "", anlageArt = "aktiv";
+const FRONT_ART = { aktiv: "aktiv", passiv: "kette", soundbar: "soundbar", avr: "avr" };
+function maAnwenden() {
+  subAnschluss = hatSub(MA.layout) ? MA.sub_anschluss || "weiss" : "";
+  schreiben("raumcheck-sub", subAnschluss); schreiben("raumcheck-geraet-sub", subAnschluss ? "1" : "0");
+  // Geräteprofil (Schritt 11): nach dem gewählten Front-Lautsprecher, sonst wie bisher; eingerichtete Klang-Box: Heimkino
+  const alt = lesen("raumcheck-art", "");
+  anlageArt = alt === "heimkino" ? "heimkino" : FRONT_ART[GW.frontTyp()] || (FRONT_ART[alt] || ["kette"].includes(alt) ? alt : "") || "aktiv";
+  $("anlage").value = MA.name;
+}
+const maMerken = () => { schreiben(MA_KEY, JSON.stringify(MA)); maAnwenden(); };
+maAnwenden();
+const anlageName = () => ($("anlage").value || "").trim() || "Anlage";
+// Hinweis bei eigener Raumeinmessung der Anlage (z. B. Soundbar): mit und ohne messen, je eigener Name
+function zeigeChips() {
+  const eigene = anlageArt === "soundbar" || /soundbar|trueplay|raumeinmessung|room ?correction|dirac|audyssey/i.test(`${$("anlage").value} ${GW.namen()}`);
+  $("anlage-hinweis").hidden = !eigene;
+  $("anlage-hinweis").textContent = "Hat deine Anlage eine eigene Raumeinmessung? Dann miss einmal mit und einmal ohne sie und gib beiden Runden einen eigenen Namen. Ich vergleiche danach.";
+}
+$("anlage").addEventListener("input", () => { MA.name = $("anlage").value; schreiben(MA_KEY, JSON.stringify(MA)); schreiben("raumcheck-anlage", MA.name); zeigeChips(); });
+const SUB_VORSCHLAG = { aktiv: "boxen", kette: "line", soundbar: "funk", avr: "lfe", heimkino: "lfe" };
+const SUB_NAME = { hochpegel: "über Lautsprecherkabel (High-Level)", line: "über Cinch vom Verstärker (Line)", lfe: "am LFE-Ausgang", boxen: "am Sub-Ausgang der Boxen", funk: "kabellos", weiss: "Anschluss unbekannt" };
+const SUB_KARTEN = [["hochpegel", "An den Lautsprecherklemmen", "Kabel vom Verstärker, „High Level“ oder „Speaker In“"],
+  ["line", "Cinch vom Verstärker", "„Sub Out“ oder „Pre Out“ in „Line In“"], ["boxen", "Am Sub-Ausgang der Aktivboxen", "die Boxen trennen selbst"],
+  ["lfe", "LFE vom Receiver oder der Klang-Box", "Cinch in „LFE“"], ["funk", "Kabellos", "Funkmodul oder App"], ["weiss", "Weiß nicht", "die Messung zeigt die Phase, die Tipps bleiben allgemein"]];
+function subHinweis(a, art) {
+  const ganzAuf = "Am Sub die Trennfrequenz ganz aufdrehen (Maximum oder „LFE/Bypass“), sonst trennt es doppelt.";
+  return {
+    hochpegel: "Die Boxen spielen weiter den ganzen Bass, der Sub ergänzt nur unten. Trennfrequenz am Sub dort, wo die Boxen leiser werden (kleine Boxen etwa 80 Hz, Standboxen 40 bis 50 Hz). Die Lautstärke am Verstärker regelt beide. Phase 0° oder 180°: das zeigt die Messung.",
+    line: "Am Sub- oder Pre-Out kommt meist der volle Bass, die Boxen werden nicht entlastet. Dann wie bei Lautsprecherkabel: Trennfrequenz am Sub dort, wo die Boxen leiser werden, Phase nach der Messung. Hat der Verstärker selbst eine Trennfrequenz (Bassmanagement), stellst du sie dort ein. " + ganzAuf,
+    lfe: art === "heimkino" ? "Die Klang-Box trennt selbst (80 Hz) und stellt die Laufzeit ein. " + ganzAuf + " Phase am Sub auf 0°."
+      : "Die Trennung macht der Receiver oder die Klang-Box: Boxen auf „Klein“, meist 80 Hz. " + ganzAuf + " Abstand und Phase stellt das Gerät ein.",
+    boxen: "Die Boxen trennen selbst (in ihrer App: Sub-Trennfrequenz, Hochpass für die Boxen). " + ganzAuf + " Phase in der App der Boxen oder am Sub.",
+    funk: "Die Funkstrecke verzögert den Bass um einige Millisekunden. Trennung und Pegel stellt meist die App von Soundbar oder Boxen ein. Ob die Phase passt, zeigt die Messung.",
+    weiss: "Schau hinten am Sub: Lautsprecherkabel (Klemmen „High Level“, „Speaker In“), ein Cinchkabel („LFE“ oder „Line In“) oder gar kein Kabel (Funk)?",
+  }[a] || "";
+}
+// "" = kein Sub (Layout ohne .1), sonst der Anschluss (Layout bekommt die .1). Auch von Schritt 11 und geraetewahl.js.
+function setzeSub(a) {
+  MA.layout = a ? layoutMitSub(MA.layout) : layoutOhneSub(MA.layout);
+  if (a) MA.sub_anschluss = a;
+  maMerken(); geraetGedreht = null;
+  const o = $("s-ohnesub"); if (o && o.checked !== !a) { o.checked = !a; o.dispatchEvent(new Event("change")); }
+  if (typeof geraetFormular === "function") geraetFormular();
+  if (!document.querySelector('.schritt[data-s="2"]').hidden) afInhalt();
+}
+// Bildschirme von „Meine Anlage“: Lautsprecher → Geräte (freiwillig) → Sub-Anschluss (nur mit .1)
+const afFolge = () => ["lautsprecher", "geraete", ...(hatSub(MA.layout) ? ["sub"] : [])];
+let afJetzt = "lautsprecher", afMehr = AF_MEHR.includes(MA.layout);
+const reduziert = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+function afInhalt() {
+  const zeig = afMehr ? [...AF_LAYOUTS, ...AF_MEHR] : AF_LAYOUTS;
+  $("af-layouts").innerHTML = zeig.map((l) => `<button type="button" class="af-layout" data-af-layout="${l}" aria-pressed="${l === MA.layout}" aria-label="${layoutText(l)}">${layoutBild(l)}<b>${l}</b><small>${layoutKurz(l)}</small></button>`).join("");
+  $("af-mehr").hidden = afMehr;
+  $("af-messe").textContent = `Ich messe im Kino: ${layoutText(MA.layout)}. In Stereo: ${layoutText(stereoLayout(MA.layout))}.`;
+  $("af-sub").innerHTML = SUB_KARTEN.map(([k, t, s]) => `<button type="button" class="af-karte" data-af-sub="${k}" aria-pressed="${k === (MA.sub_anschluss || "")}">${t}<small>${s}</small></button>`).join("");
+  $("sub-hinweis").textContent = subHinweis(MA.sub_anschluss, anlageArt);
+  GW.layoutZeigen(BOX_LAYOUTS[MA.layout] || []);
+  const f = afFolge(), i = f.indexOf(afJetzt);
+  $("af-punkte").innerHTML = f.map((_, j) => `<i class="${j === i ? "an" : ""}"></i>`).join("");
+  document.querySelectorAll(".af-seite").forEach((s) => {
+    const w = s.querySelector(".af-weiter"), z = s.querySelector(".af-zurueck"), j = f.indexOf(s.dataset.frage);
+    if (w) w.textContent = j === f.length - 1 ? "Fertig" : s.dataset.frage === "geraete" && !GW.anzahl() ? "Überspringen" : "Weiter";
+    if (z) z.hidden = !(j > 0 || MA.gespeichert);
+  });
+}
+// seitlich wischen: die neue Seite kommt aus der Richtung, in die es weitergeht
+function afZeige(frage, richtung) {
+  const neu = document.querySelector(`.af-seite[data-frage="${frage}"]`), alt = document.querySelector(".af-seite.an");
+  afJetzt = frage; afInhalt();
+  if (alt === neu) return;
+  clearTimeout(neu._uhr); neu.inert = false; neu.classList.remove("links", "rechts"); neu.hidden = false; neu.classList.add("an");
+  if (!alt) return;
+  alt.classList.remove("an");
+  if (!richtung || reduziert()) { alt.hidden = true; return; }
+  neu.classList.add(richtung > 0 ? "rechts" : "links"); void neu.offsetWidth; neu.classList.remove("rechts", "links");
+  alt.inert = true; alt.classList.add(richtung > 0 ? "links" : "rechts");
+  alt._uhr = setTimeout(() => { alt.hidden = true; alt.inert = false; alt.classList.remove("links", "rechts"); }, 400);
+}
+function afWeiter() {
+  const f = afFolge(), i = f.indexOf(afJetzt);
+  // Sub-Modell gewählt, Layout ohne Sub: der Sub gehört dazu
+  if (afJetzt === "geraete" && GW.wahl().sub && !hatSub(MA.layout)) { MA.layout = layoutMitSub(MA.layout); if (!MA.sub_anschluss) MA.sub_anschluss = GT.anschlussVorschlag(GW.katalog(), GW.wahl().sub, GW.wahl().lautsprecher) || "weiss"; maMerken(); }
+  const g = afFolge();
+  // Sub-Anschluss noch offen: Vorschlag aus den gewählten Geräten (z. B. passive Boxen + Sub mit High-Level), sonst nach Art
+  if (g[i + 1] === "sub" && (!MA.sub_anschluss || MA.sub_anschluss === "weiss")) {
+    const w = GW.wahl(); MA.sub_anschluss = (w.sub && GT.anschlussVorschlag(GW.katalog(), w.sub, w.lautsprecher)) || SUB_VORSCHLAG[anlageArt] || "weiss"; maMerken();
+  }
+  if (i < g.length - 1) return afZeige(g[i + 1], 1);
+  MA.gespeichert = true; maMerken();
+  if (lesen("raumcheck-geraet-selbst", "") === "" && typeof geraetWahl !== "undefined") { geraetWahl = artProfil(anlageArt); }
+  zeigeSchritt(1);
+}
+function afZurueck() { const f = afFolge(), i = f.indexOf(afJetzt); if (i > 0) afZeige(f[i - 1], -1); else zeigeSchritt(1); }
+document.querySelectorAll(".af-weiter").forEach((b) => b.addEventListener("click", afWeiter));
+document.querySelectorAll(".af-zurueck").forEach((b) => b.addEventListener("click", afZurueck));
+$("af-mehr").addEventListener("click", () => { afMehr = true; afInhalt(); });
+$("af-layouts").addEventListener("click", (ev) => { const b = ev.target.closest("[data-af-layout]"); if (!b) return;
+  MA.layout = b.dataset.afLayout; maMerken(); afInhalt(); });
+$("af-sub").addEventListener("click", (ev) => { const b = ev.target.closest("[data-af-sub]"); if (b) setzeSub(b.dataset.afSub); });
+$("ma-aendern").addEventListener("click", () => zeigeSchritt(2));
+
+// --- Schritt 1: Stereo oder Kino einmessen; beide Ergebnisse nebeneinander ---------------------------------------
+const letzteRunde = (m) => runden.find((r) => r.modus === m && r.e && !r.e.fehler) || null;
+function standText(m) {
+  const r = letzteRunde(m); if (!r) return "noch nicht eingemessen";
+  const tag = String(r.zeit || "").split(",")[0];
+  return r.status === "bestaetigt" ? `eingemessen am ${tag} · nachgemessen` : `gemessen am ${tag} · Nachmessung offen`;
+}
+function modiZeigen() {
+  for (const m of ["stereo", "kino"]) { $(`m-${m}`).setAttribute("aria-pressed", m === modus); $(`m-stand-${m}`).textContent = standText(m); }
+  $("ma-text").textContent = MA.gespeichert ? `${MA.layout} · ${layoutKurz(MA.layout)}${GW.namen() ? ` · ${GW.namen()}` : ""}` : "noch nicht eingerichtet";
+  $("ma-messe").textContent = MA.gespeichert ? `Ich messe: ${layoutText(modus === "stereo" ? stereoLayout(MA.layout) : quelle === "box" ? boxLayout() : MA.layout)}` : "";
+  const bl = boxBereit() ? nativ.boxen.layout : null;
+  $("ma-box-hinweis").hidden = !(bl && bl !== MA.layout);
+  if (bl) $("ma-box-hinweis").textContent = `Die Klang-Box spielt gerade ${bl}. Für ${MA.layout} richte die Box neu ein.`;
+  hoereZeigen();
+}
 function setzeModus(m) {
-  modus = m;
-  $("m-kino").setAttribute("aria-pressed", m === "kino");
-  $("m-stereo").setAttribute("aria-pressed", m === "stereo");
-  schreiben("raumcheck-modus", m);
+  modus = m === "stereo" ? "stereo" : "kino";
+  schreiben("raumcheck-modus", modus);
+  if (typeof quelle !== "undefined") modiZeigen();
 }
 $("m-kino").addEventListener("click", () => setzeModus("kino"));
 $("m-stereo").addEventListener("click", () => setzeModus("stereo"));
-setzeModus(modus);
+$("m-weiter").addEventListener("click", () => zeigeSchritt(MA.gespeichert ? 3 : 2));
+// „Ich höre Stereo / Kino“ (nur mit Klang-Box): lädt die Einstellungen dieses Modus, die Box merkt sich beide (modus)
+function hoereExport(m) {
+  const r = runden.find((x) => x.modus === m && x.status === "bestaetigt" && x.e && x.e.einstellungen && x.e.einstellungen.FL);
+  if (r) return { obj: exportObjekt(r, "bestaetigt", r.e.einstellungen, r.profil), runde: r.id };
+  let b = null; try { b = JSON.parse(lesen(`raumcheck-bestaetigt-${m}`, "") || "null"); } catch (e) { b = null; }
+  return b && b.art === "klangbox-einstellungen" ? { obj: b, runde: null } : null;
+}
+function hoereZeigen(text) {
+  $("hoere").hidden = !boxBereit();
+  const h = lesen("raumcheck-hoere", "");
+  document.querySelectorAll("[data-hoere]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.hoere === h));
+  $("hoere-text").innerHTML = text || (h === "auto" ? "Die Box wählt selbst: Dolby/DTS heißt Kino, PCM heißt Stereo."
+    : h ? `Die Box spielt die ${h === "kino" ? "Kino" : "Stereo"}-Einmessung.` : "Welche Einmessung soll gerade wirken?");
+}
+document.querySelectorAll("[data-hoere]").forEach((b) => b.addEventListener("click", async () => {
+  const m = b.dataset.hoere;
+  if (m === "auto") {
+    const a = await nativ.box("modus", { modus: "auto" });
+    if (!a.ok) return hoereZeigen(`<span class="warn">Diese Klang-Box wählt noch nicht selbst (${esc(a.fehler || a.grund)}).</span>`);
+    schreiben("raumcheck-hoere", "auto"); return hoereZeigen();
+  }
+  const x = hoereExport(m);
+  if (!x) return hoereZeigen(`<span class="warn">${m === "kino" ? "Kino" : "Stereo"} ist noch nicht eingemessen und nachgemessen.</span>`);
+  hoereZeigen(`<span class="laeuft">Lade die ${m === "kino" ? "Kino" : "Stereo"}-Einmessung…</span>`);
+  const a = await nativ.box("einstellungen", { einstellungen: x.obj, profil: x.obj.einstellungen.profil || null, runde: x.runde, modus: m }, { zeitMs: 20000 });
+  if (!a.ok) return hoereZeigen(`<span class="warn">${esc(a.fehler || a.grund)}</span>`);
+  // Box mit zwei Einmessungen: diesen Modus fest wählen (ältere Box oder App kennt /api/modus nicht: dann reicht das Laden)
+  const w = await nativ.box("modus", { modus: m });
+  if (!w.ok && w.grund !== "unbekannt") return hoereZeigen(`<span class="warn">${esc(w.fehler || w.grund)}</span>`);
+  schreiben("raumcheck-hoere", m); hoereZeigen();
+}));
 // Sitzmodus (Schritt 5), gemerkt wie die anderen Wahlen
 let sitzmodus = lesen("raumcheck-sitzmodus", "allein") === "zwei" ? "zwei" : "allein";
 function setzeSitzmodus(m) {
@@ -4934,77 +5763,54 @@ function setzeSitzmodus(m) {
 }
 document.querySelectorAll("[data-sitzmodus]").forEach((b) => b.addEventListener("click", () => setzeSitzmodus(b.dataset.sitzmodus)));
 setzeSitzmodus(sitzmodus);
+// Ziel (Ästhetik / Ausgewogen / Extrem), gemerkt wie der Sitzmodus
+let messZiel = ["aesthetik", "ausgewogen", "extrem"].includes(lesen("raumcheck-ziel", "ausgewogen")) ? lesen("raumcheck-ziel", "ausgewogen") : "ausgewogen";
+function setzeZiel(z) {
+  messZiel = z;
+  document.querySelectorAll("[data-ziel]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.ziel === z));
+  schreiben("raumcheck-ziel", z);
+}
+document.querySelectorAll("[data-ziel]").forEach((b) => b.addEventListener("click", () => setzeZiel(b.dataset.ziel)));
+setzeZiel(messZiel);
+// Zusammenfassung der Wahl (Sitzmodus, Ziel) in der Klappe von Schritt 5
+function messWahlText() { const z = { aesthetik: "Ästhetik", ausgewogen: "Ausgewogen", extrem: "Extrem" }[messZiel] || "";
+  $("mess-wahl-text").textContent = `${sitzmodus === "zwei" ? "zu zweit" : "allein"} · ${z}`; }
+document.addEventListener("click", (ev) => { if (ev.target.closest("[data-sitzmodus], [data-ziel]")) messWahlText(); });
+messWahlText();
 
 // --- Geführter Ablauf (die App führt, Schritt für Schritt) --------------------------------------
-const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Ruhe und Lautstärke", "Hörplatz", "Bewegen", "Ergebnis", "Aufstellung",
-  "Klang wählen", "Anwenden und nachmessen", "Ohne Klang-Box", "Gefunden", "Hauptbox", "Lautsprecher", "Funk", "Anschließen", "Kanal-Check"];
+const SCHRITTE = ["", "Einmessen", "Meine Anlage", "Vorbereiten", "Ruhe und Lautstärke", "Hörplatz", "Bewegen", "Ergebnis", "Aufstellung",
+  "Klang wählen", "Anwenden und nachmessen", "Ohne Klang-Box", "Gefunden", "Hauptbox", "Lautsprecher", "Funk", "Anschließen", "Kanal-Check", "Zuhause"];
+let schrittJetzt = 0;
 function zeigeSchritt(n) {
-  document.querySelectorAll(".schritt").forEach((el) => { el.hidden = +el.dataset.s !== n; });
+  // Bildschirmwechsel mit Feder: vorwärts von rechts, zurück von links (CI: ci.css .rein-vor / .rein-zurueck)
+  const vor = n >= schrittJetzt || (schrittJetzt === 2 && n === 1 && MA.gespeichert);
+  document.querySelectorAll(".schritt").forEach((el) => {
+    const zeigen = +el.dataset.s === n; el.hidden = !zeigen; el.classList.remove("rein-vor", "rein-zurueck");
+    if (zeigen && schrittJetzt && n !== schrittJetzt && !reduziert()) { void el.offsetWidth; el.classList.add(vor ? "rein-vor" : "rein-zurueck"); }
+  });
+  if (schrittJetzt === 18 && n !== 18) zhAbZurueck();
+  schrittJetzt = n; document.body.dataset.schritt = n;
   const an = n === 17 ? 5 : n >= 12 ? Math.round((n - 11) / 5 * 7) : n;
   document.querySelectorAll("#fortschritt span").forEach((s, i) => s.classList.toggle("an", i < an));
-  $("schritt-text").textContent = n === 17 ? "Schritt 5 von 7 · Kanal-Check" : n >= 12 ? `Klang-Box einrichten · ${n - 11} von 5 · ${SCHRITTE[n]}` : n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
+  $("schritt-text").textContent = n === 18 ? "Zuhause" : n === 2 ? "Meine Anlage · einmal einrichten" : n === 17 ? "Schritt 5 von 7 · Kanal-Check" : n >= 12 ? `Klang-Box einrichten · ${n - 11} von 5 · ${SCHRITTE[n]}` : n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
   einrichtenZeigen(n);
-  if (n === 5) $("platz-bild").innerHTML = platzBild();
+  if (n === 1) modiZeigen();
+  if (n === 2) { afMehr = AF_MEHR.includes(MA.layout); afZeige("lautsprecher", 0); }
+  if (n === 3) zeigeChips();
+  if (n === 5) $("platz-bild").innerHTML = platzBild(); $("platz-bild").innerHTML = platzBild();
   if (n === 6) bewegenZeigen();
   pegelSchrittGewechselt(n);
   if (n === 8) planZeigen();
   if (n === 9) profilZeigen();
   if (n === 10) anwendenZeigen();
   if (n === 11) geraetZeigen();
+  if (n === 7) heldZeigen();
+  if (n === 18) zuhauseZeigen();
+  if (n === 1 || n === 7) zuhauseWege();
   window.scrollTo(0, 0);
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zu]"); if (b) zeigeSchritt(+b.dataset.zu); });
-// Art der Anlage (herstellerneutral): bestimmt das passende Geräteprofil für „Ohne Klang-Box“ (Schritt 11)
-let anlageArt = lesen("raumcheck-art", "aktiv");
-$("anlage").value = lesen("raumcheck-anlage", "Wohnzimmer"); $("anlage-modell").value = lesen("raumcheck-modell", "");
-const anlageName = () => { const n = ($("anlage").value || "").trim() || "Anlage", m = ($("anlage-modell").value || "").trim(); return m ? `${n} (${m})` : n; };
-function zeigeChips() {
-  document.querySelectorAll("[data-anlage-art]").forEach((c) => c.setAttribute("aria-pressed", c.dataset.anlageArt === anlageArt));
-  // eigene Raumeinmessung der Anlage (z. B. bei Soundbars): Vergleich mit und ohne als Hinweis
-  const t = `${$("anlage").value} ${$("anlage-modell").value}`;
-  const eigene = anlageArt === "soundbar" || /soundbar|sonos|trueplay|raumeinmessung|room ?correction|dirac|audyssey/i.test(t);
-  $("anlage-hinweis").hidden = !eigene;
-  $("anlage-hinweis").textContent = "Hat deine Anlage eine eigene Raumeinmessung? Dann miss einmal mit und einmal ohne sie und gib beiden Runden einen eigenen Namen. Ich vergleiche danach.";
-}
-function setzeArt(a) {
-  anlageArt = a; schreiben("raumcheck-art", a); zeigeChips(); subZeigen();
-  if (!lesen("raumcheck-geraet-selbst", "")) { geraetWahl = artProfil(a); geraetFormular(); }
-}
-document.querySelectorAll("[data-anlage-art]").forEach((c) => c.addEventListener("click", () => setzeArt(c.dataset.anlageArt)));
-// Subwoofer (jede Art der Anlage): "" = keiner, sonst der Anschluss. Er bestimmt die Hinweise zu Trennfrequenz und Phase
-// und welche Sub-Regler in Schritt 11 mitrechnen.
-const SUB_VORSCHLAG = { aktiv: "boxen", kette: "line", soundbar: "funk", avr: "lfe", heimkino: "lfe" };
-const SUB_NAME = { hochpegel: "über Lautsprecherkabel (High-Level)", line: "über Cinch vom Verstärker (Line)", lfe: "am LFE-Ausgang", boxen: "am Sub-Ausgang der Boxen", funk: "kabellos", weiss: "Anschluss unbekannt" };
-let subAnschluss = lesen("raumcheck-sub", null);
-if (subAnschluss === null) subAnschluss = lesen("raumcheck-geraet-sub", "0") === "1" ? "boxen" : "";
-function subHinweis(a, art) {
-  const ganzAuf = "Am Sub die Trennfrequenz ganz aufdrehen (Maximum oder „LFE/Bypass“), sonst trennt es doppelt.";
-  return {
-    hochpegel: "Die Boxen spielen weiter den ganzen Bass, der Sub ergänzt nur unten. Trennfrequenz am Sub dort, wo die Boxen leiser werden (kleine Boxen etwa 80 Hz, Standboxen 40 bis 50 Hz). Die Lautstärke am Verstärker regelt beide. Phase 0° oder 180°: das zeigt die Messung.",
-    line: "Am Sub- oder Pre-Out kommt meist der volle Bass, die Boxen werden nicht entlastet. Dann wie bei Lautsprecherkabel: Trennfrequenz am Sub dort, wo die Boxen leiser werden, Phase nach der Messung. Hat der Verstärker selbst eine Trennfrequenz (Bassmanagement), stellst du sie dort ein. " + ganzAuf,
-    lfe: art === "heimkino" ? "Die Klang-Box trennt selbst (80 Hz) und stellt die Laufzeit ein. " + ganzAuf + " Phase am Sub auf 0°."
-      : "Die Trennung macht der Receiver: Boxen auf „Klein“, meist 80 Hz. " + ganzAuf + " Abstand und Phase stellt der Receiver ein.",
-    boxen: "Die Boxen trennen selbst (in ihrer App: Sub-Trennfrequenz, Hochpass für die Boxen). " + ganzAuf + " Phase in der App der Boxen oder am Sub.",
-    funk: "Die Funkstrecke verzögert den Bass um einige Millisekunden. Trennung und Pegel stellt meist die App von Soundbar oder Boxen ein. Ob die Phase passt, zeigt die Messung.",
-    weiss: "Schau hinten am Sub: Lautsprecherkabel (Klemmen „High Level“, „Speaker In“), ein Cinchkabel („LFE“ oder „Line In“) oder gar kein Kabel (Funk)?",
-  }[a] || "";
-}
-function subZeigen() {
-  $("sub-nein").setAttribute("aria-pressed", !subAnschluss); $("sub-ja").setAttribute("aria-pressed", !!subAnschluss);
-  $("sub-wie").hidden = !subAnschluss;
-  if (subAnschluss) $("sub-anschluss").value = subAnschluss;
-  $("sub-hinweis").textContent = subHinweis(subAnschluss, anlageArt);
-}
-function setzeSub(a) {
-  subAnschluss = a; schreiben("raumcheck-sub", a); schreiben("raumcheck-geraet-sub", a ? "1" : "0"); geraetGedreht = null; subZeigen();
-  const o = $("s-ohnesub"); if (o && o.checked !== !a) { o.checked = !a; o.dispatchEvent(new Event("change")); }
-  if (typeof geraetFormular === "function") geraetFormular();
-}
-$("sub-nein").addEventListener("click", () => setzeSub(""));
-$("sub-ja").addEventListener("click", () => setzeSub(subAnschluss || SUB_VORSCHLAG[anlageArt] || "weiss"));
-$("sub-anschluss").addEventListener("change", () => setzeSub($("sub-anschluss").value));
-$("anlage").addEventListener("input", () => { schreiben("raumcheck-anlage", $("anlage").value); zeigeChips(); });
-$("anlage-modell").addEventListener("input", () => { schreiben("raumcheck-modell", $("anlage-modell").value); zeigeChips(); });
 // Wächter Vorbereitung: alles abgehakt und eine gültige Signalquelle
 $("vorb-weiter").addEventListener("click", () => {
   const offen = [...document.querySelectorAll(".pflicht")].filter((c) => !c.checked).length;
@@ -5085,7 +5891,7 @@ function bewegenZeigen() {
   ].map((t) => `<li>${t}</li>`).join("") + (kino ? `<li class="klein" style="list-style: none; margin-left: -20px">Großes Sofa? Rutsch langsam mit, damit das Handy auch über die äußeren Plätze kommt.</li>` : "");
 }
 let hauptDaten = null;  // saubere Aufnahme am Hörplatz
-$("naechste-anlage").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); $("anlage").value = ""; $("anlage-modell").value = ""; zeigeChips(); zeigeSchritt(2); });
+$("naechste-anlage").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); $("anlage").value = ""; MA.name = ""; schreiben(MA_KEY, JSON.stringify(MA)); zeigeChips(); zeigeSchritt(2); });
 $("neu-messen").addEventListener("click", () => { dateien = []; hauptDaten = null; zeigeDateien(); zeigeSchritt(4); });
 
 function zeigeDateien() {
@@ -5129,12 +5935,9 @@ const drahtlos = () => (nativ && sig.webkitCurrentPlaybackTargetIsWireless === u
 const boxBereit = () => !!(nativ && nativ.boxen && nativ.boxen.haupt);
 const boxLayout = () => (boxBereit() && nativ.boxen.layout) || "2.0";
 const K2 = ["FL", "FR"], K4 = ["FL", "FR", "SL", "SR"];
-// Lautsprecher-Layouts der Box (wie klangbox/layouts.py): jede Quelle geht auf jedes Layout
-const BOX_LAYOUTS = { "2.0": ["FL", "FR"], "2.1": ["FL", "FR", "SUB"], "3.0": ["FL", "FR", "C"], "3.1": ["FL", "FR", "C", "SUB"],
-  "4.0": ["FL", "FR", "SL", "SR"], "4.1": ["FL", "FR", "SL", "SR", "SUB"], "5.0": ["FL", "FR", "C", "SL", "SR"],
-  "5.1": ["FL", "FR", "C", "SL", "SR", "SUB"], "7.1": ["FL", "FR", "C", "SL", "SR", "BL", "BR", "SUB"] };
-// über die Box: alle Lautsprecher des Layouts (ohne Sub), FL, FR, dann C, SL/SR, BL/BR
-const messKanaele = () => (quelle === "box" ? (BOX_LAYOUTS[boxLayout()] || K2).filter((c) => c !== "SUB") : K2);
+// Über die Box: Kino misst alle Lautsprecher des eingerichteten Layouts (ohne Sub; FL, FR, dann C, SL/SR, BL/BR), Stereo nur
+// die Fronts. Ohne Box (AirPlay, anderes Gerät) kommen immer nur links und rechts an.
+const messKanaele = () => (quelle === "box" && modus !== "stereo" ? (BOX_LAYOUTS[boxLayout()] || K2).filter((c) => c !== "SUB") : K2);
 const mitHinten = (l) => (BOX_LAYOUTS[l] || []).includes("SL");
 const BOX_FOLGE = { "raumcheck.wav": "standard", "bewegen.wav": "bewegt", "pegel.wav": "pegel" };
 function setzeQuelle(q) {
@@ -5338,14 +6141,17 @@ async function aufnehmenKern(ui, src, sekundenExtern, tick) {
     let ausGesetzt = false;
     if (!ui.mitEinstellungen) {
       const st = await nativ.box("status", {});
-      if (st.ok && st.einstellungen && st.einstellungen.id && !st.aus) {
+      // je Modus (Box mit Stereo und Kino): wirkt in diesem Modus eine Einstellung, auch eine vom anderen Modus übernommene?
+      const em = st.ok && st.modi && st.modi[modus] ? st.modi[modus] : st.einstellungen;
+      if (st.ok && em && (em.id || em.abgeleitet_id) && !st.aus) {
         const x = await nativ.box("aus", { aus: true });
         if (!x.ok) { ende(); status(`<span class="warn">Die Klang-Box lässt sich nicht auf „Alles aus“ stellen: ${esc(x.fehler || x.grund)}</span>`); return null; }
         ausGesetzt = true;
       }
     }
-    let a = await nativ.box("messsignal", { kanaele: folge === "standard" ? (ui.kanaele || messKanaele()) : K2, folge, start_in_ms: 1500 }, { zeitMs: 10000 });
-    if (!a.ok && folge === "pegel" && a.grund === "falsche_eingabe") a = await nativ.box("messsignal", { kanaele: K2, folge: "standard", start_in_ms: 1500 }, { zeitMs: 10000 });
+    // modus: die Box spielt das Layout und die Einstellung dieses Modus und bleibt beim Einmessen in ihm (ältere Box: ignoriert)
+    let a = await nativ.box("messsignal", { kanaele: folge === "standard" ? (ui.kanaele || messKanaele()) : K2, folge, start_in_ms: 1500, modus }, { zeitMs: 10000 });
+    if (!a.ok && folge === "pegel" && a.grund === "falsche_eingabe") a = await nativ.box("messsignal", { kanaele: K2, folge: "standard", start_in_ms: 1500, modus }, { zeitMs: 10000 });
     const zurueck = () => { if (ausGesetzt) nativ.box("aus", { aus: false }); };
     if (!a.ok) { zurueck(); ende(); status(`<span class="warn">Die Klang-Box spielt das Messsignal nicht: ${esc(a.fehler || a.grund)}</span>`); return null; }
     // start_ms ist Unix-Zeit der Box; die Uhr des iPhones kann etwas abweichen, deshalb höchstens 60 s
@@ -5641,15 +6447,16 @@ self.onmessage = (ev) => {
       let kette = null, ungefaehr = false;
       if (ev.data.geraet) { const k = reglerKetten(ev.data.geraet, ev.data.geraetAlt, ev.data.geraetNeu); kette = k.lautsprecher; ungefaehr = k.sub.k.length > 0 || k.sub.faktor !== 1; }
       self.postMessage({ ok: true, ergebnis: nachpruefen(Object.fromEntries(v.map((x) => [x.name, x.messungen])), n.map((x) => ({ name: x.name, messungen: x.messungen })),
-        ev.data.einstellungen, ev.data.profil, ev.data.modus, ev.data.raumM3, undefined, kette, ungefaehr, ev.data.sitzmodus || "allein") }); return;
+        ev.data.einstellungen, ev.data.profil, ev.data.modus, ev.data.raumM3, undefined, kette, ungefaehr, ev.data.sitzmodus || "allein", ev.data.akzeptiert || null,
+        ev.data.geraet ? { profil: ev.data.geraet, alt: ev.data.geraetAlt, neu: ev.data.geraetNeu } : null) }); return;
     }
     if (ev.data.art === "regler") {
       const auf = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
       self.postMessage({ ok: true, ergebnis: reglerRaumcheck(auf, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.geraet, ev.data.aktuell, ev.data.modus,
-        ev.data.raumM3, ev.data.sub, ev.data.gedreht ? new Float64Array(ev.data.gedreht) : null) }); return;
+        ev.data.raumM3, ev.data.sub, ev.data.gedreht ? new Float64Array(ev.data.gedreht) : null, ev.data.sitzmodus || "allein", ev.data.ziel || "ausgewogen") }); return;
     }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
-    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null, ev.data.sitzmodus || "allein") });
+    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null, ev.data.sitzmodus || "allein", ev.data.ziel || "ausgewogen") });
   } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
 };`;
 const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
@@ -5671,13 +6478,13 @@ async function auswerten(bewegt) {
   $("auswerten").disabled = true;
   const kanaele = dateien[0].kanaele || K2;
   const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null,
-                            mikrofon: MIKROFONE[$("handy").value] || null, kanaele, sitzmodus });
+                            mikrofon: MIKROFONE[$("handy").value] || null, kanaele, sitzmodus, ziel: messZiel });
   $("auswerten").disabled = !dateien.length;
   if (!r.ok) { $(ziel).innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
-  const runde = { id: `r${Date.now()}`, anlage: anlageName(), art: anlageArt, modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis, profil_id: "neutral", status: "vorhergesagt", kanaele, katalog: GW.fuerRunde(),
+  const runde = { id: `r${Date.now()}`, anlage: anlageName(), art: anlageArt, modus, meine_anlage: { ...MA }, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis, profil_id: "neutral", status: "vorhergesagt", kanaele, katalog: GW.fuerRunde(),
     kanalcheck: typeof kcStand !== "undefined" && kcStand && kcStand.kc ? { bassende_hz: kcStand.kc.bassende_hz, layout: kcStand.kc.layout_vorschlag } : null };
   runden.unshift(runde);
-  schreiben("raumcheck-runden", JSON.stringify(runden.slice(0, 12)));
+  runden = rundenBehalten(); schreiben("raumcheck-runden", JSON.stringify(runden));
   messdaten = r.ergebnis.fehler ? null : { id: runde.id, dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null, kanaele };
   dateien = []; hauptDaten = null; zeigeDateien(); $(ziel).innerHTML = "";
   if (nativ && !r.ergebnis.fehler) nativ.ereignis({ art: "ergebnis", score: r.ergebnis.score_prognose.gesamt, ohne: r.ergebnis.score_heute.gesamt });
@@ -5714,6 +6521,34 @@ function praesenzKarte(r, i) {
     ${v.length && i === 0 ? `<label class="klein"><input type="checkbox" data-praesenz="${i}"${an ? " checked" : ""}> Auf Wunsch sanft absenken (${esc(filt)}). Die Nachmessung prüft, ob es wirkt, und nimmt es sonst zurück.</label>` : ""}
     <span class="klein">Nur ein Hinweis: Ob der Buckel vom Raum oder vom Abstrahlverhalten der Box kommt, trennt das iPhone nicht sicher. Der Charakter der Box bleibt, solange du nichts ankreuzt.</span></div>`;
 }
+// Ziel „Extrem“: Abwägung zur Wahl (abwaegung in analyse.js). Voreingestellt bleibt „ausgewogen“; die Wahl gilt für diese
+// Runde, die Pflicht-Nachmessung prüft die bewusst in Kauf genommene Kachel gegen die Prognose der gewählten Variante.
+const ABW_FELDER = { box: ["einstellungen", "score_prognose", "kurve", "kurve_voll"],
+  geraet: ["geraet_einstellungen", "geaendert", "anleitung", "geschaetzt", "score_geraet", "je_platz", "kurve"] };
+const abwaegungVon = (r, art) => (art === "box" ? r.e : r.geraet) && (art === "box" ? r.e : r.geraet).abwaegung;
+const abwaegungAkzeptiert = (r, art) => ((r.abwaegung_wahl || {})[art] === "mehr" && abwaegungVon(r, art) ? abwaegungVon(r, art).akzeptiert : null);
+function abwaegungKarte(r, i, art) {
+  const a = abwaegungVon(r, art); if (!a || i < 0) return "";
+  const mehr = (r.abwaegung_wahl || {})[art] === "mehr";
+  return `<div class="card abwaegung"><span class="marke">Extrem: deine Wahl</span><p style="font-size:15px">${esc(a.frage)}</p>
+    <div class="wahl" role="group" aria-label="Abwägung"><button type="button" data-abwaegung="${i}:${art}:ausgewogen" aria-pressed="${!mehr}">Ausgewogen<small>kein Teilwert schlechter (voreingestellt)</small></button>
+    <button type="button" data-abwaegung="${i}:${art}:mehr" aria-pressed="${mehr}">Mehr ${esc(a.titel)}<small>bewusst in Kauf genommen, die Nachmessung prüft gegen diese Prognose</small></button></div></div>`;
+}
+function abwaegungWaehlen(r, art, wahl) {
+  const quelle = art === "box" ? r.e : r.geraet, a = quelle && quelle.abwaegung; if (!a) return;
+  r.abwaegung_ausgewogen = r.abwaegung_ausgewogen || {};
+  if (!r.abwaegung_ausgewogen[art]) r.abwaegung_ausgewogen[art] = JSON.parse(JSON.stringify(Object.fromEntries(ABW_FELDER[art].map((k) => [k, quelle[k]]))));
+  const neu = wahl === "mehr" ? a : r.abwaegung_ausgewogen[art];
+  for (const k of ABW_FELDER[art]) quelle[k] = JSON.parse(JSON.stringify(neu[k]));
+  r.abwaegung_wahl = { ...(r.abwaegung_wahl || {}), [art]: wahl };
+  if (art === "box" && r.praesenz_absenkung) praesenzAbsenkungSetzen(r, true);
+  delete r.urteil; r.status = "vorhergesagt";
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-abwaegung]"); if (!b) return;
+  const [i, art, wahl] = b.dataset.abwaegung.split(":"), r = runden[+i]; if (!r) return;
+  abwaegungWaehlen(r, art, wahl); rundeSpeichern(); zeigeAlles(); if (art === "geraet") geraetErgebnisZeigen(r);
+});
 // Absenkung an- oder abwählen: Filter ab 1 kHz gehören nur ihr (der Raum-EQ endet bei 300 Hz)
 function praesenzAbsenkungSetzen(r, an) {
   const u = r.e.raum_ueberhoehung;
@@ -5739,7 +6574,7 @@ function hebelMassnahme(h) {
   return `Zuerst deinen Sub einstellen: Pegel, ${tf} und Phase, jeweils mit Nachmessung („Ohne Klang-Box: die Regler“ rechnet das vor). `
     + "Hilft das nicht genug, das Sofa 20 bis 40 cm nach vorne oder hinten rücken und neu messen. Erst zuletzt: ein zweiter Sub.";
 }
-function karte(r, i) {
+function karte(r, i, gross = false) {
   const e = r.e;
   const pruef = `<ul class="klein" style="margin:0; padding-left:18px">${e.aufnahmen.map((a) =>
     `<li><b class="${a.sauber ? "ok" : "warn"}">${a.sauber ? "sauber" : "nicht verwendet"}</b> · ${esc(a.platz)}${a.probleme.length ? "<br>" + a.probleme.map(esc).join("<br>") : ""}</li>`).join("")}</ul>`;
@@ -5747,13 +6582,20 @@ function karte(r, i) {
     : r.status === "zurueckgenommen" ? `<span class="marke" style="color: var(--warn)">zurückgenommen (nachgemessen)</span>`
     : `<span class="marke" style="color: var(--warn)">vorhergesagt – Nachmessung steht noch aus</span>`;
   const sitz = e.sitzmodus ? ` · ${e.sitzmodus === "zwei" ? "zu zweit (Sofa)" : "allein in der Mitte"}` : "";
-  const kopf = `<div style="display:grid; gap:4px"><span class="eyebrow">${esc(r.anlage)} · ${r.modus === "kino" ? "Kino" : "Stereo"}${sitz} · ${esc(r.zeit)}</span>${status}<h2 style="font-size: 28px">So klingt dein Raum</h2></div>`;
+  const kopf = `<div style="display:grid; gap:4px"><span class="eyebrow">${esc(r.anlage)} · ${r.modus === "kino" ? "Kino" : "Stereo"}${sitz} · ${esc(String(r.zeit || "").replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1"))}</span>${status}<h2 style="font-size: 28px">So klingt dein Raum</h2></div>`;
   const loeschen = `<button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button>`;
   if (e.fehler) return `<section class="runde card">${kopf}<p class="warn">${esc(e.fehler)}</p>${pruef}${loeschen}</section>`;
   const sh = e.score_heute, sp = e.score_prognose;
   const tipps = e.tipps.length ? `<div><span class="klein">Tipps (freiwillig)</span><ul class="klein" style="margin:4px 0 0; padding-left:18px">${e.tipps.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
   const pm = (s) => (s.plusminus ? ` ±${s.plusminus}` : "");
-  const zahlen = r.geraet && !r.geraet.fehler ? dreiWerte(r) : `<div class="zahlpaar">
+  // Neueste Runde: Held mit zwei Scheiben (mit Klang-Box groß, heute klein), Wellen und Jubel (heldZeigen)
+  const plus = sp.gesamt - sh.gesamt;
+  const held = `<div class="held" data-held>
+      <div class="held-wellen" aria-hidden="true">${[0, 1, 2, 3, 4, 5].map((k) => `<i style="--k:${k}"></i>`).join("")}</div>
+      <div class="scheibe gross"><span class="lbl">mit Klang-Box</span><span class="zahl" data-zaehle="${sp.gesamt}" data-takt="b">${sp.gesamt}</span><span class="note">${esc(sp.note || "")}<span class="pm">${pm(sp)}</span></span></div>
+      <div class="scheibe klein"><span class="lbl">heute</span><span class="zahl" data-zaehle="${sh.gesamt}" data-takt="h">${sh.gesamt}</span><span class="note">${esc(sh.note || "")}</span></div>
+      ${plus > 0 ? `<span class="plus">+<span data-zaehle="${plus}" data-takt="b">${plus}</span></span>` : ""}</div><!--ERINNERUNG-->`;
+  const zahlen = r.geraet && !r.geraet.fehler ? dreiWerte(r) : gross ? held : `<div class="zahlpaar">
       <div class="zahlkarte"><span class="lbl">heute</span><span class="zahl" style="color: var(--heute)">${sh.gesamt}</span><span class="note">${esc(sh.note || "")}<span class="pm">${pm(sh)}</span></span></div>
       <div class="zahlkarte prog"><span class="lbl">mit Klang-Box</span><span class="zahl" style="color: var(--akzent)">${sp.gesamt}</span><span class="note">${esc(sp.note || "")}<span class="pm">${pm(sp)}</span></span></div></div>`;
   const ende = `<div class="card"><span class="klein">Bass am Hauptplatz (dB)</span>${kurveSvg(e.kurve)}
@@ -5772,7 +6614,7 @@ function karte(r, i) {
       <td class="n" style="color: var(--heute)">${a.punkte ?? "–"}</td><td class="n" style="color: var(--akzent)">${b.punkte ?? "–"}</td>
       <td class="n klein">${b.gewicht}%${ca}</td></tr>`; }).join("");
   const rt = raumTippsMitScan(e.raum_tipps || []);
-  return `<section class="runde" style="display:grid; gap:12px">${kopf}${zahlen}${praesenzKarte(r, i)}
+  return `<section class="runde" style="display:grid; gap:12px">${kopf}${zahlen}${abwaegungKarte(r, i, "box")}${praesenzKarte(r, i)}
     <p class="klein">${esc(e.score_name)} von 0 bis 100${pm(sh) || pm(sp) ? `, Messunsicherheit heute${pm(sh)}, Prognose${pm(sp)}` : ""}. 90 Referenz · 75 Sehr gut · 60 Gut · 40 Ordentlich.${sp.gekappt ? " Prognose begrenzt: ein Kernwert ist noch schwach." : ""}${
       e.sitzmodus === "zwei" ? ` Sitzmodus zu zweit: Laufzeit und Pegel für die Mitte zwischen ${(e.sitzplaetze || []).length} Plätzen, die Bühne zählt am schlechteren Platz.`
       : e.sitzmodus_gewaehlt === "zwei" ? " Zu zweit braucht mindestens zwei gemessene Plätze: gerechnet wurde für den Hauptplatz." : ""}</p>
@@ -5900,7 +6742,7 @@ function raumgroesseAusScan(roh, sc) {
   o.value = String(Math.round(v * 10) / 10);
   o.textContent = `Aus dem Raumscan: ${f1(flaeche)} m², ${f1(v)} m³`;
   $("raum").value = o.value;
-  $("raum-hinweis").hidden = false;
+  $("raum-hinweis").hidden = false; $("raum-zeile").hidden = true;  // aus dem Scan bekannt: nicht mehr fragen
   $("raum-hinweis").textContent = `✓ Raumgröße aus dem Raumscan: ${f1(flaeche)} m², ${f1(v)} m³ (${f2(sc.breite)} × ${f2(sc.laenge)} m, ${f2(sc.hoehe)} m hoch)`;
 }
 function scanAnwenden(roh, { wand = null, felder = true, bestaetigt = false, quelle = "Datei" } = {}) {
@@ -5927,7 +6769,7 @@ function scanVergessen() {
   $("s-scan-wahl").hidden = true; $("s-scan-weg").hidden = true;
   $("s-scan-text").textContent = "Mit der Klang-Box-App gescannt? Lade die raum.json: Maße, Türen, Fenster und Möbel werden übernommen.";
   const o = $("raum").querySelector("option[data-scan]"); if (o) { o.remove(); $("raum").value = lesen("raumcheck-raum", ""); }
-  $("raum-hinweis").hidden = true; planZeigen(); zeigeAlles();
+  $("raum-hinweis").hidden = true; $("raum-zeile").hidden = false; planZeigen(); zeigeAlles();
 }
 $("s-raumdatei").addEventListener("change", async (ev) => {
   const f = ev.target.files[0]; ev.target.value = "";
@@ -6204,22 +7046,88 @@ $("s-ergebnis").addEventListener("click", (ev) => {
 function nachhallUebernehmen() { const r = runden.find((x) => x.e && x.e.score_heute && x.e.score_heute.werte && x.e.score_heute.werte.raum); if (r) $("s-t60").value = (Math.round(r.e.score_heute.werte.raum * 100) / 100).toString(); }
 
 function zeigeAlles() {
-  const offen = runden[0] && !runden[0].e.fehler && runden[0].status === "vorhergesagt" ? runden[0] : null;
-  $("ergebnisse").innerHTML = (offen ? `<div class="hebel" id="erinnerung"><span class="marke">Nachmessung steht noch aus</span>
+  // Stereo und Kino nebeneinander: oben umschalten, darunter nur die Runden dieses Modus (Vergleich unten: alle)
+  const j = runden.findIndex((r) => r.modus === modus), erste = j >= 0 ? runden[j] : null;
+  const offen = erste && !erste.e.fehler && erste.status === "vorhergesagt" ? erste : null;
+  const seg = `<div class="reihe"><div><span class="eyebrow">Einmessung</span><span class="klein">${modus === "kino" ? "Stereo" : "Kino"}: ${esc(standText(modus === "kino" ? "stereo" : "kino"))}</span></div>
+    <div class="seg" role="group" aria-label="Einmessung"><button type="button" data-erg-modus="stereo" aria-pressed="${modus === "stereo"}">Stereo</button><button type="button" data-erg-modus="kino" aria-pressed="${modus === "kino"}">Kino</button></div></div>`;
+  // Nur die neueste Runde groß; frühere klappen zu („Frühere Messungen“), damit die Seite kurz bleibt
+  const eigene = runden.map((r, i) => [r, i]).filter(([r]) => r.modus === modus);
+  const frueher = eigene.slice(1).map(([r, i]) => karte(r, i)).join("");
+  const karten = (eigene.length ? karte(eigene[0][0], eigene[0][1], true)
+    + (frueher ? `<details class="mehr frueher"><summary>Frühere Messungen (${eigene.length - 1})</summary>${frueher}</details>` : "") : "")
+    || `<div class="card"><p>Noch keine ${modus === "kino" ? "Kino" : "Stereo"}-Einmessung.</p><button type="button" data-zu="3">${modus === "kino" ? "Kino" : "Stereo"} jetzt einmessen</button></div>`;
+  const erinnerung = (offen ? `<div class="hebel" id="erinnerung"><span class="marke">Nachmessung steht noch aus</span>
       <p style="font-size:14px">${offen.spaeter ? "Du wolltest später nachmessen. " : ""}Erst die Nachmessung zeigt, ob es wirklich besser klingt. Bis dahin ist das Ergebnis nur vorhergesagt.</p>
-      <button type="button" data-nachmessen="${offen.spaeter && offen.spaeter.art === "geraet" ? "geraet" : "box"}">Jetzt nachmessen</button></div>` : "")
-    + runden.map(karte).join("");
+      <button type="button" data-nachmessen="${offen.spaeter && offen.spaeter.art === "geraet" ? "geraet" : "box"}">Jetzt nachmessen</button></div>` : "");
+  // Held zuerst, die Erinnerung ans Nachmessen gleich darunter (ohne Held: ganz oben)
+  $("ergebnisse").innerHTML = karten.includes("<!--ERINNERUNG-->") ? karten.replace("<!--ERINNERUNG-->", erinnerung) : erinnerung + karten;
+  $("ergebnisse").insertAdjacentHTML("afterbegin", seg);
   const gueltig = runden.filter((r) => !r.e.fehler);
   $("vergleich-karte").hidden = gueltig.length < 1;
   $("vergleich").innerHTML = gueltig.map((r) => `<tr><td>${esc(r.anlage)}</td><td>${r.modus === "kino" ? "Kino" : "Stereo"}</td>
     <td class="n" style="color: var(--heute)">${r.e.score_heute.gesamt}</td><td class="n" style="color: var(--akzent)">${r.e.score_prognose.gesamt}</td></tr>`).join("");
 }
+// Ergebnis-Held: Count-up (heute, dann mit Klang-Box), Wellen werden mit dem Score kräftiger, danach ein kleiner Jubel.
+// Bei „Bewegung reduzieren“ stehen die Zahlen sofort (CI: docs/ci/CI.md, Abschnitt Wellen-Motiv).
+let heldUhr = 0;
+function heldZeigen() {
+  const h = document.querySelector("#ergebnisse [data-held]"); cancelAnimationFrame(heldUhr);
+  if (!h) return;
+  h.classList.remove("feier");
+  const zahlen = [...h.querySelectorAll("[data-zaehle]")];
+  if (reduziert()) { h.style.setProperty("--q", 1); return; }
+  const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3), t0 = performance.now();
+  const takt = { h: [0.15, 1.1], b: [0.65, 1.5] };
+  const schritt = (t) => {
+    const s = (t - t0) / 1000, q = { h: ease((s - takt.h[0]) / takt.h[1]), b: ease((s - takt.b[0]) / takt.b[1]) };
+    h.style.setProperty("--qh", q.h.toFixed(3)); h.style.setProperty("--qb", q.b.toFixed(3)); h.style.setProperty("--q", q.b.toFixed(3));
+    for (const z of zahlen) z.textContent = Math.round(+z.dataset.zaehle * q[z.dataset.takt || "b"]);
+    if (s < 2.2) heldUhr = requestAnimationFrame(schritt); else { for (const z of zahlen) z.textContent = z.dataset.zaehle; jubel(h); }
+  };
+  heldUhr = requestAnimationFrame(schritt);
+}
+function jubel(h) {
+  h.classList.add("feier");
+  const z = h.querySelector(".scheibe.gross"); if (!z || reduziert()) return;
+  const b = z.getBoundingClientRect(), x = b.left + b.width / 2, y = b.top + b.height / 2;
+  for (let i = 0; i < 26; i++) {
+    const f = document.createElement("i"), a = Math.random() * Math.PI * 2, d = 80 + Math.random() * 110;
+    f.className = "funke f" + (i % 3);
+    f.style.cssText = `--x:${x}px;--y:${y}px;--dx:${(Math.cos(a) * d).toFixed(0)}px;--dy:${(Math.sin(a) * d).toFixed(0)}px;animation-delay:${(Math.random() * 0.18).toFixed(2)}s`;
+    document.body.appendChild(f); setTimeout(() => f.remove(), 2000);
+  }
+}
+// Antippen: ein Wellenring an der Fingerstelle
+document.addEventListener("pointerdown", (ev) => {
+  const b = ev.target.closest("main button, main .knopf"); if (!b || b.disabled || reduziert()) return;
+  const p = document.createElement("i"); p.className = "puls";
+  p.style.cssText = `--x:${ev.clientX}px;--y:${ev.clientY}px`; document.body.appendChild(p); setTimeout(() => p.remove(), 1000);
+});
+// Wischen: nach links weiter (Hauptknopf der Leiste), nach rechts zurück. Nicht in Eingaben, Skizzen und Reglern.
+(() => {
+  let x0 = null, y0 = 0;
+  const frei = (el) => !el.closest("input, select, textarea, svg, .plan, #s-3d, .tabelle, .messlage, details[open] .tabelle");
+  document.addEventListener("touchstart", (e) => { const t = e.touches[0]; x0 = e.touches.length === 1 && frei(e.target) ? t.clientX : null; y0 = t.clientY; }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (x0 === null) return; const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < 2 * Math.abs(dy) || !$("messlage").hidden) return;
+    const s = document.querySelector(".schritt:not([hidden])"); if (!s) return;
+    const sicht = (b) => b && !b.hidden && !b.disabled && b.offsetParent !== null;
+    const zurueck = [...s.querySelectorAll(".af-seite.an .af-zurueck, .aktion [data-zu], .knoepfe [data-zu]")].find(sicht);
+    const weiter = [...s.querySelectorAll(".af-seite.an .af-weiter, .aktion .weiter, .aktion #vorb-weiter")].find(sicht);
+    const ziel = dx > 0 ? zurueck : weiter;
+    if (ziel) ziel.click();
+  }, { passive: true });
+})();
 $("ergebnisse").addEventListener("change", (ev) => {
   const c = ev.target.closest("[data-praesenz]"); if (!c) return;
   const r = runden[+c.dataset.praesenz]; if (!r) return;
   praesenzAbsenkungSetzen(r, c.checked); rundeSpeichern(); zeigeAlles();
 });
 $("ergebnisse").addEventListener("click", (ev) => {
+  const em = ev.target.closest("[data-erg-modus]");
+  if (em) { setzeModus(em.dataset.ergModus); zeigeAlles(); return; }
   const nm = ev.target.closest("[data-nachmessen]");
   if (nm) { anwendenArt = nm.dataset.nachmessen; zeigeSchritt(anwendenArt === "geraet" ? 10 : (aktuelleRunde() && aktuelleRunde().profil ? 10 : 9)); return; }
   const b = ev.target.closest("[data-loeschen]");
@@ -6229,7 +7137,7 @@ $("ergebnisse").addEventListener("click", (ev) => {
   zeigeAlles();
 });
 // App: Reiter wechseln und neuer Raumscan
-const tabSchritt = (tab) => (tab === "sweetspot" ? 8 : tab === "einrichten" && nativ && nativ.boxen ? 12 : (runden.length ? 7 : 1));
+const tabSchritt = (tab) => (tab === "sweetspot" ? 8 : tab === "einrichten" && nativ && nativ.boxen ? 12 : zuhauseBereit() ? 18 : (runden.length ? 7 : 1));
 if (nativ) window.klangboxNativ.zeige = (tab) => zeigeSchritt(tabSchritt(tab));
 window.addEventListener("klangboxtab", (ev) => zeigeSchritt(tabSchritt(ev.detail)));
 window.addEventListener("klangboxraum", (ev) => {
@@ -6256,8 +7164,9 @@ const NEUTRAL = { id: "neutral", name: "Neutral (Harman-nah)", kurz: "Neutral �
 const zt = (x, n = 1, v = false) => AJ.zahlText(x, n, v);
 // Messdaten der letzten Runde (nur im Speicher: Aufnahmen sind zu groß für den Browser-Speicher)
 let messdaten = null;  // { id, dateien: [{name, daten}], bewegt, modus, raumM3 }
-const aktuelleRunde = () => (runden[0] && !runden[0].e.fehler ? runden[0] : null);
-const rundeSpeichern = () => schreiben("raumcheck-runden", JSON.stringify(runden.slice(0, 12)));
+// die neueste Runde des gewählten Modus (Stereo und Kino haben je eine eigene Geschichte)
+const aktuelleRunde = () => { const r = runden.find((x) => x.modus === modus); return r && !r.e.fehler ? r : null; };
+const rundeSpeichern = () => schreiben("raumcheck-runden", JSON.stringify(rundenBehalten()));
 
 // Schritt 9: Profil wählen. Der Wächter rechnet Raum-EQ plus Profil zusammen (profilAnwenden).
 function profilFuer(r, id) {
@@ -6394,7 +7303,7 @@ $("a-box-senden").addEventListener("click", async () => {
   const r = aktuelleRunde(); if (!r || !boxModus(r)) return;
   const b = $("a-box-senden"), ziel = $("a-box-antwort");
   b.disabled = true; ziel.innerHTML = `<span class="laeuft">Sende an die Klang-Box…</span>`;
-  const a = await nativ.box("einstellungen", { einstellungen: exportObjekt(r, "neu", r.e.einstellungen, r.profil), profil: r.profil || null, runde: r.id }, { zeitMs: 20000 });
+  const a = await nativ.box("einstellungen", { einstellungen: exportObjekt(r, "neu", r.e.einstellungen, r.profil), profil: r.profil || null, runde: r.id, modus: r.modus }, { zeitMs: 20000 });
   b.disabled = false;
   if (!a.ok && !Array.isArray(a.abgelehnt)) { ziel.innerHTML = `<span class="warn">Das ging nicht: ${esc(a.fehler || a.grund)} Es bleibt der bisherige Stand.</span>`; return; }
   const abgelehnt = (a.abgelehnt || []).map((x) => `<li><b>${esc(REGEL_NAME[x.regel] || x.regel || "Wächter")}:</b> ${esc(x.text)}</li>`).join("");
@@ -6457,7 +7366,8 @@ $("a-pruefen").addEventListener("click", async () => {
   $("a-status").innerHTML = `<span class="laeuft">Vergleiche vorher und nachher…</span>`;
   const res = await imWorker({ art: "nachpruefen", modus: r.modus, raumM3: +$("raum").value || null, kanaele: r.kanaele || K2, mikrofon: MIKROFONE[$("handy").value] || null,
     vorher: namen.map((n) => ({ name: n, daten: nach.vorher[n] })), nachher: namen.map((n) => ({ name: n, daten: nach.nachher[n] })),
-    einstellungen: ohneBox ? {} : r.e.einstellungen, profil: ohneBox ? null : (r.profil || null), sitzmodus: ohneBox ? "allein" : (r.e.sitzmodus || "allein"),
+    einstellungen: ohneBox ? {} : r.e.einstellungen, profil: ohneBox ? null : (r.profil || null), sitzmodus: (ohneBox ? r.geraet.sitzmodus : r.e.sitzmodus) || "allein",
+    akzeptiert: abwaegungAkzeptiert(r, ohneBox ? "geraet" : "box"),
     geraet: ohneBox ? r.geraet_profil : null, geraetAlt: ohneBox ? r.geraet.aktuell.werte : null, geraetNeu: ohneBox ? r.geraet.geraet_einstellungen.werte : null });
   $("a-pruefen").disabled = false;
   if (!res.ok) { $("a-status").innerHTML = `<span class="warn">Prüfung fehlgeschlagen: ${esc(res.fehler)}</span>`; return; }
@@ -6470,12 +7380,12 @@ $("a-pruefen").addEventListener("click", async () => {
     log.unshift({ runde: r.id, anlage: r.anlage, modus: r.modus, art: anwendenArt, zeit: new Date().toISOString(), empfehlung: r.urteil.empfehlung, vergleich: r.urteil.vergleich });
     schreiben("raumcheck-vergleiche", JSON.stringify(log.slice(0, 30)));
   }
-  if (r.urteil.empfehlung === "behalten" && !ohneBox) schreiben("raumcheck-bestaetigt", JSON.stringify(exportObjekt(r, "bestaetigt", r.e.einstellungen, r.profil)));
+  if (r.urteil.empfehlung === "behalten" && !ohneBox) { schreiben(`raumcheck-bestaetigt-${r.modus}`, JSON.stringify(exportObjekt(r, "bestaetigt", r.e.einstellungen, r.profil))); if (boxBereit()) schreiben("raumcheck-hoere", r.modus); }
   rundeSpeichern(); urteilZeigen(r);
   // Pflicht-Nachmessung fertig: die Klang-Box bestätigen oder zurücknehmen lassen
   if (!ohneBox && boxModus(r) && r.box_geladen === r.id) {
     const behalten = r.urteil.empfehlung === "behalten";
-    const a = behalten ? await nativ.box("bestaetigen", { runde: r.id }) : await nativ.box("zuruecknehmen", {});
+    const a = behalten ? await nativ.box("bestaetigen", { runde: r.id, modus: r.modus }) : await nativ.box("zuruecknehmen", { modus: r.modus });
     r.urteil.box = a.ok ? { ok: true, text: behalten ? "✓ Die Klang-Box hat die Einstellungen als bestätigt gespeichert."
       : a.einstellungen && a.einstellungen.id ? "Die Klang-Box spielt wieder den letzten bestätigten Stand." : "Die Klang-Box spielt wieder ohne Raumanpassung (neutral)." }
       : { ok: false, text: `Die Klang-Box hat nicht geantwortet (${a.fehler || a.grund}). ${behalten ? "Die Einstellungen spielen weiter, aber noch als „vorhergesagt“." : "Bitte die Datei unten laden oder auf „Zuhause“ „Alles aus“ wählen."}` };
@@ -6545,7 +7455,7 @@ function urteilZeigen(r) {
   } else if (u.box && u.box.ok) {
     alt = "";  // die Klang-Box hat selbst zurückgenommen
   } else {
-    let b = null; try { b = JSON.parse(lesen("raumcheck-bestaetigt", "") || "null"); } catch (e) { b = null; }
+    let b = null; try { b = JSON.parse(lesen(`raumcheck-bestaetigt-${r.modus}`, "") || "null"); } catch (e) { b = null; }
     const gueltig = b && b.art === "klangbox-einstellungen" && b.einstellungen && b.einstellungen.FL;
     const obj = gueltig ? { ...b, stand: "vorher", erstellt: new Date().toISOString() } : exportObjekt(r, "neutral", NEUTRAL_EINST, { ...NEUTRAL });
     alt = `<p style="font-size:15px">${gueltig ? "Ich biete dir den letzten Stand an, der beim Nachmessen gut war." : "Ich biete dir den neutralen Stand an: keine Raumanpassung, kein Profil."} Lade diese Datei in die Klang-Box.</p><div id="a-alt-export"></div>`;
@@ -6595,7 +7505,7 @@ function geraetFormular() {
   $("g-hinweis").textContent = g.regler.length ? (g.hinweis || "") : "Wähle oben die Regler, die dein Gerät hat.";
   $("g-sub-zeile").hidden = nurSub(g);
   $("g-sub").setAttribute("aria-checked", !!subAnschluss);
-  $("g-sub-text").textContent = subAnschluss ? SUB_NAME[subAnschluss] || "" : "Anschluss wählst du in Schritt 2";
+  $("g-sub-text").textContent = subAnschluss ? SUB_NAME[subAnschluss] || "" : "Anschluss wählst du in „Meine Anlage“";
   $("g-sub-hinweis").textContent = subAnschluss ? subHinweis(subAnschluss, anlageArt) : "";
   const heute = geraetHeute[g.id] || {};
   $("g-felder").innerHTML = g.regler.filter((r) => sichtbar(g, r)).map((r) => {
@@ -6665,7 +7575,7 @@ $("g-rechnen").addEventListener("click", async () => {
   $("g-rechnen").disabled = true; $("g-status").innerHTML = `<span class="laeuft">Suche die beste Kombination, etwa 20 bis 60 Sekunden…</span>`;
   const sub = mitSub(g);
   const res = await imWorker({ art: "regler", dateien: messdaten.dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt: messdaten.bewegt, geraet: g, aktuell: geraetAktuell(),
-    modus: r.modus, raumM3: messdaten.raumM3, sub, gedreht: sub ? geraetGedreht : null });
+    modus: r.modus, raumM3: messdaten.raumM3, sub, gedreht: sub ? geraetGedreht : null, sitzmodus, ziel: messZiel });
   $("g-rechnen").disabled = false;
   if (!res.ok) { $("g-status").innerHTML = `<span class="warn">Rechnung fehlgeschlagen: ${esc(res.fehler)}</span>`; return; }
   if (res.ergebnis.fehler) { $("g-status").innerHTML = `<span class="warn">${esc(res.ergebnis.fehler)}</span>`; return; }
@@ -6685,7 +7595,7 @@ function geraetErgebnisZeigen(r) {
   if (!r.geraet || r.geraet.fehler || !r.geraet_profil) { $("g-ergebnis").innerHTML = ""; return; }
   const k = r.geraet, g = r.geraet_profil, geaendert = k.geaendert.length, nativ2 = geraetNativ(g);
   const kurve = { f: k.kurve.f, heute: k.kurve.heute, prognose: k.kurve.geraet };
-  $("g-ergebnis").innerHTML = `${dreiWerte(r)}
+  $("g-ergebnis").innerHTML = `${dreiWerte(r)}${abwaegungKarte(r, runden.indexOf(r), "geraet")}
     <section class="card"><span class="marke">${geaendert ? "So stellst du es ein" : "Ergebnis"}</span>
       <ol class="klein" style="margin:0; padding-left:18px; font-size:15px; color: var(--ink)">${k.anleitung.map((t) => `<li>${esc(t)}</li>`).join("")}</ol>
       ${k.hinweise.map((h) => `<p class="klein warn">${esc(h)}</p>`).join("")}
@@ -6799,7 +7709,10 @@ function anschlussAnleitung(art) {
     if (id === haupt && ein.zuordnung.SUB && ein.zuordnung.SUB.box === "fronts") zeilen.push("Subwoofer: bleibt am Sub-Ausgang deiner aktiven Boxen, die Klang-Box spielt ihn über die Fronts mit.");
     if (id === haupt) {
       if (art === "tv") zeilen.push("Optisch rein: Kabel vom optischen Ausgang des Fernsehers (oder Beamers) in „IN“ der Klang-Box.",
-        "Am Fernseher (und am Apple TV): Tonausgabe „Optisch“, Format „PCM“ statt „Dolby Digital“ oder „Auto“. Dolby Digital kann die Klang-Box nicht ohne Verzögerung entpacken.");
+        "Am Fernseher: Tonausgabe „Optisch“, Format „Bitstream“ bzw. „Pass-through/Auto“ (nicht „PCM“), Nachtmodus und Auto-Lautstärke aus. Dann kommt Dolby Digital 5.1 an, und die Klang-Box legt es auf deine Lautsprecher. Bleibt es still, versuch „PCM“.",
+        "Streaming-Box am Fernseher: Tonformat „In Dolby Digital 5.1 umwandeln“, „Laute Töne reduzieren“ aus. Blu-ray-Player und Konsole: Tonausgang „Bitstream“.");
+      if (art === "digital") zeilen.push("Optisch rein: Kabel vom optischen Ausgang des Streamers (bei zwei Quellen über einen optischen Umschalter mit Automatik) in „IN“ der Klang-Box.");
+      if (art === "tv" || art === "digital") zeilen.push("Streamer mit optischem Ausgang: fest auf 48 kHz stellen, nicht „bit-perfect“. Die Klang-Box erkennt keine Wechsel der Abtastrate.");
       if (art === "tape") zeilen.push("Tape-Schleife: „Tape Out“ (oder „Rec Out“) des Verstärkers in den analogen Eingang der Klang-Box, ihren Ausgang in „Tape In“ (oder „Monitor“). Am Verstärker „Tape“ bzw. „Monitor“ einschalten.");
       if (art === "analog") zeilen.push("Analog rein: Cinch-Kabel vom Ausgang der Quelle (Vorstufe, Streamer) in den analogen Eingang der Klang-Box.");
     } else zeilen.push("Diese Box bekommt ihre Kanäle über den Funk der Hauptbox. Sie braucht nur Strom.");
@@ -6808,7 +7721,8 @@ function anschlussAnleitung(art) {
     for (const [a, chs] of Object.entries(proAusgang)) {
       const wohin = chs.map((c) => KANAL_NAME[c]).join(" und ");
       if (art === "tape" && id === haupt && a.startsWith("analog") && !chs.includes("SUB")) continue;  // geht zurück in den Verstärker
-      zeilen.push(a === "spdif" ? `Optisch raus: „${AUSGANG_NAME[a]}“ zu ${wohin} (aktive Box mit optischem Eingang; bei zwei Boxen in die, an der der Eingang ist).`
+      zeilen.push(a === "spdif" && art === "digital" && id === haupt ? `Optisch raus: „${AUSGANG_NAME[a]}“ in den digitalen Eingang deines Wandlers (DAC) oder Verstärkers.`
+        : a === "spdif" ? `Optisch raus: „${AUSGANG_NAME[a]}“ zu ${wohin} (aktive Box mit optischem Eingang; bei zwei Boxen in die, an der der Eingang ist).`
         : `Analog raus: „${AUSGANG_NAME[a] || a}“ mit Cinch zu ${wohin}${chs.includes("SUB") ? " (Eingang „LFE“ oder „Line“ am Sub)" : " (Eingang „Aux“ oder „Line“ der Boxen)"}.`);
     }
     out.push({ id, titel: `${id === haupt ? "Hauptbox" : "Box"} ${platzName(id)}`, zeilen });
@@ -6899,7 +7813,8 @@ function rueckVorschlagText() {
   return "Eine Box hinten bekommt beide Rear-Lautsprecher (ein Kabel zwischen hinten links und rechts).";
 }
 function layoutZeigen() {
-  if (!ein.layout) ein.layout = einBenutzt().length >= 2 ? "4.0" : "2.0";
+  // vorbelegt aus „Meine Anlage“; ohne Angabe: mit zwei Boxen 4.0
+  if (!ein.layout) ein.layout = MA.gespeichert ? MA.layout : einBenutzt().length >= 2 ? "4.0" : "2.0";
   $("e-layout").innerHTML = Object.keys(BOX_LAYOUTS).map((l) => `<button type="button" class="chip" data-layout="${l}" aria-pressed="${l === ein.layout}">${l}${mitHinten(l) ? " (mit hinten)" : ""}</button>`).join("");
   const kan = BOX_LAYOUTS[ein.layout], std = standardZuordnung(ein.layout), gueltig = (z) => z && z.box && (z.box === "fronts" || einBenutzt().includes(z.box));
   ein.zuordnung = Object.fromEntries(kan.map((ch) => [ch, gueltig(ein.zuordnung[ch]) ? ein.zuordnung[ch] : std[ch]]));
@@ -6936,19 +7851,19 @@ function signalZeigen(st) {
   $("e-signal-ampel").className = `ampel ${!e ? "problem" : e.signal ? "gut" : "hinweis"}`;
   $("e-signal-text").innerHTML = !e ? `<span class="warn">Die Hauptbox antwortet nicht${st && st.fehler ? `: ${esc(st.fehler)}` : "."}</span>`
     : e.signal ? `<span class="ok">✓ Signal am Eingang (${esc(e.art || "")}${e.rate ? `, ${zt(e.rate / 1000, 1)} kHz` : ""}${Number.isFinite(+e.pegel_dbfs) ? `, ${zt(+e.pegel_dbfs, 0)} dBFS` : ""}).</span>`
-    : `Noch kein Signal am Eingang. Spiel am Fernseher etwas ab. Kommt nichts an: Tonausgabe am Fernseher auf „Optisch“ und Format „PCM“ (nicht „Dolby Digital“ oder „Auto“), das Kabel ganz einstecken (es klickt).`;
+    : `Noch kein Signal am Eingang. Spiel am Fernseher etwas ab. Kommt nichts an: Tonausgabe am Fernseher auf „Optisch“, Format „Bitstream“ oder „Auto“; bleibt es still, auf „PCM“. Das Kabel ganz einstecken (es klickt).`;
 }
 async function signalPruefen() { if (!nativ || !nativ.boxen) return; signalZeigen(await nativ.box("status", {}, { box: einHaupt() })); }
 function einrichtenZeigen(n) {
   if (signalUhr && n !== 16) { clearInterval(signalUhr); signalUhr = null; }
-  if (n < 12 || n === 17) return;  // 17: Kanal-Check, gehört zum Messen
+  if (n < 12 || n === 17 || n === 18) return;  // 17: Kanal-Check, gehört zum Messen; 18: Zuhause
   if (!nativ || !nativ.boxen) { zeigeSchritt(1); return; }
   if (n === 12) { boxenZeigen(); $("e-weiter-1").disabled = !gekoppelte().length; if (!gekoppelte().length) boxenSuchen(); }
   if (n === 13) { platzVorschlag(); quelleZeigen(); $("e-rolle-status").textContent = ""; }
   if (n === 14) { skizzeBox = null; layoutZeigen(); $("e-kanal-status").textContent = ""; }
   if (n === 15) funkZeigen(null);
   if (n === 16) {
-    $("e-art").innerHTML = [["tv", "Fernseher → aktive Boxen"], ["tape", "Verstärker (Tape-Schleife)"], ["analog", "Analog (Vorstufe)"]].map(([k, t]) =>
+    $("e-art").innerHTML = [["tv", "Fernseher → aktive Boxen"], ["digital", "Streamer → DAC oder Verstärker"], ["tape", "Verstärker (Tape-Schleife)"], ["analog", "Analog (Vorstufe)"]].map(([k, t]) =>
       `<button type="button" class="chip" data-art="${k}" aria-pressed="${k === ein.art}">${t}</button>`).join("");
     $("e-anleitung").innerHTML = anschlussAnleitung(ein.art).map((b) => `<div class="kasten"><h3>${esc(b.titel)}</h3><ol class="klein" style="margin:0; padding-left:18px; color: var(--ink); font-size:14.5px">${b.zeilen.map((z) => `<li>${esc(z)}</li>`).join("")}</ol></div>`).join("");
     $("e-zurueck-5").dataset.zu = braucheFunk() ? "15" : "14";
@@ -7047,7 +7962,8 @@ $("e-fertig").addEventListener("click", async () => {
   if (!a.ok) { $("e-signal-text").innerHTML = `<span class="warn">Die App konnte die Einrichtung nicht speichern: ${esc(a.fehler || a.grund)}</span>`; return; }
   // Die App ergänzt klangboxNativ.boxen (layout, haupt); falls nicht, merkt es sich die Seite selbst
   if (window.klangboxNativ && (!window.klangboxNativ.boxen || !window.klangboxNativ.boxen.haupt)) window.klangboxNativ.boxen = { ...(window.klangboxNativ.boxen || {}), verfuegbar: true, layout: ein.layout, haupt: einHaupt() };
-  anlageArt = "heimkino"; schreiben("raumcheck-art", anlageArt); zeigeChips();
+  // die Box spielt jetzt dieses Layout: „Meine Anlage“ zieht mit (der Decoder legt 5.1 genau darauf)
+  schreiben("raumcheck-art", "heimkino"); MA.layout = ein.layout; MA.gespeichert = true; if (hatSub(MA.layout) && !MA.sub_anschluss) MA.sub_anschluss = ein.zuordnung.SUB && ein.zuordnung.SUB.box !== "fronts" ? "lfe" : "boxen"; maMerken(); zeigeChips();
   setzeQuelle("box"); zeigeSchritt(1);
 });
 window.addEventListener("klangboxbox", (ev) => {
@@ -7065,8 +7981,9 @@ window.addEventListener("klangboxbox", (ev) => {
 let kcFuehrung = { t0: 0, start: 0, art: null };  // Start der Führung (bewegte Messung) relativ zur Aufnahme
 let kcStand = null;  // { daten, kanaele, layout, opt, kc, pruefung, antworten, bewegt, tippen }
 const KC_PUNKT = { FL: [70, 54], FR: [250, 54], C: [160, 46], SL: [44, 168], SR: [276, 168], BL: [104, 206], BR: [216, 206] };
-const KC_FARBE = { gruen: "var(--ok)", gelb: "var(--warn)", rot: "var(--heute)" };
-const kcLayout = () => (quelle === "box" ? boxLayout() : subAnschluss ? "2.1" : "2.0");
+const KC_FARBE = { gruen: "var(--ok)", gelb: "#E8C56E", rot: "var(--warn)" };
+// was der Kanal-Check erwartet: Kino über die Box das Layout der Box, sonst die Fronts (mit Sub, wenn „Meine Anlage“ einen hat)
+const kcLayout = () => (quelle === "box" && modus !== "stereo" ? boxLayout() : quelle === "box" ? stereoLayout(boxLayout()) : subAnschluss ? "2.1" : "2.0");
 // Lautsprecher-Positionen aus dem Raumscan der App (raum.json: lautsprecher [{kanal, mitte: [x, y, z]}]); der Hörplatz aus der Aufstellung
 function kcPositionen(kanaele) {
   const roh = scan && scan.roh && Array.isArray(scan.roh.lautsprecher) ? scan.roh.lautsprecher : null;
@@ -7166,7 +8083,7 @@ function kcZeigen(meldung) {
 let kcTonUrl = null;
 async function kcTon(kanal) {
   if (quelle === "box") {
-    const a = await nativ.box("messsignal", { kanaele: [kanal], folge: "antippen", start_in_ms: 300 }, { zeitMs: 8000 });
+    const a = await nativ.box("messsignal", { kanaele: [kanal], folge: "antippen", start_in_ms: 300, modus }, { zeitMs: 8000 });
     return a.ok ? null : `Die Box spielt den Probe-Ton nicht (${a.fehler || a.grund}).`;
   }
   const n = 72000, d = new DataView(new ArrayBuffer(44 + n * 4)), rng = (() => { let x = 7; return () => ((x = (x * 1103515245 + 12345) >>> 0) / 4294967296) * 2 - 1; })();
@@ -7256,10 +8173,184 @@ document.addEventListener("click", async (ev) => {
 geraetFormular();
 zeigeAlles();
 zeigeDateien();
+// --- Zuhause (Schritt 18): Übersicht, wenn alles eingerichtet ist ---------------------------------------------
+// Box (App, BoxSteuerung): GET status (modus, modus_wahl, modi, quelle, streamer, eingang, aus, inhalt, lautstaerke,
+// funk, satelliten, waechter), POST modus {modus}, POST aus {aus} (gleicher Pegel), POST inhalt, POST lautstaerke.
+// Der Vorher/Nachher-Schalter stellt beim Verlassen von Zuhause immer „nachher“ wieder her.
+function zuhauseBereit() { return !!(MA.gespeichert && (letzteRunde("stereo") || letzteRunde("kino"))); }
+const ZH_QUELLEN = { spdif: "Eingang optisch", analog: "Eingang analog", eingang: "Eingang", airplay: "AirPlay", spotify: "Spotify", upnp: "UPnP",
+  roon: "Roon", bluetooth: "Bluetooth", radio: "Radio" };
+const FORMATE = { ac3: "Dolby Digital", eac3: "Dolby Digital Plus", dts: "DTS", pcm2: "PCM", pcm: "PCM" };
+let zh = { st: null, ab: "nachher", abGesetzt: false, blind: null, laedt: false };
+function zhQuelleText(st) {
+  if (!st) return "";
+  const q = st.quelle || (st.modus_regel && st.modus_regel.quelle) || "eingang", s = st.streamer || null, e = st.eingang || {};
+  if (s && s.spielt && q !== "spdif" && q !== "analog" && q !== "eingang") {
+    const titel = [s.titel, s.kuenstler].filter(Boolean).join(" – ") || s.sender || "";
+    const fmt = (s.format && s.format.text) || "";
+    return `<b>${esc(ZH_QUELLEN[q] || q)}</b>${titel ? ` · ${esc(titel)}` : ""}${fmt ? `<br><span class="klein">${esc(fmt)}</span>` : ""}`;
+  }
+  if (e.signal === false) return `<b>${esc(ZH_QUELLEN[q] || "Eingang")}</b> · kein Signal`;
+  const fmt = [FORMATE[e.format] || (e.format ? String(e.format).toUpperCase() : ""), e.kanaele && e.kanaele !== "2.0" ? e.kanaele : (e.format === "pcm2" ? "2.0" : ""),
+    e.rate ? `${zt(e.rate / 1000, 1)} kHz` : ""].filter(Boolean).join(" ");
+  return `<b>${esc(ZH_QUELLEN[q] || "Eingang")}</b>${fmt ? ` · ${esc(fmt)}` : ""}`;
+}
+function zhKarte(m) {
+  const r = letzteRunde(m), name = m === "kino" ? "Kino" : "Stereo", box = zh.st && zh.st.modi ? zh.st.modi[m] : null;
+  if (!r) return `<div class="zh-karte leer"><span class="eyebrow">${name}</span><p>Noch nicht eingemessen.</p>
+    <button type="button" class="klein" data-zh-einmessen="${m}">Jetzt einmessen</button></div>`;
+  const sh = r.e.score_heute, sp = r.e.score_prognose, tag = String(r.zeit || "").split(",")[0];
+  const ok = r.status === "bestaetigt";
+  const kacheln = sp.kacheln ? Object.keys(sp.kacheln).slice(0, 4).map((k) => { const a = sh.kacheln[k] || {}, b = sp.kacheln[k];
+    return `<span class="zh-mini"><i>${esc(b.titel)}</i> <b>${a.punkte ?? "–"} <em>→</em> ${b.punkte ?? "–"}</b></span>`; }).join(" ") : "";
+  return `<div class="zh-karte${m === modus ? " an" : ""}" data-zh-karte="${m}"><span class="eyebrow">${name}</span>
+    <div class="zh-score"><span class="h">${sh.gesamt}</span> <em>→</em> <span class="b">${sp.gesamt}</span></div>
+    <span class="klein ${ok ? "ok" : "warn"}">${ok ? "nachgemessen ✓" : "Nachmessung steht aus"}</span>
+    <span class="klein">${esc(tag)}${box && box.eingemessen ? " · auf der Box" : ""}</span>
+    <div class="zh-minis">${kacheln}</div></div>`;
+}
+function zhAktion(id, icon, text, an = true, extra = "") {
+  return an ? `<button type="button" class="zh-aktion" id="${id}"${extra}><span class="zh-ic">${icon}</span><span>${text}</span></button>` : "";
+}
+const ZH_IC = {
+  messen: '<svg viewBox="0 0 24 24"><path d="M2 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/></svg>',
+  lippen: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8M9 11h2M13 11h2"/></svg>',
+  anlage: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="16" rx="1.5"/><rect x="15" y="4" width="6" height="16" rx="1.5"/><circle cx="6" cy="14" r="2"/><circle cx="18" cy="14" r="2"/></svg>',
+  raum: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><path d="M9 8a6 6 0 0 1 0 8M13 5a10 10 0 0 1 0 14M17 3a13 13 0 0 1 0 18"/></svg>',
+  nacht: '<svg viewBox="0 0 24 24"><path d="M20 15A8 8 0 1 1 9 4a7 7 0 0 0 11 11z"/></svg>',
+  laut: '<svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>',
+};
+function zuhauseZeigen() {
+  const boxDa = boxBereit(), st = zh.st;
+  $("zh-anlage").textContent = `${MA.name || "Meine Anlage"} · ${MA.layout}`;
+  // Modus: mit Box die Wahl der Box (fest oder auto), sonst nur, welche Einmessung oben steht
+  const wahl = st && st.modus_regel ? st.modus_regel.wahl : st && st.modus_wahl === "auto" ? "auto" : st && st.modus ? st.modus : modus;
+  $("zh-auto").hidden = !boxDa;
+  document.querySelectorAll("[data-zh-modus]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.zhModus === wahl));
+  $("zh-quelle").innerHTML = boxDa ? (st ? zhQuelleText(st) + (wahl === "auto" && st.modus ? ` <span class="klein">· Auto spielt ${st.modus === "kino" ? "Kino" : "Stereo"}</span>` : "")
+    : `<span class="laeuft">Frage die Klang-Box…</span>`) : `<span class="klein">Messung ohne Klang-Box</span>`;
+  // Vorher/Nachher: nur mit Box
+  $("zh-ab").hidden = !boxDa; $("zh-ab-ohne").hidden = boxDa;
+  zhAbZeigen();
+  $("zh-karten").innerHTML = zhKarte("stereo") + zhKarte("kino");
+  const r = letzteRunde(modus) || letzteRunde(modus === "kino" ? "stereo" : "kino"), inh = st && st.inhalt ? st.inhalt : {};
+  const fuehrt = st && st.lautstaerke && (st.lautstaerke.fuehrt === "box" || st.lautstaerke.fuehren);
+  $("zh-aktionen").innerHTML = zhAktion("zh-nachmessen", ZH_IC.messen, r && r.status === "vorhergesagt" ? "Nachmessen" : "Neu messen")
+    + zhAktion("zh-lippen", ZH_IC.lippen, "Lippen-Sync", !!(nativ && boxDa))
+    + zhAktion("zh-raum", ZH_IC.raum, `Räumlichkeit<small>${esc(inh.profil || "Film")} · ${["aus", "wenig", "mittel", "viel"][inh.raeumlichkeit ?? 1] || ""}</small>`, boxDa && (st ? st.modus === "kino" : modus === "kino"))
+    + zhAktion("zh-nacht", ZH_IC.nacht, `Nachtmodus<small>${inh.nachtmodus ? "an" : "aus"}</small>`, boxDa, ` aria-pressed="${!!inh.nachtmodus}"`)
+    + zhAktion("zh-anlage-k", ZH_IC.anlage, "Meine Anlage", !boxDa)
+    + (boxDa && fuehrt ? `<label class="zh-laut"><span class="zh-ic">${ZH_IC.laut}</span><input type="range" id="zh-laut" min="-60" max="0" step="1" value="${Math.round(+st.lautstaerke.db || 0)}" aria-label="Lautstärke"><span class="wert" id="zh-laut-wert">${Math.round(+st.lautstaerke.db || 0)} dB</span></label>` : "");
+  // Box-Zustand: Funk je Satellit, Eingang, Warnungen der Wächter
+  $("zh-zustand").hidden = !boxDa || !st;
+  if (boxDa && st) {
+    const zeilen = [], warn = (st.waechter || []).filter((w) => w && w.ok === false);
+    const sats = st.satelliten || [];
+    for (const s of sats) { const a = funkAmpel(st.funk && Array.isArray(st.funk.partner) ? (st.funk.partner.find((p) => p.id === s.id) || st.funk) : st.funk);
+      zeilen.push(`<div class="zeile"><i class="ampel ${s.erreichbar === false ? "rot" : a.stufe}"></i><span><b>${esc(s.name || "Satellit")}</b> · ${esc(s.erreichbar === false ? "nicht erreichbar" : a.titel)}</span></div>`); }
+    const e = st.eingang || {};
+    zeilen.push(`<div class="zeile"><i class="ampel ${e.signal === false ? "gelb" : "gruen"}"></i><span><b>Eingang</b> · ${e.signal === false ? "kein Signal" : "Signal da"}</span></div>`);
+    for (const w of warn) zeilen.push(`<div class="zeile"><i class="ampel gelb"></i><span>${esc(w.text || w.regel)}</span></div>`);
+    $("zh-zustand-zeilen").innerHTML = zeilen.join("");
+    const schlecht = warn.length || e.signal === false || sats.some((s) => s.erreichbar === false);
+    $("zh-ampel").className = `ampel ${schlecht ? "gelb" : "gruen"}`;
+  }
+  // Gehör-Check (hoerprobe.js): Karte des aktiven Modus im Platz unter den Karten
+  const gc = window.klangboxGehoerCheck && letzteRunde(modus) ? window.klangboxGehoerCheck.karte(modus) : "";
+  $("zh-gehoer").hidden = !gc; $("zh-gehoer").innerHTML = gc;
+  // Ohne Box: die Tipps für die Regler der eigenen Geräte
+  const tipps = !boxDa && r ? GW.karte(r, runden) : "";
+  $("zh-tipps").hidden = !tipps; $("zh-tipps-inhalt").innerHTML = tipps;
+  if (boxDa && !zh.laedt) zhLaden();
+}
+async function zhLaden() {
+  zh.laedt = true;
+  const st = await nativ.box("status", {}, { zeitMs: 8000 });
+  zh.laedt = false;
+  if (st && st.ok) { zh.st = st; if (typeof st.aus === "boolean" && !zh.abGesetzt) zh.ab = st.aus ? "vorher" : "nachher"; }
+  else $("zh-status").innerHTML = `<span class="warn">Die Klang-Box antwortet nicht${st && st.fehler ? `: ${esc(st.fehler)}` : "."}</span>`;
+  if (!document.querySelector('.schritt[data-s="18"]').hidden) zuhauseZeigen();
+}
+function zhAbZeigen() {
+  const b = $("zh-ab-schalter"), blind = zh.blind;
+  b.setAttribute("aria-checked", zh.ab === "nachher");
+  $("zh-held").dataset.ab = zh.ab;
+  $("zh-ab-links").textContent = blind ? "A" : "Vorher"; $("zh-ab-rechts").textContent = blind ? "B" : "Nachher";
+  // im Blindtest zeigt der Schalter nur A oder B: A ist zufällig vorher oder nachher
+  if (blind) b.dataset.seite = (zh.ab === blind.a) ? "links" : "rechts"; else b.dataset.seite = zh.ab === "vorher" ? "links" : "rechts";
+  $("zh-held").dataset.ab = blind ? "blind" : zh.ab;
+  $("zh-blind-wahl").hidden = !blind; $("zh-blind").textContent = blind ? "Blindtest beenden" : "Blindtest";
+  $("zh-ab-text").textContent = blind ? "Hör beide, dann wähl. Die Namen bleiben verdeckt." : zh.urteil ? zh.urteil : zh.ab === "vorher" ? "Vorher: ohne Klang-Box, gleicher Pegel." : "Nachher: mit deiner Einmessung.";
+}
+async function zhAbSetzen(seite) {
+  if (!boxBereit() || seite === zh.ab) return;
+  zh.ab = seite; zh.abGesetzt = true; zh.urteil = ""; zhAbZeigen();
+  const a = await nativ.box("aus", { aus: seite === "vorher" }, { zeitMs: 6000 });
+  if (!a.ok) { zh.ab = seite === "vorher" ? "nachher" : "vorher"; zhAbZeigen(); $("zh-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; }
+}
+function zhAbZurueck() {
+  zh.blind = null;
+  if (zh.abGesetzt && zh.ab === "vorher" && boxBereit()) nativ.box("aus", { aus: false }, { zeitMs: 6000 });
+  zh.ab = "nachher"; zh.abGesetzt = false; zh.urteil = "";
+}
+window.addEventListener("pagehide", () => { if (zh.abGesetzt && zh.ab === "vorher" && boxBereit()) nativ.box("aus", { aus: false }); });
+$("zh-ab-schalter").addEventListener("click", (ev) => {
+  const b = ev.currentTarget, q = b.getBoundingClientRect(), links = ev.clientX - q.left < q.width / 2;
+  if (zh.blind) return zhAbSetzen(links ? zh.blind.a : zh.blind.b);
+  zhAbSetzen(ev.detail === 0 ? (zh.ab === "vorher" ? "nachher" : "vorher") : links ? "vorher" : "nachher");
+});
+$("zh-blind").addEventListener("click", () => {
+  if (zh.blind) { zh.blind = null; zhAbZeigen(); return; }
+  const a = Math.random() < 0.5 ? "vorher" : "nachher"; zh.blind = { a, b: a === "vorher" ? "nachher" : "vorher" }; zhAbZeigen();
+});
+document.querySelectorAll("[data-zh-mag]").forEach((k) => k.addEventListener("click", () => {
+  if (!zh.blind) return;
+  const wahl = k.dataset.zhMag === "A" ? zh.blind.a : zh.blind.b;
+  zh.urteil = wahl === "nachher" ? `Du magst ${k.dataset.zhMag}: das war mit Klang-Box.` : `Du magst ${k.dataset.zhMag}: das war ohne Klang-Box. Vielleicht passt ein anderes Klangprofil besser.`;
+  zh.blind = null; zhAbZeigen();
+}));
+document.querySelectorAll("[data-zh-modus]").forEach((b) => b.addEventListener("click", async () => {
+  const m = b.dataset.zhModus;
+  if (m !== "auto") setzeModus(m);
+  if (!boxBereit()) return zuhauseZeigen();
+  document.querySelectorAll("[data-zh-modus]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  const a = await nativ.box("modus", { modus: m }, { zeitMs: 8000 });
+  if (!a.ok) { $("zh-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; return; }
+  $("zh-status").textContent = "";
+  zh.st = { ...(zh.st || {}), ...a }; if (a.modus) setzeModus(a.modus); zuhauseZeigen();
+}));
+$("zh-karten").addEventListener("click", (ev) => {
+  const e = ev.target.closest("[data-zh-einmessen]"); if (e) { setzeModus(e.dataset.zhEinmessen); zeigeSchritt(3); return; }
+  const k = ev.target.closest("[data-zh-karte]"); if (k) { setzeModus(k.dataset.zhKarte); zeigeAlles(); zeigeSchritt(7); }
+});
+$("zh-aktionen").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  const st = zh.st || {}, inh = st.inhalt || {};
+  if (b.id === "zh-nachmessen") { const r = letzteRunde(modus);
+    if (r && r.status === "vorhergesagt") { anwendenArt = "box"; zeigeSchritt(r.profil ? 10 : 9); } else zeigeSchritt(3); }
+  if (b.id === "zh-lippen" && nativ) nativ.ereignis({ art: "lippenSync" });
+  if (b.id === "zh-anlage-k") zeigeSchritt(2);
+  if (b.id === "zh-nacht" || b.id === "zh-raum") {
+    const neu = b.id === "zh-nacht" ? { nachtmodus: !inh.nachtmodus } : { raeumlichkeit: ((inh.raeumlichkeit ?? 1) + 1) % 4 };
+    const a = await nativ.box("inhalt", { profil: inh.profil || "Film", raeumlichkeit: inh.raeumlichkeit ?? 1, ...neu }, { zeitMs: 6000 });
+    if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt }; zuhauseZeigen(); } else $("zh-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+  }
+});
+$("zh-aktionen").addEventListener("change", async (ev) => {
+  if (ev.target.id !== "zh-laut") return;
+  const db = +ev.target.value; $("zh-laut-wert").textContent = `${db} dB`;
+  const a = await nativ.box("lautstaerke", { db }, { zeitMs: 6000 });
+  if (a.ok && a.lautstaerke) zh.st = { ...(zh.st || {}), lautstaerke: { ...(zh.st && zh.st.lautstaerke), ...a.lautstaerke } };
+});
+window.addEventListener("klangboxbox", () => { if (!document.querySelector('.schritt[data-s="18"]').hidden) zhLaden(); });
+window.addEventListener("klangboxgehoer", () => { if (!document.querySelector('.schritt[data-s="18"]').hidden) zuhauseZeigen(); });
+function zuhauseWege() { const b = zuhauseBereit(); $("zh-hin").hidden = !b; $("zh-hin-ergebnis").hidden = !b; }
 nachhallUebernehmen();
-zeigeChips(); subZeigen();
+zeigeChips();
 // Neue Klang-Box gemeldet und noch nichts eingerichtet: die App führt zuerst durch die Einrichtung
-zeigeSchritt(runden.length ? 7 : (nativ && nativ.boxen && !boxBereit() && nativ.boxen.neue ? 12 : 1));
+// sonst: zuerst einmal „Meine Anlage“, danach immer gleich „Was willst du einmessen?“
+if (runden.length && !runden.some((r) => r.modus === modus)) modus = runden[0].modus === "stereo" ? "stereo" : "kino";
+zeigeSchritt(zuhauseBereit() ? 18 : runden.length ? 7 : (nativ && nativ.boxen && !boxBereit() && nativ.boxen.neue ? 12 : MA.gespeichert ? 1 : 2));
 </script>
 
 </body>

@@ -357,6 +357,11 @@ ol.tun b { font-weight: 600; }
       </ol>
     </div>
     <div class="dauer"><span class="gross">≈ 25 s</span><span class="klein">Der Bildschirm dreht sich mit, bleibt an und zeigt die Restzeit.</span></div>
+    <!-- Sitzmodus: allein (Bühne für den Hauptplatz) oder zu zweit (Mitte zwischen den gemessenen Sitzplätzen) -->
+    <div class="wahl" role="group" aria-label="Wer sitzt?" id="sitzmodus">
+      <button type="button" data-sitzmodus="allein" aria-pressed="true">Ich sitze allein in der Mitte<small>Bühne genau für deinen Platz</small></button>
+      <button type="button" data-sitzmodus="zwei" aria-pressed="false">Wir sitzen zu zweit (Sofa)<small>Mitte zwischen euren Plätzen: beide Plätze messen</small></button>
+    </div>
     <button type="button" id="messen">Messen</button>
     <button type="button" id="abbrechen" class="zweit" hidden>Abbrechen</button>
     <div class="balken" aria-hidden="true"><div id="pegel"></div></div>
@@ -631,6 +636,18 @@ ol.tun b { font-weight: 600; }
     <div class="kasten"><div class="reihe"><div><h3>Signal am Eingang</h3><span class="klein" id="e-signal-text">Spiel am Fernseher etwas ab.</span></div><i class="ampel" id="e-signal-ampel"></i></div></div>
     <div class="knoepfe breit"><button type="button" class="zweit" data-zu="15" id="e-zurueck-5">Zurück</button><button type="button" id="e-fertig">Weiter: Klang einmessen</button></div>
   </section>
+  <!-- Kanal-Check (eigener Block, siehe „Kanal-Check“ im Skript): nach der Messung am Hörplatz, vor der Raumanpassung -->
+  <section class="card schritt" data-s="17" hidden aria-labelledby="h-kanal">
+    <span class="eyebrow">Klang messen · Kanal-Check</span>
+    <h1 id="h-kanal">Spielt alles, wo es soll?</h1>
+    <div class="plan" id="kc-skizze"></div>
+    <p class="klein" id="kc-skizze-hilfe"></p>
+    <div class="kasten" id="kc-layout"></div>
+    <div class="zeilen" id="kc-zeilen"></div>
+    <div id="kc-aktionen" style="display: grid; gap: 10px;"></div>
+    <div id="kc-status" class="klein" aria-live="polite"></div>
+    <div class="knoepfe breit"><button type="button" class="zweit" id="kc-neu">Neu messen</button><button type="button" id="kc-weiter">Passt – weiter</button></div>
+  </section>
   <!-- Mess-Ansicht (Vollbild): erst „Handy umdrehen“, dann dreht sich alles um 180°, groß Restzeit und Abbrechen -->
   <div class="messlage" id="messlage" hidden role="dialog" aria-modal="true" aria-labelledby="ml-titel">
     <div class="ml-dreh">
@@ -680,7 +697,17 @@ function folgeAus(cfg) {
 }
 const FOLGE = folgeAus({ lead: 1.0, kanaele: ["FL", "FR"] });
 const FOLGE_4 = folgeAus({ lead: 1.0, kanaele: ["FL", "FR", "SL", "SR"] });  // Layout 4.0: Messfolge über die Klang-Box
-const folgeFuer = (kanaele) => (kanaele && kanaele.includes("SL") ? FOLGE_4 : FOLGE);
+// Messfolge über die Klang-Box für jedes Layout: FL, FR, dann C, SL/SR, BL/BR, soweit vorhanden (wie raumcheck.py)
+const MESS_FOLGEN = [["FL", "FR"], ["FL", "FR", "C"], ["FL", "FR", "SL", "SR"], ["FL", "FR", "C", "SL", "SR"],
+                     ["FL", "FR", "C", "SL", "SR", "BL", "BR"]];
+const FOLGEN = {};
+function folgeFuer(kanaele) {
+  if (!kanaele || kanaele.join() === "FL,FR") return FOLGE;
+  if (kanaele.join() === FOLGE_4.kanaele.join()) return FOLGE_4;
+  const k = kanaele.join();
+  if (!MESS_FOLGEN.some((f) => f.join() === k)) throw new Error(`Unbekannte Kanäle ${k}`);
+  return FOLGEN[k] || (FOLGEN[k] = folgeAus({ lead: 1.0, kanaele: [...kanaele] }));
+}
 const FOLGE_BEWEGT = folgeAus({ lead: 2.0, sweepS: 2.5, tail: 1.5, pruefton: false, bewegt: true,
                                 kanaele: ["FL", "FR", "C", "FL", "FR", "C", "FL", "FR", "C", "FL", "FR", "C"] });
 const markerZeit = (i, f = FOLGE) => f.lead + f.pruefDauer + i * f.periode;
@@ -1026,6 +1053,7 @@ function analysiere(rec0, fo = FOLGE, mikro = null) {
     messungen[key] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
   });
   const pruefung = pruefeAufnahme(rec, a, markerPegel, fo, rec0);
+  pruefung.beginn_s = Math.round(a0 / FS * 1e4) / 1e4;  // wo in der Aufnahme die Messfolge beginnt (für die bewegte Messung)
   pruefung.stoer_db = Object.fromEntries(Object.entries(stoer).map(([k, v]) => [k, Math.round(v * 10) / 10]));
   pruefung.rest_db = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.map((x) => Math.round(x * 10) / 10)]));
   const knall = Object.keys(rest).filter((k) => rest[k][1] > REST_GRENZE_DB && rest[k][0] > REST_SPITZE_DB);
@@ -1267,7 +1295,8 @@ function einmessen(punkte, hausDb) {
 // --- Regel 4.0: Fronts führen, Rückkanäle bis 35 ms später, nie früher als die Fronts ------------------
 // Wie einmessung.laufzeiten_fronts_fuehren in Python. Die Rückkanäle kommen über den Funk der zweiten
 // Klang-Box; die Messung misst das mit. Vorne wartet nie auf hinten; hinten wartet, falls es früher wäre.
-const RUECK_SPAETER_MAX_MS = 35, RUECK_NAMEN = { SL: "Hinten links", SR: "Hinten rechts", BL: "Hinten links (2)", BR: "Hinten rechts (2)" };
+const RUECK_SPAETER_MAX_MS = 35, RUECK_NAMEN = { SL: "Hinten links", SR: "Hinten rechts", BL: "Hinten links (2)", BR: "Hinten rechts (2)", C: "Der Center" };
+const ZUSATZ = ["C", "SL", "SR", "BL", "BR"];  // über die Klang-Box neben FL/FR: nur Pegel und Laufzeit, kein EQ
 function laufzeitenFrontsFuehren(ankunftMs) {
   const fronts = ["FL", "FR", "C"].filter((c) => c in ankunftMs);
   if (!fronts.length) throw new Error("Regel 4.0: ohne Front-Kanal gibt es keine Bezugszeit");
@@ -1281,17 +1310,19 @@ function laufzeitenFrontsFuehren(ankunftMs) {
   }
   return { verz, hinweise };
 }
-// Layout 4.0: Rückkanäle nur Pegel (am Hauptplatz wie vorne, nie anheben) und Laufzeit (Regel 4.0), kein EQ
+// Layouts 3.x bis 7.1: Center und Rückkanäle nur Pegel (am Hauptplatz wie vorne, nie anheben) und Laufzeit
+// (Regel 4.0, der Center gehört zur vorderen Bühne), kein EQ. Wie raumcheck.rueckkanaele_einmessen.
 function rueckkanaeleEinmessen(haupt, fronts) {
   const mitte = {}; for (const ch of Object.keys(haupt)) mitte[ch] = bandDb(dbArr(glaetten(leistung(antwort(haupt[ch])), 3)), 500, 2000);
   const vorne = (mitte.FL + fronts.FL.gain_db + mitte.FR + fronts.FR.gain_db) / 2;
   const { verz, hinweise } = laufzeitenFrontsFuehren(Object.fromEntries(Object.keys(haupt).map((ch) => [ch, haupt[ch].delay * 1000])));
   const aus = {};
-  for (const ch of ["SL", "SR"]) {
+  for (const ch of ZUSATZ.filter((c) => c in haupt)) {
     const g = vorne - mitte[ch];
-    if (g > 0.5) hinweise.push(`${RUECK_NAMEN[ch]} ist ${g.toFixed(1)} dB leiser als vorne. Dreh die hintere Box etwas lauter (die Klang-Box hebt nie an).`);
+    if (g > 0.5) hinweise.push(`${RUECK_NAMEN[ch]} ist ${g.toFixed(1)} dB leiser als vorne. Dreh die ${ch === "C" ? "vordere" : "hintere"} Box etwas lauter (die Klang-Box hebt nie an).`);
     aus[ch] = { gain_db: Math.round(Math.max(-20, Math.min(g, 0)) * 100) / 100, delay_ms: verz[ch], eq: [] };
   }
+  if ("C" in haupt) for (const ch of ["FL", "FR"]) aus[ch] = { delay_ms: verz[ch] };
   return { aus, hinweise };
 }
 
@@ -1462,8 +1493,8 @@ function fruehAbklingzeit(band, start, fs) {  // EDT: 0 bis -10 dB
   return gerade(k, 0, -10);
 }
 function reflexionDb(m) { return reflexion(m)[0]; }
-function reflexion(m) {  // [Pegel dB relativ zum Direktschall, Verzögerung ms] der stärksten Reflexion 1–15 ms
-  const env = huellkurve(filtfilt(m.ir, bandpass(1000, 4000, 2)));
+function reflexion(m, f1 = 1000, f2 = 4000) {  // [Pegel dB relativ zum Direktschall, Verzögerung ms] der stärksten Reflexion 1–15 ms, Band f1–f2
+  const env = huellkurve(filtfilt(m.ir, bandpass(f1, f2, 2)));
   const d = m.zero + Math.round(m.delay * FS), ms = FS / 1000;
   let direkt = 0, refl = 0;
   for (let i = Math.max(0, d - ms / 2); i <= d + ms / 2; i++) direkt = Math.max(direkt, env[i]);
@@ -1523,7 +1554,26 @@ const medianWert = (a) => { const s = [...a].sort((x, y) => x - y); return s[Mat
 const f1 = (x) => x.toFixed(1), f2 = (x) => x.toFixed(2);
 
 // plaetze: [{FL, FR, C}], der erste ist der Hauptplatz. C ist hier immer die Phantom-Mitte.
-function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = false) {
+// Kennzahlen 6a, 6b, 7 an einem Platz: je [Wert, Punkte, Anzeige, Satz] (wie _buehne_kennzahlen)
+function buehneKennzahlen(m, r, kino) {
+  const out = {};
+  const pegel = { FL: mittelDb(r.leistung(m.FL), 500, 2000), FR: mittelDb(r.leistung(m.FR), 500, 2000) };
+  const dl = Math.abs(pegel.FL - pegel.FR), pp = kino ? punkte(dl, 3, 1, 0.5) : punkte(dl, 2, 0.5, 0.2);
+  out.pegel = [dl, pp, `${f1(dl)} dB`, pp >= 70 ? "Alle Kanäle gleich laut." :
+    `Die Stimme rutscht nach ${pegel.FL > pegel.FR ? "links" : "rechts"}: eine Box ist ${f1(dl)} dB lauter.`];
+  const tl = m.FL.delay * 1000, tr = m.FR.delay * 1000, dt = Math.abs(tl - tr);
+  const pz = kino ? punkte(dt, 1, 0.2, 0.1) : punkte(dt, 1, 0.1, 0.05), frueh = tl < tr ? "links" : "rechts";
+  out.laufzeit = [dt, pz, `${f2(dt)} ms`, pz >= 70 ? "Alle Boxen kommen gleichzeitig an, die Mitte steht." :
+    `Die ${frueh === "links" ? "linke" : "rechte"} Box kommt ${f2(dt)} ms früher an, die Stimme zieht nach ${frueh}.`];
+  const rl = glaetten(r.leistung(m.FL), 12), rr = glaetten(r.leistung(m.FR), 12);
+  const dLR = stdAbw(halbOktaven().map(([a, b]) => mittelDb(rl, a, b) - mittelDb(rr, a, b)));
+  out.klang_lr = [dLR, punkte(dLR, 3, 1, 0.5), `${f1(dLR)} dB`, dLR <= 1 ? "Links und rechts klingen gleich, die Bühne ist stabil." :
+    `Links und rechts klingen verschieden (${f1(dLR)} dB) – meist eine Wand oder ein Möbel nah an einer Box.`];
+  return out;
+}
+// buehneMit: Sitzmodus „zu zweit“: je Platz true, wenn er ein Sitzplatz ist (Bühne dort, der schlechteste zählt).
+// mitKacheln: auch ohne Unsicherheit die Kacheln liefern (Teilwert-Wächter).
+function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = false, buehneMit = null, mitKacheln = false) {
   r = r || rechner(HAUSKURVE[modus]);
   const kino = modus === "kino", haupt = plaetze[0], hatC = "C" in haupt;
   const bassCh = kino && hatC ? ["C", "FL", "FR"] : ["FL", "FR"], gew = GEWICHTE[modus];
@@ -1570,19 +1620,13 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
   // 5 Sub-Integration: der Sub läuft hier über die Boxen mit
   setze("sub", null, null, "nicht einzeln gemessen", "Sub läuft über die Boxen mit und wird im Bass mitbewertet.");
 
-  // 6a/6b/7 Bühne am Hauptplatz
-  const pegel = { FL: mittelDb(r.leistung(haupt.FL), 500, 2000), FR: mittelDb(r.leistung(haupt.FR), 500, 2000) };
-  const dl = Math.abs(pegel.FL - pegel.FR), pp = kino ? punkte(dl, 3, 1, 0.5) : punkte(dl, 2, 0.5, 0.2);
-  setze("pegel", dl, pp, `${f1(dl)} dB`, pp >= 70 ? "Alle Kanäle gleich laut." :
-    `Die Stimme rutscht nach ${pegel.FL > pegel.FR ? "links" : "rechts"}: eine Box ist ${f1(dl)} dB lauter.`);
-  const tl = haupt.FL.delay * 1000, tr = haupt.FR.delay * 1000, dt = Math.abs(tl - tr);
-  const pz = kino ? punkte(dt, 1, 0.2, 0.1) : punkte(dt, 1, 0.1, 0.05), frueh = tl < tr ? "links" : "rechts";
-  setze("laufzeit", dt, pz, `${f2(dt)} ms`, pz >= 70 ? "Alle Boxen kommen gleichzeitig an, die Mitte steht." :
-    `Die ${frueh === "links" ? "linke" : "rechte"} Box kommt ${f2(dt)} ms früher an, die Stimme zieht nach ${frueh}.`);
-  const rl = glaetten(r.leistung(haupt.FL), 12), rr = glaetten(r.leistung(haupt.FR), 12);
-  const dLR = stdAbw(halbOktaven().map(([a, b]) => mittelDb(rl, a, b) - mittelDb(rr, a, b)));
-  setze("klang_lr", dLR, punkte(dLR, 3, 1, 0.5), `${f1(dLR)} dB`, dLR <= 1 ? "Links und rechts klingen gleich, die Bühne ist stabil." :
-    `Links und rechts klingen verschieden (${f1(dLR)} dB) – meist eine Wand oder ein Möbel nah an einer Box.`);
+  // 6a/6b/7 Bühne: allein am Hauptplatz, zu zweit (buehneMit) je Kennzahl der schlechteste Sitzplatz (wie kino_score)
+  const bPlaetze = buehneMit ? plaetze.filter((_, i) => buehneMit[i]) : [haupt];
+  const jePlatz = (bPlaetze.length ? bPlaetze : [haupt]).map((m) => buehneKennzahlen(m, r, kino));
+  for (const key of ["pegel", "laufzeit", "klang_lr"]) {
+    const [wert, p, anzeige, satz] = jePlatz.map((b) => b[key]).reduce((a, b) => (b[1] < a[1] ? b : a));
+    setze(key, wert, p, anzeige, jePlatz.length > 1 && p < 70 ? satz + " (schlechtester der Sitzplätze)" : satz);
+  }
 
   // 8 Tonalität bzw. Dialog
   const pTon = (ch) => { const [nbd, ds] = tonalWerte(dbArr(pmittel(ch, 12))); return [0.7 * punkte(nbd, 3, 1.5, 0.8) + 0.3 * punkte(ds, 1.5, 0.5, 0.2), nbd]; };
@@ -1615,10 +1659,11 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
   if (gekappt) gesamt = 74;
   let plusminus = null;
   if (unsicherheit && plaetze.length >= 3) {
-    const loo = plaetze.slice(1).map((_, i) => score(plaetze.filter((__, j) => j !== i + 1), modus, raumM3, r, false).gesamt);
+    const loo = plaetze.slice(1).map((_, i) => score(plaetze.filter((__, j) => j !== i + 1), modus, raumM3, r, false, false,
+      buehneMit ? buehneMit.filter((__, j) => j !== i + 1) : null).gesamt);
     plusminus = Math.max(1, Math.round(Math.max(...loo.map((x) => Math.abs(x - gesamt)))));
   }
-  if (!unsicherheit) return { gesamt };
+  if (!unsicherheit && !mitKacheln) return { gesamt };
 
   const kacheln = {};
   for (const [kid, titel] of Object.entries(KACHELN[modus])) {
@@ -1833,7 +1878,84 @@ function raumTipps(haupt, sh, raumM3) {
   return tipps;
 }
 
-function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null) {
+// Sitzmodus (wie SITZMODI in raumcheck.py): „allein“ = Laufzeit und Pegel exakt für den Hauptplatz, „zwei“ = für die
+// Mitte zwischen den gemessenen Sitzplätzen, minimax (die Mitte zwischen größtem und kleinstem Unterschied; der
+// schlechteste Platz kommt am besten weg, bei zwei Plätzen genau das Mittel)
+const SITZMODI = ["allein", "zwei"];
+const SITZMODUS_NAMEN = { allein: "Ich sitze allein in der Mitte", zwei: "Wir sitzen zu zweit (Sofa)" };
+const mitteMinimax = (w) => 0.5 * (Math.max(...w) + Math.min(...w));
+// Links/rechts gleich laut, gemessen genau wie die Bewertung (Leistungsmittel 500–2000 Hz) und nach den EQs
+function lrPegelDb(p, cals) {
+  const mDb = (ch) => {
+    const l = leistung(antwort(p.messungen[ch]));
+    for (const q of cals[ch].eq) { const g = biquadDb(biquad("Peaking", q.freq, q.q, q.gain)); for (let i = 0; i < NF; i++) l[i] *= Math.pow(10, g[i] / 10); }
+    return mittelDb(l, 500, 2000);
+  };
+  return mDb("FL") - mDb("FR");
+}
+function pegelAngleichen(sitze, cals) {
+  const d = mitteMinimax(sitze.map((p) => lrPegelDb(p, cals)));
+  cals.FL = { ...cals.FL, gain_db: -Math.max(d, 0) }; cals.FR = { ...cals.FR, gain_db: -Math.max(-d, 0) };
+}
+function laufzeitAngleichen(sitze, cals) {  // die frühere Box wartet auf die spätere
+  const dt = mitteMinimax(sitze.map((p) => (p.messungen.FR.delay - p.messungen.FL.delay) * 1000));
+  cals.FL = { ...cals.FL, delay_ms: Math.max(dt, 0) }; cals.FR = { ...cals.FR, delay_ms: Math.max(-dt, 0) };
+}
+function nachherAus(punkte, cals) {  // Prognose je Platz: Messung plus Pegel, Laufzeit und EQ der Fronts
+  return punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, cals.FL), FR: korrigiert(p.messungen.FR, cals.FR) };
+    m.C = p.messungen.C ? korrigiertMitte(p.messungen.C, cals.FL, cals.FR) : mitte(m); return m; });
+}
+// Teilwert-Wächter (wie TEIL_UNSICHERHEIT und kachel_verluste in bewertung.py): keine angezeigte Kachel darf in der
+// Prognose um mehr als 1 Punkt fallen
+const TEIL_UNSICHERHEIT = 1;
+function kachelVerluste(vorher, nachher, tol = TEIL_UNSICHERHEIT) {
+  const out = {};
+  for (const [k, a] of Object.entries(vorher)) { const b = nachher[k] || {};
+    if (a.punkte != null && b.punkte != null && b.punkte < a.punkte - tol) out[k] = [a.punkte, b.punkte]; }
+  return out;
+}
+const verlustListe = (v, kacheln) => Object.entries(v).map(([k, [a, b]]) => `„${kacheln[k].titel}“ ${a} → ${b}`).join(" und ");
+const vz1 = (g) => `${g >= 0 ? "+" : ""}${g.toFixed(1)}`;
+// Wie teilwerte_schuetzen in raumcheck.py: solange eine Kachel fällt, einen Filter halbieren (ab 1 dB) oder
+// entfernen, oder Pegel und Laufzeit neutral (Bühne und Phantom-Mitte); der Schritt mit dem kleinsten Verlust gewinnt
+function teilwerteSchuetzen(punkte, sitze, cals, modus, raumM3, buehneMit, heute) {
+  const bewerte = (c) => {
+    const s = score(nachherAus(punkte, c), modus, raumM3, null, false, true, buehneMit, true), v = kachelVerluste(heute, s.kacheln);
+    return { wert: [Object.values(v).reduce((t, [a, b]) => t + a - b - TEIL_UNSICHERHEIT, 0), -s.gesamt_roh], v };
+  };
+  const kleiner = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
+  cals = { FL: cals.FL, FR: cals.FR };
+  let buehneAus = false, { v: verluste } = bewerte(cals);
+  const hinweise = [];
+  while (Object.keys(verluste).length) {
+    const versuche = [];
+    for (const ch of ["FL", "FR"]) {
+      const eq = cals[ch].eq;
+      eq.forEach((q, i) => {
+        const kand = [[`Filter ${ch} ${q.freq.toFixed(0)} Hz ${vz1(q.gain)} dB entfernt`, anhebungBegrenzen(eq.filter((_, j) => j !== i))]];
+        if (Math.abs(q.gain) >= 1) { const halb = { ...q, gain: Math.round(q.gain * 10) / 10 / 2 };
+          kand.push([`Filter ${ch} ${q.freq.toFixed(0)} Hz ${vz1(q.gain)} dB auf ${vz1(halb.gain)} dB verringert`, anhebungBegrenzen(eq.map((x, j) => (j === i ? halb : x)))]); }
+        for (const [text, neu] of kand) {
+          let v = { FL: cals.FL, FR: cals.FR }; v[ch] = { ...cals[ch], eq: neu };
+          v = waechterEq(punkte, v, modus).cals;
+          if (!buehneAus) pegelAngleichen(sitze, v);
+          versuche.push([text, v]);
+        }
+      });
+    }
+    if (!buehneAus) versuche.push(["Pegel und Laufzeit neutral", { FL: { ...cals.FL, gain_db: 0, delay_ms: 0 }, FR: { ...cals.FR, gain_db: 0, delay_ms: 0 } }]);
+    if (!versuche.length) break;
+    let best = null;
+    for (const [text, v] of versuche) { const b = bewerte(v); if (!best || kleiner(b.wert, best.b.wert)) best = { b, text, v }; }
+    buehneAus = buehneAus || best.text === "Pegel und Laufzeit neutral";
+    hinweise.push(`Teilwert-Wächter: ${best.text}, sonst würde ${verlustListe(verluste, heute)} schlechter.`);
+    cals = best.v; verluste = best.b.v;
+  }
+  return { cals, hinweise };
+}
+
+function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null, sitzmodus = "allein") {
+  if (!SITZMODI.includes(sitzmodus)) throw new Error(`Unbekannter Sitzmodus ${sitzmodus}`);
   const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null, folge = folgeFuer(kanaele);
   const erg = { aufnahmen: [], fehler: null, modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
   const punkte = [];
@@ -1847,46 +1969,55 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
   if (!punkte.length) { erg.fehler = "Keine saubere Aufnahme dabei. Bitte ohne Filter aufnehmen (Sprachmemos „Verlustfrei“) und wiederholen."; return erg; }
   // Hauptplatz unbrauchbar: nicht mit einem anderen Platz weiterrechnen (wie raumcheck.py)
   if (aufnahmen.length && erg.aufnahmen.length && !erg.aufnahmen[0].sauber) { erg.fehler = "Die Messung am Hauptplatz ist nicht sauber (siehe Hinweis oben). Bitte dort noch einmal messen – die anderen Plätze bleiben."; return erg; }
+  // Ein echter Center (Messfolge über die Box) ist ein eigener Lautsprecher, keine Phantommitte: nur Pegel und
+  // Laufzeit (unten), Score und Raumanpassung der Fronts rechnen ohne ihn (wie raumcheck.py)
+  const extra = {};
+  if (folge.kanaele.includes("C")) { extra.C = punkte[0].messungen.C; for (const p of punkte) { const m = { ...p.messungen }; delete m.C; p.messungen = m; } }
+  // Sitzplätze: die festen Aufnahmen (die bewegte Messung ist kein Sitzplatz)
+  const zwei = sitzmodus === "zwei" && punkte.length >= 2, ausgleich = zwei ? punkte.slice() : punkte.slice(0, 1), nSitze = punkte.length;
+  Object.assign(erg, { sitzmodus: zwei ? "zwei" : "allein", sitzmodus_gewaehlt: sitzmodus, sitzplaetze: ausgleich.map((p) => p.name) });
   if (bewegt) { const b = bewegtePunkte(bewegt, mikro); erg.aufnahmen.push(b.info); punkte.push(...b.punkte); }
+  const buehneMit = zwei ? punkte.map((_, i) => i < nSitze) : null;
   const ein = einmessen(punkte, HAUSKURVE[modus]);
-  // Bühne: links/rechts genau am Hauptplatz gleich laut (die Einmessung mittelt über alle Plätze)
-  // gemessen genau wie die Bewertung (Leistungsmittel 500–2000 Hz) und nach den EQs
-  const pegelAngleichen = (cals) => {
-    const mDb = (ch) => {
-      const p = leistung(antwort(punkte[0].messungen[ch]));
-      for (const q of cals[ch].eq) { const g = biquadDb(biquad("Peaking", q.freq, q.q, q.gain)); for (let i = 0; i < NF; i++) p[i] *= Math.pow(10, g[i] / 10); }
-      return mittelDb(p, 500, 2000);
-    };
-    const dLR = mDb("FL") - mDb("FR");
-    cals.FL.gain_db = -Math.max(dLR, 0); cals.FR.gain_db = -Math.max(-dLR, 0);
-  };
-  pegelAngleichen(ein.cals);
-  // ... und gleichzeitig: die frühere Box wartet auf die spätere
-  const dt = (punkte[0].messungen.FR.delay - punkte[0].messungen.FL.delay) * 1000;
-  ein.cals.FL.delay_ms = Math.max(dt, 0); ein.cals.FR.delay_ms = Math.max(-dt, 0);
+  // Bühne: Pegel und Laufzeit links/rechts für den Sitzmodus (die Einmessung mittelt über alle Plätze)
+  pegelAngleichen(ausgleich, ein.cals);
+  laufzeitAngleichen(ausgleich, ein.cals);
   const wa = waechterEq(punkte, ein.cals, modus);
   ein.cals = wa.cals; ein.zeilen = ein.zeilen.concat(wa.hinweise);
-  pegelAngleichen(ein.cals);  // der Wächter kann EQs geändert haben
+  pegelAngleichen(ausgleich, ein.cals);  // der Wächter kann EQs geändert haben
+  // Score und Prognose an allen Plätzen (in beiden Sitzmodi)
   const vorher = punkte.map((p) => ({ FL: p.messungen.FL, FR: p.messungen.FR, C: p.messungen.C || mitte(p.messungen) }));
-  const nachher = punkte.map((p) => { const m = { FL: korrigiert(p.messungen.FL, ein.cals.FL), FR: korrigiert(p.messungen.FR, ein.cals.FR) };
-    m.C = p.messungen.C ? korrigiertMitte(p.messungen.C, ein.cals.FL, ein.cals.FR) : mitte(m); return m; });
-  const sh = score(vorher, modus, raumM3), sn = score(nachher, modus, raumM3, null, true, true);
+  const sh = score(vorher, modus, raumM3, null, true, false, buehneMit);
+  // Teilwert-Wächter: keine Kachel schlechter als ihre Unsicherheit (sonst Filter verringern oder entfernen)
+  const tw = teilwerteSchuetzen(punkte, ausgleich, ein.cals, modus, raumM3, buehneMit, sh.kacheln);
+  ein.cals = tw.cals; ein.zeilen = ein.zeilen.concat(tw.hinweise);
+  if (zwei) ein.zeilen.push(`Sitzmodus zu zweit: Laufzeit und Pegel für die Mitte zwischen ${ausgleich.length} Sitzplätzen.`);
+  else if (sitzmodus === "zwei") ein.zeilen.push("Sitzmodus zu zweit braucht mindestens zwei saubere Sitzplätze: gerechnet wie allein (Hauptplatz).");
+  const nachher = nachherAus(punkte, ein.cals);
+  const sn = score(nachher, modus, raumM3, null, true, true, buehneMit);
   const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C), vh = kurveVoll(vorher[0].C), vn = kurveVoll(nachher[0].C);
   Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, bericht: ein.zeilen, tipps: ein.tipps,
-                       raum_tipps: raumTipps(punkte[0].messungen, sh, raumM3),
+                       raum_tipps: raumTipps(punkte[0].messungen, sh, raumM3), raum_ueberhoehung: raumUeberhoehung(punkte.map((p) => p.messungen)),
                        kurve: { f: kh.f, heute: kh.v, prognose: kn.v }, kurve_voll: { f: vh.f, heute: vh.v, prognose: vn.v }, einstellungen: ein.cals });
   // Nie verschlimmbessern: bringt die Raumanpassung nicht mindestens einen Punkt, bleibt die Box neutral
-  // (ein vorhergesagtes „gleich gut“ ist nur Risiko; wie MINDEST_GEWINN in raumcheck.py)
-  if (sn.gesamt < sh.gesamt + 1) {
+  // (ein vorhergesagtes „gleich gut“ ist nur Risiko; wie MINDEST_GEWINN in raumcheck.py). Dasselbe, wenn trotz
+  // Teilwert-Wächter eine Kachel schlechter würde (letzter Ausweg).
+  const verluste = kachelVerluste(sh.kacheln, sn.kacheln), neutral = sn.gesamt < sh.gesamt + 1 || Object.keys(verluste).length > 0;
+  if (Object.keys(verluste).length) erg.bericht.push(`Wächter: Mit der Raumanpassung würde ${verlustListe(verluste, sh.kacheln)} schlechter (erlaubt: ${TEIL_UNSICHERHEIT} Punkt). Die Box bleibt neutral.`);
+  if (neutral) {
     erg.score_prognose = { ...sh }; erg.kurve.prognose = kh.v; erg.kurve_voll.prognose = vh.v;
     erg.einstellungen = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
-    erg.bericht.push("Wächter: Die Raumanpassung würde hier insgesamt nichts verbessern. Die Box bleibt neutral.");
+    if (!Object.keys(verluste).length) erg.bericht.push("Wächter: Die Raumanpassung würde hier insgesamt nichts verbessern. Die Box bleibt neutral.");
   }
-  if (folge === FOLGE_4) {  // Layout 4.0: Rückkanäle dazu (nur Pegel und Laufzeit, Regel 4.0); neutral bleibt neutral
-    const r = rueckkanaeleEinmessen(punkte[0].messungen, erg.einstellungen);
-    if (sn.gesamt < sh.gesamt + 1) for (const ch of ["SL", "SR"]) r.aus[ch] = { gain_db: 0, delay_ms: 0, eq: [] };
+  const zusatz = ZUSATZ.filter((c) => folge.kanaele.includes(c));
+  if (zusatz.length) {  // Center und Rückkanäle dazu (nur Pegel und Laufzeit, Regel 4.0); neutral bleibt neutral
+    const r = rueckkanaeleEinmessen({ ...punkte[0].messungen, ...extra }, erg.einstellungen);
+    if (neutral) { r.aus = {}; for (const ch of zusatz) r.aus[ch] = { gain_db: 0, delay_ms: 0, eq: [] }; }
+    for (const ch of ["FL", "FR"]) if (ch in r.aus) { erg.einstellungen[ch] = { ...erg.einstellungen[ch], delay_ms: r.aus[ch].delay_ms }; delete r.aus[ch]; }
     Object.assign(erg.einstellungen, r.aus); erg.tipps = erg.tipps.concat(r.hinweise);
-    erg.bericht.push("Rückkanäle: " + ["SL", "SR"].map((ch) => `${RUECK_NAMEN[ch]} ${r.aus[ch].gain_db.toFixed(1)} dB, ${r.aus[ch].delay_ms.toFixed(1)} ms`).join(", "));
+    if (zusatz.includes("C")) erg.bericht.push(`Center: ${r.aus.C.gain_db.toFixed(1)} dB, ${r.aus.C.delay_ms.toFixed(1)} ms`);
+    const hinten = zusatz.filter((c) => c !== "C");
+    if (hinten.length) erg.bericht.push("Rückkanäle: " + hinten.map((ch) => `${RUECK_NAMEN[ch]} ${r.aus[ch].gain_db.toFixed(1)} dB, ${r.aus[ch].delay_ms.toFixed(1)} ms`).join(", "));
   }
   // Wächter: lieber kein Ergebnis als ein falsches
   const v = waechterErgebnis(erg);
@@ -1971,8 +2102,163 @@ function profilDbAn(fl, freqs) {
     s += 10 * Math.log10((nr * nr + ni * ni) / (dr * dr + di * di)); } return s; });
 }
 
+// --- Raum-Überhöhung 2–8 kHz (klangbox/raumanteil.py) ------------------------------------------
+// Direktschall (kurzes Fenster bis vor die erste Reflexion) gegen eingeschwungenen Schall, mindestens 5 Plätze.
+const RU = { minPlaetze: 5, baender: [[2000, 5000, 2.0], [5000, 8000, 3.0]], minBreite: 2 / 3, anteil: 0.7, platzMin: 1.0, streuung: 1.5, boxBuckel: 1.0,
+  trend: [1000, 8000], reflexionTipp: -6, maxAbsenkung: 1.5, einseitig: 1.0, q: [0.7, 1.0], vorS: 0.0005, vorReflexionS: 0.0003, minFensterS: 0.0015,
+  maxFensterS: 0.005, schwelle: 0.1, nfft: 8192, vorschlagNeigung: 0.2, minAbsenkung: 0.5,
+  wirkung: 0.5, prognose: 1.0, senke: -2.0, glaette: 0.3, neigung: 0.3, abHz: 1000 };
+const r3 = (v) => Math.round(v * 1000) / 1000;
+function direktFenster(m) {
+  const env = huellkurve(filtfilt(m.ir, bandpass(2000, 8000, 2))), d = m.zero + Math.round(m.delay * FS), halb = Math.round(RU.vorS * FS);
+  const a = Math.max(0, d - halb); let p = a;
+  for (let i = a; i <= d + halb && i < env.length; i++) if (env[i] > env[p]) p = i;
+  const grenze = RU.schwelle * env[p], endeMax = a + Math.round(RU.maxFensterS * FS), i1 = p + halb;
+  let e = endeMax;
+  for (let i = i1; i < Math.min(endeMax, env.length); i++) if (env[i] >= grenze) { e = i - Math.round(RU.vorReflexionS * FS); break; }
+  return e - a < Math.round(RU.minFensterS * FS) ? null : [a, e];
+}
+function direktschall(m) {  // Leistung des Direktschalls auf F, oder null
+  const fe = direktFenster(m); if (!fe) return null;
+  const seg = m.ir.slice(fe[0], fe[1]), nt = Math.floor(seg.length / 2), L = seg.length;
+  for (let k = 0; k < nt; k++) seg[L - nt + k] *= 0.5 - 0.5 * Math.cos(2 * Math.PI * (nt + k) / (2 * nt - 1));
+  const s = spektrum(seg, RU.nfft), pw = new Float64Array(RU.nfft / 2 + 1);
+  for (let k = 0; k <= RU.nfft / 2; k++) pw[k] = s.re[k] ** 2 + s.im[k] ** 2;
+  const out = new Float64Array(NF);
+  for (let i = 0; i < NF; i++) { const x = F[i] * RU.nfft / FS, k = Math.floor(x), t = x - k; out[i] = k >= RU.nfft / 2 ? pw[RU.nfft / 2] : pw[k] + t * (pw[k + 1] - pw[k]); }
+  return out;
+}
+function geradeAb(db, lo, hi) {  // db minus Gerade in log2 f über lo–hi (wie np.polyfit Grad 1)
+  const xs = [], ys = []; for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] <= hi) { xs.push(Math.log2(F[i])); ys.push(db[i]); }
+  const k = steigung(xs, ys), c = mean(ys) - k * mean(xs);
+  return db.map((v, i) => v - (k * Math.log2(F[i]) + c));
+}
+const trendWeg = (db) => geradeAb(db, RU.trend[0], RU.trend[1]);
+function mittelLeistung(liste) { const o = new Float64Array(NF); for (const p of liste) for (let i = 0; i < NF; i++) o[i] += p[i] / liste.length; return o; }
+function ruBreite(b, i0) {
+  const imBand = (i) => F[i] >= RU.trend[0] && F[i] <= RU.trend[1], g = 0.5 * b[i0];  // halbe Höhe (wie _breite)
+  let lo = i0, hi = i0;
+  while (lo > 0 && imBand(lo - 1) && b[lo - 1] >= g) lo--;
+  while (hi < NF - 1 && imBand(hi + 1) && b[hi + 1] >= g) hi++;
+  return Math.log2(F[hi] / F[lo]);
+}
+function ruFront(plaetze, ch) {
+  const sL = [], dL = [];
+  for (const m of plaetze) { if (!m[ch]) continue; const d = direktschall(m[ch]); if (!d) continue; sL.push(glaetten(leistung(antwort(m[ch])), 3)); dL.push(glaetten(d, 3)); }
+  const out = { kanal: ch, plaetze: sL.length, ausgeloest: false };
+  if (sL.length < RU.minPlaetze) { out.zu_wenig_plaetze = true; return out; }
+  const bi = sL.map((s, k) => trendWeg(dbArr(s).map((v, i) => v - db10(dL[k][i]))));
+  const sM = dbArr(mittelLeistung(sL)), dM = dbArr(mittelLeistung(dL)), b = trendWeg(sM.map((v, i) => v - dM[i])), box = trendWeg(dM);
+  let beste = null;
+  for (const [lo, hi, schwelle] of RU.baender) {
+    let i0 = -1; for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] < hi && (i0 < 0 || b[i] > b[i0])) i0 = i;
+    const w = bi.map((x) => x[i0]);
+    const k = { f0_hz: F[i0], b_max_db: b[i0], schwelle_db: schwelle, breite_okt: ruBreite(b, i0), anteil_plaetze: mean(w.map((v) => (v >= RU.platzMin ? 1 : 0))),
+      streuung_db: stdAbw(w), box_buckel_db: box[i0] };
+    k.ausgeloest = k.b_max_db >= schwelle && k.breite_okt >= RU.minBreite - 1e-9 && k.anteil_plaetze >= RU.anteil && k.streuung_db <= RU.streuung && k.box_buckel_db < RU.boxBuckel;
+    const rang = [k.ausgeloest ? 1 : 0, k.b_max_db - schwelle];
+    if (!beste || rang[0] > beste[0][0] || (rang[0] === beste[0][0] && rang[1] > beste[0][1])) beste = [rang, k];
+  }
+  for (const [key, v] of Object.entries(beste[1])) out[key] = typeof v === "number" && key !== "schwelle_db" ? r3(v) : v;
+  return out;
+}
+function ruNeigungFilter(f0, g, q) {
+  const d = peqDb({ freq: f0, gain: g, q }), xs = [], ys = []; for (let i = 0; i < NF; i++) if (F[i] >= 300 && F[i] <= 10000) { xs.push(Math.log2(F[i])); ys.push(d[i]); }
+  return steigung(xs, ys);
+}
+function ruNeigungBegrenzt(f0, g, q) {  // die Absenkung allein ändert die Neigung höchstens um RU.vorschlagNeigung (wie _neigung_begrenzt)
+  for (let k = 0; k < 6; k++) { const n = Math.abs(ruNeigungFilter(f0, g, q)); if (n <= RU.vorschlagNeigung) break; g *= 0.97 * RU.vorschlagNeigung / n; }
+  return g;
+}
+const ruQ = (okt) => { const g = Math.pow(2, okt); return Math.min(RU.q[1], Math.max(RU.q[0], Math.sqrt(g) / (g - 1))); };
+function raumUeberhoehung(plaetze) {
+  const fronten = { FL: ruFront(plaetze, "FL"), FR: ruFront(plaetze, "FR") }, an = ["FL", "FR"].filter((ch) => fronten[ch].ausgeloest), z = zahlText;
+  const out = { fronten, ausgeloest: an.length > 0, hinweis: null, tipp: null, vorschlag: {} };
+  if (fronten.FL.zu_wenig_plaetze || fronten.FR.zu_wenig_plaetze) {
+    const n = Math.min(fronten.FL.plaetze, fronten.FR.plaetze);
+    out.hinweis = `Raum-Überhöhung 2–8 kHz: zu wenig Plätze (${n}, nötig sind ${RU.minPlaetze}). Für diese Prüfung an mindestens fünf Plätzen messen.`;
+  }
+  if (!an.length) return out;
+  const seite = { FL: "links", FR: "rechts" };
+  let r0 = fronten[an[0]]; for (const ch of an) if (fronten[ch].b_max_db > r0.b_max_db) r0 = fronten[ch];
+  const wo = an.length === 2 ? "beiden Boxen" : `der Box ${seite[an[0]]}`;
+  out.hinweis = `Der Raum hebt bei ${wo} um ${z(r0.f0_hz / 1000, 1)} kHz um etwa ${z(r0.b_max_db, 1)} dB an (der Direktschall der Box hat das nicht).`;
+  let best = null; for (const ch of an) { const r = reflexion(plaetze[0][ch], 2000, 8000); if (!best || r[0] > best[0][0]) best = [r, ch]; }
+  const [[db, ms], chR] = best;
+  out.tipp = db >= RU.reflexionTipp
+    ? `Reflexion nach ${z(ms, 1)} ms bei der Box ${seite[chR]}: etwa ${z(ms / 1000 * 343, 1)} m Umweg, wahrscheinlich Tisch, Glas oder Seitenwand. Ein Vorhang, ein Regal oder die Box etwas weiter weg und leicht zum Platz gedreht hilft mehr als jeder EQ.`
+    : "Meist hilft die Aufstellung mehr als ein EQ: harte Flächen nah an den Boxen (Glas, Tisch, kahle Seitenwand) mit Vorhang, Teppich oder Regal beruhigen.";
+  let f0, q, ziele;
+  if (an.length === 2) {
+    f0 = Math.sqrt(fronten.FL.f0_hz * fronten.FR.f0_hz); const g = -Math.min(RU.maxAbsenkung, 0.5 * Math.min(fronten.FL.b_max_db, fronten.FR.b_max_db));
+    q = ruQ(Math.min(fronten.FL.breite_okt, fronten.FR.breite_okt)); ziele = { FL: g, FR: g };
+  } else { const r = fronten[an[0]]; f0 = r.f0_hz; q = ruQ(r.breite_okt); ziele = { [an[0]]: -Math.min(RU.einseitig, 0.5 * r.b_max_db) }; }
+  const rd = (v, n) => { const p = Math.pow(10, n); return Math.round(v * p) / p; };
+  for (const [ch, g0] of Object.entries(ziele)) {
+    const g = ruNeigungBegrenzt(f0, g0, q), p = sicherPeq({ freq: Math.round(f0), gain: rd(g, 2), q: rd(q, 2) });
+    if (p && p.gain <= -RU.minAbsenkung) out.vorschlag[ch] = [p];
+  }
+  return out;
+}
+// Nachmessung nach einer Präsenz-Absenkung (wie absenkung_pruefen): wirkt sie, ohne etwas zu verschlechtern?
+function absenkungFilter(e) {
+  const out = {}; for (const ch of ["FL", "FR"]) { const fl = ((e || {})[ch] && e[ch].eq || []).filter((q) => q.freq >= RU.abHz && q.gain < 0); if (fl.length) out[ch] = fl; }
+  return out;
+}
+function praesenzGlaette(db) {
+  const w = []; for (let k = 0; k < 4; k++) { const lo = 2000 * Math.pow(2, k / 2), hi = 2000 * Math.pow(2, (k + 1) / 2), x = [];
+    for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] < hi) x.push(db[i]); const mu = mean(x); w.push(mean(x.map((v) => Math.abs(v - mu)))); }
+  return mean(w);
+}
+function absenkungPruefen(vorher, nachher, filterJeKanal) {
+  const kan = Object.keys(filterJeKanal), z = zahlText;
+  const pv = vorher.map((m) => kan.map((ch) => leistung(antwort(m[ch])))), pn = nachher.map((m) => kan.map((ch) => leistung(antwort(m[ch]))));
+  const norm = (x) => { let s = 0, c = 0; for (let i = 0; i < NF; i++) if (F[i] >= 500 && F[i] <= 2000) { s += x[i]; c++; } return x.map((v) => v - s / c); };
+  const mv = norm(dbArr(glaetten(mittelLeistung(pv.flat()), 3))), mn = norm(dbArr(glaetten(mittelLeistung(pn.flat()), 3)));
+  const sollRoh = new Float64Array(NF); for (const ch of kan) { const d = summeDb(filterJeKanal[ch]); for (let i = 0; i < NF; i++) sollRoh[i] += d[i] / kan.length; }
+  const soll = norm(sollRoh);
+  let i0 = 0; for (let i = 0; i < NF; i++) if (soll[i] < soll[i0]) i0 = i;
+  const ist = mn[i0] - mv[i0], gruende = [];
+  if (!(ist <= RU.wirkung * soll[i0] && Math.abs(ist - soll[i0]) <= RU.prognose)) gruende.push(`bei ${z(F[i0] / 1000, 1)} kHz ${z(ist, 1)} dB statt ${z(soll[i0], 1)} dB`);
+  const tv = trendWeg(mv), tn = trendWeg(mn);
+  let senke = 0, fs = 0, erst = true;
+  for (let i = 0; i < NF; i++) if (F[i] >= RU.trend[0] && F[i] <= RU.trend[1]) { const x = tv[i] >= RU.senke ? tn[i] : 0; if (erst || x < senke) { senke = x; fs = F[i]; erst = false; } }
+  if (senke < RU.senke) gruende.push(`neue Senke ${z(senke, 1)} dB bei ${z(fs / 1000, 1)} kHz`);
+  const glaette = pv.map((a, k) => r3(praesenzGlaette(dbArr(glaetten(mittelLeistung(pn[k]), 12))) - praesenzGlaette(dbArr(glaetten(mittelLeistung(a), 12)))));
+  if (Math.max(...glaette) > RU.glaette) gruende.push(`ein Platz im Präsenzbereich ${z(Math.max(...glaette), 1)} dB unruhiger`);
+  const xs = [], yv = [], yn = []; for (let i = 0; i < NF; i++) if (F[i] >= 300 && F[i] <= 10000) { xs.push(Math.log2(F[i])); yv.push(mv[i]); yn.push(mn[i]); }
+  const dNeig = steigung(xs, yn) - steigung(xs, yv);
+  if (Math.abs(dNeig) > RU.neigung) gruende.push(`Neigung um ${z(dNeig, 2)} dB/Oktave verändert`);
+  const r2 = (v) => Math.round(v * 100) / 100;
+  return { f0_hz: Math.round(F[i0] * 10) / 10, soll_db: r2(soll[i0]), ist_db: r2(ist), neue_senke_db: r2(senke), glaette_aenderung_db: glaette,
+    neigung_aenderung_db_okt: r3(dNeig), ok: !gruende.length, gruende };
+}
+
+// --- Präsenz-Wächter (klangbox/nachpruefung.py): 2–8 kHz nicht lauter, keine neue Spitze -------------------
+const PW = { baender: [[2000, 5000, 1.0], [5000, 8000, 1.5]], spitze: 2.5, vorher: 1.5, umkreisOkt: 1 / 6, spitzeBand: [1500, 8000], bezug: [500, 2000],
+  ursacheHoehen: "Höhen- oder Präsenz-Regler am Gerät (Lautsprecher, Verstärker, Quelle) verstellt?", plaetzeSicher: 3,
+  wenigPlaetze: "Gemessen an weniger als drei Plätzen: Neben Glas oder einer kahlen Wand reichen wenige Zentimeter Unterschied für eine scheinbare Spitze. Miss vorher und nachher an zwei, drei Plätzen mehr." };
+function praesenzAusLeistung(vorher, nachher) {
+  const pv = mittelLeistung(vorher), pn = mittelLeistung(nachher), dv = dbArr(glaetten(pv, 3)), dn = dbArr(glaetten(pn, 3)), z = zahlText;
+  let sv = 0, sn = 0, c = 0; for (let i = 0; i < NF; i++) if (F[i] >= PW.bezug[0] && F[i] <= PW.bezug[1]) { sv += dv[i]; sn += dn[i]; c++; }
+  const d = dn.map((v, i) => (v - sn / c) - (dv[i] - sv / c)), baender = [], gruende = [];
+  for (const [lo, hi, grenze] of PW.baender) {
+    const x = []; for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] < hi) x.push(d[i]);
+    const m = mean(x); baender.push({ von_hz: lo, bis_hz: hi, aenderung_db: Math.round(m * 100) / 100, grenze_db: grenze, ok: m <= grenze });
+    if (m > grenze) gruende.push(`${z(lo / 1000, 0)}–${z(hi / 1000, 0)} kHz um ${z(m, 1, true)} dB lauter als vorher (erlaubt ${z(grenze, 1, true)} dB)`);
+  }
+  const h = Math.round(NF / Math.log2(F[NF - 1] / F[0]) * PW.umkreisOkt), prv = gleitMax(prominenz(pv), 2 * h + 1), prn = prominenz(pn);  // ±1/6 Oktave
+  let sp = null, fsp = 0, pvor = 0;
+  for (let i = 0; i < NF; i++) if (F[i] >= PW.spitzeBand[0] && F[i] <= PW.spitzeBand[1]) { const x = prv[i] < PW.vorher ? prn[i] : -99; if (sp === null || x > sp) { sp = x; fsp = F[i]; pvor = prv[i]; } }
+  if (sp >= PW.spitze) gruende.push(`neue Spitze bei ${z(fsp / 1000, 1)} kHz (${z(sp, 1)} dB über dem Verlauf, vorher ${z(pvor, 1)} dB; erlaubt unter ${z(PW.spitze, 1)} dB)`);
+  return { baender, neue_spitze_db: Math.round(sp * 100) / 100, neue_spitze_hz: Math.round(fsp * 10) / 10, spitze_grenze_db: PW.spitze, ok: !gruende.length, gruende };
+}
+function praesenzAnhebung(vorher, nachher) {
+  return praesenzAusLeistung(vorher.flatMap((m) => ["FL", "FR"].map((ch) => leistung(antwort(m[ch])))), nachher.flatMap((m) => ["FL", "FR"].map((ch) => leistung(antwort(m[ch])))));
+}
+
 // --- Nachmessung mit Rücknahme (klangbox/nachpruefung.py) ---------------------------------------
-const NP = { rausch: 0.5, minTol: 0.3, teil: 5, score: 3, neigung: 0.3, spitzeMax: 4, spitzeUnerwartet: 3, spitzeProminenz: 2,
+const NP = { rausch: 0.5, minTol: 0.3, teil: 5, kachel: 5, score: 3, neigung: 0.3, spitzeMax: 4, spitzeUnerwartet: 3, spitzeProminenz: 2,
   methodeB: { B1: 3, B2: 2, B3: 2, B4: 1.5, B5: 1.5, B6: 1.5, B7: 2, B8: 3 } };
 const PRUEFBAENDER = [["B1 Tiefbass", 20, 60], ["B2 Bass", 60, 150], ["B3 Grundton", 150, 300], ["B4 Untere Mitten", 300, 1000],
   ["B5 Praesenz", 1000, 4000], ["B6 Brillanz", 4000, 8000], ["B7 Hoehen", 8000, 12500], ["B8 Luft", 12500, 16000]];
@@ -2044,9 +2330,9 @@ function kanalWerte(m) {
   const tm = Math.min(t.FL, t.FR), pm = Math.max(p.FL, p.FR);
   return { FL: { laufzeit_ms: t.FL - tm, pegel_db: p.FL - pm }, FR: { laufzeit_ms: t.FR - tm, pegel_db: p.FR - pm } };
 }
-function vergleichRechnen(vh, gemessen, namen, modus, raumM3, sn, ungefaehr) {
-  const sp = score(vh, modus, raumM3, null, true, true);
-  sn = sn || score(gemessen, modus, raumM3, null, true, true);
+function vergleichRechnen(vh, gemessen, namen, modus, raumM3, sn, ungefaehr, buehneMit = null) {
+  const sp = score(vh, modus, raumM3, null, true, true, buehneMit);
+  sn = sn || score(gemessen, modus, raumM3, null, true, true, buehneMit);
   const kz = Object.fromEntries(Object.entries(sp.kennzahlen).map(([k, v]) => [k, { name: v.name, vorhergesagt: v.punkte, gemessen: sn.kennzahlen[k].punkte }]));
   const kv = kurve(vh[0].C), kn = kurve(gemessen[0].C), d = [];
   kv.f.forEach((f, i) => { if (f >= 40 && f <= 300) d.push(Math.abs(kv.v[i] - kn.v[i])); });
@@ -2080,7 +2366,7 @@ function methodeB(nachher, profil, modus) {
     plaetze: nachher.length, hinweis };
 }
 // vorher: {Platzname: messungen}, nachher: [{name, messungen}] (der erste gemeinsame Platz ist der Hauptplatz)
-function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", raumM3 = null, toleranz = NP.rausch, vorhersageKette = null, vorhersageUngefaehr = false) {
+function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", raumM3 = null, toleranz = NP.rausch, vorhersageKette = null, vorhersageUngefaehr = false, sitzmodus = "allein") {
   const plaetze = nachher.filter((p) => p.name in vorher);
   if (!plaetze.length) return { ok: false, empfehlung: "zuruecknehmen", satz: "Ich kann nichts vergleichen: Zur Nachmessung fehlt die Messung vorher am selben Platz. Sicherheitshalber bleibt der alte Stand.",
     gruende: ["keine Messung vorher und nachher am selben Platz"], je_platz: [], hinweise: [], profil_pruefung: null, vergleich: null };
@@ -2100,24 +2386,40 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     if (sb) gruende.push(`${p.name}: Bass ${z(a)} → ${z(b)} dB Abweichung (schlechter um ${z(b - a)} dB, Toleranz ${z(tol)} dB)`);
     if (ss) gruende.push(`${p.name}: Raummode bei ${z(fSp, 0)} Hz um ${z(sp)} dB stärker angehoben als der übrige Bass (erlaubt ${z(NP.spitzeMax)} dB): Das dröhnt.`);
   });
-  const sv = score(v, modus, raumM3), sn = score(nRk, modus, raumM3, null, true, true);
+  // Präsenz-Wächter: 2–8 kHz nicht lauter, keine neue Spitze (Profilwirkung herausgerechnet)
+  const praesenz = praesenzAnhebung(v, nRk), praesenzSchlecht = !praesenz.ok;
+  if (praesenzSchlecht) gruende.push("Präsenz (2–8 kHz): " + praesenz.gruende.join("; ") + ". Das kann auf Dauer anstrengen.");
+  // Präsenz-Absenkung (Raum-Überhöhung, nur auf Wunsch): wirkt sie, ohne etwas zu verschlechtern?
+  let absenkung = null; const af = absenkungFilter(einstellungen);
+  if (Object.keys(af).length) { absenkung = absenkungPruefen(v, nRk, af); if (!absenkung.ok) gruende.push("Präsenz-Absenkung: " + absenkung.gruende.join("; ")); }
+  // Sitzmodus zu zweit: Bühne an allen nachgemessenen Plätzen (der schlechteste zählt), wie nachpruefung.py
+  const buehneMit = sitzmodus === "zwei" && plaetze.length >= 2 ? plaetze.map(() => true) : null, wo = buehneMit ? "an den Sitzplätzen" : "am Hauptplatz";
+  const sv = score(v, modus, raumM3, null, true, false, buehneMit), sn = score(nRk, modus, raumM3, null, true, true, buehneMit);
   const teile = {}, teilSchlecht = [];
   for (const [key, name] of [["pegel", "Kanäle gleich laut"], ["laufzeit", "Kanäle gleichzeitig"]]) {
     const a = sv.teile_roh[key], b = sn.teile_roh[key];
     teile[key] = [a == null ? null : Math.round(a), b == null ? null : Math.round(b)];
-    if (a != null && b != null && b < a - NP.teil) { teilSchlecht.push(name); gruende.push(`${name} am Hauptplatz: ${z(a, 0)} → ${z(b, 0)} Punkte`); }
+    if (a != null && b != null && b < a - NP.teil) { teilSchlecht.push(name); gruende.push(`${name} ${wo}: ${z(a, 0)} → ${z(b, 0)} Punkte`); }
   }
+  const kachelSchlecht = kachelVerluste(sv.kacheln, sn.kacheln, NP.kachel), kacheln = {};
+  for (const k of Object.keys(sv.kacheln)) kacheln[k] = [sv.kacheln[k].punkte, sn.kacheln[k].punkte];
+  for (const [k, [a, b]] of Object.entries(kachelSchlecht)) gruende.push(`Teilwert „${sv.kacheln[k].titel}“: ${a} → ${b} Punkte (Toleranz ${NP.kachel})`);
   const scoreSchlecht = sn.gesamt_roh < sv.gesamt_roh - NP.score;
   if (scoreSchlecht) gruende.push(`Gesamtscore ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}`);
-  const zurueck = !!(schlechter.length || teilSchlecht.length || scoreSchlecht);
+  const absenkungSchlecht = !!(absenkung && !absenkung.ok);
+  const kachelErste = Object.keys(kachelSchlecht)[0], zurueck = !!(schlechter.length || teilSchlecht.length || kachelErste || scoreSchlecht || praesenzSchlecht || absenkungSchlecht);
   let satz;
   if (zurueck) {
-    if (schlechter.length) satz = `Ich nehme es zurück – es wurde an Platz „${schlechter[0]}“ schlechter` + (schlechter.length > 1 ? ` (und an ${schlechter.length - 1} weiteren)` : "") + ".";
-    else if (teilSchlecht.length) satz = `Ich nehme es zurück – am Hauptplatz „${haupt}“ wurde die Bühne schlechter (${teilSchlecht[0]}).`;
+    if (praesenzSchlecht) { satz = "Ich nehme es zurück – der Präsenzbereich (2–8 kHz) wurde lauter oder spitzer."; hinweise.push("Mögliche Ursachen: " + PW.ursacheHoehen + " " + VGL.ursachen[1]);
+      if (plaetze.length < PW.plaetzeSicher) hinweise.push(PW.wenigPlaetze); }
+    else if (absenkungSchlecht) satz = "Ich nehme es zurück – die Präsenz-Absenkung hat nicht wie gedacht gewirkt.";
+    else if (schlechter.length) satz = `Ich nehme es zurück – es wurde an Platz „${schlechter[0]}“ schlechter` + (schlechter.length > 1 ? ` (und an ${schlechter.length - 1} weiteren)` : "") + ".";
+    else if (teilSchlecht.length) satz = `Ich nehme es zurück – ${buehneMit ? wo : `am Hauptplatz „${haupt}“`} wurde die Bühne schlechter (${teilSchlecht[0]}).`;
+    else if (kachelErste) satz = `Ich nehme es zurück – „${sv.kacheln[kachelErste].titel}“ wurde schlechter (${kachelSchlecht[kachelErste][0]} → ${kachelSchlecht[kachelErste][1]} Punkte).`;
     else satz = `Ich nehme es zurück – insgesamt wurde es schlechter (Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}).`;
   } else {
     satz = `Behalten: An ${plaetze.length === 1 ? "dem gemessenen Platz" : `allen ${plaetze.length} gemessenen Plätzen`} gleich gut oder besser (Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}).`;
-    gruende.push(`Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}, an keinem Platz mehr Bass-Abweichung oder eine angehobene Raummode`);
+    gruende.push(`Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}, an keinem Platz mehr Bass-Abweichung oder eine angehobene Raummode, Präsenz nicht lauter`);
   }
   const e = einstellungen || {};
   if (e.FL && e.FR) {
@@ -2138,10 +2440,10 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     }
   }
   // Theorie gegen Praxis
-  const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr);
+  const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr, buehneMit);
   if (vgl.ueber_toleranz) hinweise.push(`Prognose und Messung weichen ab (Score ${z(vgl.score.vorhergesagt, 0)} vorhergesagt, ${z(vgl.score.gemessen, 0)} gemessen; Bass im Mittel ${z(vgl.bass_kurve.mittel_abweichung_db)} dB). Mögliche Ursachen: ${vgl.ursachen.join(" ")} Danach am besten neu einmessen.`);
   return { ok: !zurueck, empfehlung: zurueck ? "zuruecknehmen" : "behalten", satz, status: zurueck ? "zurueckgenommen" : "bestaetigt", gruende, je_platz: jePlatz, hauptplatz: haupt,
-    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, hinweise, profil_pruefung: profilPruefung, vergleich: vgl };
+    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, kacheln, sitzmodus: buehneMit ? "zwei" : "allein", hinweise, profil_pruefung: profilPruefung, vergleich: vgl, praesenz, absenkung };
 }
 
 // --- Modus „Ohne Box“: Regler der Lautsprecher selbst (klangbox/regler.py) ----------------------------------
@@ -2262,7 +2564,12 @@ function reglerAnhebung(p, teile, alt, neu) {
   for (let i = 0; i < NF; i++) if (F[i] >= 20 && F[i] <= 20000) { const d = dn[i] - da[i]; g = Math.max(g, d); if (F[i] > 300) o = Math.max(o, d); }
   return [g, o];
 }
-const reglerZuViel = (p, teile, alt, neu) => { const [g, o] = reglerAnhebung(p, teile, alt, neu); return g > 3.05 || o > 2.05; };
+function reglerPraesenzOk(p, teile, alt, neu) {  // Präsenz-Wächter der Nachprüfung auf der Vorhersage (wie _praesenz_ok)
+  const [hl, hs] = reglerHH(p, alt, neu), eins = ketteH([]), pv = [], pn = [];
+  for (const t of teile) for (const ch of ["FL", "FR"]) { pv.push(leistung(reglerVorhersageH(t.kan[ch], eins, eins))); pn.push(leistung(reglerVorhersageH(t.kan[ch], hl, hs))); }
+  return praesenzAusLeistung(pv, pn).ok;
+}
+const reglerZuViel = (p, teile, alt, neu) => { const [g, o] = reglerAnhebung(p, teile, alt, neu); return g > 3.05 || o > 2.05 || !reglerPraesenzOk(p, teile, alt, neu); };
 function reglerKlang(p, teile, alt, neu) {
   const [hl, hs] = reglerHH(p, alt, neu);
   return mean(["FL", "FR"].map((ch) => {
@@ -2399,9 +2706,279 @@ function waechterErgebnis(e) {
   return v;
 }
 
-if (typeof module !== "undefined") module.exports = { raumcheck, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, zahlText,
-  nachpruefen, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
-  baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort };
+// --- Kanal-Check (wie klangbox/kanalcheck.py): was spielt wo, bevor die Raumanpassung rechnet ---------------------
+// Spielt jeder Kanal? Zwei Kanäle aus demselben Lautsprecher? Abstand aus der Laufzeit (relativ zu vorne links, von
+// dort kommt der Zeitmarker; mit Raumscan absolut). Vertauscht (links/rechts, vorne/hinten): Annahmen gegen Raumscan
+// (stark), bewegte Messung (mittel), Laufzeit-Muster (schwach) und „Antippen“ (entscheidet). Polarität gegen die
+// Fronts, Bassumfang je Box, Sub, Layout-Vorschlag. Schwellen: [eigene Festlegungen], siehe Python.
+const KC = { C: 343.0, VORNE: ["FL", "FR", "C"], HINTEN: ["SL", "SR", "BL", "BR"], LINKS: ["FL", "SL", "BL"],
+  NAMEN: { FL: "Vorne links", FR: "Vorne rechts", C: "Der Center", SL: "Hinten links", SR: "Hinten rechts", BL: "Ganz hinten links", BR: "Ganz hinten rechts" },
+  STUMM_DB: 25.0, POL_SNR_DB: 35.0, POL_RHO: 0.5, DOPPELT_RHO: 0.98, DOPPELT_MS: 0.1, DOPPELT_DB: 1.0, SIGMA_SCAN_MS: 0.3,
+  ABSTAND_TOL_M: 0.5, BEWEGT_MIN_MS_M: 0.5, BEWEGT_SKALA: 0.4, BEWEGT_MIN_WEG_M: 0.15, MUSTER_TOL_M: 0.5, MUSTER_MAX_M: 4.0, CHI_SICHER: 9.0,
+  CHI_HINWEIS: 2.0, CHI_ANTIPPEN: 25.0, SUB_JA_DB: -15.0, SUB_NEIN_DB: -18.0, GROSS_HZ: 50.0, KLEIN_HZ: 80.0, EFFEKTIV: 0.72,
+  TAUSCH: [["lr_vorne", [["FL", "FR"]], "links und rechts vorne"], ["lr_hinten", [["SL", "SR"]], "links und rechts hinten"],
+    ["lr_ganz_hinten", [["BL", "BR"]], "links und rechts ganz hinten"], ["vorne_hinten", [["FL", "SL"], ["FR", "SR"]], "vorne und hinten"]] };
+const kcRund = (x, n = 0) => { const p = Math.pow(10, n); return Math.floor(x * p + 0.5) / p; };
+const kcZ = (x, n = 1) => (kcRund(x, n) + 0).toFixed(n).replace(".", ",");
+const kcRi = (x) => Math.floor(x + 0.5);
+const kcBand = bandpass(400, 2000, 2);
+function kcDirekt(m, vorMs, nachMs) {
+  const on = m.zero + kcRi(m.delay * FS), a = Math.max(0, on - kcRi(0.005 * FS)), b = Math.min(m.ir.length, on + kcRi((nachMs + 15) / 1000 * FS));
+  const seg = filtfilt(m.ir.slice(a, b), kcBand), i0 = on - a - kcRi(vorMs / 1000 * FS), n = kcRi((vorMs + nachMs) / 1000 * FS), v = new Float64Array(n);
+  for (let k = 0; k < n; k++) if (i0 + k >= 0 && i0 + k < seg.length) v[k] = seg[i0 + k] * (0.5 - 0.5 * Math.cos(2 * Math.PI * k / (n - 1)));
+  return v;
+}
+function kcKorrelation(a, b, maxLag = 5) {
+  let ea = 0, eb = 0; for (let i = 0; i < a.length; i++) { ea += a[i] * a[i]; eb += b[i] * b[i]; }
+  const na = Math.sqrt(ea * eb); if (!(na > 0)) return 0;
+  let best = 0; const n = a.length;
+  for (let lag = -maxLag; lag <= maxLag; lag++) {
+    let s = 0;
+    if (lag >= 0) for (let i = 0; i < n - lag; i++) s += a[i] * b[i + lag];
+    else for (let i = -lag; i < n; i++) s += a[i] * b[i + lag];
+    if (Math.abs(s) > Math.abs(best)) best = s;
+  }
+  return best / na;
+}
+const kcMitteDb = (p) => bandDb(dbArr(glaetten(p, 3)), 500, 2000);
+function kcAnnahmen(kanaele) {
+  const ops = KC.TAUSCH.filter(([, paare]) => paare.every(([a, b]) => kanaele.includes(a) && kanaele.includes(b))), out = [];
+  for (let maske = 0; maske < (1 << ops.length); maske++) {
+    const gew = ops.filter((_, i) => (maske >> i) & 1), pi = Object.fromEntries(kanaele.map((c) => [c, c]));
+    for (const [, paare] of gew) for (const [a, b] of paare) { const t = pi[a]; pi[a] = pi[b]; pi[b] = t; }
+    out.push({ ops: gew.map((o) => o[0]), pi });
+  }
+  return out;
+}
+const kcAbstand = (p, q) => Math.sqrt(p.reduce((s, v, i) => s + (+v - +q[i]) ** 2, 0));
+// Bewegte Messung → Proben (seitliche Position, Laufzeit vorne rechts gegen vorne links). Die Seite führt das Handy:
+// Start links, in wegS Sekunden nach rechts, dann zurück; wegStartS = Start der Führung ab Beginn der Aufnahme.
+function bewegtProben(aw, fo, wegStartS, wegS, breiteM) {
+  const beginn = aw.pruefung.beginn_s; if (beginn === undefined || beginn === null || !(wegS > 0)) return [];
+  const gestoert = new Set(aw.pruefung.gestoert || []), out = [];
+  fo.kanaele.forEach((ch, i) => {
+    const key = kanalSchluessel(fo.kanaele, i);
+    if (ch !== "FR" || gestoert.has(key) || !aw.messungen[key]) return;
+    const t = beginn + (sweepZeit(i, fo) + KC.EFFEKTIV * fo.sweepS) * (1 + aw.drift_ppm * 1e-6) - wegStartS, u = t / wegS, k = Math.floor(u);
+    const x = k % 2 === 0 ? u - k : 1 - (u - k);
+    out.push({ x_m: kcRund((x - 0.5) * breiteM, 4), laufzeit_ms: kcRund(aw.messungen[key].delay * 1000, 4) });
+  });
+  return out;
+}
+function kcSteigung(proben) {
+  if (proben.length < 3) return null;
+  const x = proben.map((p) => p.x_m), y = proben.map((p) => p.laufzeit_ms);
+  if (Math.max(...x) - Math.min(...x) < KC.BEWEGT_MIN_WEG_M) return null;
+  const mx = mean(x), my = mean(y); let a = 0, b = 0; for (let i = 0; i < x.length; i++) { a += (x[i] - mx) * (y[i] - my); b += (x[i] - mx) ** 2; }
+  return a / b;
+}
+const kcPartner = (c) => ({ FL: "FR", FR: "FL", SL: "SR", SR: "SL", BL: "BR", BR: "BL" })[c] || null;
+const kcBasis = (da) => { const hat = (...c) => c.some((x) => da.includes(x)); return hat("BL", "BR") ? 7 : 2 + (hat("C") ? 1 : 0) + (hat("SL", "SR") ? 2 : 0); };
+const kcLayoutName = (basis, sub) => (basis === 7 ? "7.1" : `${basis}.${sub ? 1 : 0}`);
+// aw: Ergebnis von analysiere (auch unsauber) oder null (Messsignal nicht gefunden). opt: {positionen, hoerplatz,
+// versatz_ms, bewegt (Proben), antippen ({Kanal: Platz}), sub_an ("fronts" | "box"), funk ([Kanäle über den Funk])}
+function kanalCheck(aw, kanaele, layout, opt = {}) {
+  kanaele = [...kanaele];
+  const funk = new Set(opt.funk || []), mitSub = layout.endsWith(".1"), subAn = opt.sub_an || "fronts", N = KC.NAMEN;
+  const erg = { version: 1, layout_gewaehlt: layout, layout_vorschlag: null, layout_text: "", layout_frage: null, kanaele: [], sub: null, tausch: null,
+    polaritaet: null, pruefbar: {}, antippen: [], probleme: [], hinweise: [], tipps: [], status: "gruen", weiter_ok: true, bassende_hz: null };
+  const zeilen = {};
+  for (const ch of kanaele) zeilen[ch] = { kanal: ch, name: N[ch] || ch, status: "gruen", spielt: null, snr_db: null, pegel_db: null, laufzeit_ms: null,
+    abstand_m: null, abstand_rel_m: null, abstand_scan_m: null, polaritaet: null, f6_hz: null, groesse: null, texte: [] };
+  erg.kanaele = kanaele.map((ch) => zeilen[ch]);
+  const kabel = (ch) => (funk.has(ch) ? "Kabel, Strom und Funk" : "Kabel und Strom");
+  if (!aw || !aw.messungen.FL) {
+    const z = zeilen.FL; z.status = "rot"; z.spielt = false;
+    const t = `${N.FL} spielt nicht (oder gar nichts kam an) – ${kabel("FL")} prüfen. Von dort kommt auch der Zeitmarker: Die anderen Lautsprecher prüfe ich, sobald vorne links spielt.`;
+    z.texte.push(t); erg.probleme.push(t); erg.status = "rot"; erg.weiter_ok = false; return erg;
+  }
+  const stoer = aw.pruefung.stoer_db || {}, m = aw.messungen;
+  for (const ch of kanaele) zeilen[ch].snr_db = kcRund(-(+(stoer[ch] || 0)), 1);
+  if (zeilen.FL.snr_db < KC.STUMM_DB) {
+    const z = zeilen.FL; z.status = "rot"; z.spielt = false;
+    const t = `${N.FL} spielt nicht – ${kabel("FL")} prüfen. Von dort kommt auch der Zeitmarker: Die anderen Lautsprecher prüfe ich, sobald vorne links spielt.`;
+    z.texte.push(t); erg.probleme.push(t);
+    for (const ch of kanaele) if (ch !== "FL") zeilen[ch].snr_db = null;
+    erg.status = "rot"; erg.weiter_ok = false; return erg;
+  }
+  const da = [];
+  for (const ch of kanaele) {
+    const z = zeilen[ch]; z.spielt = z.snr_db >= KC.STUMM_DB;
+    if (z.spielt) da.push(ch);
+    else { z.status = "rot"; const t = `${N[ch]} spielt nicht – ${kabel(ch)} prüfen.`; z.texte.push(t); erg.probleme.push(t); }
+  }
+  const lst = {}, pegel = {};
+  for (const ch of da) { lst[ch] = leistung(antwort(m[ch])); pegel[ch] = kcMitteDb(lst[ch]); }
+  for (const ch of da) { zeilen[ch].pegel_db = kcRund(pegel[ch] - pegel.FL, 1); zeilen[ch].laufzeit_ms = kcRund((m[ch].delay - m.FL.delay) * 1000, 3); }
+  // 1b) zwei Kanäle aus demselben Lautsprecher?
+  const pos = opt.positionen || null, hp = opt.hoerplatz || null, frueh = {};
+  for (const ch of da) frueh[ch] = kcDirekt(m[ch], 0.5, 30.0);
+  for (let i = 0; i < da.length; i++) for (const b of da.slice(i + 1)) {
+    const a = da[i];
+    if (Math.abs(m[a].delay - m[b].delay) * 1000 >= KC.DOPPELT_MS || Math.abs(pegel[a] - pegel[b]) >= KC.DOPPELT_DB) continue;
+    const rho = kcKorrelation(frueh[a], frueh[b]), paar = [a, b].sort().join();
+    const spiegel = ["FL,FR", "SL,SR", "BL,BR"].includes(paar);
+    if (rho < KC.DOPPELT_RHO) continue;
+    if (spiegel && pos && hp && pos[a] && pos[b] && Math.abs(kcAbstand(pos[a], hp) - kcAbstand(pos[b], hp)) < 0.1) continue;
+    const z = zeilen[b]; z.status = spiegel ? "gelb" : "rot";
+    const t = `${N[b]} klingt genau wie ${N[a].toLowerCase()}: Kommen beide aus demselben Lautsprecher? Dann stimmt die Zuordnung in der Box nicht.`;
+    z.texte.push(t); (spiegel ? erg.hinweise : erg.probleme).push(t);
+  }
+  // 2) + 3) Abstände und vertauschte Kanäle
+  let geo = null;
+  if (pos && hp && kanaele.every((ch) => pos[ch])) { geo = {}; for (const ch of kanaele) geo[ch] = kcAbstand(pos[ch], hp); }
+  const vz = opt.versatz_ms || {}, gem = {};
+  for (const ch of da) gem[ch] = (m[ch].delay - m.FL.delay) * 1000;
+  const bekannt = (ch) => KC.VORNE.includes(ch) || (vz[ch] !== undefined && vz[ch] !== null);
+  const versatz = (ch) => (+(vz[ch] || 0)) - (+(vz.FL || 0));
+  const annahmen = kcAnnahmen(kanaele), steigung = kcSteigung(opt.bewegt || []), hintenDa = da.filter((c) => KC.HINTEN.includes(c));
+  let muster = null;
+  if (!geo && hintenDa.length && hintenDa.every(bekannt)) {
+    const vorneDa = da.filter((c) => KC.VORNE.includes(c));
+    muster = KC.C / 1000 * (mean(hintenDa.map((c) => gem[c] - versatz(c))) - mean(vorneDa.map((c) => gem[c] - versatz(c))));
+    if (Math.abs(muster) > KC.MUSTER_MAX_M) muster = null;  // größer als ein Wohnzimmer: die Funk-Verzögerung stimmt nicht
+  }
+  const residuen = (pi) => {
+    const r = {}; for (const ch of da) r[ch] = gem[ch] - versatz(ch) - 1000 * (geo[pi[ch]] - geo[pi.FL]) / KC.C;
+    const frei = da.filter((c) => !bekannt(c));
+    if (frei.length) { const o = mean(frei.map((c) => r[c])); for (const c of frei) r[c] -= o; }
+    return r;
+  };
+  const bew = annahmen.map(({ ops, pi }) => {
+    let stark = 0, schwach = 0;
+    if (geo) { const r = residuen(pi); for (const ch of da) stark += (r[ch] / KC.SIGMA_SCAN_MS) ** 2; }
+    for (const [ch, platz] of Object.entries(opt.antippen || {})) if (ch in pi && pi[ch] !== platz) stark += KC.CHI_ANTIPPEN;
+    if (steigung !== null && Math.abs(steigung) >= KC.BEWEGT_MIN_MS_M) { const vorz = KC.LINKS.includes(pi.FL) ? -1 : 1; schwach += Math.min(16, (Math.max(0, -vorz * steigung) / KC.BEWEGT_SKALA) ** 2); }
+    if (muster !== null) { const vh = ops.includes("vorne_hinten"); schwach += Math.min(4, (Math.max(0, (vh ? -muster : muster) - KC.MUSTER_TOL_M) / KC.MUSTER_TOL_M) ** 2); }
+    return { ops, pi, stark, schwach, chi: stark + schwach };
+  });
+  const ident = bew[0]; let bester = bew[0];
+  for (const b of bew) if (b.chi < bester.chi || (b.chi === bester.chi && b.ops.length < bester.ops.length)) bester = b;
+  const abstand = ident.chi - bester.chi, reihe = KC.TAUSCH.map((t) => t[0]);
+  for (const o of reihe.filter((o) => bew.some((b) => b.ops.includes(o)))) {
+    const andere = bew.filter((b) => b.ops.includes(o));
+    erg.pruefbar[o] = bester === ident ? Math.min(...andere.map((b) => b.chi)) - ident.chi >= KC.CHI_SICHER : false;
+  }
+  const offen = Object.keys(erg.pruefbar).filter((o) => !erg.pruefbar[o]);
+  if (bester !== ident && abstand >= KC.CHI_HINWEIS) {
+    const sicher = abstand >= KC.CHI_SICHER && ident.stark - bester.stark >= KC.CHI_SICHER;
+    let teile = bester.ops.map((o) => KC.TAUSCH.find((t) => t[0] === o)[2]);
+    if (layout.startsWith("2.") && bester.ops.join() === "lr_vorne") teile = ["links und rechts"];
+    let satz = teile.join(" sowie "); satz = satz[0].toUpperCase() + satz.slice(1);
+    const text = sicher ? `${satz} sind vertauscht – in der Box tauschen?`
+      : `Vermutlich sind ${satz[0].toLowerCase() + satz.slice(1)} vertauscht. Tippe zur Probe auf die Box, die gerade spielt – oder tausche gleich in der Box.`;
+    const inv = {}; for (const [k, v] of Object.entries(bester.pi)) inv[v] = k;
+    const neuVon = {}; for (const ch of kanaele) if (inv[ch] !== ch) neuVon[ch] = inv[ch];
+    erg.tausch = { ops: bester.ops, neu_von: neuVon, sicher, text };
+    for (const ch of Object.keys(neuVon)) { zeilen[ch].status = sicher ? "rot" : "gelb"; zeilen[ch].texte.push(`${N[ch]} spielt dort, wo ${N[bester.pi[ch]].toLowerCase()} stehen sollte.`); }
+    (sicher ? erg.probleme : erg.hinweise).push(text);
+  }
+  const gilt = erg.tausch && erg.tausch.sicher ? bester : ident;
+  if (!erg.tausch || !erg.tausch.sicher) {
+    const brauch = new Set();
+    if (erg.tausch || offen.length) for (const b of bew) {
+      if (b === gilt || !(b.chi - gilt.chi < KC.CHI_SICHER)) continue;
+      for (const ch of kanaele) if (b.pi[ch] !== gilt.pi[ch] && da.includes(ch)) brauch.add(["FL", "FR"].includes(ch) ? "FL" : ["SL", "SR"].includes(ch) ? "SL" : ["BL", "BR"].includes(ch) ? "BL" : ch);
+    }
+    erg.antippen = ["FL", "SL", "BL"].filter((c) => brauch.has(c));
+  }
+  const r = geo ? residuen(gilt.pi) : null, freiOhneGeo = da.filter((c) => !bekannt(c));
+  for (const ch of da) {
+    const z = zeilen[ch];
+    if (!geo && freiOhneGeo.includes(ch)) continue;
+    let rel = gem[ch] - versatz(ch);
+    if (geo) rel = r[ch] + 1000 * (geo[gilt.pi[ch]] - geo[gilt.pi.FL]) / KC.C;
+    z.abstand_rel_m = kcRund(rel * KC.C / 1000, 2);
+    if (geo) {
+      z.abstand_m = kcRund(geo[gilt.pi.FL] + rel * KC.C / 1000, 2); z.abstand_scan_m = kcRund(geo[ch], 2);  // wo er laut Scan stehen sollte (vertauscht: über Kreuz)
+      if (Math.abs(r[ch]) * KC.C / 1000 > KC.ABSTAND_TOL_M) {
+        if (z.status === "gruen") z.status = "gelb";
+        const t = `${N[ch]}: gemessen ${kcZ(z.abstand_m, 1)} m, laut Raumscan ${kcZ(geo[gilt.pi[ch]], 1)} m. Steht die Box woanders als im Scan?`;
+        z.texte.push(t); erg.hinweise.push(t);
+      }
+    }
+  }
+  if (!geo && freiOhneGeo.length) erg.hinweise.push("Den Abstand hinten kann ich ohne die Funk-Verzögerung der Box nicht ausrechnen.");
+  // 4) Polarität gegen die Fronts
+  const direkt = {}, rho = {};
+  for (const ch of da) direkt[ch] = kcDirekt(m[ch], 0.5, 1.5);
+  for (const ch of da) rho[ch] = ch === "FL" ? 1.0 : kcKorrelation(direkt.FL, direkt[ch]);
+  const klar = new Set(da.filter((ch) => zeilen[ch].snr_db >= KC.POL_SNR_DB && Math.abs(rho[ch]) >= KC.POL_RHO));
+  const plus = da.filter((ch) => klar.has(ch) && rho[ch] > 0), minus = da.filter((ch) => klar.has(ch) && rho[ch] < 0);
+  let gedreht = [], vorneUneins = false;
+  if (minus.includes("FR")) {
+    const up = plus.filter((c) => c !== "FL" && c !== "FR").length, um = minus.filter((c) => c !== "FL" && c !== "FR").length;
+    if (um > up) gedreht = plus; else if (up > um) gedreht = minus; else vorneUneins = true;
+  } else if (plus.includes("FR") || !klar.has("FR")) gedreht = minus;
+  for (const ch of da) zeilen[ch].polaritaet = !klar.has(ch) ? "unsicher" : gedreht.includes(ch) ? "gedreht" : "normal";
+  if (vorneUneins) {
+    for (const ch of ["FL", "FR"]) { zeilen[ch].polaritaet = "unsicher"; if (zeilen[ch].status === "gruen") zeilen[ch].status = "gelb"; }
+    const t = "Vorne links und rechts sind gegeneinander verpolt: An einer der beiden Boxen sind Plus und Minus vertauscht (Lautsprecherkabel am Verstärker oder an der Box). Bitte eine Box umpolen (in der Box oder am Kabel) und neu messen.";
+    zeilen.FR.texte.push(t); erg.probleme.push(t);
+  }
+  for (const ch of gedreht) {
+    zeilen[ch].status = "rot";
+    const t = `${N[ch]} ist verpolt (Plus und Minus vertauscht, gegen die Fronts). Bitte in der Box umpolen oder das Lautsprecherkabel an dieser Box umdrehen, dann neu messen.`;
+    zeilen[ch].texte.push(t); erg.probleme.push(t);
+  }
+  erg.polaritaet = { gedreht, vorne_uneins: vorneUneins };
+  // 5) + 6) Bassumfang, Sub
+  const f6 = {}; for (const ch of da) f6[ch] = untereGrenze(lst[ch], pegel[ch]);
+  const fronts = ["FL", "FR"].filter((c) => da.includes(c)), pv = new Float64Array(NF);
+  for (const c of fronts) for (let i = 0; i < NF; i++) pv[i] += lst[c][i] / fronts.length;
+  const f6v = untereGrenze(pv, kcMitteDb(pv));
+  const tief = bandDb(dbArr(glaetten(pv, 3)), 25, 50) - kcMitteDb(pv);  // Pegel 25–50 Hz gegen den Mittelton (wie Python)
+  const erkannt = subAn === "box" ? null : tief >= KC.SUB_JA_DB ? true : tief <= KC.SUB_NEIN_DB ? false : null;
+  const sub = { erwartet: mitSub, an: subAn, erkannt, f6_hz: kcRund(f6v, 0), tief_db: kcRund(tief, 1), text: "" };
+  if (subAn === "box" && mitSub) sub.text = "Der Sub hängt an der Klang-Box: Den misst dieser Check nicht mit.";
+  else if (mitSub && erkannt === false) { sub.text = `Ich höre keinen Sub: Unter 50 Hz kommt ${kcZ(-tief, 0)} dB weniger als im Mittelton. Ist der Sub an (Strom, Standby, Kabel vom Sub-Ausgang)?`; erg.probleme.push(sub.text); }
+  else if (mitSub && erkannt) sub.text = `Der Sub spielt (Bass bis ${kcZ(f6v, 0)} Hz).`;
+  else if (mitSub) sub.text = `Den Sub höre ich nicht eindeutig (Bass bis ${kcZ(f6v, 0)} Hz).`;
+  erg.sub = sub;
+  const subSpielt = mitSub && erkannt !== false;
+  for (const ch of da) {
+    const z = zeilen[ch]; z.f6_hz = kcRund(f6[ch], 0);
+    if (fronts.includes(ch) && subSpielt) continue;
+    z.groesse = f6[ch] <= KC.GROSS_HZ ? "gross" : f6[ch] <= KC.KLEIN_HZ ? "mittel" : "klein";
+    if (f6[ch] > KC.KLEIN_HZ) {
+      const trenn = kcRund(f6[ch] * 1.25 / 10) * 10;
+      if (fronts.includes(ch)) { if (!subSpielt) erg.tipps.push(`Deine Fronts spielen erst ab ${kcZ(f6[ch], 0)} Hz: Ein Sub bringt hier viel (Trennung etwa ${kcZ(trenn, 0)} Hz).`); }
+      else erg.tipps.push(`${N[ch]} ist klein (spielt ab ${kcZ(f6[ch], 0)} Hz): Sein Bass geht ${subSpielt ? "zum Sub" : "zu den Fronts"}, Trennung ${kcZ(trenn, 0)} Hz.`);
+    }
+  }
+  erg.tipps = [...new Set(erg.tipps)];
+  if (!subSpielt && subAn !== "box") erg.bassende_hz = kcRund(f6v, 0);
+  // 7) Layout-Vorschlag
+  const basis = kcBasis(da), subFlag = mitSub && erkannt !== false, vorschlag = kcLayoutName(basis, subFlag), n = da.length;
+  erg.layout_vorschlag = vorschlag;
+  const fehltEinzeln = kanaele.filter((c) => !da.includes(c) && da.includes(kcPartner(c)));
+  erg.layout_text = `Ich höre ${n} ${n === 1 ? "Box" : "Boxen"}${subFlag ? " + Sub" : ""} → ${vorschlag}`;
+  if (fehltEinzeln.length) erg.layout_text += " (" + fehltEinzeln.map((c) => N[c].toLowerCase()).join(", ") + " fehlt)";
+  if (vorschlag !== layout) {
+    const weg = kanaele.filter((c) => !da.includes(c) && !da.includes(kcPartner(c))).map((c) => N[c]);
+    let grund = weg.length ? weg.join(", ") + (weg.length === 1 ? " spielt" : " spielen") + " nicht. " : "";
+    if (mitSub && !subFlag) grund += "Den Sub höre ich nicht. ";
+    erg.layout_frage = `Du hast ${layout} gewählt, ich höre ${vorschlag}. ${grund}Stimmt ${vorschlag}?`;
+  }
+  const stati = erg.kanaele.map((z) => z.status);
+  if (mitSub && erkannt === false) stati.push("rot");
+  erg.status = stati.includes("rot") ? "rot" : stati.includes("gelb") || erg.layout_frage ? "gelb" : "gruen";
+  erg.weiter_ok = erg.status !== "rot" && !erg.layout_frage;
+  return erg;
+}
+// Wie kanal_check_aufnahme: direkt aus der Aufnahme (und optional der bewegten Messung mit weg = {start_s, weg_s, breite_m})
+function kanalCheckAufnahme(daten, kanaele, layout, opt = {}, mikrofon = null, bewegt = null, weg = null) {
+  const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null;
+  let aw = null;
+  try { aw = analysiere(daten, folgeFuer(kanaele), mikro); } catch (e) { aw = null; }
+  const o = { ...opt };
+  if (bewegt && weg) { try { const ab = analysiere(bewegt, FOLGE_BEWEGT, mikro); o.bewegt = bewegtProben(ab, FOLGE_BEWEGT, weg.start_s, weg.weg_s, weg.breite_m); } catch (e) {} }
+  return kanalCheck(aw, kanaele, layout, o);
+}
+
+if (typeof module !== "undefined") module.exports = { raumcheck, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, zahlText,
+  nachpruefen, praesenzAusLeistung, praesenzAnhebung, raumUeberhoehung, direktschall, direktFenster, absenkungPruefen, reflexion, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
+  baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort, kanalCheck, kanalCheckAufnahme, bewegtProben, KC };
 </script>
 <script type="application/json" id="klangprofile-daten">{
   "schema_version": 1,
@@ -3568,8 +4145,10 @@ const GT = (() => {
     let f6 = lb.f6_hz != null ? lb.f6_hz : null;
     if (f6 === null && lb.f3_hz) f6 = rund(lb.f3_hz * 0.8);
     if (f6 === null) f6 = 50;
-    const k0 = kennwerte(ergebnis.kurve, modus, 80), gemessen = messung === "aus" && k0.bassende_hz !== null;
+    const k0 = kennwerte(ergebnis.kurve, modus, 80);
+    let gemessen = messung === "aus" && k0.bassende_hz !== null;
     if (gemessen) f6 = k0.bassende_hz;
+    else if (wahl.bassende_hz) { f6 = rund(+wahl.bassende_hz); gemessen = true; }  // vom Kanal-Check: Bassende ohne Sub
     const an = sub ? anschluss(sub, ls, wahl.anschluss) : null;
     const appWeg = !!(sub && an && an.sub_filter === "umgangen" && regler(ls, "sub_out_tiefpass"));
     let fc;
@@ -3751,7 +4330,7 @@ const GW = (() => {
     const v = (runden || []).find((x) => x !== r && x.katalog && x.e && !x.e.fehler && x.anlage === r.anlage && x.katalog.sub === w.sub
       && ["normal", "umgedreht"].includes(x.katalog.messung) && x.katalog.messung !== (w.messung || "normal"));
     let e;
-    try { e = GT.empfehlen(r.e, w, KAT, v ? { messung: v.katalog.messung, kurve: v.e.kurve } : null); } catch (err) { return ""; }
+    try { e = GT.empfehlen(r.e, r.kanalcheck && r.kanalcheck.bassende_hz ? { ...w, bassende_hz: r.kanalcheck.bassende_hz } : w, KAT, v ? { messung: v.katalog.messung, kurve: v.e.kurve } : null); } catch (err) { return ""; }
     if (!e.schritte.length) return "";
     const marke = { messen: "messen", hinweis: "Hinweis", einstellen: "einstellen", box: "Empfehlung der Klang-Box" };
     return `<div class="card gk-karte"><span class="marke">Einstellungen an deinen Geräten</span>
@@ -4346,15 +4925,24 @@ function setzeModus(m) {
 $("m-kino").addEventListener("click", () => setzeModus("kino"));
 $("m-stereo").addEventListener("click", () => setzeModus("stereo"));
 setzeModus(modus);
+// Sitzmodus (Schritt 5), gemerkt wie die anderen Wahlen
+let sitzmodus = lesen("raumcheck-sitzmodus", "allein") === "zwei" ? "zwei" : "allein";
+function setzeSitzmodus(m) {
+  sitzmodus = m;
+  document.querySelectorAll("[data-sitzmodus]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.sitzmodus === m));
+  schreiben("raumcheck-sitzmodus", m);
+}
+document.querySelectorAll("[data-sitzmodus]").forEach((b) => b.addEventListener("click", () => setzeSitzmodus(b.dataset.sitzmodus)));
+setzeSitzmodus(sitzmodus);
 
 // --- Geführter Ablauf (die App führt, Schritt für Schritt) --------------------------------------
 const SCHRITTE = ["", "Messart", "Anlage und Raum", "Vorbereiten", "Ruhe und Lautstärke", "Hörplatz", "Bewegen", "Ergebnis", "Aufstellung",
-  "Klang wählen", "Anwenden und nachmessen", "Ohne Klang-Box", "Gefunden", "Hauptbox", "Lautsprecher", "Funk", "Anschließen"];
+  "Klang wählen", "Anwenden und nachmessen", "Ohne Klang-Box", "Gefunden", "Hauptbox", "Lautsprecher", "Funk", "Anschließen", "Kanal-Check"];
 function zeigeSchritt(n) {
   document.querySelectorAll(".schritt").forEach((el) => { el.hidden = +el.dataset.s !== n; });
-  const an = n >= 12 ? Math.round((n - 11) / 5 * 7) : n;
+  const an = n === 17 ? 5 : n >= 12 ? Math.round((n - 11) / 5 * 7) : n;
   document.querySelectorAll("#fortschritt span").forEach((s, i) => s.classList.toggle("an", i < an));
-  $("schritt-text").textContent = n >= 12 ? `Klang-Box einrichten · ${n - 11} von 5 · ${SCHRITTE[n]}` : n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
+  $("schritt-text").textContent = n === 17 ? "Schritt 5 von 7 · Kanal-Check" : n >= 12 ? `Klang-Box einrichten · ${n - 11} von 5 · ${SCHRITTE[n]}` : n <= 7 ? `Schritt ${n} von 7 · ${SCHRITTE[n]}` : SCHRITTE[n];
   einrichtenZeigen(n);
   if (n === 5) $("platz-bild").innerHTML = platzBild();
   if (n === 6) bewegenZeigen();
@@ -4541,13 +5129,19 @@ const drahtlos = () => (nativ && sig.webkitCurrentPlaybackTargetIsWireless === u
 const boxBereit = () => !!(nativ && nativ.boxen && nativ.boxen.haupt);
 const boxLayout = () => (boxBereit() && nativ.boxen.layout) || "2.0";
 const K2 = ["FL", "FR"], K4 = ["FL", "FR", "SL", "SR"];
-const messKanaele = () => (quelle === "box" && /^4\./.test(boxLayout()) ? K4 : K2);
+// Lautsprecher-Layouts der Box (wie klangbox/layouts.py): jede Quelle geht auf jedes Layout
+const BOX_LAYOUTS = { "2.0": ["FL", "FR"], "2.1": ["FL", "FR", "SUB"], "3.0": ["FL", "FR", "C"], "3.1": ["FL", "FR", "C", "SUB"],
+  "4.0": ["FL", "FR", "SL", "SR"], "4.1": ["FL", "FR", "SL", "SR", "SUB"], "5.0": ["FL", "FR", "C", "SL", "SR"],
+  "5.1": ["FL", "FR", "C", "SL", "SR", "SUB"], "7.1": ["FL", "FR", "C", "SL", "SR", "BL", "BR", "SUB"] };
+// über die Box: alle Lautsprecher des Layouts (ohne Sub), FL, FR, dann C, SL/SR, BL/BR
+const messKanaele = () => (quelle === "box" ? (BOX_LAYOUTS[boxLayout()] || K2).filter((c) => c !== "SUB") : K2);
+const mitHinten = (l) => (BOX_LAYOUTS[l] || []).includes("SL");
 const BOX_FOLGE = { "raumcheck.wav": "standard", "bewegen.wav": "bewegt", "pegel.wav": "pegel" };
 function setzeQuelle(q) {
   if (q === "box" && !boxBereit()) q = "airplay";
   quelle = q;
   $("q-box").hidden = !boxBereit(); $("q-box").setAttribute("aria-pressed", q === "box");
-  $("q-box-text").textContent = /^4\./.test(boxLayout()) ? "spielt alle vier Boxen selbst, auch hinten" : "spielt deine Boxen selbst";
+  $("q-box-text").textContent = mitHinten(boxLayout()) ? "spielt alle Boxen selbst, auch hinten" : "spielt deine Boxen selbst";
   $("q-airplay").setAttribute("aria-pressed", q === "airplay"); $("q-extern").setAttribute("aria-pressed", q === "extern");
   $("airplay-zeile").hidden = q !== "airplay"; $("extern-zeile").hidden = q !== "extern"; $("box-zeile").hidden = q !== "box";
   if (q !== "box") schreiben("raumcheck-quelle", q);
@@ -4726,7 +5320,7 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
 }
 async function aufnehmenKern(ui, src, sekundenExtern, tick) {
   const status = (h) => { $(ui.status).innerHTML = h; if (ui.lage) messLage.status(h); };
-  const lz = (rest, r) => { if (ui.lage) messLage.zeit(rest, r); };
+  const lz = (rest, r) => { if (ui.lage) { if (!kcFuehrung.start) kcFuehrung.start = Date.now(); messLage.zeit(rest, r); } };
   if (quelle === "box" && !boxBereit()) { status(`<span class="warn">Die Klang-Box ist nicht eingerichtet. Bitte in Schritt 3 eine andere Quelle wählen.</span>`); return null; }
   if (quelle === "airplay" && kannAirplay && !drahtlos() && !airplayBestaetigt) { status(`<span class="warn">Erst einen AirPlay-Lautsprecher wählen (Schritt 3). Sonst misst du den iPhone-Lautsprecher statt deiner Anlage.</span>`); return null; }
   const mic = await mikrofonOeffnen(ui);
@@ -4735,6 +5329,7 @@ async function aufnehmenKern(ui, src, sekundenExtern, tick) {
   $(ui.start).disabled = true; $(ui.abbrechen).hidden = false;
   const ende = () => { mic.schliessen(); if (ui.pegel) $(ui.pegel).style.width = "0%"; $(ui.start).disabled = false; $(ui.abbrechen).hidden = true; laeuft = null; };
   const t0 = Date.now();
+  kcFuehrung = { t0, start: 0, art: ui.lage ? ui.lage.art : null };
   if (quelle === "box") {
     // Die Klang-Box spielt die Messfolge (identisch zu messung.Messfolge) über die echten Ausgänge, hinten über den Funk
     // Die Box spielt das Messsignal durch die wirkenden Einstellungen. Neutral (Einmessen, „vorher“) heißt: kurz „Alles aus“.
@@ -4987,6 +5582,7 @@ $("messen").addEventListener("click", async () => {
   const kanaele = messKanaele();
   const d = await aufnehmen({ status: "status", pegel: "pegel", filter: "filter", start: "messen", abbrechen: "abbrechen", kanaele, lage: { titel: "Teil 1 von 2 · Hörplatz", art: "platz" } }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
   if (!d) return;
+  if (typeof kanalCheckNachMessung === "function") return kanalCheckNachMessung(d, kanaele);  // Kanal-Check (siehe unten)
   if (await neueAufnahme("Hörplatz", d, kanaele)) { hauptDaten = d; $("platz-bild").innerHTML = platzBild(); await warte(1200); zeigeSchritt(6); }
 });
 
@@ -5005,6 +5601,7 @@ $("bewegen-start").addEventListener("click", async () => {
   }
   const v = p.ergebnis.verworfen || 0;
   $("bewegen-status").innerHTML = `<span class="ok">✓ ${12 - v} von 12 Sweeps sauber${v ? ` · ${v === 1 ? "1 Geräusch" : `${v} Geräusche`} weggelassen` : ""}.</span> Ich werte aus…`;
+  if (typeof kanalCheckBewegt === "function" && !(await kanalCheckBewegt(d))) return;  // links/rechts vertauscht?
   await auswerten(d);
 });
 $("ohne-bewegen").addEventListener("click", () => auswerten(null));
@@ -5029,15 +5626,22 @@ self.onmessage = (ev) => {
   try {
     if (ev.data.art === "sweetspot") { self.postMessage({ ok: true, ergebnis: SS.empfehlen(ev.data.raum, ev.data.start, ev.data.modus, ev.data.fest || [], ev.data.grenzen || null) }); return; }
     if (ev.data.art === "pruefen") { self.postMessage({ ok: true, ergebnis: analysiere(new Float64Array(ev.data.daten), folgeFuer(ev.data.kanaele)).pruefung }); return; }
+    if (ev.data.art === "kanalcheck") {  // Kanal-Check: auch bei unsauberer Aufnahme (ein stummer Kanal sieht aus wie Störgeräusch)
+      let aw = null; try { aw = analysiere(new Float64Array(ev.data.daten), folgeFuer(ev.data.kanaele)); } catch (e) {}
+      const o = { ...ev.data.opt };
+      if (ev.data.bewegt && ev.data.weg) { try { const ab = analysiere(new Float64Array(ev.data.bewegt), FOLGE_BEWEGT); o.bewegt = bewegtProben(ab, FOLGE_BEWEGT, ev.data.weg.start_s, ev.data.weg.weg_s, ev.data.weg.breite_m); } catch (e) {} }
+      self.postMessage({ ok: true, ergebnis: { pruefung: aw ? aw.pruefung : null, kc: kanalCheck(aw, ev.data.kanaele, ev.data.layout, o) } }); return;
+    }
     if (ev.data.art === "bewegtPruefen") { self.postMessage({ ok: true, ergebnis: bewegtePunkte(new Float64Array(ev.data.daten)).info }); return; }
     if (ev.data.art === "nachpruefen") {
-      const an = (l) => l.map((d) => { const a = analysiere(new Float64Array(d.daten), folgeFuer(ev.data.kanaele)); return { name: d.name, messungen: a.messungen, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme }; });
+      const mk = ev.data.mikrofon ? mikroKalibrierung(ev.data.mikrofon) : null;
+      const an = (l) => l.map((d) => { const a = analysiere(new Float64Array(d.daten), folgeFuer(ev.data.kanaele), mk); return { name: d.name, messungen: a.messungen, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme }; });
       const v = an(ev.data.vorher), n = an(ev.data.nachher), schlecht = [...v, ...n].filter((x) => !x.sauber);
       if (schlecht.length) { self.postMessage({ ok: true, ergebnis: { fehler: "Eine Aufnahme ist nicht sauber (" + schlecht[0].name + "): " + schlecht[0].probleme.join(" ") + " Bitte noch einmal messen." } }); return; }
       let kette = null, ungefaehr = false;
       if (ev.data.geraet) { const k = reglerKetten(ev.data.geraet, ev.data.geraetAlt, ev.data.geraetNeu); kette = k.lautsprecher; ungefaehr = k.sub.k.length > 0 || k.sub.faktor !== 1; }
       self.postMessage({ ok: true, ergebnis: nachpruefen(Object.fromEntries(v.map((x) => [x.name, x.messungen])), n.map((x) => ({ name: x.name, messungen: x.messungen })),
-        ev.data.einstellungen, ev.data.profil, ev.data.modus, ev.data.raumM3, undefined, kette, ungefaehr) }); return;
+        ev.data.einstellungen, ev.data.profil, ev.data.modus, ev.data.raumM3, undefined, kette, ungefaehr, ev.data.sitzmodus || "allein") }); return;
     }
     if (ev.data.art === "regler") {
       const auf = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
@@ -5045,7 +5649,7 @@ self.onmessage = (ev) => {
         ev.data.raumM3, ev.data.sub, ev.data.gedreht ? new Float64Array(ev.data.gedreht) : null) }); return;
     }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
-    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null) });
+    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null, ev.data.sitzmodus || "allein") });
   } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
 };`;
 const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
@@ -5067,10 +5671,11 @@ async function auswerten(bewegt) {
   $("auswerten").disabled = true;
   const kanaele = dateien[0].kanaele || K2;
   const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null,
-                            mikrofon: MIKROFONE[$("handy").value] || null, kanaele });
+                            mikrofon: MIKROFONE[$("handy").value] || null, kanaele, sitzmodus });
   $("auswerten").disabled = !dateien.length;
   if (!r.ok) { $(ziel).innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
-  const runde = { id: `r${Date.now()}`, anlage: anlageName(), art: anlageArt, modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis, profil_id: "neutral", status: "vorhergesagt", kanaele, katalog: GW.fuerRunde() };
+  const runde = { id: `r${Date.now()}`, anlage: anlageName(), art: anlageArt, modus, zeit: new Date().toLocaleString("de-DE"), e: r.ergebnis, profil_id: "neutral", status: "vorhergesagt", kanaele, katalog: GW.fuerRunde(),
+    kanalcheck: typeof kcStand !== "undefined" && kcStand && kcStand.kc ? { bassende_hz: kcStand.kc.bassende_hz, layout: kcStand.kc.layout_vorschlag } : null };
   runden.unshift(runde);
   schreiben("raumcheck-runden", JSON.stringify(runden.slice(0, 12)));
   messdaten = r.ergebnis.fehler ? null : { id: runde.id, dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null, kanaele };
@@ -5096,6 +5701,31 @@ function kurveSvg(k) {
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Bassverlauf am Hauptplatz, heute und mit Klang-Box">${s}</svg>`;
 }
 
+// Raum-Überhöhung 2–8 kHz (klangbox/raumanteil.py): nur, wenn der Raum dort etwas hinzufügt. Zuerst die Aufstellung;
+// die Absenkung (höchstens −1,5 dB) nur auf Wunsch. Ist der Raum unauffällig, steht hier nichts und es ändert sich nichts.
+function praesenzKarte(r, i) {
+  const u = r.e.raum_ueberhoehung;
+  if (!u) return "";
+  if (!u.ausgeloest) return u.hinweis ? `<p class="klein">${esc(u.hinweis)}</p>` : "";
+  const v = Object.entries(u.vorschlag || {}), an = !!r.praesenz_absenkung;
+  const filt = v.map(([ch, q]) => `${ch === "FL" ? "links" : "rechts"} ${zt(q[0].gain, 1)} dB bei ${zt(q[0].freq / 1000, 1)} kHz`).join(", ");
+  return `<div class="card raumtipps"><span class="marke">Präsenz 2–8 kHz: der Raum hebt an</span>
+    <p style="font-size:14px">${esc(u.hinweis)}</p><p style="font-size:14px"><b>Zuerst die Aufstellung:</b> ${esc(u.tipp)}</p>
+    ${v.length && i === 0 ? `<label class="klein"><input type="checkbox" data-praesenz="${i}"${an ? " checked" : ""}> Auf Wunsch sanft absenken (${esc(filt)}). Die Nachmessung prüft, ob es wirkt, und nimmt es sonst zurück.</label>` : ""}
+    <span class="klein">Nur ein Hinweis: Ob der Buckel vom Raum oder vom Abstrahlverhalten der Box kommt, trennt das iPhone nicht sicher. Der Charakter der Box bleibt, solange du nichts ankreuzt.</span></div>`;
+}
+// Absenkung an- oder abwählen: Filter ab 1 kHz gehören nur ihr (der Raum-EQ endet bei 300 Hz)
+function praesenzAbsenkungSetzen(r, an) {
+  const u = r.e.raum_ueberhoehung;
+  for (const ch of ["FL", "FR"]) {
+    if (!r.e.einstellungen[ch]) continue;
+    const eq = r.e.einstellungen[ch].eq.filter((q) => !(q.freq >= 1000 && q.gain < 0));
+    r.e.einstellungen[ch].eq = an && u && u.vorschlag && u.vorschlag[ch] ? eq.concat(u.vorschlag[ch]) : eq;
+  }
+  r.praesenz_absenkung = !!an;
+  delete r.urteil; r.status = "vorhergesagt";
+}
+
 // Titel der Hebel-Karte: Problem und Ziel statt Name der Kennzahl („Bass klingt nicht nach“ klang wie ein Befund)
 const HEBEL_TITEL = { bass_glaette: "Bass dröhnt bei einzelnen Tönen – so wird er gleichmäßiger", nachklingen: "Bass klingt nach – so wird er trockener",
   plaetze: "Bass klingt je Platz anders – so wird er überall ähnlich", tiefgang: "Wenig Tiefbass – so reicht er tiefer",
@@ -5116,7 +5746,8 @@ function karte(r, i) {
   const status = !r.status ? "" : r.status === "bestaetigt" ? `<span class="marke" style="color: var(--ok)">✓ bestätigt (nachgemessen)</span>`
     : r.status === "zurueckgenommen" ? `<span class="marke" style="color: var(--warn)">zurückgenommen (nachgemessen)</span>`
     : `<span class="marke" style="color: var(--warn)">vorhergesagt – Nachmessung steht noch aus</span>`;
-  const kopf = `<div style="display:grid; gap:4px"><span class="eyebrow">${esc(r.anlage)} · ${r.modus === "kino" ? "Kino" : "Stereo"} · ${esc(r.zeit)}</span>${status}<h2 style="font-size: 28px">So klingt dein Raum</h2></div>`;
+  const sitz = e.sitzmodus ? ` · ${e.sitzmodus === "zwei" ? "zu zweit (Sofa)" : "allein in der Mitte"}` : "";
+  const kopf = `<div style="display:grid; gap:4px"><span class="eyebrow">${esc(r.anlage)} · ${r.modus === "kino" ? "Kino" : "Stereo"}${sitz} · ${esc(r.zeit)}</span>${status}<h2 style="font-size: 28px">So klingt dein Raum</h2></div>`;
   const loeschen = `<button class="klein zweit" type="button" data-loeschen="${i}">Runde löschen</button>`;
   if (e.fehler) return `<section class="runde card">${kopf}<p class="warn">${esc(e.fehler)}</p>${pruef}${loeschen}</section>`;
   const sh = e.score_heute, sp = e.score_prognose;
@@ -5141,8 +5772,10 @@ function karte(r, i) {
       <td class="n" style="color: var(--heute)">${a.punkte ?? "–"}</td><td class="n" style="color: var(--akzent)">${b.punkte ?? "–"}</td>
       <td class="n klein">${b.gewicht}%${ca}</td></tr>`; }).join("");
   const rt = raumTippsMitScan(e.raum_tipps || []);
-  return `<section class="runde" style="display:grid; gap:12px">${kopf}${zahlen}
-    <p class="klein">${esc(e.score_name)} von 0 bis 100${pm(sh) || pm(sp) ? `, Messunsicherheit heute${pm(sh)}, Prognose${pm(sp)}` : ""}. 90 Referenz · 75 Sehr gut · 60 Gut · 40 Ordentlich.${sp.gekappt ? " Prognose begrenzt: ein Kernwert ist noch schwach." : ""}</p>
+  return `<section class="runde" style="display:grid; gap:12px">${kopf}${zahlen}${praesenzKarte(r, i)}
+    <p class="klein">${esc(e.score_name)} von 0 bis 100${pm(sh) || pm(sp) ? `, Messunsicherheit heute${pm(sh)}, Prognose${pm(sp)}` : ""}. 90 Referenz · 75 Sehr gut · 60 Gut · 40 Ordentlich.${sp.gekappt ? " Prognose begrenzt: ein Kernwert ist noch schwach." : ""}${
+      e.sitzmodus === "zwei" ? ` Sitzmodus zu zweit: Laufzeit und Pegel für die Mitte zwischen ${(e.sitzplaetze || []).length} Plätzen, die Bühne zählt am schlechteren Platz.`
+      : e.sitzmodus_gewaehlt === "zwei" ? " Zu zweit braucht mindestens zwei gemessene Plätze: gerechnet wurde für den Hauptplatz." : ""}</p>
     <div class="kacheln">${kacheln}</div>
     ${hebelKarte(sp.hebel, "mit Klang-Box")}
     ${GW.karte(r, runden)}
@@ -5219,6 +5852,7 @@ function scanSystem(r, wandId) {
   const sc = { breite, laenge, hoehe: r.hoehe, poly, waende: r.waende.map((x) => ({ id: x.id, a: T(x.a), b: T(x.b) })),
     tueren: r.tueren.map(loch), fenster: r.fenster.map(loch), oeffnungen: r.oeffnungen.map(loch), objekte };
   sc.sperrzonen = sperrzonenAusScan(sc);
+  sc.T = T;  // für Lautsprecher-Positionen aus dem Scan der App (Kanal-Check)
   // Derselbe Raum im Sweetspot-System für die 3D-Ansicht (raum3d.js): Drehung um φ, Objekte mitdrehen
   const phi = Math.atan2(n[0], n[1]) * 180 / Math.PI, mitWand = (l) => l.map((t) => ({ ...t, mitte: T(t.mitte) }));
   sc.raum3d = { version: 1, quelle: r.quelle, hoehe: r.hoehe, rechteckig: r.rechteckig, grundriss: poly, waende: r.waende.map((x) => ({ id: x.id, a: T(x.a), b: T(x.b), hoehe: x.hoehe })),
@@ -5580,6 +6214,11 @@ function zeigeAlles() {
   $("vergleich").innerHTML = gueltig.map((r) => `<tr><td>${esc(r.anlage)}</td><td>${r.modus === "kino" ? "Kino" : "Stereo"}</td>
     <td class="n" style="color: var(--heute)">${r.e.score_heute.gesamt}</td><td class="n" style="color: var(--akzent)">${r.e.score_prognose.gesamt}</td></tr>`).join("");
 }
+$("ergebnisse").addEventListener("change", (ev) => {
+  const c = ev.target.closest("[data-praesenz]"); if (!c) return;
+  const r = runden[+c.dataset.praesenz]; if (!r) return;
+  praesenzAbsenkungSetzen(r, c.checked); rundeSpeichern(); zeigeAlles();
+});
 $("ergebnisse").addEventListener("click", (ev) => {
   const nm = ev.target.closest("[data-nachmessen]");
   if (nm) { anwendenArt = nm.dataset.nachmessen; zeigeSchritt(anwendenArt === "geraet" ? 10 : (aktuelleRunde() && aktuelleRunde().profil ? 10 : 9)); return; }
@@ -5672,7 +6311,8 @@ $("p-weiter").addEventListener("click", () => { anwendenArt = "box"; zeigeSchrit
 function exportObjekt(r, stand, einst, profil, geraet) {
   const kanal = (c) => ({ gain_db: c.gain_db, delay_ms: c.delay_ms, eq: c.eq.map((q) => ({ freq: q.freq, gain: q.gain, q: q.q })) });
   return { art: "klangbox-einstellungen", version: 1, stand, status: r.status || "vorhergesagt", modus: r.modus, anlage: r.anlage, erstellt: new Date().toISOString(),
-    einstellungen: { FL: kanal(einst.FL), FR: kanal(einst.FR), ...(einst.SL && einst.SR ? { SL: kanal(einst.SL), SR: kanal(einst.SR) } : {}), profil: profil || { ...NEUTRAL } },
+    einstellungen: { FL: kanal(einst.FL), FR: kanal(einst.FR), ...(einst.C ? { C: kanal(einst.C) } : {}), ...(einst.SL && einst.SR ? { SL: kanal(einst.SL), SR: kanal(einst.SR) } : {}),
+      ...(einst.BL && einst.BR ? { BL: kanal(einst.BL), BR: kanal(einst.BR) } : {}), profil: profil || { ...NEUTRAL } },
     geraet_einstellungen: geraet || null };
 }
 const NEUTRAL_EINST = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
@@ -5815,9 +6455,9 @@ $("a-pruefen").addEventListener("click", async () => {
   const ohneBox = anwendenArt === "geraet", namen = [nach.haupt, ...Object.keys(nach.nachher).filter((n) => n !== nach.haupt)].filter((n) => nach.vorher[n] && nach.nachher[n]);
   $("a-pruefen").disabled = true; $("a-urteil").innerHTML = "";
   $("a-status").innerHTML = `<span class="laeuft">Vergleiche vorher und nachher…</span>`;
-  const res = await imWorker({ art: "nachpruefen", modus: r.modus, raumM3: +$("raum").value || null, kanaele: r.kanaele || K2,
+  const res = await imWorker({ art: "nachpruefen", modus: r.modus, raumM3: +$("raum").value || null, kanaele: r.kanaele || K2, mikrofon: MIKROFONE[$("handy").value] || null,
     vorher: namen.map((n) => ({ name: n, daten: nach.vorher[n] })), nachher: namen.map((n) => ({ name: n, daten: nach.nachher[n] })),
-    einstellungen: ohneBox ? {} : r.e.einstellungen, profil: ohneBox ? null : (r.profil || null),
+    einstellungen: ohneBox ? {} : r.e.einstellungen, profil: ohneBox ? null : (r.profil || null), sitzmodus: ohneBox ? "allein" : (r.e.sitzmodus || "allein"),
     geraet: ohneBox ? r.geraet_profil : null, geraetAlt: ohneBox ? r.geraet.aktuell.werte : null, geraetNeu: ohneBox ? r.geraet.geraet_einstellungen.werte : null });
   $("a-pruefen").disabled = false;
   if (!res.ok) { $("a-status").innerHTML = `<span class="warn">Prüfung fehlgeschlagen: ${esc(res.fehler)}</span>`; return; }
@@ -6061,10 +6701,10 @@ function geraetErgebnisZeigen(r) {
 // Die App führt: finden und koppeln, festlegen wo jede Box steht (daraus die Hauptbox), Kanäle zuordnen, Funk je
 // Satellit, Anschließen mit Signal-Prüfung, danach direkt einmessen. Beliebig viele gleiche Boxen, z. B. eine je
 // Rear-Lautsprecher. Die Box bekommt alles über die Schnittstelle (docs/box/SCHNITTSTELLE.md).
-const BOX_LAYOUTS = { "2.0": ["FL", "FR"], "2.1": ["FL", "FR", "SUB"], "4.0": ["FL", "FR", "SL", "SR"], "4.1": ["FL", "FR", "SL", "SR", "SUB"] };
-const KANAL_NAME = { FL: "Front links", FR: "Front rechts", SL: "Hinten links", SR: "Hinten rechts", SUB: "Subwoofer" };
+const KANAL_NAME = { FL: "Front links", FR: "Front rechts", C: "Mitte (Center)", SL: "Hinten links", SR: "Hinten rechts",
+  BL: "Ganz hinten links", BR: "Ganz hinten rechts", SUB: "Subwoofer" };
 const AUSGANG_NAME = { spdif: "Optisch", koax: "Koaxial", analog1: "Analog 1", analog2: "Analog 2" };
-const PLAETZE = { vorne: "vorne", hinten: "hinten", hl: "hinten links", hr: "hinten rechts", aus: "nicht benutzt" };
+const PLAETZE = { vorne: "vorne", mitte: "vorne Mitte (Center)", hinten: "hinten", hl: "hinten links", hr: "hinten rechts", aus: "nicht benutzt" };
 const RUECK_OHNE_KABEL_M = 3;  // [eigene Festlegung] über ca. 3 m zwischen den Rears: eine Box je Rear vorschlagen
 let ein = { boxen: [], quelle: "vorne", platz: {}, layout: null, zuordnung: {}, ausgaenge: {}, art: "tv", keinKabel: false };
 try { ein = { ...ein, ...JSON.parse(lesen("raumcheck-einrichtung", "{}")) }; } catch (e) {}
@@ -6111,6 +6751,10 @@ function standardZuordnung(layout) {
   for (const ch of BOX_LAYOUTS[layout]) {
     if (ch === "SUB") { z[ch] = { box: "fronts", ausgang: null }; continue; }  // meist am Sub-Ausgang der aktiven Boxen
     let box = vorne;
+    // Center: die Hauptbox gibt nur 2 Kanäle aus, ein echter Center braucht eine Box vorne in der Mitte
+    if (ch === "C") box = boxAm("mitte") || vorne;
+    if (ch === "BL") box = boxAm("hl") || boxAm("hinten") || vorne;
+    if (ch === "BR") box = boxAm("hr") || boxAm("hinten") || vorne;
     if (ch === "SL") box = boxAm("hl") || boxAm("hinten") || boxAm("hr") || vorne;
     if (ch === "SR") box = boxAm("hr") || boxAm("hinten") || boxAm("hl") || vorne;
     const a = aus(box);
@@ -6214,7 +6858,7 @@ function quelleZeigen() {
   document.querySelectorAll("[data-quelle]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.quelle === ein.quelle));
   const gek = gekoppelte();
   $("e-welche").hidden = gek.length < 2;
-  const wahl = gek.length >= 3 ? ["vorne", "hl", "hr", "hinten", "aus"] : ["vorne", "hinten", "aus"];
+  const wahl = gek.length >= 3 ? ["vorne", "mitte", "hl", "hr", "hinten", "aus"] : ["vorne", "mitte", "hinten", "aus"];
   $("e-vorne-wahl").innerHTML = gek.map((b) => `<div class="reihe" style="flex-wrap: wrap"><b style="font-size:15px">${esc(b.name)}</b><div class="chips">${wahl.map((p) =>
     `<button type="button" class="chip" data-platz-box="${esc(b.id)}" data-platz="${p}" aria-pressed="${ein.platz[b.id] === p}">${PLAETZE[p]}</button>`).join("")}</div></div>`).join("");
   const h = einHaupt();
@@ -6248,7 +6892,7 @@ async function satellitenPruefen() {
 }
 // Vorschlag für hinten: eine Box je Rear, wenn sie weit auseinander stehen oder kein Kabel zwischen ihnen gehen soll
 function rueckVorschlagText() {
-  if (!/^4\./.test(ein.layout || "")) return "";
+  if (!mitHinten(ein.layout)) return "";
   const je = boxAm("hl") && boxAm("hr"), d = rueckAbstand(), weit = d !== null && d > RUECK_OHNE_KABEL_M;
   if (je) return "Hinten links und rechts haben je eine eigene Klang-Box: kein Kabel zwischen ihnen.";
   if (ein.keinKabel || weit) return `${weit ? `Hinten liegen etwa ${zt(d, 1)} m zwischen links und rechts. ` : ""}Ohne Kabel zwischen hinten links und rechts brauchst du je eine Klang-Box pro Rear-Lautsprecher (${gekoppelte().length < 3 ? "noch eine Box dazu, dann neu suchen" : "unter „Wo kommen Bild und Ton her?“ hinten links und hinten rechts wählen"}).`;
@@ -6256,7 +6900,7 @@ function rueckVorschlagText() {
 }
 function layoutZeigen() {
   if (!ein.layout) ein.layout = einBenutzt().length >= 2 ? "4.0" : "2.0";
-  $("e-layout").innerHTML = Object.keys(BOX_LAYOUTS).map((l) => `<button type="button" class="chip" data-layout="${l}" aria-pressed="${l === ein.layout}">${l}${l.startsWith("4") ? " (mit hinten)" : ""}</button>`).join("");
+  $("e-layout").innerHTML = Object.keys(BOX_LAYOUTS).map((l) => `<button type="button" class="chip" data-layout="${l}" aria-pressed="${l === ein.layout}">${l}${mitHinten(l) ? " (mit hinten)" : ""}</button>`).join("");
   const kan = BOX_LAYOUTS[ein.layout], std = standardZuordnung(ein.layout), gueltig = (z) => z && z.box && (z.box === "fronts" || einBenutzt().includes(z.box));
   ein.zuordnung = Object.fromEntries(kan.map((ch) => [ch, gueltig(ein.zuordnung[ch]) ? ein.zuordnung[ch] : std[ch]]));
   const boxen = einBenutzt();
@@ -6267,7 +6911,7 @@ function layoutZeigen() {
       ${z.box === "fronts" ? `<span class="klein">Die Klang-Box spielt dann nur die Hauptkanäle.</span>` : `<label>Ausgang<select data-zu-ausgang="${ch}">${aus.map((a) => `<option value="${esc(a)}"${a === z.ausgang ? " selected" : ""}>${esc(AUSGANG_NAME[a] || a)}</option>`).join("")}</select></label>`}</div></div>`; }).join("");
   $("e-skizze").innerHTML = aufstellungSkizze();
   $("e-skizze-hilfe").textContent = skizzeBox ? `Box ${platzName(skizzeBox)} gewählt: jetzt den Lautsprecher antippen.` : "Zuordnen per Skizze: erst eine Box antippen, dann den Lautsprecher.";
-  $("e-rueck").hidden = !/^4\./.test(ein.layout); $("e-kein-kabel").setAttribute("aria-checked", !!ein.keinKabel);
+  $("e-rueck").hidden = !mitHinten(ein.layout); $("e-kein-kabel").setAttribute("aria-checked", !!ein.keinKabel);
   $("e-rueck-text").textContent = rueckVorschlagText();
   einMerken();
 }
@@ -6297,7 +6941,7 @@ function signalZeigen(st) {
 async function signalPruefen() { if (!nativ || !nativ.boxen) return; signalZeigen(await nativ.box("status", {}, { box: einHaupt() })); }
 function einrichtenZeigen(n) {
   if (signalUhr && n !== 16) { clearInterval(signalUhr); signalUhr = null; }
-  if (n < 12) return;
+  if (n < 12 || n === 17) return;  // 17: Kanal-Check, gehört zum Messen
   if (!nativ || !nativ.boxen) { zeigeSchritt(1); return; }
   if (n === 12) { boxenZeigen(); $("e-weiter-1").disabled = !gekoppelte().length; if (!gekoppelte().length) boxenSuchen(); }
   if (n === 13) { platzVorschlag(); quelleZeigen(); $("e-rolle-status").textContent = ""; }
@@ -6362,7 +7006,7 @@ $("e-zuordnung").addEventListener("change", (ev) => {
 // Kanäle an die Hauptbox; ohne „SUB“ hängt der Sub an den Fronts (Sub-Ausgang der aktiven Boxen)
 function kanaeleSenden() {
   const kan = BOX_LAYOUTS[ein.layout].filter((ch) => ein.zuordnung[ch] && ein.zuordnung[ch].box !== "fronts");
-  return nativ.box("kanaele", { layout: ein.layout, zuordnung: Object.fromEntries(kan.map((ch) => [ch, { box: ein.zuordnung[ch].box, ausgang: ein.zuordnung[ch].ausgang }])) }, { box: einHaupt(), zeitMs: 20000 });
+  return nativ.box("kanaele", { layout: ein.layout, zuordnung: Object.fromEntries(kan.map((ch) => [ch, { box: ein.zuordnung[ch].box, ausgang: ein.zuordnung[ch].ausgang, ...(ein.zuordnung[ch].kanal !== undefined ? { kanal: ein.zuordnung[ch].kanal } : {}), ...(ein.zuordnung[ch].polaritaet ? { polaritaet: ein.zuordnung[ch].polaritaet } : {}) }])) }, { box: einHaupt(), zeitMs: 20000 });
 }
 $("e-weiter-3").addEventListener("click", async () => {
   einMerken();
@@ -6411,6 +7055,202 @@ window.addEventListener("klangboxbox", (ev) => {
   if (!document.querySelector('.schritt[data-s="16"]').hidden && (!d.box || d.box === einHaupt())) signalZeigen({ ok: true, ...d.status });
   if (!document.querySelector('.schritt[data-s="15"]').hidden && d.status.funk && (!d.box || d.box === einHaupt())) funkZeigen(d.status.funk);
   if (!document.querySelector('.schritt[data-s="3"]').hidden) setzeQuelle(boxBereit() && quelle !== "extern" ? "box" : quelle);
+});
+
+// --- Kanal-Check -------------------------------------------------------------------------------------------------
+// Eigener Block (Rechnung: kanalCheck in analyse.js, wie klangbox/kanalcheck.py). Nach der Messung am Hörplatz:
+// spielt jeder Lautsprecher, wo er soll? Vertauscht, stumm, verpolt, Sub, Layout-Vorschlag neben der Wahl des Nutzers.
+// Lösungen mit einem Tipp: Tausch in der Kanal-Zuordnung der Box (nie umstecken), Layout übernehmen, Probe „Box antippen“.
+// Nach der bewegten Messung wird links/rechts noch einmal geprüft, wenn es vorher offen war.
+let kcFuehrung = { t0: 0, start: 0, art: null };  // Start der Führung (bewegte Messung) relativ zur Aufnahme
+let kcStand = null;  // { daten, kanaele, layout, opt, kc, pruefung, antworten, bewegt, tippen }
+const KC_PUNKT = { FL: [70, 54], FR: [250, 54], C: [160, 46], SL: [44, 168], SR: [276, 168], BL: [104, 206], BR: [216, 206] };
+const KC_FARBE = { gruen: "var(--ok)", gelb: "var(--warn)", rot: "var(--heute)" };
+const kcLayout = () => (quelle === "box" ? boxLayout() : subAnschluss ? "2.1" : "2.0");
+// Lautsprecher-Positionen aus dem Raumscan der App (raum.json: lautsprecher [{kanal, mitte: [x, y, z]}]); der Hörplatz aus der Aufstellung
+function kcPositionen(kanaele) {
+  const roh = scan && scan.roh && Array.isArray(scan.roh.lautsprecher) ? scan.roh.lautsprecher : null;
+  if (!roh || !scan.ss.T) return {};
+  const pos = {};
+  for (const l of roh) if (l && kanaele.includes(l.kanal) && Array.isArray(l.mitte)) pos[l.kanal] = [...scan.ss.T(l.mitte), +(l.mitte[2] ?? 1.0)];
+  const hx = parseFloat(String($("s-hx").value).replace(",", ".")), hy = parseFloat(String($("s-hy").value).replace(",", "."));
+  return kanaele.every((ch) => pos[ch]) && isFinite(hx) && isFinite(hy) ? { positionen: pos, hoerplatz: [hx, hy, 1.1] } : {};
+}
+// Bekannte Funk-Verzögerung je Kanal (Box-Status), welche Kanäle über den Funk kommen, wo der Sub hängt
+async function kcBoxOptionen(kanaele) {
+  if (quelle !== "box" || !nativ) return {};
+  const haupt = einHaupt(), z = ein.zuordnung || {}, aufSat = (ch) => z[ch] && z[ch].box && z[ch].box !== "fronts" && haupt && z[ch].box !== haupt;
+  const st = await nativ.box("status", {}, { box: haupt, zeitMs: 6000 }), rueck = st.ok && st.verzoegerung ? +st.verzoegerung.rueck_ms : NaN;
+  const vorneHaupt = ["FL", "FR"].every((ch) => !aufSat(ch)), versatz = {};
+  for (const ch of kanaele.filter((c) => ["SL", "SR", "BL", "BR"].includes(c))) {
+    if (!aufSat(ch) || !vorneHaupt) versatz[ch] = 0;  // gleiche Box wie vorne, oder die Hauptbox wartet ohnehin auf den Funk
+    else if (isFinite(rueck)) versatz[ch] = rueck;
+  }
+  return { versatz_ms: versatz, funk: kanaele.filter(aufSat), sub_an: z.SUB && z.SUB.box && z.SUB.box !== "fronts" ? "box" : "fronts" };
+}
+async function kcRechnen(extra = {}) {
+  const s = kcStand, opt = { ...s.opt, antippen: Object.keys(s.antworten).length ? s.antworten : undefined };
+  const r = await imWorker({ art: "kanalcheck", daten: s.daten, kanaele: s.kanaele, layout: s.layout, opt, ...extra });
+  if (r.ok) { s.kc = r.ergebnis.kc; if (!extra.bewegt) s.pruefung = r.ergebnis.pruefung; }
+  return r.ok;
+}
+async function kanalCheckNachMessung(d, kanaele) {
+  $("status").innerHTML = `<span class="laeuft">Prüfe, was wo spielt…</span>`;
+  const opt = { ...kcPositionen(kanaele), ...(await kcBoxOptionen(kanaele)) };
+  kcStand = { daten: d, kanaele, layout: kcLayout(), opt, kc: null, pruefung: null, antworten: {}, bewegt: null, tippen: null };
+  if (!(await kcRechnen())) { kcStand = null; if (await neueAufnahme("Hörplatz", d, kanaele)) { hauptDaten = d; zeigeSchritt(6); } return; }
+  // Aufnahme aus anderen Gründen unbrauchbar (Störgeräusch, Filter) und kein Kanal auffällig: wie bisher melden
+  if (!(kcStand.pruefung && kcStand.pruefung.sauber) && kcStand.kc.status === "gruen") { kcStand = null; await neueAufnahme("Hörplatz", d, kanaele); return; }
+  $("status").innerHTML = kcStand.pruefung && kcStand.pruefung.sauber ? `<span class="ok">✓ Hörplatz: Aufnahme sauber.</span>` : "";
+  zeigeSchritt(17); kcZeigen();
+}
+// Nach der bewegten Messung: war links/rechts offen, mit der Bewegung nachprüfen. false = erst den Kanal-Check zeigen.
+async function kanalCheckBewegt(d) {
+  const s = kcStand;
+  if (!s || !s.kc || s.kc.tausch || s.kc.pruefbar.lr_vorne !== false || s.antworten.FL || kcFuehrung.art !== "bewegen" || !kcFuehrung.start) return true;
+  const b = BEWEGEN[modus] || BEWEGEN.kino;
+  const weg = { start_s: (kcFuehrung.start - kcFuehrung.t0) / 1000, weg_s: b.weg_s, breite_m: 2 * b.cm / 100 };
+  if (!(await kcRechnen({ bewegt: d, weg })) || !s.kc.tausch) return true;
+  s.bewegt = d; zeigeSchritt(17); kcZeigen(); return false;
+}
+function kcSkizze(kc) {
+  const W = 320, H = 230, wahl = !!kcStand.tippen;
+  let g = `<rect x="20" y="20" width="280" height="200" rx="10" fill="#12161C" stroke="#9AA3AD" stroke-width="2"/>`;
+  if (scan && scan.ss && scan.ss.poly.length >= 3) {
+    const sc = scan.ss, m = Math.min(280 / sc.breite, 200 / sc.laenge), ox = 20 + (280 - sc.breite * m) / 2, oy = 20 + (200 - sc.laenge * m) / 2;
+    g = `<polygon points="${sc.poly.map((p) => `${P(ox + p[0] * m)},${P(oy + p[1] * m)}`).join(" ")}" fill="#12161C" stroke="#9AA3AD" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+  g += `<rect x="110" y="24" width="100" height="6" rx="3" fill="#E9ECF0"/><rect x="128" y="128" width="64" height="20" rx="7" fill="#2A313B"/><text x="160" y="142" text-anchor="middle">Sofa</text>`;
+  for (const z of kc.kanaele) {
+    const [x, y] = KC_PUNKT[z.kanal] || [160, 120], farbe = z.spielt === false ? KC_FARBE.rot : KC_FARBE[z.status] || "var(--line2)";
+    const wohin = kc.tausch && kc.tausch.neu_von && kc.tausch.neu_von[z.kanal];
+    if (wohin && KC_PUNKT[wohin] && !wahl) g += `<line x1="${x}" y1="${y}" x2="${KC_PUNKT[wohin][0]}" y2="${KC_PUNKT[wohin][1]}" stroke="${farbe}" stroke-width="2" stroke-dasharray="4 3"/>`;
+    g += `<g class="kc-punkt" data-kanal="${z.kanal}" style="cursor:${wahl ? "pointer" : "default"}"><circle cx="${x}" cy="${y}" r="${wahl ? 17 : 13}" fill="${wahl ? "#E9ECF0" : farbe}"${z.spielt === false && !wahl ? ` fill-opacity="0.35" stroke="${farbe}" stroke-width="2"` : ""}/>`
+      + `<text x="${x}" y="${y + 3.5}" text-anchor="middle" style="fill:#0B0D10; font-weight:700; font-size:9px">${z.kanal}</text></g>`;
+  }
+  if (kc.layout_vorschlag && kc.layout_vorschlag.endsWith(".1")) g += `<rect x="30" y="74" width="20" height="20" rx="5" fill="${kc.sub && kc.sub.erkannt === false ? KC_FARBE.rot : "#5B6470"}"/><text x="40" y="106" text-anchor="middle">Sub</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Draufsicht: jeder Lautsprecher als Punkt, grün passt, gelb prüfen, rot Fehler${wahl ? ". Tippe auf den Lautsprecher, der gerade spielt." : ""}">${g}</svg>`;
+}
+function kcZeigen(meldung) {
+  const s = kcStand, kc = s && s.kc;
+  if (!kc) return;
+  $("kc-skizze").innerHTML = kcSkizze(kc);
+  $("kc-skizze-hilfe").innerHTML = s.tippen ? `<b style="color: var(--ink)">Welche Box spielt gerade? Tippe sie an.</b> <button type="button" class="klein zweit" id="kc-nochmal" style="min-height:32px">Noch einmal</button>`
+    : "Grün passt, gelb bitte prüfen, rot ist ein Fehler.";
+  const sub = kc.sub && kc.sub.text ? `<span class="klein ${kc.sub.erkannt === false && kc.sub.erwartet ? "warn" : ""}">${esc(kc.sub.text)}</span>` : "";
+  $("kc-layout").innerHTML = `<div class="reihe"><div><h3>${esc(kc.layout_text)}</h3><span class="klein">Deine Wahl: ${esc(kc.layout_gewaehlt)}</span> ${sub}</div><i class="ampel ${kc.layout_frage ? "gelb" : "gruen"}"></i></div>`
+    + (kc.layout_frage ? `<p class="warn" style="margin-top:8px">${esc(kc.layout_frage)}</p>` + (quelle === "box" && boxBereit()
+      ? `<div class="knoepfe breit" style="margin-top:8px"><button type="button" class="zweit" id="kc-layout-nein">Nein, ${esc(kc.layout_gewaehlt)} stimmt</button><button type="button" id="kc-layout-ja">Ja, ${esc(kc.layout_vorschlag)}</button></div>` : "") : "");
+  const fakten = (z) => [z.abstand_m !== null ? `${zt(z.abstand_m, 1)} m${z.abstand_scan_m !== null ? ` (Scan ${zt(z.abstand_scan_m, 1)} m)` : ""}`
+      : z.abstand_rel_m !== null && z.kanal !== "FL" ? `${z.abstand_rel_m >= 0 ? "+" : "−"}${zt(Math.abs(z.abstand_rel_m), 2)} m zu vorne links` : "",
+    z.pegel_db !== null && z.kanal !== "FL" ? `${z.pegel_db >= 0 ? "+" : "−"}${zt(Math.abs(z.pegel_db), 1)} dB` : "",
+    z.polaritaet === "gedreht" ? "verpolt" : "", z.groesse ? { gross: "voller Bass", mittel: "mittlerer Bass", klein: "klein" }[z.groesse] : ""].filter(Boolean).join(" · ");
+  $("kc-zeilen").innerHTML = kc.kanaele.map((z) => `<div class="zeile"><i class="ampel ${z.spielt === false ? "rot" : z.status}" aria-label="${z.status}"></i><span><b>${esc(z.name)}</b>${
+    z.spielt !== false && fakten(z) ? ` <span class="klein">${esc(fakten(z))}</span>` : ""}${z.texte.length ? `<br><span class="klein">${esc(z.texte.join(" "))}</span>` : ""}</span></div>`).join("")
+    + (kc.tipps.length ? `<p class="klein">${kc.tipps.map(esc).join(" ")}</p>` : "");
+  const akt = [];
+  if (kc.tausch) akt.push(`<div class="kasten"><h3 class="${kc.tausch.sicher ? "warn" : ""}">${esc(kc.tausch.text)}</h3>${quelle === "box" && boxBereit()
+    ? `<button type="button" id="kc-tauschen" style="margin-top:8px">In der Box tauschen</button>`
+    : `<span class="klein">Tausche die Stecker der beiden Boxen am Verstärker (oder links/rechts in der Anlage), dann neu messen.</span>`}</div>`);
+  const pol = kc.polaritaet ? (kc.polaritaet.vorne_uneins ? ["FR"] : kc.polaritaet.gedreht) : [];
+  if (pol.length && quelle === "box" && boxBereit()) akt.push(`<div class="kasten"><h3 class="warn">${esc(pol.map((c) => KANAL_NAME[c] || c).join(", "))} verpolt – in der Box umpolen?</h3><span class="klein">Die Box dreht die Polarität dieses Kanals um (verlustfrei, gleicher Pegel). Danach bitte neu messen.</span><button type="button" id="kc-umpolen" data-kanaele="${esc(pol.join(","))}" style="margin-top:8px">In der Box umpolen</button></div>`);
+  const kannTippen = (quelle === "box" && boxBereit()) || (quelle === "airplay" && kc.antippen.every((c) => c === "FL"));
+  if (kc.antippen.length && !s.tippen && kannTippen) akt.push(`<div class="kasten"><span class="klein">${kc.tausch ? "Sicher bin ich mir nicht." : kc.antippen.includes("SL") ? "Links/rechts und vorne/hinten kann ich ohne Raumscan nicht sicher hören." : "Links und rechts kann ich ohne Raumscan nicht sicher hören."} Eine kurze Probe klärt das: Ich spiele ${kc.antippen.length === 1 ? "einen Ton" : `${kc.antippen.length} Töne`}, du tippst auf die Box, die spielt.</span><button type="button" class="zweit" id="kc-tippen" style="margin-top:8px">Probe: Box antippen (5 s)</button></div>`);
+  $("kc-aktionen").innerHTML = akt.join("");
+  const brauchbar = !!(s.pruefung && s.pruefung.sauber);
+  $("kc-weiter").hidden = !brauchbar;
+  $("kc-weiter").textContent = s.bewegt ? (kc.status === "gruen" ? "Passt – auswerten" : "Trotzdem auswerten") : kc.weiter_ok ? "Passt – weiter" : "Trotzdem weiter";
+  $("kc-status").innerHTML = meldung || (!brauchbar ? `<span class="warn">So kann ich nicht einmessen. Bitte die Punkte oben prüfen und neu messen.</span>` : "");
+}
+// Probe-Ton auf einem Kanal: über die Box (folge „antippen“) oder über AirPlay (links bzw. rechts)
+let kcTonUrl = null;
+async function kcTon(kanal) {
+  if (quelle === "box") {
+    const a = await nativ.box("messsignal", { kanaele: [kanal], folge: "antippen", start_in_ms: 300 }, { zeitMs: 8000 });
+    return a.ok ? null : `Die Box spielt den Probe-Ton nicht (${a.fehler || a.grund}).`;
+  }
+  const n = 72000, d = new DataView(new ArrayBuffer(44 + n * 4)), rng = (() => { let x = 7; return () => ((x = (x * 1103515245 + 12345) >>> 0) / 4294967296) * 2 - 1; })();
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) d.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, "RIFF"); d.setUint32(4, 36 + n * 4, true); str(8, "WAVEfmt "); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 2, true);
+  d.setUint32(24, 48000, true); d.setUint32(28, 192000, true); d.setUint16(32, 4, true); d.setUint16(34, 16, true); str(36, "data"); d.setUint32(40, n * 4, true);
+  let b0 = 0, b1 = 0, b2 = 0;  // rosa Rauschen (Paul Kellet, kurz), 0,3 s Stille, 1,2 s Ton mit Rampen
+  for (let i = 0; i < n; i++) {
+    const w = rng(); b0 = 0.99765 * b0 + w * 0.099; b1 = 0.963 * b1 + w * 0.2965; b2 = 0.57 * b2 + w * 1.0526;
+    const t = i - 14400, r = t < 0 || t >= 57600 ? 0 : Math.min(1, t / 2400, (57600 - t) / 2400), v = Math.round(0.08 * (b0 + b1 + b2 + w * 0.1848) * r * 32767);
+    d.setInt16(44 + i * 4 + (kanal === "FR" ? 2 : 0), Math.max(-32767, Math.min(32767, v)), true);
+  }
+  if (kcTonUrl) URL.revokeObjectURL(kcTonUrl);
+  kcTonUrl = URL.createObjectURL(new Blob([d.buffer], { type: "audio/wav" }));
+  sig.src = kcTonUrl; sig.load();
+  try { await sig.play(); return null; } catch (e) { return "Der Probe-Ton ließ sich nicht abspielen."; }
+}
+async function kcTippen() {
+  const s = kcStand;
+  for (const kanal of [...s.kc.antippen]) {
+    s.tippen = { kanal }; kcZeigen(`<span class="laeuft">Hör hin…</span>`);
+    const f = await kcTon(kanal);
+    if (f) { s.tippen = null; kcZeigen(`<span class="warn">${esc(f)}</span>`); return; }
+    const platz = await new Promise((fertig) => { s.tippen.fertig = fertig; });
+    if (!platz) { s.tippen = null; kcZeigen(); return; }
+    s.antworten[kanal] = platz;
+  }
+  s.tippen = null; kcZeigen(`<span class="laeuft">Rechne…</span>`);
+  await kcRechnen(); kcZeigen();
+}
+// Tausch in der Kanal-Zuordnung der Box: Kanal X bekommt den Ausgang, an dem sein Lautsprecher wirklich hängt
+function kcTauschZuordnung(neuVon) {
+  const alt = ein.zuordnung, neu = { ...alt }, platz = (ch) => (["FL", "SL", "BL"].includes(ch) ? 0 : ["FR", "SR", "BR"].includes(ch) ? 1 : undefined);
+  for (const [x, y] of Object.entries(neuVon)) {
+    const zy = alt[y] || {}, zx = alt[x] || {}, gleich = zx.box === zy.box && zx.ausgang === zy.ausgang;
+    const k = zy.kanal !== undefined ? zy.kanal : platz(y);
+    neu[x] = { box: zy.box, ausgang: zy.ausgang, ...((gleich || zy.kanal !== undefined) && k !== undefined ? { kanal: k } : {}) };
+  }
+  return neu;
+}
+document.addEventListener("click", async (ev) => {
+  if (document.querySelector('.schritt[data-s="17"]').hidden || !kcStand) return;
+  const s = kcStand, id = ev.target.id, punkt = ev.target.closest(".kc-punkt");
+  if (punkt && s.tippen && s.tippen.fertig) { s.tippen.fertig(punkt.dataset.kanal); return; }
+  if (id === "kc-nochmal" && s.tippen) { const f = await kcTon(s.tippen.kanal); if (f) $("kc-status").innerHTML = `<span class="warn">${esc(f)}</span>`; return; }
+  if (id === "kc-tippen") return kcTippen();
+  if (id === "kc-neu") { if (s.tippen && s.tippen.fertig) s.tippen.fertig(null); kcStand = null; zeigeSchritt(5); return; }
+  if (id === "kc-tauschen") {
+    ev.target.disabled = true;
+    const vorher = ein.zuordnung; ein.zuordnung = kcTauschZuordnung(s.kc.tausch.neu_von);
+    const a = await kanaeleSenden();
+    if (!a.ok) { ein.zuordnung = vorher; ev.target.disabled = false; $("kc-status").innerHTML = `<span class="warn">Die Box hat nicht getauscht: ${esc(a.fehler || a.grund)}</span>`; return; }
+    einMerken();
+    $("kc-aktionen").innerHTML = `<p class="ok">✓ In der Box getauscht. Miss bitte noch einmal, dann prüfe ich nach.</p>`; $("kc-weiter").hidden = true;
+    return;
+  }
+  if (id === "kc-umpolen") {
+    ev.target.disabled = true;
+    const vorher = ein.zuordnung, neu = { ...vorher };
+    for (const ch of ev.target.dataset.kanaele.split(",")) if (neu[ch]) neu[ch] = { ...neu[ch], polaritaet: neu[ch].polaritaet === "gedreht" ? "normal" : "gedreht" };
+    ein.zuordnung = neu;
+    const a = await kanaeleSenden();
+    if (!a.ok) { ein.zuordnung = vorher; ev.target.disabled = false; $("kc-status").innerHTML = `<span class="warn">Die Box hat nicht umgepolt: ${esc(a.fehler || a.grund)}</span>`; return; }
+    einMerken();
+    $("kc-aktionen").innerHTML = `<p class="ok">✓ In der Box umgepolt. Miss bitte noch einmal, dann prüfe ich nach.</p>`; $("kc-weiter").hidden = true;
+    return;
+  }
+  if (id === "kc-layout-ja") {
+    ev.target.disabled = true;
+    const vorher = { layout: ein.layout, zuordnung: ein.zuordnung };
+    ein.layout = s.kc.layout_vorschlag; ein.zuordnung = Object.fromEntries(Object.entries(standardZuordnung(ein.layout)).map(([ch, z]) => [ch, ein.zuordnung[ch] && ein.zuordnung[ch].box ? ein.zuordnung[ch] : z]));
+    const a = await kanaeleSenden();
+    if (!a.ok) { Object.assign(ein, vorher); ev.target.disabled = false; $("kc-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; return; }
+    einMerken(); if (window.klangboxNativ && window.klangboxNativ.boxen) window.klangboxNativ.boxen.layout = ein.layout;
+    $("kc-aktionen").innerHTML = `<p class="ok">✓ Layout ${esc(ein.layout)}. Miss bitte noch einmal.</p>`; $("kc-weiter").hidden = true;
+    return;
+  }
+  if (id === "kc-layout-nein") { $("kc-status").innerHTML = `Dann prüf bitte ${esc(s.kc.probleme.length ? "die rot markierten Lautsprecher" : "den Sub")} und miss noch einmal.`; return; }
+  if (id === "kc-weiter") {
+    if (s.bewegt) { const d = s.bewegt; s.bewegt = null; zeigeSchritt(6); await auswerten(d); return; }
+    dateien = [{ name: "Hörplatz", daten: s.daten, kanaele: s.kanaele }]; hauptDaten = s.daten; zeigeDateien();
+    $("status").innerHTML = `<span class="ok">✓ Hörplatz: Aufnahme sauber.</span>`; $("platz-bild").innerHTML = platzBild();
+    zeigeSchritt(6);
+  }
 });
 
 geraetFormular();

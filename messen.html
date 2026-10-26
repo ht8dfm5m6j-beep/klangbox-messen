@@ -7294,6 +7294,7 @@ function anwendenZeigen() {
   $("a-messen").disabled = fehlt || (!ohneBox && boxModus(r) && r.box_geladen !== r.id);
   plaetzeZeigen();
   urteilZeigen(r);
+  if (typeof hoerprobeKarte === "function") hoerprobeKarte(r, ohneBox);  // Hörprobe „Wo ist die Kuh?“ (hoerprobe.js)
 }
 // Anwenden über die Klang-Box (App), wenn sie eingerichtet ist und das Messsignal spielt
 const boxModus = (r) => boxBereit() && quelle === "box" && anwendenArt === "box" && !!r;
@@ -7382,6 +7383,8 @@ $("a-pruefen").addEventListener("click", async () => {
   }
   if (r.urteil.empfehlung === "behalten" && !ohneBox) { schreiben(`raumcheck-bestaetigt-${r.modus}`, JSON.stringify(exportObjekt(r, "bestaetigt", r.e.einstellungen, r.profil))); if (boxBereit()) schreiben("raumcheck-hoere", r.modus); }
   rundeSpeichern(); urteilZeigen(r);
+  // Hörprobe hat angepasst und es wurde schlechter: erst nur ihre Anpassung zurücknehmen, dann neu prüfen (hoerprobe.js)
+  if (!ohneBox && typeof hoerprobeNachUrteil === "function" && await hoerprobeNachUrteil(r)) return;
   // Pflicht-Nachmessung fertig: die Klang-Box bestätigen oder zurücknehmen lassen
   if (!ohneBox && boxModus(r) && r.box_geladen === r.id) {
     const behalten = r.urteil.empfehlung === "behalten";
@@ -8351,6 +8354,643 @@ zeigeChips();
 // sonst: zuerst einmal „Meine Anlage“, danach immer gleich „Was willst du einmessen?“
 if (runden.length && !runden.some((r) => r.modus === modus)) modus = runden[0].modus === "stereo" ? "stereo" : "kino";
 zeigeSchritt(zuhauseBereit() ? 18 : runden.length ? 7 : (nativ && nativ.boxen && !boxBereit() && nativ.boxen.neue ? 12 : MA.gespeichert ? 1 : 2));
+</script>
+<!-- Hörprobe „Wo ist die Kuh?“ vor der Nachmessung: Szenen aus klangbox/hoerprobe.py, Ablauf in hoerprobe.js -->
+<script type="application/json" id="hoerprobe-daten">{"version": 1, "winkel": {"FL": -30.0, "FR": 30.0, "C": 0.0, "SL": -110.0, "SR": 110.0, "BL": -150.0, "BR": 150.0}, "szenen": {"stereo": {"2.0": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}], "2.1": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}], "3.0": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}], "3.1": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}], "4.0": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}], "4.1": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}], "5.0": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}], "5.1": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}], "7.1": [{"id": "sprecher", "titel": "Die Stimme", "frage": "Wo steht der Sprecher?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Er steht genau in der Mitte. Dort ist keine Box: Beide spielen ihn gleich laut, und dein Kopf setzt ihn dazwischen zusammen. Steht die Stimme fest, stimmen Pegel und Laufzeit links und rechts.", "kanaele": ["FL", "FR"]}, {"id": "harfe", "titel": "Die Harfe", "frage": "Wo ist die Harfe?", "antwort": "richtung", "dauer_s": 9.5, "soll": -15.0, "rolle": "phantom", "erklaerung": "Halb links, zwischen Mitte und linker Box. Links spielt sie etwas lauter als rechts, so wie es der Tontechniker gemischt hätte.", "kanaele": ["FL", "FR"]}, {"id": "marimba", "titel": "Die Marimba", "frage": "Und die Marimba?", "antwort": "richtung", "dauer_s": 9.0, "soll": 15.0, "rolle": "phantom", "erklaerung": "Halb rechts. Harfe und Marimba stehen spiegelgleich: Hörst du beide gleich weit außen, ist deine Bühne symmetrisch.", "kanaele": ["FL", "FR"]}, {"id": "uhr", "titel": "Die Uhr", "frage": "Wo tickt die Uhr?", "antwort": "richtung", "dauer_s": 8.0, "soll": -30.0, "rolle": "lautsprecher", "erklaerung": "Ganz links: Sie kommt nur aus der linken Box. So breit ist deine Bühne höchstens.", "kanaele": ["FL", "FR"]}, {"id": "tiefe", "titel": "Vorne und hinten", "frage": "Was ist näher – Klavier oder Glocke?", "antwort": "wahl", "dauer_s": 13.0, "optionen": [["klavier", "Klavier"], ["glocke", "Glocke"], ["gleich", "Gleich weit"]], "soll_wahl": "klavier", "rolle": "tiefe", "erklaerung": "Das Klavier steht vorne, die Glocke weit hinten: leiser, dumpfer und mit mehr Hall. Diese Tiefe steckt in der Aufnahme. Dein Raum kann sie nur erhalten oder zudecken.", "kanaele": ["FL", "FR"]}]}, "kino": {"2.0": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -20.0, "rolle": "phantom", "erklaerung": "Halb links. Sie steht zwischen der Mitte und der linken Box, als Phantom aus beiden.", "kanaele": ["FL", "FR"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 30.0, "rolle": "lautsprecher", "erklaerung": "Es fuhr von links nach rechts und steht jetzt ganz rechts. Ohne Rears geht die Fahrt nur vorne.", "kanaele": ["FL", "FR"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Aus der Mitte, als Phantom aus beiden Fronts. Steht die Stimme fest im Bild, ist alles gleich laut und gleich schnell.", "kanaele": ["FL", "FR"]}], "2.1": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -20.0, "rolle": "phantom", "erklaerung": "Halb links. Sie steht zwischen der Mitte und der linken Box, als Phantom aus beiden.", "kanaele": ["FL", "FR"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 30.0, "rolle": "lautsprecher", "erklaerung": "Es fuhr von links nach rechts und steht jetzt ganz rechts. Ohne Rears geht die Fahrt nur vorne.", "kanaele": ["FL", "FR"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Aus der Mitte, als Phantom aus beiden Fronts. Steht die Stimme fest im Bild, ist alles gleich laut und gleich schnell.", "kanaele": ["FL", "FR"]}], "3.0": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -20.0, "rolle": "phantom", "erklaerung": "Halb links. Sie steht zwischen der Mitte und der linken Box, als Phantom aus beiden.", "kanaele": ["FL", "FR", "C"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 30.0, "rolle": "lautsprecher", "erklaerung": "Es fuhr von links nach rechts und steht jetzt ganz rechts. Ohne Rears geht die Fahrt nur vorne.", "kanaele": ["FL", "FR", "C"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "lautsprecher", "mitte": true, "erklaerung": "Aus der Mitte, aus dem Center. Dort gehört Dialog hin, egal wo du sitzt.", "kanaele": ["FL", "FR", "C"]}], "3.1": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -20.0, "rolle": "phantom", "erklaerung": "Halb links. Sie steht zwischen der Mitte und der linken Box, als Phantom aus beiden.", "kanaele": ["FL", "FR", "C"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 30.0, "rolle": "lautsprecher", "erklaerung": "Es fuhr von links nach rechts und steht jetzt ganz rechts. Ohne Rears geht die Fahrt nur vorne.", "kanaele": ["FL", "FR", "C"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "lautsprecher", "mitte": true, "erklaerung": "Aus der Mitte, aus dem Center. Dort gehört Dialog hin, egal wo du sitzt.", "kanaele": ["FL", "FR", "C"]}], "4.0": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -70.0, "rolle": "seite", "erklaerung": "Links neben dir, zwischen der Box vorne links und der hinten links. Solche Plätze an der Seite sind am schwersten: Klingt sie dort, passen vorne und hinten zusammen.", "kanaele": ["FL", "FR", "SL", "SR"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 110.0, "rolle": "hinten", "erklaerung": "Es kam von vorne links, fuhr rechts an dir vorbei und steht jetzt hinten rechts. Wandert es ohne Sprung, passen die Laufzeiten vorne und hinten.", "kanaele": ["FL", "FR", "SL", "SR"]}, {"id": "vogel", "titel": "Der Vogel", "frage": "Und wo singt der Vogel?", "antwort": "richtung", "dauer_s": 9.0, "soll": 180.0, "rolle": "hinten", "erklaerung": "Genau hinter dir. Dort steht keine Box: Die zwei hinteren Boxen spielen ihn zusammen. Hörst du ihn vorne, ist das sehr häufig (vorne und hinten verwechselt das Ohr leicht), oder die Rears sind zu leise.", "kanaele": ["FL", "FR", "SL", "SR"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Aus der Mitte, als Phantom aus beiden Fronts. Steht die Stimme fest im Bild, ist alles gleich laut und gleich schnell.", "kanaele": ["FL", "FR", "SL", "SR"]}, {"id": "regen", "titel": "Der Regen", "frage": "Bist du mittendrin?", "antwort": "skala", "dauer_s": 10.0, "skala": ["nur vorne", "", "etwas", "", "mittendrin"], "rolle": "umhuellung", "erklaerung": "Der Regen fällt rundherum, aus jeder Box anders. So klingt Umhüllung: kein Ort, nur Raum.", "kanaele": ["FL", "FR", "SL", "SR"]}], "4.1": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -70.0, "rolle": "seite", "erklaerung": "Links neben dir, zwischen der Box vorne links und der hinten links. Solche Plätze an der Seite sind am schwersten: Klingt sie dort, passen vorne und hinten zusammen.", "kanaele": ["FL", "FR", "SL", "SR"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 110.0, "rolle": "hinten", "erklaerung": "Es kam von vorne links, fuhr rechts an dir vorbei und steht jetzt hinten rechts. Wandert es ohne Sprung, passen die Laufzeiten vorne und hinten.", "kanaele": ["FL", "FR", "SL", "SR"]}, {"id": "vogel", "titel": "Der Vogel", "frage": "Und wo singt der Vogel?", "antwort": "richtung", "dauer_s": 9.0, "soll": 180.0, "rolle": "hinten", "erklaerung": "Genau hinter dir. Dort steht keine Box: Die zwei hinteren Boxen spielen ihn zusammen. Hörst du ihn vorne, ist das sehr häufig (vorne und hinten verwechselt das Ohr leicht), oder die Rears sind zu leise.", "kanaele": ["FL", "FR", "SL", "SR"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "phantom", "mitte": true, "erklaerung": "Aus der Mitte, als Phantom aus beiden Fronts. Steht die Stimme fest im Bild, ist alles gleich laut und gleich schnell.", "kanaele": ["FL", "FR", "SL", "SR"]}, {"id": "regen", "titel": "Der Regen", "frage": "Bist du mittendrin?", "antwort": "skala", "dauer_s": 10.0, "skala": ["nur vorne", "", "etwas", "", "mittendrin"], "rolle": "umhuellung", "erklaerung": "Der Regen fällt rundherum, aus jeder Box anders. So klingt Umhüllung: kein Ort, nur Raum.", "kanaele": ["FL", "FR", "SL", "SR"]}], "5.0": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -70.0, "rolle": "seite", "erklaerung": "Links neben dir, zwischen der Box vorne links und der hinten links. Solche Plätze an der Seite sind am schwersten: Klingt sie dort, passen vorne und hinten zusammen.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 110.0, "rolle": "hinten", "erklaerung": "Es kam von vorne links, fuhr rechts an dir vorbei und steht jetzt hinten rechts. Wandert es ohne Sprung, passen die Laufzeiten vorne und hinten.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}, {"id": "vogel", "titel": "Der Vogel", "frage": "Und wo singt der Vogel?", "antwort": "richtung", "dauer_s": 9.0, "soll": 180.0, "rolle": "hinten", "erklaerung": "Genau hinter dir. Dort steht keine Box: Die zwei hinteren Boxen spielen ihn zusammen. Hörst du ihn vorne, ist das sehr häufig (vorne und hinten verwechselt das Ohr leicht), oder die Rears sind zu leise.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "lautsprecher", "mitte": true, "erklaerung": "Aus der Mitte, aus dem Center. Dort gehört Dialog hin, egal wo du sitzt.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}, {"id": "regen", "titel": "Der Regen", "frage": "Bist du mittendrin?", "antwort": "skala", "dauer_s": 10.0, "skala": ["nur vorne", "", "etwas", "", "mittendrin"], "rolle": "umhuellung", "erklaerung": "Der Regen fällt rundherum, aus jeder Box anders. So klingt Umhüllung: kein Ort, nur Raum.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}], "5.1": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -70.0, "rolle": "seite", "erklaerung": "Links neben dir, zwischen der Box vorne links und der hinten links. Solche Plätze an der Seite sind am schwersten: Klingt sie dort, passen vorne und hinten zusammen.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 110.0, "rolle": "hinten", "erklaerung": "Es kam von vorne links, fuhr rechts an dir vorbei und steht jetzt hinten rechts. Wandert es ohne Sprung, passen die Laufzeiten vorne und hinten.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}, {"id": "vogel", "titel": "Der Vogel", "frage": "Und wo singt der Vogel?", "antwort": "richtung", "dauer_s": 9.0, "soll": 180.0, "rolle": "hinten", "erklaerung": "Genau hinter dir. Dort steht keine Box: Die zwei hinteren Boxen spielen ihn zusammen. Hörst du ihn vorne, ist das sehr häufig (vorne und hinten verwechselt das Ohr leicht), oder die Rears sind zu leise.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "lautsprecher", "mitte": true, "erklaerung": "Aus der Mitte, aus dem Center. Dort gehört Dialog hin, egal wo du sitzt.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}, {"id": "regen", "titel": "Der Regen", "frage": "Bist du mittendrin?", "antwort": "skala", "dauer_s": 10.0, "skala": ["nur vorne", "", "etwas", "", "mittendrin"], "rolle": "umhuellung", "erklaerung": "Der Regen fällt rundherum, aus jeder Box anders. So klingt Umhüllung: kein Ort, nur Raum.", "kanaele": ["FL", "FR", "C", "SL", "SR"]}], "7.1": [{"id": "kuh", "titel": "Der Bauernhof", "frage": "Wo ist die Kuh?", "antwort": "richtung", "dauer_s": 11.0, "soll": -70.0, "rolle": "seite", "erklaerung": "Links neben dir, zwischen der Box vorne links und der hinten links. Solche Plätze an der Seite sind am schwersten: Klingt sie dort, passen vorne und hinten zusammen.", "kanaele": ["FL", "FR", "C", "SL", "SR", "BL", "BR"]}, {"id": "auto", "titel": "Das Auto", "frage": "Wo ist das Auto jetzt?", "antwort": "richtung", "dauer_s": 11.0, "soll": 110.0, "rolle": "hinten", "erklaerung": "Es kam von vorne links, fuhr rechts an dir vorbei und steht jetzt hinten rechts. Wandert es ohne Sprung, passen die Laufzeiten vorne und hinten.", "kanaele": ["FL", "FR", "C", "SL", "SR", "BL", "BR"]}, {"id": "vogel", "titel": "Der Vogel", "frage": "Und wo singt der Vogel?", "antwort": "richtung", "dauer_s": 9.0, "soll": 180.0, "rolle": "hinten", "erklaerung": "Genau hinter dir. Dort steht keine Box: Die zwei hinteren Boxen spielen ihn zusammen. Hörst du ihn vorne, ist das sehr häufig (vorne und hinten verwechselt das Ohr leicht), oder die Rears sind zu leise.", "kanaele": ["FL", "FR", "C", "SL", "SR", "BL", "BR"]}, {"id": "dialog", "titel": "Der Dialog", "frage": "Woher kommt die Stimme?", "antwort": "richtung", "dauer_s": 10.0, "soll": 0.0, "rolle": "lautsprecher", "mitte": true, "erklaerung": "Aus der Mitte, aus dem Center. Dort gehört Dialog hin, egal wo du sitzt.", "kanaele": ["FL", "FR", "C", "SL", "SR", "BL", "BR"]}, {"id": "regen", "titel": "Der Regen", "frage": "Bist du mittendrin?", "antwort": "skala", "dauer_s": 10.0, "skala": ["nur vorne", "", "etwas", "", "mittendrin"], "rolle": "umhuellung", "erklaerung": "Der Regen fällt rundherum, aus jeder Box anders. So klingt Umhüllung: kein Ort, nur Raum.", "kanaele": ["FL", "FR", "C", "SL", "SR", "BL", "BR"]}]}}, "waechter": {"lr_pegel_runde_db": 1.0, "lr_laufzeit_runde_ms": 0.3, "lr_pegel_gesamt_db": 2.0, "lr_laufzeit_gesamt_ms": 0.6, "rear_pegel_runde_db": 0.5, "rear_pegel_gesamt_db": 0.5, "rear_laufzeit_runde_ms": 0.3, "rear_laufzeit_gesamt_ms": 0.6, "puffer_standard_ms": 9.1}}</script>
+<script>// Hörprobe „Wo ist die Kuh?“ (Messen und Hören wie bei Chord): vor der Pflicht-Nachmessung 3–5 kurze Szenen, jede
+// endet mit einer Frage. Du tippst, wo du es hörst; die Seite zeigt mit einer Welle, wo es sein sollte, und passt danach
+// behutsam an. Die Nachmessung prüft das objektiv (nie verschlimmbessern).
+// Gleiche Szenen und gleiche Auswertung wie klangbox/hoerprobe.py (tests/test_hoerprobe.py prüft beide gegeneinander).
+// Winkel: 0 vorne, positiv nach rechts (von oben im Uhrzeigersinn), −180 bis 180.
+//
+// In die Seite eingebunden über den Platzhalter HOERPROBE der Vorlage (nach dem Hauptskript, Szenen als JSON in #hoerprobe-daten). Die Seite
+// ruft hoerprobeKarte(r) in Schritt 10 auf; sonst ist alles hier drin (eigene Stile mit Präfix hp-).
+// Für „Zuhause“: window.klangboxGehoerCheck = { daten(modus?), karte(modus) } und Ereignis „klangboxgehoer“.
+"use strict";
+const HP = (() => {
+  const K = {
+    LR_PEGEL_RUNDE_DB: 1.0, LR_LAUFZEIT_RUNDE_MS: 0.3, LR_PEGEL_GESAMT_DB: 2.0, LR_LAUFZEIT_GESAMT_MS: 0.6,
+    REAR_PEGEL_RUNDE_DB: 0.5, REAR_PEGEL_GESAMT_DB: 0.5, REAR_LAUFZEIT_RUNDE_MS: 0.3, REAR_LAUFZEIT_GESAMT_MS: 0.6,
+    PEGEL_MIN_DB: -20.0, PEGEL_MAX_DB: 0.0, LAUFZEIT_MIN_MS: 0.0, LAUFZEIT_MAX_MS: 30.0, FRONT_LAUFZEIT_MAX_MS: 10.0, PUFFER_STANDARD_MS: 9.1,
+    BIAS_MIN_GRAD: 6.0, BIAS_STREUUNG_MAX_GRAD: 20.0, BIAS_ANTEIL: 0.5, GRAD_PRO_DB: 2.0, GRAD_PRO_MS: 30.0,
+    HINTEN_VORNE_GRAD: 90.0, UMHUELLUNG_WENIG: 2, MITTE_UNSCHARF_GRAD: 20.0, ZUFALL_FEHLER_GRAD: 40.0,
+  };
+  const WINKEL = { FL: -30, FR: 30, C: 0, SL: -110, SR: 110, BL: -150, BR: 150 };
+  const wrap = (w) => { let x = ((w + 180) % 360 + 360) % 360 - 180; return x === -180 ? 180 : x; };
+  const r1 = (x) => Math.round(x * 10) / 10, r2 = (x) => Math.round(x * 100) / 100;
+
+  // --- Auswertung (wie hoerprobe.auswerten) ----------------------------------------------------------------------
+  function auswerten(szenen, antworten) {
+    const nachId = {}; for (const a of antworten || []) if (a && a.id) nachId[a.id] = a;
+    const zeilen = [], fehler = [], fehlerVorne = [], phantom = [];
+    let hintenVorne = 0, hintenN = 0, mitteUnscharf = false, umhuellung = null, tiefe = null;
+    for (const s of szenen) {
+      const a = nachId[s.id], z = { id: s.id, soll: s.soll ?? null, antwort: null, fehler_grad: null, verwechselt: false };
+      if (!a) { zeilen.push(z); continue; }
+      if (s.antwort === "richtung") {
+        if (a.unsicher || a.winkel === null || a.winkel === undefined) { z.unsicher = true; if (s.mitte) mitteUnscharf = true; zeilen.push(z); continue; }
+        const w = wrap(+a.winkel), soll = s.soll, roh = Math.abs(wrap(w - soll));
+        z.antwort = r1(w); z.fehler_grad = r1(roh); fehler.push(roh); if (s.rolle !== "hinten") fehlerVorne.push(roh);
+        if (s.rolle === "hinten") { hintenN++; if (Math.abs(w) < K.HINTEN_VORNE_GRAD) hintenVorne++; }
+        let vorneW = w;
+        if (Math.abs(soll) <= 90 && Math.abs(w) > 90) { vorneW = Math.sign(w) * (180 - Math.abs(w)); z.verwechselt = true; }
+        if (s.rolle === "phantom") phantom.push(wrap(vorneW - soll));
+        if (s.mitte && Math.abs(wrap(vorneW - soll)) > K.MITTE_UNSCHARF_GRAD) mitteUnscharf = true;
+      } else if (s.antwort === "wahl") {
+        z.antwort = a.wahl ?? null; z.richtig = a.wahl === s.soll_wahl; if (s.rolle === "tiefe") tiefe = z.richtig;
+      } else if (s.antwort === "skala") {
+        const v = a.wert; if (typeof v === "number" && v >= 1 && v <= 5) { z.antwort = Math.trunc(v); umhuellung = Math.trunc(v); }
+      }
+      zeilen.push(z);
+    }
+    const seite = { n: phantom.length, bias_grad: null, streuung_grad: null, einheitlich: false };
+    let wunschLr = 0;
+    if (phantom.length >= 2) {
+      const bias = phantom.reduce((a, b) => a + b, 0) / phantom.length, streu = Math.max(...phantom) - Math.min(...phantom);
+      const gleich = phantom.every((x) => x > 2) || phantom.every((x) => x < -2);
+      Object.assign(seite, { bias_grad: r1(bias), streuung_grad: r1(streu), einheitlich: !!(gleich && streu <= K.BIAS_STREUUNG_MAX_GRAD) });
+      if (seite.einheitlich && Math.abs(bias) >= K.BIAS_MIN_GRAD) wunschLr = -bias * K.BIAS_ANTEIL;
+    }
+    const mittel = fehler.length ? fehler.reduce((a, b) => a + b, 0) / fehler.length : null;
+    const mittelVorne = fehlerVorne.length ? fehlerVorne.reduce((a, b) => a + b, 0) / fehlerVorne.length : null;
+    const uneinheitlich = (phantom.length >= 2 && !seite.einheitlich && phantom.some((x) => Math.abs(x) >= 10))
+      || (mittelVorne !== null && mittelVorne > K.ZUFALL_FEHLER_GRAD && !seite.einheitlich);
+    const hinweiseHinten = hintenVorne + (umhuellung !== null && umhuellung <= K.UMHUELLUNG_WENIG ? 1 : 0);
+    let wunschHinten = hintenN > 0 && hinweiseHinten >= 2 && !uneinheitlichHinten(zeilen, szenen);
+    const vorschlaege = [];
+    if (mitteUnscharf) vorschlaege.push({ id: "eindrehen", text: "Die Mitte war nicht klar. Dreh die Boxen leicht zu dir ein (die Achsen kreuzen sich kurz vor deinem Kopf) und stell sie gleich weit von den Seitenwänden." });
+    if (tiefe === false) vorschlaege.push({ id: "wandabstand", text: "Die Tiefe kam nicht an. Mehr Abstand zur Wand hinter den Boxen hilft am meisten (50 cm, besser 1 m), dazu nichts direkt neben den Boxen (Fernseher, Regal)." });
+    if (hintenN && hinweiseHinten === 1 && !wunschHinten) vorschlaege.push({ id: "rears_aufstellen", text: "Hinten klang es nicht ganz hinten. Stell die Rears etwas hinter deinen Platz, etwa auf Ohrhöhe und zu dir gedreht." });
+    const urteil = uneinheitlich ? "uneinheitlich" : (wunschLr || wunschHinten) ? "anpassen" : vorschlaege.length ? "vorschlaege" : "passt";
+    if (uneinheitlich) { wunschLr = 0; wunschHinten = false; }
+    return { szenen: zeilen, lokalisierung_grad: mittel === null ? null : r1(mittel), umhuellung, tiefe, seite,
+      hinten: { n: hintenN, vorne_gehoert: hintenVorne, hinweise: hinweiseHinten }, wunsch: { lr_grad: r2(wunschLr), hinten: !!wunschHinten }, urteil, vorschlaege };
+  }
+  function uneinheitlichHinten(zeilen, szenen) {
+    const v = zeilen.filter((z, i) => z.fehler_grad !== null && ["phantom", "lautsprecher"].includes(szenen[i].rolle) && !z.verwechselt).map((z) => z.fehler_grad);
+    return v.length > 0 && v.reduce((a, b) => a + b, 0) / v.length > K.ZUFALL_FEHLER_GRAD;
+  }
+
+  // --- Anpassung mit Wächtern (wie hoerprobe.anwenden) -------------------------------------------------------------
+  // Höchste Laufzeit der Fronts, die die Box annimmt: 10 ms minus ihr Puffer (status.verzoegerung.box_ms)
+  const frontMax = (puffer) => Math.round((K.FRONT_LAUFZEIT_MAX_MS - (puffer === null || puffer === undefined ? K.PUFFER_STANDARD_MS : puffer)) * 1000) / 1000;
+  function anwenden(einstellungen, ausw, basis, modus, pufferMs) {
+    const fMax = frontMax(pufferMs);
+    const neu = JSON.parse(JSON.stringify(einstellungen)), aend = [], begrenzt = [];
+    const setze = (c, feld, wert) => { const alt = neu[c][feld]; wert = r2(wert); if (Math.abs(wert - alt) >= 0.005) { neu[c][feld] = wert; aend.push({ kanal: c, feld, von: alt, nach: wert }); } };
+    const lr = ausw.wunsch.lr_grad;
+    if (lr && neu.FL && neu.FR && basis.FL && basis.FR) {
+      const bedarfDb = Math.abs(lr) / K.GRAD_PRO_DB;
+      let db = Math.min(bedarfDb, K.LR_PEGEL_RUNDE_DB);
+      const restGrad = Math.max(0, Math.abs(lr) - db * K.GRAD_PRO_DB);
+      let ms = Math.min(restGrad / K.GRAD_PRO_MS, K.LR_LAUFZEIT_RUNDE_MS);
+      if (bedarfDb > K.LR_PEGEL_RUNDE_DB && restGrad / K.GRAD_PRO_MS > K.LR_LAUFZEIT_RUNDE_MS) begrenzt.push("runde");
+      const [laut, leise] = lr > 0 ? ["FL", "FR"] : ["FR", "FL"];
+      const d0 = basis[laut].gain_db - basis[leise].gain_db, dJetzt = neu[laut].gain_db - neu[leise].gain_db;
+      const freiDb = Math.max(0, K.LR_PEGEL_GESAMT_DB - (d0 - dJetzt));
+      if (db > freiDb) begrenzt.push("gesamt_pegel");
+      db = Math.min(db, freiDb);
+      const t0 = basis[laut].delay_ms - basis[leise].delay_ms, tJetzt = neu[laut].delay_ms - neu[leise].delay_ms;
+      const freiMs = Math.max(0, K.LR_LAUFZEIT_GESAMT_MS - (tJetzt - t0));
+      if (ms > freiMs) begrenzt.push("gesamt_laufzeit");
+      ms = Math.min(ms, freiMs);
+      if (db > 0) {
+        const zurueck = Math.min(db, Math.max(0, basis[leise].gain_db - neu[leise].gain_db));
+        const zielLeise = neu[leise].gain_db + zurueck; let zielLaut = neu[laut].gain_db - (db - zurueck);
+        if (zielLaut < K.PEGEL_MIN_DB) { begrenzt.push("pegel"); zielLaut = K.PEGEL_MIN_DB; }
+        setze(leise, "gain_db", Math.min(K.PEGEL_MAX_DB, zielLeise)); setze(laut, "gain_db", zielLaut);
+      }
+      if (ms > 0) {
+        const zurueck = Math.min(ms, Math.max(0, neu[leise].delay_ms - basis[leise].delay_ms));
+        const zielLeise = neu[leise].delay_ms - zurueck; let zielLaut = neu[laut].delay_ms + (ms - zurueck);
+        if (zielLaut > fMax) { begrenzt.push("laufzeit"); zielLaut = Math.max(fMax, neu[laut].delay_ms); }
+        setze(leise, "delay_ms", Math.max(K.LAUFZEIT_MIN_MS, zielLeise)); setze(laut, "delay_ms", zielLaut);
+      }
+    }
+    if (ausw.wunsch.hinten && modus === "kino") {
+      const rears = ["SL", "SR", "BL", "BR"].filter((c) => neu[c] && basis[c]);
+      if (rears.length) {
+        let frei = Math.min(...rears.map((c) => K.REAR_PEGEL_GESAMT_DB - (neu[c].gain_db - basis[c].gain_db)));
+        frei = Math.min(frei, ...rears.map((c) => K.PEGEL_MAX_DB - neu[c].gain_db));
+        const db = Math.max(0, Math.min(K.REAR_PEGEL_RUNDE_DB, frei));
+        if (db >= 0.05) for (const c of rears) setze(c, "gain_db", neu[c].gain_db + db);
+        else {
+          let freiMs = Math.min(...rears.map((c) => K.REAR_LAUFZEIT_GESAMT_MS - (basis[c].delay_ms - neu[c].delay_ms)));
+          freiMs = Math.min(freiMs, ...rears.map((c) => neu[c].delay_ms - K.LAUFZEIT_MIN_MS));
+          const ms = Math.max(0, Math.min(K.REAR_LAUFZEIT_RUNDE_MS, freiMs));
+          if (ms >= 0.01) for (const c of rears) setze(c, "delay_ms", neu[c].delay_ms - ms); else begrenzt.push("hinten");
+        }
+      }
+    }
+    return { einstellungen: neu, aenderungen: aend, begrenzt };
+  }
+  function pruefen(e, pufferMs, kanaele) {
+    const f = [], fMax = frontMax(pufferMs);
+    for (const [c, k] of Object.entries(e || {})) {
+      if (!k || typeof k !== "object" || !("gain_db" in k) || (kanaele && !kanaele.includes(c))) continue;
+      if (!(k.gain_db >= K.PEGEL_MIN_DB && k.gain_db <= K.PEGEL_MAX_DB)) f.push(`${c}: Pegel ${k.gain_db} dB`);
+      const hi = ["FL", "FR", "C"].includes(c) ? fMax : K.LAUFZEIT_MAX_MS;
+      if (!(k.delay_ms >= K.LAUFZEIT_MIN_MS && k.delay_ms <= hi + 1e-9)) f.push(`${c}: Laufzeit ${k.delay_ms} ms`);
+    }
+    return f;
+  }
+
+  const kern = { K, WINKEL, wrap, auswerten, anwenden, pruefen, frontMax };
+  if (typeof document === "undefined") return kern;
+
+  // =================================================================================================================
+  // Browser: Ablauf, Draufsicht, Welle
+  // =================================================================================================================
+  let DATEN = null;
+  try { DATEN = JSON.parse(document.getElementById("hoerprobe-daten").textContent); } catch (e) { DATEN = null; }
+  if (DATEN && DATEN.waechter) {  // Grenzen aus Python (eine Quelle)
+    const w = DATEN.waechter;
+    Object.assign(K, { LR_PEGEL_RUNDE_DB: w.lr_pegel_runde_db, LR_LAUFZEIT_RUNDE_MS: w.lr_laufzeit_runde_ms, LR_PEGEL_GESAMT_DB: w.lr_pegel_gesamt_db,
+      LR_LAUFZEIT_GESAMT_MS: w.lr_laufzeit_gesamt_ms, REAR_PEGEL_RUNDE_DB: w.rear_pegel_runde_db, REAR_PEGEL_GESAMT_DB: w.rear_pegel_gesamt_db,
+      REAR_LAUFZEIT_RUNDE_MS: w.rear_laufzeit_runde_ms, REAR_LAUFZEIT_GESAMT_MS: w.rear_laufzeit_gesamt_ms,
+      PUFFER_STANDARD_MS: w.puffer_standard_ms ?? K.PUFFER_STANDARD_MS });
+  }
+  const el = (id) => document.getElementById(id);
+  const ex = (s) => (typeof esc === "function" ? esc(s) : String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])));
+  const lies = (k, std) => { try { const v = localStorage.getItem(k); return v == null ? std : v; } catch (e) { return std; } };
+  const merke = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const zahl = (x, n = 1) => (Math.round(x * 10 ** n) / 10 ** n).toLocaleString("de-DE", { minimumFractionDigits: 0, maximumFractionDigits: n }).replace("-", "−");
+  const vz = (x, n = 1) => `${x > 0 ? "+" : x < 0 ? "−" : "±"}${zahl(Math.abs(x), n)}`;
+  const KANAL_NAME = { FL: "Links", FR: "Rechts", C: "Mitte", SL: "Hinten links", SR: "Hinten rechts", BL: "Ganz hinten links", BR: "Ganz hinten rechts" };
+  const ruhig = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+
+  const STIL = `
+.hp-karte { display: grid; gap: 10px; }
+.hp-karte .hp-ohr { display: flex; gap: 12px; align-items: center; }
+.hp-karte .hp-ohr svg { flex: none; }
+#hp { position: fixed; inset: 0; z-index: 60; background: var(--kb-bg, var(--bg, #0B0D10)); color: var(--kb-text, var(--ink, #F2F4F7)); overflow-y: auto;
+  padding: max(18px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+#hp[hidden] { display: none !important; }
+#hp .hp-innen { max-width: 520px; margin: 0 auto; display: grid; gap: 14px; }
+#hp .hp-kopf { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+#hp .hp-kopf button { min-height: 36px; }
+#hp h1 { font-size: 30px; margin: 0; line-height: 1.1; }
+#hp .hp-frage { font-size: 26px; font-weight: 700; line-height: 1.15; min-height: 1.2em; }
+#hp .hp-buehne { position: relative; background: var(--kb-karte, var(--panel, #171B21)); border-radius: 22px; padding: 6px; touch-action: manipulation; }
+#hp .hp-buehne svg { display: block; width: 100%; height: auto; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+#hp .hp-buehne.zu svg { cursor: default; }
+#hp .hp-ring { fill: none; stroke: var(--kb-linie2, var(--line2, #3A4452)); stroke-width: 1.2; }
+#hp .hp-ring2 { fill: none; stroke: var(--kb-linie, var(--line, #2A313B)); stroke-width: 1; stroke-dasharray: 3 5; }
+#hp .hp-ls { fill: var(--kb-karte-hoch, var(--panel2, #2A313B)); stroke: var(--kb-text2, var(--ink2, #9AA3AD)); stroke-width: 1.4; }
+#hp .hp-ls.an { stroke: var(--kb-messing, var(--akzent, #7FB0FF)); }
+#hp .hp-sofa { fill: var(--kb-karte-hoch, var(--panel2, #2A313B)); }
+#hp .hp-kopfbild { fill: var(--kb-text, var(--ink, #F2F4F7)); }
+#hp .hp-bild { fill: var(--kb-text2, var(--ink2, #9AA3AD)); opacity: .55; }
+#hp .hp-du { fill: var(--kb-text, var(--ink, #F2F4F7)); stroke: var(--kb-bg, var(--bg, #0B0D10)); stroke-width: 2.5; }
+#hp .hp-soll { fill: var(--kb-messing, var(--akzent, #7FB0FF)); }
+#hp .hp-welle { fill: none; stroke: var(--kb-messing, var(--akzent, #7FB0FF)); stroke-width: 2.2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+#hp .hp-welle.los { animation: hp-welle 2.1s cubic-bezier(.2,.7,.3,1) forwards; }
+#hp .hp-bogen { fill: none; stroke: var(--kb-messing, var(--akzent, #7FB0FF)); stroke-width: 2; stroke-dasharray: 4 4; opacity: .8; }
+#hp .hp-hoeren { fill: none; stroke: var(--kb-messing, var(--akzent, #7FB0FF)); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+#hp .hp-buehne.spielt .hp-hoeren { animation: hp-hoeren 2.4s ease-out infinite; }
+#hp .hp-text svg text, #hp svg text { fill: var(--kb-text2, var(--ink2, #9AA3AD)); font-size: 11px; }
+@keyframes hp-welle { 0% { opacity: .95; transform: scale(.15); } 100% { opacity: 0; transform: scale(1.6); } }
+@keyframes hp-hoeren { 0% { opacity: .7; transform: scale(.3); } 100% { opacity: 0; transform: scale(1.25); } }
+#hp .hp-knoepfe { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#hp .hp-knoepfe.eins { grid-template-columns: 1fr; }
+#hp .hp-wahl { display: grid; gap: 10px; }
+#hp .hp-skala { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+#hp .hp-skala button { min-height: 58px; display: grid; gap: 0; align-content: center; padding: 0 2px; }
+#hp .hp-skala small { font-size: 10.5px; font-weight: 500; opacity: .8; line-height: 1.1; }
+#hp button[aria-pressed="true"] { outline: 2px solid var(--kb-messing, var(--akzent, #7FB0FF)); outline-offset: 2px; }
+#hp .hp-balken { height: 5px; border-radius: 3px; background: var(--kb-linie, var(--line, #2A313B)); overflow: hidden; }
+#hp .hp-balken i { display: block; height: 100%; width: 0; background: var(--kb-messing, var(--akzent, #7FB0FF)); transition: width .25s linear; }
+#hp .hp-urteil { font-size: 20px; font-weight: 700; }
+#hp .hp-gut { color: var(--kb-gut, var(--ok, #8CE0C4)); } #hp .hp-warn { color: var(--kb-hinweis, var(--warn, #FFB547)); }
+#hp ul.hp-liste { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--kb-text2, var(--ink2, #9AA3AD)); }
+#hp .hp-kachel { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+#hp .hp-kachel div { background: var(--kb-karte, var(--panel, #171B21)); border-radius: 14px; padding: 10px; display: grid; gap: 2px; }
+#hp .hp-kachel b { font-size: 22px; font-variant-numeric: tabular-nums; }
+#hp .hp-kachel span { font-size: 12px; color: var(--kb-text2, var(--ink2, #9AA3AD)); }
+@media (prefers-reduced-motion: reduce) { #hp .hp-welle.los, #hp .hp-buehne.spielt .hp-hoeren { animation: none; opacity: .8; transform: none; } }`;
+
+  function stilEinmal() {
+    if (el("hp-stil")) return;
+    const s = document.createElement("style"); s.id = "hp-stil"; s.textContent = STIL; document.head.appendChild(s);
+  }
+
+  // Zustand eines Durchgangs
+  let st = null;
+  const boxWeg = (r) => typeof boxModus === "function" && boxModus(r) && r.box_geladen === r.id;
+  function layoutSchluessel(m) {
+    if (m === "stereo") return "2.0";
+    const l = typeof boxBereit === "function" && boxBereit() && typeof quelle !== "undefined" && quelle === "box" && typeof boxLayout === "function" ? boxLayout() : "2.0";
+    return DATEN && DATEN.szenen.kino[l] ? l : "2.0";
+  }
+  const szenenFuer = (m) => (DATEN ? DATEN.szenen[m][layoutSchluessel(m)] : []);
+  // Lautsprecher in der Draufsicht: was spielt (die Szene), dazu der Sub aus „Meine Anlage“
+  function zeigLautsprecher(sz) {
+    const k = sz && sz.length ? sz[0].kanaele : ["FL", "FR"];
+    const sub = typeof MA !== "undefined" && MA && typeof BOX_LAYOUTS !== "undefined" && (BOX_LAYOUTS[MA.layout] || []).includes("SUB");
+    return { kanaele: k, sub };
+  }
+
+  // --- Karte in Schritt 10 -----------------------------------------------------------------------------------------
+  function karte(r, ohneBox) {
+    stilEinmal();
+    let k = el("hp-karte");
+    const nach = el("h-nach") && el("h-nach").closest("section");
+    if (!k && nach) {
+      k = document.createElement("section"); k.className = "card hp-karte"; k.id = "hp-karte"; k.setAttribute("aria-labelledby", "hp-titel");
+      nach.parentNode.insertBefore(k, nach);
+    }
+    if (!k) return;
+    const sz = r ? szenenFuer(r.modus) : [];
+    k.hidden = !r || ohneBox || !DATEN || !sz.length;
+    if (k.hidden) return;
+    const box = boxWeg(r), letzte = r.hoerprobe && r.hoerprobe.letzte;
+    const weg = box ? "Die Klang-Box spielt die Szenen mit den neuen Einstellungen." : "Ohne Klang-Box spielt die Seite die Szenen in Stereo (AirPlay wie bei der Messung).";
+    k.innerHTML = `<div class="hp-ohr">${ohrSvg()}<div><span class="marke">Vor dem Nachmessen · freiwillig</span><h2 id="hp-titel">Wo ist die Kuh?</h2></div></div>
+      <p>${sz.length} kurze Szenen, je etwa 10 Sekunden. Zeig mir, wo du etwas hörst. Deine Ohren hören, was das Mikrofon nicht kann: wo die Mitte steht, wie tief die Bühne ist${r.modus === "kino" && sz.some((s) => s.rolle === "hinten") ? ", ob hinten wirklich hinten ist" : ""}.</p>
+      <p class="klein">${weg} Danach passe ich behutsam an. Die Nachmessung prüft das, und nur was dort nichts schlechter macht, bleibt.</p>
+      ${letzte ? `<p class="klein" id="hp-letzte">${ex(kurzText(letzte))}</p>` : ""}
+      <button type="button" id="hp-start"${!box && typeof boxModus === "function" && boxModus(r) ? " disabled" : ""}>${letzte ? "Noch eine Hörprobe" : "Hörprobe starten"}</button>
+      ${!box && typeof boxModus === "function" && boxModus(r) ? `<p class="klein">Erst die Einstellungen an die Klang-Box senden.</p>` : ""}`;
+    el("hp-start").addEventListener("click", () => oeffnen(r));
+  }
+  function ohrSvg() {
+    return `<svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="var(--kb-hauch, var(--akzent-flaeche, #13202F))"/>
+      <path d="M17 29c0 3 2 5 5 5 3 0 4-2 5-4 1-3 5-5 5-11a9 9 0 0 0-18 0" fill="none" stroke="var(--kb-messing, var(--akzent, #7FB0FF))" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M19 19a4 4 0 0 1 8 0c0 2-2 3-3 4" fill="none" stroke="var(--kb-messing, var(--akzent, #7FB0FF))" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+  }
+
+  // --- Ablauf ------------------------------------------------------------------------------------------------------
+  function huelle() {
+    stilEinmal();
+    let h = el("hp");
+    if (!h) { h = document.createElement("div"); h.id = "hp"; h.setAttribute("role", "dialog"); h.setAttribute("aria-modal", "true"); h.setAttribute("aria-labelledby", "hp-h"); document.body.appendChild(h); }
+    h.hidden = false; return h;
+  }
+  function schliessen() {
+    if (st && st.ton) { try { st.ton.pause(); } catch (e) {} }
+    if (st && st.richtungAus) st.richtungAus();
+    const h = el("hp"); if (h) h.hidden = true;
+    st = null;
+    if (typeof anwendenZeigen === "function" && document.querySelector('.schritt[data-s="10"]') && !document.querySelector('.schritt[data-s="10"]').hidden) anwendenZeigen();
+    const n = el("h-nach"); if (n && n.scrollIntoView) n.scrollIntoView({ block: "start" });
+  }
+  function oeffnen(r) {
+    const sz = szenenFuer(r.modus);
+    if (!sz.length) return;
+    if (!r.hoerprobe) r.hoerprobe = {};
+    // die Einmessung vor der ersten Hörprobe: Bezug für die Gesamtgrenzen (nie weiter weg als 2 dB / 0,6 ms bzw. 0,5 dB hinten)
+    if (!r.hoerprobe.basis) r.hoerprobe.basis = JSON.parse(JSON.stringify(r.e.einstellungen));
+    st = { r, modus: r.modus, szenen: sz, i: -1, antworten: [], box: boxWeg(r), ls: zeigLautsprecher(sz) };
+    const h = huelle();
+    h.innerHTML = `<div class="hp-innen">
+      <div class="hp-kopf"><span class="marke">Hörprobe · ${r.modus === "stereo" ? "Stereo" : "Kino"}</span><button type="button" class="klein zweit" id="hp-zu">Schließen</button></div>
+      <h1 id="hp-h">Wo ist die Kuh?</h1>
+      <p>Setz dich auf deinen Platz und schau nach vorne, Kopf gerade. Normale Lautstärke reicht. Ich spiele ${sz.length} kurze Szenen, nach jeder kommt eine Frage.</p>
+      <div class="hp-buehne zu">${buehneSvg(null)}</div>
+      <p class="klein">Tippe in der Draufsicht dorthin, wo du es hörst. Oben ist vorne (dein Bild), du sitzt in der Mitte auf dem Sofa.${st.box ? "" : " Ohne Klang-Box höre ich nur Stereo."}</p>
+      <div class="hp-knoepfe"><button type="button" class="zweit" id="hp-abbruch">Lieber nicht</button><button type="button" id="hp-los">Los geht's</button></div></div>`;
+    el("hp-zu").onclick = schliessen; el("hp-abbruch").onclick = schliessen;
+    el("hp-los").onclick = () => naechste();
+  }
+
+  function buehneSvg(sz) {
+    const W = 320, H = 320, cx = 160, cy = 168, R = 128;
+    const pos = (w, rr) => [cx + rr * Math.sin(w * Math.PI / 180), cy - rr * Math.cos(w * Math.PI / 180)];
+    let g = `<rect class="hp-bild" x="${cx - 56}" y="10" width="112" height="6" rx="3"/><text x="${cx}" y="30" text-anchor="middle">vorne</text>`;
+    g += `<circle class="hp-ring" cx="${cx}" cy="${cy}" r="${R}"/><circle class="hp-ring2" cx="${cx}" cy="${cy}" r="${R * 0.55}"/>`;
+    for (const c of (st && st.ls.kanaele) || ["FL", "FR"]) {
+      const [x, y] = pos(WINKEL[c], R * 0.86), rot = WINKEL[c] + 180;
+      g += `<g transform="translate(${x} ${y}) rotate(${rot})"><rect class="hp-ls" x="-8" y="-10" width="16" height="20" rx="4" data-hp-ls="${c}"/><circle cx="0" cy="-3" r="3.2" fill="none" stroke="currentColor" stroke-width="0"/></g>`;
+    }
+    if (st && st.ls.sub) { const [x, y] = pos(55, R * 0.86); g += `<rect class="hp-ls" x="${x - 9}" y="${y - 9}" width="18" height="18" rx="5" opacity=".6"/>`; }
+    // Sofa hinter dir, du mit Nase nach vorne
+    g += `<rect class="hp-sofa" x="${cx - 46}" y="${cy + 6}" width="92" height="26" rx="10"/><rect class="hp-sofa" x="${cx - 54}" y="${cy - 6}" width="14" height="38" rx="7"/><rect class="hp-sofa" x="${cx + 40}" y="${cy - 6}" width="14" height="38" rx="7"/>`;
+    g += `<circle class="hp-kopfbild" cx="${cx}" cy="${cy}" r="11"/><path class="hp-kopfbild" d="M${cx - 4} ${cy - 10} L${cx} ${cy - 17} L${cx + 4} ${cy - 10} Z"/>`;
+    g += `<circle class="hp-hoeren" cx="${cx}" cy="${cy}" r="${R * 0.9}"/>`;
+    g += `<g id="hp-ebene"></g>`;
+    return `<svg id="hp-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Draufsicht: oben vorne, du in der Mitte, die Lautsprecher im Kreis. Tippe, wo du den Klang hörst.">${g}</svg>`;
+  }
+  const svgPunkt = (w, rr = 128 * 0.72) => [160 + rr * Math.sin(w * Math.PI / 180), 168 - rr * Math.cos(w * Math.PI / 180)];
+
+  function kopfHtml(s) {
+    return `<div class="hp-kopf"><span class="marke">Szene ${st.i + 1} von ${st.szenen.length} · ${ex(s.titel)}</span><button type="button" class="klein zweit" id="hp-zu">Schließen</button></div>`;
+  }
+  async function naechste() {
+    st.i++;
+    if (st.i >= st.szenen.length) return ergebnis();
+    const s = st.szenen[st.i], h = huelle();
+    h.innerHTML = `<div class="hp-innen">${kopfHtml(s)}
+      <div class="hp-frage" id="hp-frage" aria-live="polite">Hör zu…</div>
+      <div class="hp-balken" aria-hidden="true"><i id="hp-fort"></i></div>
+      <div class="hp-buehne zu" id="hp-buehne">${buehneSvg(st.szenen)}</div>
+      <div id="hp-antwort" style="display:grid; gap:10px"></div>
+      <div id="hp-status" class="klein" aria-live="polite"></div></div>`;
+    el("hp-zu").onclick = schliessen;
+    await spielen(s);
+  }
+  // Abspielen: über die Klang-Box (folge „hoerprobe“, im Layout gerendert) oder als Stereo-Datei (AirPlay)
+  async function spielen(s) {
+    const b = el("hp-buehne"), fort = el("hp-fort"), status = el("hp-status");
+    if (!b) return;
+    b.classList.add("spielt"); el("hp-frage").textContent = "Hör zu…"; el("hp-antwort").innerHTML = ""; status.textContent = "";
+    let dauer = s.dauer_s, start = Date.now();
+    if (st.box) {
+      status.textContent = "Die Klang-Box bereitet die Szene vor…";
+      const a = await nativ.box("messsignal", { kanaele: s.kanaele, folge: "hoerprobe", szene: s.id, modus: st.modus, start_in_ms: 400 }, { zeitMs: 45000 });
+      if (!st) return;
+      if (!a.ok) { b.classList.remove("spielt"); status.innerHTML = `<span class="hp-warn">Die Box spielt die Szene nicht (${ex(a.fehler || a.grund)}).</span>`; zeigeFrage(s); return; }
+      status.textContent = "";
+      dauer = (a.dauer_s || s.dauer_s) + (a.start_in_ms !== undefined ? a.start_in_ms : 400) / 1000; start = Date.now();
+    } else {
+      const ton = typeof sig !== "undefined" && sig ? sig : new Audio();
+      st.ton = ton;
+      const aac = ton.canPlayType && ton.canPlayType('audio/mp4; codecs="mp4a.40.2"');
+      ton.src = `hoerprobe/${st.modus}-${s.id}.${aac ? "m4a" : "opus"}`;
+      try { ton.load(); await ton.play(); } catch (e) { b.classList.remove("spielt"); status.innerHTML = `<span class="hp-warn">Die Szene ließ sich nicht abspielen.</span>`; zeigeFrage(s); return; }
+      dauer = s.dauer_s / (ton.playbackRate || 1);
+    }
+    await new Promise((fertig) => {
+      const t = setInterval(() => {
+        if (!st) { clearInterval(t); fertig(); return; }
+        const p = Math.min(1, (Date.now() - start) / 1000 / dauer);
+        if (fort) fort.style.width = `${p * 100}%`;
+        if (p >= 1 || (st.ton && st.ton.ended)) { clearInterval(t); fertig(); }
+      }, 100);
+    });
+    if (!st) return;
+    b.classList.remove("spielt"); fort.style.width = "100%";
+    zeigeFrage(s);
+  }
+
+  function zeigeFrage(s) {
+    el("hp-frage").textContent = s.frage;
+    const ziel = el("hp-antwort"), b = el("hp-buehne");
+    const nochmal = `<button type="button" class="zweit" id="hp-nochmal">Nochmal hören</button>`;
+    if (s.antwort === "richtung") {
+      b.classList.remove("zu");
+      const zeigen = "DeviceOrientationEvent" in window && (navigator.maxTouchPoints || 0) > 0;
+      ziel.innerHTML = `<p class="klein">Tippe in den Kreis, wo du es hörst.${zeigen ? " Oder zeig mit dem Handy hin." : ""}</p>
+        <div class="hp-knoepfe">${nochmal}<button type="button" id="hp-da" disabled>Da ist es</button></div>
+        <div class="hp-knoepfe">${zeigen ? `<button type="button" class="zweit" id="hp-zeigen">Mit dem Handy zeigen</button>` : "<span></span>"}<button type="button" class="zweit" id="hp-weiss-nicht">Weiß nicht</button></div>`;
+      const svg = el("hp-svg");
+      svg.onclick = (ev) => {
+        if (b.classList.contains("zu")) return;
+        const box = svg.getBoundingClientRect(), x = (ev.clientX - box.left) / box.width * 320, y = (ev.clientY - box.top) / box.height * 320;
+        if (Math.hypot(x - 160, y - 168) < 8) return;
+        setzeMarke(wrap(Math.atan2(x - 160, -(y - 168)) * 180 / Math.PI));
+      };
+      el("hp-da").onclick = () => antwort(s, { id: s.id, winkel: st.marke });
+      el("hp-weiss-nicht").onclick = () => antwort(s, { id: s.id, unsicher: true });
+      if (zeigen) el("hp-zeigen").onclick = () => handyZeigen();
+    } else if (s.antwort === "wahl") {
+      ziel.innerHTML = `<div class="hp-wahl">${s.optionen.map(([id, t]) => `<button type="button" class="zweit" data-hp-wahl="${ex(id)}">${ex(t)}</button>`).join("")}</div>${nochmal}`;
+      ziel.querySelectorAll("[data-hp-wahl]").forEach((x) => { x.onclick = () => antwort(s, { id: s.id, wahl: x.dataset.hpWahl }); });
+    } else {
+      const lab = s.skala || [];
+      ziel.innerHTML = `<div class="hp-skala" role="group" aria-label="${ex(s.frage)}">${[1, 2, 3, 4, 5].map((v) => `<button type="button" class="zweit" data-hp-wert="${v}"><b>${v}</b><small>${ex(lab[v - 1] || "")}</small></button>`).join("")}</div>${nochmal}`;
+      ziel.querySelectorAll("[data-hp-wert]").forEach((x) => { x.onclick = () => antwort(s, { id: s.id, wert: +x.dataset.hpWert }); });
+    }
+    el("hp-nochmal").onclick = () => { if (st && st.richtungAus) st.richtungAus(); spielen(s); };
+  }
+  function setzeMarke(w) {
+    st.marke = Math.round(w);
+    const [x, y] = svgPunkt(w);
+    el("hp-ebene").innerHTML = `<circle class="hp-du" cx="${x}" cy="${y}" r="10" id="hp-marke"/>`;
+    const da = el("hp-da"); if (da) da.disabled = false;
+  }
+  // Handy als Zeiger (Kompass/Gyroskop): erst „vorne“ merken, dann zeigen. Verspielt; Tippen bleibt der sichere Weg.
+  async function handyZeigen() {
+    const knopf = el("hp-zeigen");
+    try { if (typeof DeviceOrientationEvent.requestPermission === "function" && (await DeviceOrientationEvent.requestPermission()) !== "granted") throw new Error("nein"); }
+    catch (e) { knopf.textContent = "Zeigen geht hier nicht"; knopf.disabled = true; return; }
+    let vorne = null, jetzt = null;
+    const lesen = (e) => { const h = typeof e.webkitCompassHeading === "number" ? e.webkitCompassHeading : (typeof e.alpha === "number" ? 360 - e.alpha : null);
+      if (h === null) return; jetzt = h; if (vorne !== null) setzeMarke(wrap(jetzt - vorne)); };
+    window.addEventListener("deviceorientation", lesen);
+    st.richtungAus = () => { window.removeEventListener("deviceorientation", lesen); st.richtungAus = null; };
+    knopf.textContent = "Handy flach nach vorne halten – hier tippen";
+    knopf.onclick = () => {
+      if (jetzt === null) { knopf.textContent = "Kein Kompass – bitte tippen"; return; }
+      if (vorne === null) { vorne = jetzt; setzeMarke(0); knopf.textContent = "Jetzt zum Klang zeigen – „Da ist es“"; }
+    };
+  }
+
+  function antwort(s, a) {
+    if (st.richtungAus) st.richtungAus();
+    st.antworten = st.antworten.filter((x) => x.id !== s.id).concat([a]);
+    aufloesen(s, a);
+  }
+  // Auflösen: die Welle läuft vom Soll-Ort los, dazu der Unterschied in Grad und eine kurze Erklärung
+  function aufloesen(s, a) {
+    const b = el("hp-buehne"); b.classList.add("zu");
+    let kopf = "", zeile = "";
+    if (s.antwort === "richtung") {
+      const [sx, sy] = svgPunkt(s.soll);
+      let g = `<circle class="hp-soll" cx="${sx}" cy="${sy}" r="9" id="hp-soll"/>`;
+      for (let i = 0; i < 3; i++) g += `<circle class="hp-welle${ruhig() ? "" : " los"}" cx="${sx}" cy="${sy}" r="34" style="animation-delay:${i * 0.45}s"/>`;
+      if (!a.unsicher && a.winkel !== null && a.winkel !== undefined) {
+        const [ux, uy] = svgPunkt(a.winkel), d = Math.abs(wrap(a.winkel - s.soll));
+        const gross = d > 180 ? 1 : 0, rr = 128 * 0.72, rechts = wrap(s.soll - a.winkel) > 0 ? 1 : 0;
+        g = `<path class="hp-bogen" d="M${ux} ${uy} A${rr} ${rr} 0 ${gross} ${rechts} ${sx} ${sy}"/><circle class="hp-du" cx="${ux}" cy="${uy}" r="10"/>` + g;
+        const vw = Math.abs(s.soll) <= 90 && Math.abs(a.winkel) > 90;
+        kopf = d <= 10 ? `<span class="hp-gut">Genau da!</span>` : d <= 25 ? `Fast: ${zahl(d, 0)}° daneben` : `${zahl(d, 0)}° daneben`;
+        if (vw) zeile = "Vorne und hinten verwechselt das Ohr leicht, wenn der Kopf still ist. Für die Seite zählt deine Antwort trotzdem.";
+      } else kopf = "Kein Ort gehört";
+      el("hp-ebene").innerHTML = g;
+    } else if (s.antwort === "wahl") {
+      kopf = a.wahl === s.soll_wahl ? `<span class="hp-gut">Richtig!</span>` : "Knapp daneben";
+    } else {
+      kopf = a.wert >= 4 ? `<span class="hp-gut">Mittendrin – so soll es sein.</span>` : a.wert >= 3 ? "Etwas eingehüllt." : "Eher vorne als rundherum.";
+    }
+    el("hp-frage").innerHTML = kopf;
+    el("hp-antwort").innerHTML = `<p>${ex(s.erklaerung)}</p>${zeile ? `<p class="klein">${ex(zeile)}</p>` : ""}
+      <div class="hp-knoepfe eins"><button type="button" id="hp-weiter">${st.i + 1 < st.szenen.length ? "Nächste Szene" : "Auswerten"}</button></div>`;
+    el("hp-weiter").onclick = () => naechste();
+  }
+
+  // --- Ergebnis, Anpassung -----------------------------------------------------------------------------------------
+  function aenderungText(x) {
+    const name = KANAL_NAME[x.kanal] || x.kanal, d = x.nach - x.von;
+    return x.feld === "gain_db" ? `${name} ${vz(d, 1)} dB (Pegel ${zahl(x.von, 1)} → ${zahl(x.nach, 1)} dB)` : `${name} ${vz(d, 2)} ms später (Laufzeit ${zahl(x.von, 2)} → ${zahl(x.nach, 2)} ms)`.replace(/−(\S+) ms später/, "$1 ms früher");
+  }
+  function grundText(ausw) {
+    const t = [];
+    if (ausw.wunsch.lr_grad) t.push(`Deine Antworten vorne lagen einheitlich ${zahl(Math.abs(ausw.seite.bias_grad), 0)}° ${ausw.seite.bias_grad < 0 ? "links" : "rechts"} (${ausw.seite.n} Szenen). Ich rücke die Mitte um die Hälfte davon zurück.`);
+    if (ausw.wunsch.hinten) t.push("Hinten klang es eher vorne bzw. wenig eingehüllt. Ich mache die Rears ein wenig präsenter, höchstens so laut wie vorne.");
+    return t;
+  }
+  async function ergebnis() {
+    const ausw = auswerten(st.szenen, st.antworten), r = st.r;
+    // Puffer der Box: die Fronts dürfen mit ihm zusammen höchstens 10 ms spät sein (sonst lehnt die Box ab)
+    if (st.box && st.puffer === undefined) {
+      const a = await nativ.box("status", {}, { zeitMs: 8000 });
+      if (!st) return;
+      st.puffer = a && a.verzoegerung && typeof a.verzoegerung.box_ms === "number" ? a.verzoegerung.box_ms : null;
+    }
+    const vorschlag = anwenden(r.e.einstellungen, ausw, r.hoerprobe.basis, st.modus, st.puffer);
+    st.ausw = ausw; st.vorschlag = vorschlag;
+    const h = huelle();
+    const kachel = [];
+    if (ausw.lokalisierung_grad !== null) kachel.push([`${zahl(ausw.lokalisierung_grad, 0)}°`, "im Mittel daneben"]);
+    if (ausw.umhuellung !== null) kachel.push([`${ausw.umhuellung}/5`, "Umhüllung"]);
+    if (ausw.tiefe !== null) kachel.push([ausw.tiefe ? "✓" : "✗", ausw.tiefe ? "Tiefe erkannt" : "Tiefe nicht erkannt"]);
+    const titel = { passt: `<span class="hp-gut">Alles am richtigen Platz.</span>`, anpassen: "Fast alles am Platz.", vorschlaege: "Gut gehört.", uneinheitlich: "Die Antworten streuen." }[ausw.urteil];
+    let haupt = "";
+    if (ausw.urteil === "uneinheitlich") haupt = `<p>Deine Antworten liegen mal links, mal rechts${ausw.lokalisierung_grad > K.ZUFALL_FEHLER_GRAD ? " und weit auseinander" : ""}. Daraus lese ich nichts Sicheres. Darum ändere ich nichts. Wenn du magst, hör später noch einmal in Ruhe zu, Kopf gerade nach vorne.</p>`;
+    else if (ausw.urteil === "passt") haupt = `<p>Was du gehört hast, passt zur Bühne. Ich ändere nichts. Jetzt prüft die Nachmessung den Rest.</p>`;
+    if (ausw.urteil === "anpassen") {
+      haupt = grundText(ausw).map((t) => `<p>${ex(t)}</p>`).join("");
+      if (vorschlag.aenderungen.length) haupt += `<ul class="hp-liste" id="hp-aenderungen">${vorschlag.aenderungen.map((x) => `<li>${ex(aenderungText(x))}</li>`).join("")}</ul>
+        <p class="klein">Kleine Schritte (höchstens ${zahl(K.LR_PEGEL_RUNDE_DB, 0)} dB bzw. ${zahl(K.LR_LAUFZEIT_RUNDE_MS, 1)} ms je Runde). Die Box prüft mit ihren Wächtern, die Nachmessung danach am Hörplatz. Wird dort ein Teilwert schlechter, nehme ich alles zurück.</p>`;
+      else haupt += `<p class="klein">Der Spielraum ist ausgeschöpft (${vorschlag.begrenzt.includes("hinten") ? "hinten schon so laut wie vorne" : "höchstens 2 dB bzw. 0,6 ms gegen die Einmessung"}). Ich ändere nichts mehr.</p>`;
+    }
+    const tipps = ausw.vorschlaege.length ? `<div class="kasten"><span class="marke">Tipps für die Aufstellung</span><ul class="hp-liste">${ausw.vorschlaege.map((v) => `<li>${ex(v.text)}</li>`).join("")}</ul></div>` : "";
+    const kann = ausw.urteil === "anpassen" && vorschlag.aenderungen.length > 0;
+    h.innerHTML = `<div class="hp-innen">
+      <div class="hp-kopf"><span class="marke">Hörprobe · Ergebnis</span><button type="button" class="klein zweit" id="hp-zu">Schließen</button></div>
+      <div class="hp-urteil" id="hp-urteil">${titel}</div>
+      ${kachel.length ? `<div class="hp-kachel">${kachel.map(([z, t]) => `<div><b>${ex(z)}</b><span>${ex(t)}</span></div>`).join("")}</div>` : ""}
+      <div id="hp-haupt" style="display:grid; gap:10px">${haupt}</div>${tipps}
+      <div id="hp-status" class="klein" aria-live="polite"></div>
+      ${kann ? `<div class="hp-knoepfe"><button type="button" class="zweit" id="hp-nein">Lieber nicht</button><button type="button" id="hp-ja">Anpassen</button></div>`
+        : `<div class="hp-knoepfe eins"><button type="button" id="hp-fertig">Weiter zur Nachmessung</button></div>`}</div>`;
+    el("hp-zu").onclick = () => { speichern(ausw, []); schliessen(); };
+    if (kann) { el("hp-ja").onclick = () => uebernehmen(); el("hp-nein").onclick = () => { speichern(ausw, []); schliessen(); }; }
+    else el("hp-fertig").onclick = () => { speichern(ausw, []); schliessen(); };
+  }
+  async function uebernehmen() {
+    const r = st.r, v = st.vorschlag, status = el("hp-status"), ja = el("hp-ja");
+    const f = pruefen(v.einstellungen, st.puffer, v.aenderungen.map((x) => x.kanal));
+    if (f.length) { status.innerHTML = `<span class="hp-warn">Nicht übernommen, außerhalb der Grenzen: ${ex(f.join(", "))}</span>`; return; }
+    ja.disabled = true;
+    const vorher = r.e.einstellungen;
+    r.e.einstellungen = v.einstellungen;
+    if (st.box) {
+      status.textContent = "Sende an die Klang-Box…";
+      const a = await nativ.box("einstellungen", { einstellungen: exportObjekt(r, "neu", r.e.einstellungen, r.profil), profil: r.profil || null, runde: r.id, modus: r.modus }, { zeitMs: 20000 });
+      if (!st) return;
+      if (!(a.ok && a.geladen)) {
+        r.e.einstellungen = vorher; ja.disabled = false;
+        const abg = (a.abgelehnt || []).map((x) => x.text).join(" ");
+        status.innerHTML = `<span class="hp-warn">Die Wächter der Box haben die Anpassung nicht geladen${abg ? `: ${ex(abg)}` : a.fehler ? ` (${ex(a.fehler)})` : ""}. Es bleibt wie vorher.</span>`;
+        return;
+      }
+      r.box_geladen = r.id;
+    }
+    r.status = "vorhergesagt"; r.urteil = null;
+    if (typeof nach !== "undefined" && nach && nach.rundeId === r.id) nach.nachher = {};  // alte Nachmessung gilt nicht mehr
+    speichern(st.ausw, v.aenderungen);
+    el("hp-haupt").innerHTML = `<p class="hp-gut">✓ Angepasst${st.box ? ": Die Klang-Box spielt es jetzt (vorhergesagt)" : ". Lade die neue Datei in die Klang-Box"}.</p>
+      <ul class="hp-liste">${v.aenderungen.map((x) => `<li>${ex(aenderungText(x))}</li>`).join("")}</ul>
+      <p class="klein">Jetzt nachmessen: Erst dann gilt es. Wird ein Teilwert schlechter, nehme ich alles zurück.</p>`;
+    status.textContent = "";
+    el("hp-ja").parentNode.outerHTML = `<div class="hp-knoepfe"><button type="button" class="zweit" id="hp-nochmal-runde">Noch einmal hören</button><button type="button" id="hp-fertig">Weiter zur Nachmessung</button></div>`;
+    el("hp-fertig").onclick = () => schliessen();
+    el("hp-nochmal-runde").onclick = () => { const rr = st.r; oeffnen(rr); };
+  }
+
+  // Speichern: an der Runde (für die Nachmessung und Theorie gegen Praxis) und je Modus neben der Einmessung
+  function speichern(ausw, aenderungen) {
+    const r = st.r;
+    const ergebnisse = { zeit: new Date().toISOString(), modus: st.modus, layout: layoutSchluessel(st.modus), runde: r.id, box: st.box,
+      szenen: ausw.szenen.length, lokalisierung_grad: ausw.lokalisierung_grad, umhuellung: ausw.umhuellung, tiefe: ausw.tiefe,
+      seite_grad: ausw.seite.bias_grad, einheitlich: ausw.seite.einheitlich, urteil: ausw.urteil, aenderungen,
+      antworten: ausw.szenen.map((z) => ({ id: z.id, soll: z.soll, antwort: z.antwort, fehler_grad: z.fehler_grad })) };
+    r.hoerprobe.letzte = ergebnisse;
+    r.hoerprobe.runden = (r.hoerprobe.runden || 0) + 1;
+    if (aenderungen.length) r.hoerprobe.angepasst = (r.hoerprobe.angepasst || []).concat(aenderungen);
+    if (typeof rundeSpeichern === "function") rundeSpeichern();
+    merke(`raumcheck-hoerprobe-${st.modus}`, JSON.stringify(ergebnisse));
+    try { window.dispatchEvent(new CustomEvent("klangboxgehoer", { detail: daten(st.modus) })); } catch (e) {}
+  }
+
+  // --- Nach der Pflicht-Nachmessung -------------------------------------------------------------------------------
+  // Wurde es mit der Hörprobe-Anpassung schlechter, nimmt die Seite zuerst NUR sie zurück (zurück auf die Einmessung von
+  // vor der Hörprobe) und lässt neu nachmessen. Erst wenn auch das schlechter ist, geht die ganze Runde zurück.
+  // Gibt true zurück, wenn sie übernommen hat (dann bestätigt/verwirft die Seite die Box noch nicht).
+  const FELDER = ["gain_db", "delay_ms"];
+  function hoerprobeAngepasst(r) {
+    const b = r && r.hoerprobe && r.hoerprobe.basis;
+    if (!b || !r.e || !r.e.einstellungen) return false;
+    return Object.keys(b).some((c) => b[c] && r.e.einstellungen[c] && FELDER.some((f) => Math.abs((r.e.einstellungen[c][f] ?? 0) - (b[c][f] ?? 0)) > 1e-6));
+  }
+  async function nachUrteil(r) {
+    if (!r || !r.urteil || r.urteil.empfehlung === "behalten" || !hoerprobeAngepasst(r)) return false;
+    const vorher = r.e.einstellungen, h = r.hoerprobe;
+    r.e.einstellungen = JSON.parse(JSON.stringify(h.basis));
+    const ueberBox = typeof boxModus === "function" && boxModus(r);
+    if (ueberBox && r.box_geladen !== r.id) { r.e.einstellungen = vorher; return false; }  // Box spielt die Runde nicht mehr
+    const box = ueberBox;
+    if (box) {
+      const daten = { einstellungen: exportObjekt(r, "neu", r.e.einstellungen, r.profil), profil: r.profil || null, runde: r.id, modus: r.modus };
+      let a = await nativ.box("einstellungen", daten, { zeitMs: 20000 });
+      for (let i = 0; i < 8 && !a.ok && a.grund === "beschaeftigt"; i++) {  // das Messsignal klingt noch aus
+        await new Promise((ok) => setTimeout(ok, 1500)); a = await nativ.box("einstellungen", daten, { zeitMs: 20000 });
+      }
+      if (!(a.ok && a.geladen)) { r.e.einstellungen = vorher; return false; }  // dann der normale Weg: alles zurück
+    }
+    const urteil = r.urteil;
+    h.zurueck = { zeit: new Date().toISOString(), aenderungen: h.angepasst || [], urteil: { empfehlung: urteil.empfehlung } };
+    h.angepasst = [];
+    r.urteil = null; r.status = "vorhergesagt";
+    if (typeof nach !== "undefined" && nach && nach.rundeId === r.id) nach.nachher = {};
+    let d = null; try { d = JSON.parse(lies(`raumcheck-hoerprobe-${r.modus}`, "null")); } catch (e) { d = null; }
+    if (d && d.runde === r.id) { d.zurueckgenommen = true; merke(`raumcheck-hoerprobe-${r.modus}`, JSON.stringify(d)); }
+    if (typeof rundeSpeichern === "function") rundeSpeichern();
+    if (typeof anwendenZeigen === "function") anwendenZeigen();
+    const ziel = el("a-urteil");
+    if (ziel) ziel.innerHTML = `<div class="kasten" id="hp-zurueck" style="outline: 1.5px solid var(--kb-hinweis, var(--warn, #FFB547))">
+      <b>Mit der Anpassung aus der Hörprobe wurde ein Teilwert schlechter.</b>
+      <p class="klein">Ich habe nur sie zurückgenommen. Deine Einmessung bleibt${box ? ", die Klang-Box spielt sie wieder" : ". Lade die Datei oben neu in die Klang-Box"}. Miss bitte noch einmal nach. Wird es auch dann schlechter, nehme ich die ganze Runde zurück.</p></div>`;
+    try { window.dispatchEvent(new CustomEvent("klangboxgehoer", { detail: daten(r.modus) })); } catch (e) {}
+    return true;
+  }
+  window.hoerprobeNachUrteil = nachUrteil;
+
+  // --- Für „Zuhause“: Daten und kleine Karte „Gehör-Check“ --------------------------------------------------------
+  function daten(modus) {
+    if (!modus) return { stereo: daten("stereo"), kino: daten("kino") };
+    let d = null; try { d = JSON.parse(lies(`raumcheck-hoerprobe-${modus}`, "null")); } catch (e) { d = null; }
+    if (!d) return null;
+    // gilt die Anpassung? Nur wenn die Nachmessung der Runde sie bestätigt hat
+    let runden = []; try { runden = JSON.parse(lies("raumcheck-runden", "[]")); } catch (e) { runden = []; }
+    const r = runden.find((x) => x.id === d.runde);
+    d.status = r ? r.status : null;
+    d.angepasst_gilt = !!(d.aenderungen && d.aenderungen.length && !d.zurueckgenommen && r && r.status === "bestaetigt");
+    return d;
+  }
+  function kurzText(d) {
+    const t = [];
+    if (d.lokalisierung_grad !== null && d.lokalisierung_grad !== undefined) t.push(`im Mittel ${zahl(d.lokalisierung_grad, 0)}° daneben`);
+    if (d.umhuellung) t.push(`Umhüllung ${d.umhuellung}/5`);
+    if (d.tiefe !== null && d.tiefe !== undefined) t.push(d.tiefe ? "Tiefe erkannt" : "Tiefe nicht erkannt");
+    return `Letzte Hörprobe: ${t.join(", ") || "ohne Ortung"}.`;
+  }
+  function karteZuhause(modus) {
+    const d = daten(modus);
+    const name = modus === "stereo" ? "Stereo" : "Kino";
+    if (!d) return `<div class="card hp-gehoer" data-gehoer="${modus}"><span class="marke">Gehör-Check · ${name}</span><p class="klein">Noch keine Hörprobe. Sie kommt vor der nächsten Nachmessung.</p></div>`;
+    const werte = [];
+    if (d.lokalisierung_grad !== null && d.lokalisierung_grad !== undefined) werte.push([`${zahl(d.lokalisierung_grad, 0)}°`, "daneben"]);
+    if (d.umhuellung) werte.push([`${d.umhuellung}/5`, "Umhüllung"]);
+    if (d.tiefe !== null && d.tiefe !== undefined) werte.push([d.tiefe ? "✓" : "–", "Tiefe"]);
+    const stand = d.zurueckgenommen ? "Anpassung zurückgenommen, die Einmessung bleibt"
+      : d.aenderungen && d.aenderungen.length ? (d.angepasst_gilt ? "angepasst und nachgemessen ✓" : d.status === "zurueckgenommen" ? "Anpassung zurückgenommen" : "angepasst, Nachmessung offen")
+      : d.urteil === "uneinheitlich" ? "nichts geändert (Antworten streuten)" : "nichts zu ändern";
+    return `<div class="card hp-gehoer" data-gehoer="${modus}" style="gap:8px"><span class="marke">Gehör-Check · ${name}</span>
+      <div style="display:flex; gap:18px; flex-wrap:wrap">${werte.map(([z, t]) => `<div><b style="font-size:22px; font-variant-numeric: tabular-nums">${ex(z)}</b> <span class="klein">${ex(t)}</span></div>`).join("")}</div>
+      <span class="klein">${ex(stand)} · ${ex(new Date(d.zeit).toLocaleDateString("de-DE"))}</span></div>`;
+  }
+  window.klangboxGehoerCheck = { daten, karte: karteZuhause };
+  window.hoerprobeKarte = karte;
+  return { ...kern, daten, karte: karteZuhause, oeffnen, schritt10: karte, nachUrteil, hoerprobeAngepasst, get zustand() { return st; } };
+})();
+if (typeof module !== "undefined") module.exports = HP;
+// Schritt 10 schon offen, als dieses Skript geladen wurde (es steht hinter dem Hauptskript)
+if (typeof document !== "undefined" && typeof aktuelleRunde === "function") {
+  const s10 = document.querySelector('.schritt[data-s="10"]');
+  if (s10 && !s10.hidden && typeof anwendenArt !== "undefined") HP.schritt10(aktuelleRunde(), anwendenArt === "geraet");
+}
 </script>
 
 </body>

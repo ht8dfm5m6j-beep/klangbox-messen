@@ -1,0 +1,18 @@
+{
+  "name": "Klang-Box",
+  "short_name": "Klang-Box",
+  "description": "Klang-Box bedienen: Stereo oder Kino, vorher und nachher, Nachtmodus.",
+  "lang": "de",
+  "start_url": "/?zuhause",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0C1A16",
+  "background_color": "#0C1A16",
+  "icons": [
+    {"src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png"},
+    {"src": "favicon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "favicon.svg", "sizes": "any", "type": "image/svg+xml"}
+  ]
+}

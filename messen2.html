@@ -7077,7 +7077,7 @@ document.querySelectorAll("[data-scannen]").forEach((b) => { b.hidden = !nativ; 
 // --- Akzentfarbe (Messing ist die Marke; Blau, Mint, Violett wählbar) ------------------------------------
 const AKZENTE = { messing: ["Messing", "#D9AE62"], blau: ["Blau", "#8FB8F0"], mint: ["Mint", "#8CE0C4"], violett: ["Violett", "#B79CFF"] };
 function setzeAkzent(name, melden) {
-  if (!AKZENTE[name]) name = "messing";
+  name = "messing";  // CI: nur Messing; eine früher gespeicherte Wahl (z. B. Blau) wirkt nicht mehr
   if (name === "messing") document.documentElement.removeAttribute("data-akzent"); else document.documentElement.dataset.akzent = name;
   document.querySelectorAll("[data-akzent]").forEach((b) => { if (b.tagName === "BUTTON") { const an = b.dataset.akzent === name; b.setAttribute("aria-checked", an); b.querySelector("i").textContent = an ? "✓" : ""; } });
   if (melden) { schreiben("raumcheck-akzent", name); if (nativ) nativ.ereignis({ art: "akzent", wert: name }); }

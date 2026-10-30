@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="ee85546a97ac">
+<meta name="klangbox-stand" content="b5e09cba5a4d">
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -7775,7 +7775,7 @@ function haltungBild() {
       <rect class="hz-flaeche" x="126" y="82" width="62" height="16" rx="6"/><rect class="hz-flaeche" x="176" y="44" width="12" height="54" rx="6"/>
       <circle class="hz-person" cx="156" cy="52" r="9"/><path class="hz-person-s" d="M157,62 L162,82 L142,85 M157,67 L140,63 L128,58" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
       <g transform="translate(122 52) scale(.19) rotate(180)">${handyGlas()}</g>
-      <text x="72" y="84" text-anchor="middle">Arm locker</text></svg>`;
+      <text x="76" y="84" text-anchor="middle" textLength="44" lengthAdjust="spacingAndGlyphs">Arm locker</text></svg>`;
   const drauf = `<svg viewBox="0 0 200 120" role="img" aria-label="Draufsicht: zwei Boxen vorne, du in der Mitte auf dem Sofa, das Handy vor deinem Gesicht">
       <rect class="hz-person" x="76" y="4" width="48" height="4" rx="2"/>
       <rect class="hz-flaeche" x="26" y="18" width="18" height="18" rx="6"/><rect class="hz-flaeche" x="156" y="18" width="18" height="18" rx="6"/>
@@ -10933,8 +10933,8 @@ const abZufall = () => { try { return crypto.getRandomValues(new Uint8Array(1))[
 const abIstB = (seite) => (ab.blind ? ab.zuordnung[ab.runde - 1] === seite : seite === 1);
 function abEinordnung(n, gesamt = AB_RUNDEN) {
   const kopf = `Du hast die Klang-Box in ${n} von ${gesamt} Runden gewählt.`;
-  if (n === gesamt) return `${kopf} Durch Zufall passiert das nur in etwa 3 % der Fälle: Du hörst den Unterschied.`;
-  if (n === gesamt - 1) return `${kopf} 4 oder 5 Treffer kommen durch Zufall in etwa 19 % der Fälle vor: ein Hinweis, noch kein Beweis. Eine zweite Serie macht es sicherer.`;
+  if (n === gesamt) return `${kopf} Durch Zufall passiert das nur in etwa 3 % der Fälle: Du hörst den Unterschied.`;
+  if (n === gesamt - 1) return `${kopf} 4 oder 5 Treffer kommen durch Zufall in etwa 19 % der Fälle vor: ein Hinweis, noch kein Beweis. Eine zweite Serie macht es sicherer.`;
   return `${kopf} Kein klarer Unterschied gehört. Das ist völlig in Ordnung, die Box macht nichts schlechter.`;
 }
 function abNeu(blind) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="a5e9615a120a">
+<meta name="klangbox-stand" content="8a7cd6edd536">
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -337,6 +337,8 @@ button:disabled { opacity: .4; }
 .kasten { background: var(--panel); border-radius: 22px; padding: 14px 16px; box-shadow: var(--tiefe); }
 input[type="text"], input[type="number"], select { min-height: 50px; border-radius: 16px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); font: 500 16px var(--schrift); padding: 0 14px; }
 .kasten input[type="text"], .kasten select, .felder input, .felder select { background: var(--panel2); border-color: transparent; }
+.zh-wlan { display: grid; gap: 12px; } .zh-wlan .kasten { display: grid; gap: 10px; } .zh-wlan h3 { margin: 0; }
+.zh-wlan-felder { grid-template-columns: minmax(0, 1fr); } .zh-wlan-felder input { min-height: 50px; }
 input[type="range"] { accent-color: var(--akzent); }
 input[type="checkbox"] { accent-color: var(--akzent); }
 details summary { color: var(--ink); font-weight: 600; min-height: 44px; list-style: none; gap: 8px; }
@@ -10807,9 +10809,16 @@ async function zhLaden() {
   const st = await nativ.box("status", {}, { zeitMs: 8000 });
   zh.laedt = false; zh.geladen = Date.now();
   zh.nachher = setTimeout(() => { if (boxBereit() && !document.hidden && !document.querySelector('.schritt[data-s="18"]').hidden) zhLaden(); }, 5000);
-  if (st && st.ok) { zh.st = st; if (typeof st.aus === "boolean" && !zh.abGesetzt) zh.ab = st.aus ? "vorher" : "nachher"; if (typeof JETZT !== "undefined") JETZT.nachStatus(); }
-  else $("zh-status").innerHTML = `<span class="warn">Die Klang-Box antwortet nicht${st && st.fehler ? `: ${esc(st.fehler)}` : "."}</span>
+  if (st && st.ok) { zh.st = st; zh.wegSeit = 0; if (typeof st.aus === "boolean" && !zh.abGesetzt) zh.ab = st.aus ? "vorher" : "nachher"; if (typeof JETZT !== "undefined") JETZT.nachStatus(); }
+  else {
+    // Die ersten 2 Minuten ohne Antwort: Die Box startet gerade oder sucht ihr WLAN. Ruhig warten, alle 5 s neu fragen.
+    // Erst danach die Hinweise (Strom, WLAN): kein Alarm bei jedem Einstecken.
+    zh.wegSeit = zh.wegSeit || Date.now();
+    $("zh-status").innerHTML = Date.now() - zh.wegSeit < 120000
+      ? `<span class="klein">Klang-Box startet oder sucht ihr WLAN … Die Verbindung kommt von selbst.</span>`
+      : `<span class="warn">Die Klang-Box antwortet nicht${st && st.fehler ? `: ${esc(st.fehler)}` : "."}</span>
     <span class="klein">Ist sie am Strom (Licht an)? Ist das iPhone im selben WLAN?</span><button type="button" class="zweit klein" id="zh-neu-verbinden">Erneut verbinden</button>`;
+  }
   if (!document.querySelector('.schritt[data-s="18"]').hidden) zuhauseZeigen(false);
 }
 function zhAbZeigen() {
@@ -12839,7 +12848,8 @@ function saOberflaeche(K) {
 // Antippen dreht das Cover auf die Rückseite (Titelliste, Jahr, Label, Laufzeit), daneben „Mitwirkende“ und „Über das
 // Album“, soweit die Box sie kennt (GET /api/jetzt/details). Fehlt etwas, bleibt die Karte schlicht, ohne leere Felder.
 // Daten nur aus GET /api/jetzt (SCHNITTSTELLE „Jetzt läuft“), Bibliothek und Warteschlange über mpd, Updates aus dem
-// Status. Dazu „Diagnose kopieren“ und der Schalter „Externer Streamer am Eingang“ (POST /api/modus).
+// Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu „Diagnose kopieren“, der Schalter „Externer Streamer am Eingang“ (POST /api/modus) und „WLAN“ (mehrere
+// WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt).
 // Nutzt von der Seite: nativ, boxBereit, zh (Zuhause-Zustand), esc, zk, sheet, zuhauseZeigen, SITZ_KURZ, profilInfo.
 const JETZT = (() => {
   const $ = (id) => document.getElementById(id);
@@ -12848,7 +12858,7 @@ const JETZT = (() => {
   const zeit = (s) => { s = Math.max(0, Math.round(+s || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
   const da = () => typeof boxBereit === "function" && boxBereit() && typeof nativ !== "undefined" && !!nativ;
   let j = null, jZeit = 0, det = null, detFuer = "", coverFuer = "", bild = "", schimmer = "", gedreht = false, uhr = 0, weg = null, wegZeit = 0;
-  let bib = { pfad: [], ansicht: "interpreten" }, voll = false, wachAn = null;
+  let bib = { pfad: [], ansicht: "interpreten" }, voll = false, wachAn = null, wl = null;
 
   // --- Daten -------------------------------------------------------------------------------------------------------
   async function laden() {
@@ -13035,7 +13045,8 @@ const JETZT = (() => {
     const u = st.update || {}, b = st.bibliothek;
     const updText = u.laeuft ? `läuft${u.fortschritt ? `&nbsp;· ${u.fortschritt.nr}/${u.fortschritt.von}` : ""}` : u.neuer && u.verfuegbar ? `verfügbar&nbsp;· ${h(u.verfuegbar.version)}` : `alles aktuell${u.version ? `&nbsp;· ${h(u.version)}` : ""}`;
     return (b ? zhAktion("zh-bib-k", ZH_IC.quellen, `Bibliothek<small>${b.titel_anzahl ? `${b.titel_anzahl} Titel` : b.usb && b.usb.da ? "USB-Stick" : "Freigabe hinzufügen"}</small>`, true, ` data-sheet-block="zh-bib" data-sheet-titel="Bibliothek"`) : "")
-      + zhAktion("zh-upd-k", ZH_IC.quellen, `Updates<small>${updText}</small>`, !!st.update, ` data-sheet-block="zh-upd" data-sheet-titel="Updates"`);
+      + zhAktion("zh-upd-k", ZH_IC.quellen, `Updates<small>${updText}</small>`, !!st.update, ` data-sheet-block="zh-upd" data-sheet-titel="Updates"`)
+      + zhAktion("zh-wlan-k", ZH_IC.quellen, `WLAN<small>${wlKurz()}</small>`, !!st.netz, ` data-sheet-block="zh-wlan" data-sheet-titel="WLAN"`);
   }
   function bloecke() {
     const s = document.querySelector('.schritt[data-s="18"]'); if (!s || $("zh-bib")) return;
@@ -13056,7 +13067,13 @@ const JETZT = (() => {
       </div>
       <div class="sheet-block" hidden data-block="zh-upd" id="zh-upd">
         <div class="kasten" id="zh-upd-inhalt"></div>
+        <div class="kasten" id="zh-upd-auto" hidden><div class="reihe"><div><h3>Automatisch nachts installieren</h3><span class="klein" id="zh-upd-auto-text"></span></div>
+          <button type="button" class="schalter" role="switch" id="zh-upd-schalter" aria-checked="false" aria-label="Automatisch nachts installieren"></button></div></div>
         <p class="klein" id="zh-upd-status" aria-live="polite"></p>
+      </div>
+      <div class="sheet-block" hidden data-block="zh-wlan" id="zh-wlan">
+        <div class="zh-wlan" id="zh-wlan-inhalt"></div>
+        <p class="klein" id="zh-wlan-status" aria-live="polite"></p>
       </div>`);
   }
   function updZeigen() {
@@ -13064,10 +13081,18 @@ const JETZT = (() => {
     const f = u.fortschritt;
     z.innerHTML = u.laeuft ? `<h3>Update läuft</h3>${f ? `<div class="zh-zeit"><i style="width:${Math.round((f.nr / f.von) * 100)}%"></i></div><p class="klein">Schritt ${f.nr} von ${f.von}&nbsp;· ${h(f.text || f.schritt || "")}</p>` : `<p class="klein">Einen Moment …</p>`}<p class="klein">Die Box startet am Ende neu. Nicht ausstecken.</p>`
       : u.neuer && u.verfuegbar ? `<h3>Update verfügbar&nbsp;· ${h(u.verfuegbar.version)}</h3>${u.verfuegbar.notiz ? `<p class="klein">${h(u.verfuegbar.notiz)}</p>` : ""}
-        <button type="button" id="zh-upd-los">Installieren</button><p class="klein">Etwa 2 bis 5 Minuten. Geht etwas schief, nimmt die Box die alte Version zurück.</p>`
+        <button type="button" id="zh-upd-los">Jetzt installieren</button><p class="klein">Etwa 2 bis 5 Minuten, danach startet die Box kurz neu. Geht etwas schief, nimmt die Box die alte Version zurück.</p>`
       : `<h3>Alles aktuell ✓</h3><p class="klein">Version ${h(u.version || "–")}. Die Box sieht einmal am Tag selbst nach.</p>${u.letztes ? `<p class="klein">Zuletzt: ${h(u.meldung || u.letztes)}</p>` : ""}
-        <button type="button" class="zweit" id="zh-upd-pruefen">Jetzt nachsehen</button>`;
+        <button type="button" class="zweit" id="zh-upd-pruefen">Nach Updates suchen</button>`;
+    if (u.fehler && !u.laeuft) z.insertAdjacentHTML("beforeend", `<p class="klein warn">${h(u.fehler)}</p>`);
+    const au = $("zh-upd-auto"); if (!au) return;
+    au.hidden = typeof u.automatisch !== "boolean";
+    $("zh-upd-schalter").setAttribute("aria-checked", String(!!u.automatisch));
+    $("zh-upd-auto-text").textContent = u.automatisch ? `An: Die Box installiert neue Versionen selbst${u.nachts ? `, nachts ${u.nachts}` : " in der Nacht"}, wenn nichts spielt.` : "Aus: Neue Versionen installierst du hier.";
   }
+  // Fehler einer Box-Antwort; ohne Kopplung (Bedienseite koppelt beim ersten Schreiben selbst, nur 2 min nach dem Einstecken)
+  const fehlerText = (a) => a && ["kein_token", "kopplung_zu"].includes(a.grund)
+    ? "Box kurz ausstecken, wieder einstecken und innerhalb von 2 Minuten noch einmal tippen." : (a && a.fehler) || "Ging nicht.";
   async function bibZeigen() {
     const l = $("zh-bib-liste"); if (!l) return;
     const a = bib.ansicht, p = bib.pfad, top = p[p.length - 1] || {};
@@ -13095,6 +13120,43 @@ const JETZT = (() => {
     if (!a || a.ok === false) { $("zh-bib-status").innerHTML = `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
     if (pos) await nativ.box("warteschlange", { aktion: "spielen", pos }, { zeitMs: 8000 });
     $("zh-bib-status").textContent = "✓ Spielt"; laden();
+  }
+
+  // --- WLAN: verbunden, gemerkt (vergessen), hinzufügen ------------------------------------------------------------
+  // Erst beim Öffnen laden, nie im Takt von Zuhause: Die Box sucht dafür WLANs, das soll die Musik nicht stören.
+  function wlKurz() {
+    const a = wl && wl.aktuell;
+    return a && a.ssid ? `${h(a.ssid)}${a.signal_prozent != null ? `&nbsp;· ${a.signal_prozent}&nbsp;%` : ""}` : wl && wl.lan ? "am Kabel" : "gemerkte WLANs";
+  }
+  async function wlanLaden() {
+    const z = $("zh-wlan-inhalt"); if (!z || !da()) return;
+    if (!wl) z.innerHTML = `<div class="kasten"><p class="klein">Einen Moment …</p></div>`;
+    const d = await nativ.box("wlan", {}, { zeitMs: 12000 });
+    if (!d || d.ok === false) { if (!wl) z.innerHTML = `<div class="kasten"><p class="klein warn">${h((d && d.fehler) || "Die Box antwortet gerade nicht.")}</p></div>`; return; }
+    wl = d; wlanZeigen();
+  }
+  function wlanZeigen() {
+    const z = $("zh-wlan-inhalt"); if (!z || !wl) return;
+    const a = wl.aktuell || {}, neu = (wl.sichtbar || []).filter((s) => !s.gemerkt);
+    const art = (x) => x.verbunden ? "verbunden" : x.aus === "imager" ? "aus der Einrichtung der Karte, bleibt" : "gemerkt";
+    z.innerHTML = `<div class="kasten">${a.ssid ? `<h3>Verbunden mit „${h(a.ssid)}“</h3><p class="klein">Signal ${a.signal_prozent != null ? `${a.signal_prozent}&nbsp;%` : "unbekannt"}</p>`
+        : `<h3>${wl.lan ? "Am Kabel" : "Gerade ohne WLAN"}</h3><p class="klein">${wl.lan ? "Die Box hängt per LAN im Heimnetz." : "Die Box verbindet sich, sobald ein gemerktes WLAN in Reichweite ist."}</p>`}</div>
+      <div class="kasten"><h3>Gemerkte WLANs</h3><div class="zeilen">${(wl.gemerkt || []).map((x) => `<div class="reihe"><div><b>${h(x.ssid)}</b><span class="klein">${art(x)}</span></div>${x.vergessbar
+        ? `<button type="button" class="zweit klein" data-wlan-vergessen="${h(x.ssid)}" aria-label="„${h(x.ssid)}“ vergessen">Vergessen</button>` : ""}</div>`).join("") || `<p class="klein">Noch keins.</p>`}</div></div>
+      <div class="kasten"><h3>Weiteres WLAN</h3><p class="klein">Zum Beispiel vorab das WLAN, wohin die Box mitkommt: Dort ist sie gleich im Netz. Hier bleibt sie im jetzigen WLAN. Bis zu ${wl.max || 8} merkt sie sich.</p>
+        <div class="felder zh-wlan-felder">
+          <label>WLAN<select id="zh-wlan-wahl">${neu.map((s) => `<option value="${h(s.ssid)}">${h(s.ssid)}${s.gesichert ? "" : " (offen)"}</option>`).join("")}<option value="">Anderes …</option></select></label>
+          <label id="zh-wlan-name-l"${neu.length ? " hidden" : ""}>Name des WLANs<input type="text" id="zh-wlan-name" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+          <label>Passwort<input type="password" id="zh-wlan-pw" autocomplete="off"></label>
+        </div>
+        <button type="button" id="zh-wlan-dazu">WLAN hinzufügen</button></div>`;
+  }
+  async function wlanAufruf(daten, knopf, erfolg) {
+    const z = $("zh-wlan-status"); if (knopf) knopf.disabled = true; z.textContent = "Einen Moment …";
+    const a = await nativ.box("wlan", daten, { zeitMs: 12000 });
+    if (knopf) knopf.disabled = false;
+    if (!a || a.ok === false) { z.innerHTML = `<span class="warn">${h(fehlerText(a))}</span>`; return; }
+    z.textContent = erfolg(a); await wlanLaden(); if (typeof zuhauseZeigen === "function") zuhauseZeigen(false);
   }
 
   // --- Diagnose kopieren ------------------------------------------------------------------------------------------
@@ -13201,8 +13263,19 @@ const JETZT = (() => {
     if (t.closest("#zh-upd-los") || t.closest("#zh-upd-pruefen")) {
       const los = !!t.closest("#zh-upd-los"); $("zh-upd-status").textContent = los ? "Startet …" : "Sehe nach …";
       const a = await nativ.box("update", { aktion: los ? "installieren" : "pruefen" }, { zeitMs: 15000 });
-      $("zh-upd-status").innerHTML = a && a.ok !== false ? (los ? "✓ Läuft. Den Fortschritt siehst du hier." : "") : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`;
+      $("zh-upd-status").innerHTML = a && a.ok !== false ? (los ? "✓ Läuft. Den Fortschritt siehst du hier. Am Ende startet die Box kurz neu." : "") : `<span class="warn">${h(fehlerText(a))}</span>`;
       if (a && a.update && zh.st) zh.st.update = a.update; updZeigen(); return; }
+    if (t.closest("#zh-upd-schalter")) { const b = $("zh-upd-schalter"), neu = b.getAttribute("aria-checked") !== "true";
+      const a = await nativ.box("update", { aktion: "einstellen", automatisch: neu }, { zeitMs: 15000 });
+      if (a && a.ok !== false) { if (zh.st && zh.st.update) { if (a.update) zh.st.update = a.update; else zh.st.update.automatisch = neu; } $("zh-upd-status").textContent = ""; updZeigen(); }
+      else $("zh-upd-status").innerHTML = `<span class="warn">${h(fehlerText(a))}</span>`; return; }
+    if (t.closest("#zh-wlan-dazu")) {
+      const name = $("zh-wlan-wahl").value || ($("zh-wlan-name").value || "").trim(), pw = $("zh-wlan-pw").value;
+      if (!name) { $("zh-wlan-status").textContent = "Bitte ein WLAN wählen oder den Namen eintragen."; return; }
+      $("zh-wlan-pw").value = "";
+      wlanAufruf({ aktion: "hinzufuegen", ssid: name, passwort: pw }, t.closest("button"), (a) => `✓ ${a.hinweis || "Gemerkt."}`); return; }
+    const wv = t.closest("[data-wlan-vergessen]");
+    if (wv) { const n = wv.dataset.wlanVergessen; wlanAufruf({ aktion: "vergessen", ssid: n }, wv, () => `✓ „${n}“ vergessen.`); return; }
     if (t.closest("#zh-diag-kopieren")) { diagnoseKopieren(t.closest("button")); return; }
     if (t.closest("#zh-diag-bitstream")) { const z = $("zh-diag-status"); z.textContent = "Prüft: Die Box ist dafür etwa 15 Sekunden still …";
       const a = await nativ.box("diagnose", { bitstream_pruefen: true }, { zeitMs: 35000 });
@@ -13219,10 +13292,12 @@ const JETZT = (() => {
     if (ev.key === "Escape" && voll) vollZu();
   });
   document.addEventListener("input", (ev) => { if (ev.target.id === "zh-bib-q") { clearTimeout(bib.t); bib.t = setTimeout(bibZeigen, 350); } });
+  document.addEventListener("change", (ev) => { if (ev.target.id === "zh-wlan-wahl") { $("zh-wlan-name-l").hidden = !!ev.target.value; if (!ev.target.value) $("zh-wlan-name").focus(); } });
   // Sheets beim Öffnen füllen
   document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-sheet-block]"); if (!b) return;
     if (b.dataset.sheetBlock === "zh-bib") setTimeout(bibZeigen, 0);
     if (b.dataset.sheetBlock === "zh-upd") setTimeout(updZeigen, 0);
+    if (b.dataset.sheetBlock === "zh-wlan") setTimeout(wlanLaden, 0);
     if (b.dataset.sheetBlock === "zh-quellen") setTimeout(quellenZeigen, 0); }, true);
 
   // Zuhause: nach jedem Status (zhLaden) bzw. Zeichnen

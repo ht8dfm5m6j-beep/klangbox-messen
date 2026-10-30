@@ -48,7 +48,7 @@
     const { code, d } = await anfrage("POST", "/api/koppeln", {});
     if (code === 200 && d.token) { merken(TOKEN, d.token); return { ok: true }; }
     if (d.grund === "kopplung_zu") return { ok: false, grund: "kopplung_zu", fehler: "Diese Seite darf die Box noch nicht steuern. "
-      + "Zieh kurz den Stecker der Box, steck ihn wieder ein und tippe in den nächsten 2 Minuten noch einmal." };
+      + "Box kurz ausstecken, wieder einstecken und innerhalb von 2 Minuten noch einmal tippen." };
     return { ok: false, grund: d.grund || "koppeln", fehler: d.fehler || "Koppeln ging nicht." };
   }
   function statusMerken(d) {
@@ -59,7 +59,7 @@
     adresseZeigen(); obenZeigen();
   }
   // Lesende Aufrufe des Alltags (Jetzt läuft, Bibliothek …): ohne Daten per GET, die Abfrage steht im Namen
-  const LESEN = new Set(["status", "jetzt", "jetzt/details", "signalweg", "diagnose", "bibliothek", "warteschlange", "sicherung"]);
+  const LESEN = new Set(["status", "jetzt", "jetzt/details", "signalweg", "diagnose", "bibliothek", "warteschlange", "sicherung", "wlan"]);
   const leer = (d) => !d || (typeof d === "object" && !Object.keys(d).length);
   async function aufruf(name, daten, boxId) {
     const sat = boxId && boxId !== "box" && status && boxId !== status.id;

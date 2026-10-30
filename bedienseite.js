@@ -56,12 +56,17 @@
     if (d.id) boxen.haupt = d.id;
     if (d.layout) boxen.layout = d.layout;
     if (Array.isArray(d.satelliten)) boxen.boxen = [{ id: d.id, name: d.name, rolle: d.rolle }, ...d.satelliten.map((s) => ({ id: s.id, name: s.name, rolle: "satellit" }))];
-    adresseZeigen();
+    adresseZeigen(); obenZeigen();
   }
+  // Lesende Aufrufe des Alltags (Jetzt läuft, Bibliothek …): ohne Daten per GET, die Abfrage steht im Namen
+  const LESEN = new Set(["status", "jetzt", "jetzt/details", "signalweg", "diagnose", "bibliothek", "warteschlange", "sicherung"]);
+  const leer = (d) => !d || (typeof d === "object" && !Object.keys(d).length);
   async function aufruf(name, daten, boxId) {
     const sat = boxId && boxId !== "box" && status && boxId !== status.id;
     const pfad = sat ? `/api/satellit/${encodeURIComponent(boxId)}/${name}` : `/api/${name}`;
-    const methode = name === "status" ? "GET" : "POST";
+    // Cover: dieselbe Herkunft, das Bild lädt die Seite direkt (kein Umweg über JSON)
+    if (name.startsWith("cover/")) return { ok: true, bild: pfad };
+    const methode = name === "status" || (LESEN.has(name.split("?")[0]) && leer(daten)) ? "GET" : "POST";
     let { code, d } = await anfrage(methode, pfad, daten);
     if (code === 401 && d.grund === "kein_token") {
       const k = await koppeln(); if (!k.ok) return k;
@@ -202,6 +207,27 @@
     const sat = document.getElementById("bs-satellit");
     if (sat) sat.hidden = status.rolle !== "satellit";
   }
+  // Solange nichts eingemessen ist oder eine Nachmessung offen ist, ist „Ergebnis übernehmen“ der Hauptknopf oben
+  // (Ablaufprüfung P1-9: der Laden-Weg ohne App führt hierher, der Knopf darf nicht unter elf Kacheln liegen)
+  function uebernahmeOffen() {
+    if (!status) return true;
+    const p = status.profile && status.profil_aktiv ? status.profile[status.profil_aktiv] : status.modi ? status.modi[status.modus] : null;
+    return !p || !p.eingemessen || p.status === "vorhergesagt";
+  }
+  function obenZeigen() {
+    const held = document.getElementById("zh-held"); if (!held) return;
+    let k = document.getElementById("bs-oben");
+    if (!k) {
+      stil();
+      k = document.createElement("div"); k.id = "bs-oben"; k.className = "kasten bs-box";
+      k.innerHTML = `<span class="eyebrow">Von der Mess-Seite</span><p class="klein">Auf der Mess-Seite „Kopieren“ getippt? Dann hier übernehmen.</p>
+        <button type="button" id="bs-oben-los">Ergebnis übernehmen</button>`;
+      held.insertAdjacentElement("beforebegin", k);
+      k.querySelector("#bs-oben-los").addEventListener("click", dialogUebernehmen);
+    }
+    k.hidden = !uebernahmeOffen();
+    const u = document.getElementById("bs-uebernehmen"); if (u) u.hidden = uebernahmeOffen();
+  }
   function zuhauseErgaenzen() {
     const nach = document.getElementById("zh-aktionen"); if (!nach || document.getElementById("bs-box")) return;
     stil();
@@ -212,7 +238,7 @@
       <p class="klein bs-adresse" id="bs-adresse"></p>`;
     nach.insertAdjacentElement("afterend", k);
     k.querySelector("#bs-uebernehmen").addEventListener("click", dialogUebernehmen);
-    adresseZeigen();
+    adresseZeigen(); obenZeigen();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", zuhauseErgaenzen); else zuhauseErgaenzen();
 

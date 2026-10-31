@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="8a7cd6edd536">
+<meta name="klangbox-stand" content="a69c6aba3ad5">
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -12848,7 +12848,8 @@ function saOberflaeche(K) {
 // Antippen dreht das Cover auf die Rückseite (Titelliste, Jahr, Label, Laufzeit), daneben „Mitwirkende“ und „Über das
 // Album“, soweit die Box sie kennt (GET /api/jetzt/details). Fehlt etwas, bleibt die Karte schlicht, ohne leere Felder.
 // Daten nur aus GET /api/jetzt (SCHNITTSTELLE „Jetzt läuft“), Bibliothek und Warteschlange über mpd, Updates aus dem
-// Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu „Diagnose kopieren“, der Schalter „Externer Streamer am Eingang“ (POST /api/modus) und „WLAN“ (mehrere
+// Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu „Diagnose kopieren“, „Bericht teilen“
+// (GET /api/bericht: Bericht in drei Phasen als Datei klangbox-bericht.txt, sonst Text bzw. Zwischenablage), der Schalter „Externer Streamer am Eingang“ (POST /api/modus) und „WLAN“ (mehrere
 // WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt).
 // Nutzt von der Seite: nativ, boxBereit, zh (Zuhause-Zustand), esc, zk, sheet, zuhauseZeigen, SITZ_KURZ, profilInfo.
 const JETZT = (() => {
@@ -13175,11 +13176,38 @@ const JETZT = (() => {
     }
     if (knopf) knopf.blur();
   }
+  // --- Bericht teilen (Bericht in drei Phasen: nach dem HiFiBerry, nach dem Einmessen, mit dem WLAN-Stick) -----------
+  // Erster Tipp holt den Bericht (bis zu einer Minute: Ping, Stick). Teilen und Zwischenablage gehen in Safari nur im
+  // Tipp selbst, darum teilt der zweite Tipp („Jetzt teilen“) sofort: als Datei, sonst als Text, sonst Zwischenablage.
+  let bericht = null;
+  async function berichtTeilen(knopf) {
+    const st = $("zh-diag-status");
+    if (!bericht || Date.now() - bericht.zeit > 5 * 60000) {
+      if (knopf) knopf.disabled = true; st.textContent = "Bericht wird erstellt (bis zu einer Minute) …";
+      const d = await nativ.box("bericht", {}, { zeitMs: 60000 });
+      if (knopf) knopf.disabled = false;
+      if (!d || d.ok === false || !d.text) { st.innerHTML = `<span class="warn">${h((d && d.fehler) || "Der Bericht kam nicht.")}</span>`; return; }
+      bericht = { text: d.text, zeit: Date.now(), phase: d.phase };
+      if (knopf) knopf.textContent = "Jetzt teilen";
+      st.textContent = `Bericht bereit${d.phase ? ` (Phase ${d.phase})` : ""}, ${Math.max(1, Math.round(d.text.length / 1024))} KB. Noch einmal tippen: „Jetzt teilen“.`;
+      return;
+    }
+    const text = bericht.text;
+    bericht = null; if (knopf) knopf.textContent = "Bericht teilen";
+    try {
+      const datei = typeof File === "function" ? new File([text], "klangbox-bericht.txt", { type: "text/plain" }) : null;
+      if (datei && navigator.canShare && navigator.canShare({ files: [datei] })) { await navigator.share({ files: [datei], title: "Klang-Box-Bericht" }); st.textContent = "✓ Geteilt."; return; }
+      if (navigator.share) { await navigator.share({ title: "Klang-Box-Bericht", text }); st.textContent = "✓ Geteilt."; return; }
+    } catch (e) { if (e && e.name === "AbortError") { st.textContent = ""; return; } }
+    try { await navigator.clipboard.writeText(text); st.textContent = "✓ Kopiert – im Chat einfügen."; }
+    catch (e) { st.innerHTML = `<span class="warn">Teilen ging nicht${e && e.message ? `: ${h(e.message)}` : ""}.</span>`; }
+    if (knopf) knopf.blur();
+  }
   function untenZeigen() {
     const s = document.querySelector('.schritt[data-s="18"]'); if (!s) return;
     let u = $("zh-diag");
     if (!u) { u = document.createElement("div"); u.id = "zh-diag"; u.className = "zh-diag";
-      u.innerHTML = `<button type="button" class="leise klein" id="zh-diag-kopieren">Diagnose kopieren</button><button type="button" class="leise klein" id="zh-diag-bitstream">Dolby prüfen</button><p class="klein" id="zh-diag-status" aria-live="polite"></p>`;
+      u.innerHTML = `<button type="button" class="leise klein" id="zh-diag-kopieren">Diagnose kopieren</button><button type="button" class="leise klein" id="zh-diag-bericht">Bericht teilen</button><button type="button" class="leise klein" id="zh-diag-bitstream">Dolby prüfen</button><p class="klein" id="zh-diag-status" aria-live="polite"></p>`;
       const nach = $("zh-tipps"); if (nach && nach.parentNode === s) nach.after(u); else s.appendChild(u); }
     u.hidden = !da();
     $("zh-diag-bitstream").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
@@ -13277,6 +13305,7 @@ const JETZT = (() => {
     const wv = t.closest("[data-wlan-vergessen]");
     if (wv) { const n = wv.dataset.wlanVergessen; wlanAufruf({ aktion: "vergessen", ssid: n }, wv, () => `✓ „${n}“ vergessen.`); return; }
     if (t.closest("#zh-diag-kopieren")) { diagnoseKopieren(t.closest("button")); return; }
+    if (t.closest("#zh-diag-bericht")) { berichtTeilen(t.closest("button")); return; }
     if (t.closest("#zh-diag-bitstream")) { const z = $("zh-diag-status"); z.textContent = "Prüft: Die Box ist dafür etwa 15 Sekunden still …";
       const a = await nativ.box("diagnose", { bitstream_pruefen: true }, { zeitMs: 35000 });
       z.innerHTML = a && a.ok !== false ? "✓ Geprüft. Das Ergebnis steht jetzt in der Diagnose: „Diagnose kopieren“." : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }

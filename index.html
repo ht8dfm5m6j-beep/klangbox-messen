@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="a69c6aba3ad5">
+<meta name="klangbox-stand" content="435c2c67b182">
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -1574,6 +1574,18 @@ label.klein:has(> input[type="checkbox"]) { min-height: 44px; display: flex; ali
       <div class="regler"><label for="zh-lippen-ms"><span>Ton später</span><span class="wert" id="zh-lippen-wert">0 ms</span></label><input type="range" id="zh-lippen-ms" min="0" max="250" step="5" value="0"></div>
       <button type="button" class="zweit" id="zh-lippen-app" hidden>Mit Video-Clip messen (App)</button>
       <p class="klein" id="zh-lippen-status" aria-live="polite"></p>
+    </div>
+    <!-- Startklang und Systemklänge (POST /api/startklang, nur gekoppelt; klangbox/dienst/startklang.py) -->
+    <div class="sheet-block" hidden data-block="zh-startklang" id="zh-startklang-block">
+      <p class="klein">Einmal, wenn du die Box einsteckst und sie bereit ist: ein kurzer Klang durch deine Einmessung, so hörst du gleich deinen Raum. Nie nachts (22–7 Uhr), nie über laufende Musik, und er hört sofort auf, sobald etwas spielt oder du bedienst.</p>
+      <div class="kasten"><div class="reihe"><div><h3>Startklang</h3><span class="klein" id="zh-sk-text"></span></div>
+        <button type="button" class="schalter" role="switch" id="zh-sk-an" aria-checked="true" aria-label="Startklang"></button></div></div>
+      <div class="kasten"><div class="reihe"><div><h3>Systemklänge</h3><span class="klein">Kurz „bereit“, wenn der Startklang aus ist, und „Update fertig“.</span></div>
+        <button type="button" class="schalter" role="switch" id="zh-sk-system" aria-checked="true" aria-label="Systemklänge"></button></div></div>
+      <div class="regler"><label for="zh-sk-db"><span>Startklang-Lautstärke</span><span class="wert" id="zh-sk-wert">−20 dB</span></label><input type="range" id="zh-sk-db" min="-50" max="-6" step="1" value="-20"></div>
+      <span class="klein" id="zh-sk-fuehrt"></span>
+      <button type="button" class="zweit" id="zh-sk-probe">Probe hören</button>
+      <p class="klein" id="zh-sk-status" aria-live="polite"></p>
     </div>
   </section>
   <!-- Mess-Ansicht (Vollbild): erst „Handy umdrehen“, dann dreht sich alles um 180°, groß Restzeit und Abbrechen -->
@@ -10727,6 +10739,7 @@ const ZH_IC = {
   quellen: '<svg viewBox="0 0 24 24"><circle cx="12" cy="14" r="2"/><path d="M8 10a6 6 0 0 1 8 0M5 7a10 10 0 0 1 14 0"/><path d="M12 16v5"/></svg>',
   dosis: '<svg viewBox="0 0 24 24"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/></svg>',
   ohr: '<svg viewBox="0 0 24 24"><path d="M8 18c0 2 1.5 3 3 3s2.5-1 3-2.5c.8-2 4-3.5 4-8a6 6 0 0 0-12 0"/><path d="M10 10a2 2 0 0 1 4 0c0 1.2-1 1.8-1.6 2.4"/></svg>',
+  start: '<svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
 };
 // laden: den Status der Box neu holen (zhLaden zeichnet danach ohne erneutes Laden, sonst fragt die Seite ohne Ende)
 function zuhauseZeigen(laden = true) {
@@ -10772,6 +10785,7 @@ function zuhauseZeigen(laden = true) {
     + zhAktion("zh-nacht", ZH_IC.nacht, `Nachtmodus<small>${inh.nachtmodus ? "an" : "aus"}</small>`, boxDa, ` aria-pressed="${!!inh.nachtmodus}"`)
     + zhAktion("zh-klang", ZH_IC.klang, `Klang<small>${r && r.status === "bestaetigt" ? esc((r.profil && r.profil.name) || "Neutral") : "nach der Nachmessung"}</small>`, boxDa, r && r.status === "bestaetigt" ? "" : " disabled")
     + zhAktion("zh-quellen-k", ZH_IC.quellen, `Quellen<small>${esc(quellenKurz(st))}</small>`, boxDa && !!(st && st.streamer), ` data-sheet-block="zh-quellen" data-sheet-titel="Quellen und Dienste"`)
+    + zhAktion("zh-startklang", ZH_IC.start, `Startklang<small>${esc(startklangKurz(st))}</small>`, boxDa && !!(st && st.startklang), ` data-sheet-block="zh-startklang" data-sheet-titel="Startklang"`)
     + zhAktion("zh-dosis-k", ZH_IC.dosis, `Hördosis<small>${esc(dosisKurz(st))}</small>`, boxDa && !!(st && st.pegel), ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`)
     + (typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa) : "")
     + (weiter || nachmessenArt(rl) ? "" : zhWeiter)
@@ -11225,6 +11239,9 @@ const RATEN = [48000, 96000, 192000];
 const lippenMs = (st) => +((st && st.verzoegerung && st.verzoegerung.lippen_ms) || 0);
 const quellenKurz = (st) => { const s = st && st.streamer; if (!s) return ""; const an = Object.entries(s.dienste || {}).filter(([, d]) => d.an).length;
   return `${an} an · bis ${zk((s.max_rate || 96000) / 1000, 1)} kHz`; };
+const dbText = (v) => `${v < 0 ? "−" : ""}${zk(Math.abs(v), 0)} dB`;
+const startklangKurz = (st) => { const k = st && st.startklang; if (!k) return "";
+  return k.an ? `an · ${dbText(+k.db)}` : k.systemklaenge ? "aus · Systemklänge an" : "aus"; };
 const dosisKurz = (st) => { const p = st && st.pegel; if (!p) return ""; return p.dosis_prozent != null ? `${zk(p.dosis_prozent, 0)} % der Woche` : `${zk(p.hoerdauer_h_woche || 0, 1)} h diese Woche`; };
 // Wandler in „Meine Anlage“ mit bekannter optischer Grenze (Katalog: optisch_max_hz)
 function wandlerOptisch() { const w = GW.wahl(), kat = GW.katalog(); return (w.kette || []).map((id) => kat.find((e) => e.id === id)).find((e) => e && e.optisch_max_hz) || null; }
@@ -11256,6 +11273,22 @@ function zhBoxBloecke(st) {
   $("zh-kal-weg").disabled = !p.kalibriert;
   if (document.activeElement !== $("zh-lippen-ms")) { $("zh-lippen-ms").value = lippenMs(st); $("zh-lippen-wert").textContent = `${zk(lippenMs(st), 0)} ms`; }
   $("zh-lippen-app").hidden = !nativ || !!window.klangboxBedienseite;  // Bedienseite der Box: kein Video-Clip (nur App)
+  // Startklang (POST /api/startklang): an/aus, Systemklänge, Lautstärke gegenüber der Datei, Probe
+  const sk = st.startklang;
+  if (sk) {
+    $("zh-sk-an").setAttribute("aria-checked", String(!!sk.an)); $("zh-sk-system").setAttribute("aria-checked", String(!!sk.systemklaenge));
+    $("zh-sk-text").textContent = sk.an ? "Stereo: ein kleines Ensemble zwischen den Lautsprechern. Kino: der Raum geht auf, mit allen Lautsprechern." : "Aus. Die Box ist still bereit" + (sk.systemklaenge ? " und meldet sich nur kurz." : ".");
+    if (document.activeElement !== $("zh-sk-db")) { $("zh-sk-db").value = Math.round(+sk.db); $("zh-sk-wert").textContent = dbText(+sk.db); }
+    $("zh-sk-fuehrt").textContent = sk.fuehrt === "box" ? `Die Box führt die Lautstärke: Der Startklang richtet sich nach ihr und wird nie lauter (jetzt ${dbText(+sk.ziel_db)}).`
+      : "Die Vorstufe führt die Lautstärke: Steht sie weit auf, bleib lieber leise. Ändern geht nur von einem gekoppelten Gerät.";
+    $("zh-sk-probe").disabled = !!sk.laeuft;
+    $("zh-sk-probe").textContent = sk.laeuft ? "Spielt …" : "Probe hören";
+  }
+}
+async function zhStartklang(daten) {
+  const a = await zhBoxRufen("startklang", daten, "zh-sk-status");
+  if (a && a.startklang) { zh.st = { ...(zh.st || {}), startklang: a.startklang }; zuhauseZeigen(false); }
+  return a;
 }
 async function zhBoxRufen(aufruf, daten, ziel) {
   $(ziel).innerHTML = `<span class="laeuft">Einen Moment…</span>`;
@@ -11315,6 +11348,14 @@ $("zh-lippen-ms").addEventListener("input", () => { $("zh-lippen-wert").textCont
 $("zh-lippen-ms").addEventListener("change", async () => {
   const ms = +$("zh-lippen-ms").value, a = await zhBoxRufen("verzoegerung", { ms }, "zh-lippen-status");
   if (a) { const v = { ...(((zh.st || {}).verzoegerung) || {}), lippen_ms: +a.ms }; zh.st = { ...(zh.st || {}), verzoegerung: v }; zuhauseZeigen(false); }
+});
+$("zh-sk-an").addEventListener("click", () => zhStartklang({ an: $("zh-sk-an").getAttribute("aria-checked") !== "true" }));
+$("zh-sk-system").addEventListener("click", () => zhStartklang({ systemklaenge: $("zh-sk-system").getAttribute("aria-checked") !== "true" }));
+$("zh-sk-db").addEventListener("input", () => { $("zh-sk-wert").textContent = dbText(+$("zh-sk-db").value); });
+$("zh-sk-db").addEventListener("change", () => zhStartklang({ db: +$("zh-sk-db").value }));
+$("zh-sk-probe").addEventListener("click", async () => {
+  const a = await zhStartklang({ probe: true, db: +$("zh-sk-db").value });
+  if (a && a.ok) $("zh-sk-status").innerHTML = `<span class="ok">✓ Spielt einmal, durch deine Einmessung.</span>`;
 });
 $("zh-lippen-app").addEventListener("click", () => { if (nativ) { sheet.zu(); nativ.ereignis({ art: "lippenSync" }); } });
 window.addEventListener("klangboxgehoer", () => { if (!document.querySelector('.schritt[data-s="18"]').hidden) zuhauseZeigen(); });

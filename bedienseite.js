@@ -36,25 +36,44 @@
   const N = window.klangboxNativ = { version: 1, raum: null, kannAufnehmen: false, boxen };
 
   // --- Box-Schnittstelle über dieselbe Herkunft ----------------------------------------------------------------------
+  // Token: im Browser gemerkt; im privaten Modus (kein localStorage) wenigstens bis zum Neuladen
+  let tokenHier = null;
+  const token = () => lesen(TOKEN) || tokenHier;
   async function anfrage(methode, pfad, daten) {
-    const kopf = { "Content-Type": "application/json" }, t = lesen(TOKEN);
+    const kopf = { "Content-Type": "application/json" }, t = token();
     if (t) kopf["X-Klangbox-Token"] = t;
     try {
       const r = await fetch(pfad, { method: methode, headers: kopf, cache: "no-store", body: methode === "GET" ? undefined : JSON.stringify(daten || {}) });
       let d = null; try { d = await r.json(); } catch (e) { d = null; }
       if (!d || typeof d !== "object") d = { ok: false, grund: "format", fehler: "Die Box hat unklar geantwortet." };
-      return { code: r.status, d };
+      return { code: r.status, d, t };
     } catch (e) {
-      return { code: 0, d: { ok: false, grund: "netz", fehler: "Die Klång-Box ist gerade nicht erreichbar." } };
+      return { code: 0, t, d: { ok: false, grund: "netz", fehler: "Die Klång-Box ist gerade nicht erreichbar." } };
     }
   }
   async function koppeln() {
     const { code, d } = await anfrage("POST", "/api/koppeln", {});
-    if (code === 200 && d.token) { merken(TOKEN, d.token); return { ok: true }; }
+    if (code === 200 && d.token) { tokenHier = d.token; merken(TOKEN, d.token); return { ok: true }; }
     if (d.grund === "kopplung_zu") return { ok: false, grund: "kopplung_zu", fehler: "Diese Seite darf die Box noch nicht steuern. "
       + "Am einfachsten: auf einer schon gekoppelten Seite (z. B. in Safari) „Zum Home-Bildschirm“ wählen, dann ist die neue gleich gekoppelt. "
       + "Sonst die Box kurz ausstecken, wieder einstecken und innerhalb von 2 Minuten noch einmal tippen." };
     return { ok: false, grund: d.grund || "koppeln", fehler: d.fehler || "Koppeln ging nicht." };
+  }
+  // Nur ein Koppelversuch zur Zeit, für alle Aufrufe der Seite: Antworten mehrere Aufrufe (etwa vier Cover im Regal)
+  // zugleich mit 401, koppeln sie gemeinsam einmal. Jede Kopplung legt ein Token an, und die Box behält höchstens 8:
+  // mehrere auf einmal verdrängten still die Tokens anderer Geräte. benutzt: das Token, mit dem der Aufruf abgewiesen
+  // wurde; gibt es inzwischen ein anderes, reicht ein neuer Versuch damit.
+  // Abgelehnt (kopplung_zu): ein paar Sekunden lang dieselbe Antwort, ohne die Box noch einmal zu fragen (die übrigen
+  // Antworten mit 401 kommen oft erst nach der Ablehnung an). Ein Tipp auf „Koppeln“ fragt immer neu.
+  const KOPPELN_NEIN_MS = 5000;
+  let koppelnLaeuft = null, koppelnNein = null;
+  function koppelnEinmal(benutzt) {
+    const t = token();
+    if (benutzt !== undefined && t && t !== benutzt) return Promise.resolve({ ok: true });
+    if (benutzt !== undefined && koppelnNein && Date.now() - koppelnNein.zeit < KOPPELN_NEIN_MS) return Promise.resolve(koppelnNein.d);
+    if (!koppelnLaeuft) koppelnLaeuft = koppeln().then((d) => { koppelnNein = d.ok ? null : { d, zeit: Date.now() }; return d; })
+      .finally(() => { koppelnLaeuft = null; });
+    return koppelnLaeuft;
   }
   // --- Koppeln ohne Ausstecken -----------------------------------------------------------------------------------------
   // Jede Home-Bildschirm-App und http/https haben ihren eigenen Speicher, also ihr eigenes Token. Eine gekoppelte Seite
@@ -105,15 +124,36 @@
     const pfad = sat ? `/api/satellit/${encodeURIComponent(boxId)}/${name}` : `/api/${name}`;
     // Cover: dieselbe Herkunft, das Bild lädt die Seite direkt (kein Umweg über JSON)
     if (name.startsWith("cover/")) return { ok: true, bild: pfad };
+    // Bilder des CD-Regals: nur mit Token (Kopfzeile), darum nicht als <img src>. Die Box liefert das Bild selbst
+    // (kein JSON); hier wird daraus eine data-URL wie in der App.
+    if (name.startsWith("regal/bild/")) return regalBild(pfad);
     const methode = name === "status" || (LESEN.has(name.split("?")[0]) && leer(daten)) ? "GET" : "POST";
-    let { code, d } = await anfrage(methode, pfad, daten);
+    let { code, d, t } = await anfrage(methode, pfad, daten);
     if (code === 401 && d.grund === "kein_token") {
-      const k = await koppeln(); if (!k.ok) return k;
+      const k = await koppelnEinmal(t); if (!k.ok) return k;
       ({ code, d } = await anfrage(methode, pfad, daten));
     }
     if (typeof d.ok !== "boolean") d.ok = code >= 200 && code < 300;
     if (name === "status" && !sat && d.ok) statusMerken(d);
     return d;
+  }
+  async function regalBild(pfad, nochmal = true) {
+    const t = token();
+    try {
+      const r = await fetch(pfad, { headers: t ? { "X-Klangbox-Token": t } : {} });
+      if (r.status === 401) {  // neu koppeln nur ohne gültiges Token, einmal und gemeinsam mit allen anderen Aufrufen
+        let d = null; try { d = await r.json(); } catch (e) { d = null; }
+        if (!nochmal || !d || d.grund !== "kein_token") return { ok: false, grund: (d && d.grund) || "kein_token", fehler: (d && d.fehler) || "Kein Zugang." };
+        const k = await koppelnEinmal(t); return k.ok ? regalBild(pfad, false) : k;
+      }
+      const typ = r.headers.get("Content-Type") || "";
+      if (!r.ok || !typ.startsWith("image/")) return { ok: false, grund: "kein_cover", fehler: "Kein Cover." };
+      const blob = await r.blob();
+      const bild = await new Promise((fertig) => { const l = new FileReader(); l.onload = () => fertig(String(l.result || "")); l.onerror = () => fertig(""); l.readAsDataURL(blob); });
+      return bild ? { ok: true, bild } : { ok: false, grund: "kein_cover", fehler: "Kein Cover." };
+    } catch (e) {
+      return { ok: false, grund: "netz", fehler: "Die Klång-Box ist gerade nicht erreichbar." };
+    }
   }
   const NUR_APP = new Set(["suchen", "einrichtung"]);
   const antworten = (fn, ...a) => setTimeout(() => { try { if (typeof N[fn] === "function") N[fn](...a); } catch (e) { /* Seite noch nicht bereit */ } }, 0);
@@ -121,7 +161,7 @@
     if (!m || typeof m !== "object") return;
     if (m.art === "box") {
       if (NUR_APP.has(m.aufruf)) return antworten("boxAntwort", m.reqId, { ok: false, grund: "nur_app", fehler: "Das geht nur in der App." });
-      const p = m.aufruf === "koppeln" ? koppeln() : aufruf(m.aufruf, m.daten, m.box);
+      const p = m.aufruf === "koppeln" ? koppelnEinmal() : aufruf(m.aufruf, m.daten, m.box);
       p.then((d) => antworten("boxAntwort", m.reqId, d));
     } else if (m.art === "aufnahmeStart") antworten("aufnahmeFehler", m.id, "Messen geht auf der Mess-Seite im Internet.");
     else if (typeof m.art === "string" && m.art.startsWith("kef")) antworten("kefAntwort", m.reqId, { ok: false, grund: "nur_app", fehler: "Das geht nur in der App." });

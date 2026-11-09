@@ -3,14 +3,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="c02f2c03ff40">
+<meta name="klangbox-stand" content="4878c9b2957d">
+<meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
+<script id="kb-darstellung">
+// Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
+// Läuft vor allem anderen, damit nichts aufblitzt. Zieht theme-color mit (auch den Kopf der Bedienseite) und sagt es der App
+// ({art: "darstellung", wert}: Statusleiste, Ränder). Ohne localStorage bleibt es bei Automatisch.
+(function () {
+  var SCHLUESSEL = "kb-darstellung";
+  function lesen() { try { var w = localStorage.getItem(SCHLUESSEL); return w === "hell" || w === "dunkel" ? w : "auto"; } catch (e) { return "auto"; } }
+  function anwenden(w, melden) {
+    var h = document.documentElement;
+    if (w === "hell" || w === "dunkel") h.setAttribute("data-thema", w); else { w = "auto"; h.removeAttribute("data-thema"); }
+    // theme-color: die Farben stehen in den Meta-Angaben (hell/dunkel je Medium); gewählt gilt eine für beide
+    var m = document.querySelectorAll('meta[name="theme-color"]'), farbe = {}, i;
+    for (i = 0; i < m.length; i++) {
+      if (!m[i].hasAttribute("data-auto")) m[i].setAttribute("data-auto", m[i].getAttribute("content") || "");
+      farbe[/dark/.test(m[i].getAttribute("media") || "") ? "dunkel" : "hell"] = m[i].getAttribute("data-auto");
+    }
+    for (i = 0; i < m.length; i++) m[i].setAttribute("content", (w !== "auto" && farbe[w]) || m[i].getAttribute("data-auto"));
+    if (melden) { try { window.webkit.messageHandlers.klangbox.postMessage({ art: "darstellung", wert: w }); } catch (e) { /* ohne App */ } }
+    return w;
+  }
+  window.klangboxDarstellung = {
+    wert: function () { var t = document.documentElement.getAttribute("data-thema"); return t === "hell" || t === "dunkel" ? t : "auto"; },
+    // gerade dunkel? (gewählt oder vom Gerät)
+    dunkel: function () { var w = this.wert(); try { return w === "dunkel" || (w === "auto" && matchMedia("(prefers-color-scheme: dark)").matches); } catch (e) { return w === "dunkel"; } },
+    setzen: function (w) {
+      w = anwenden(w, true);
+      try { if (w === "auto") localStorage.removeItem(SCHLUESSEL); else localStorage.setItem(SCHLUESSEL, w); } catch (e) { /* nur für diese Sitzung */ }
+      try { window.dispatchEvent(new CustomEvent("klangboxthema", { detail: { wert: w } })); } catch (e) { /* alt */ }
+      return w;
+    }
+  };
+  anwenden(lesen(), true);
+  document.addEventListener("DOMContentLoaded", function () { anwenden(klangboxDarstellung.wert(), false); });
+})();
+</script>
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
 <title>Klång-Box Raum-Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" href="favicon.svg?v=dp1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=dp1" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=dp1">
-<meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
+
 <style>
 /* Raum-Check: geführte Messung, Ergebnis heute → mit Klång-Box, Sweetspot-Finder.
    Eine Spalte wie die iPhone-App. Läuft offline in der App (WKWebView): die Schrift ist eingebettet. */
@@ -519,10 +555,6 @@ details.mehr > :not(summary) { animation: aufklappen var(--kb-zeit) var(--kb-kur
 /* Zeitlinie (Player) */
 .zh-zeit { height: 2px; border-radius: 0; background: var(--kb-linie); overflow: hidden; }
 .zh-zeit i { display: block; height: 100%; background: var(--kb-text); border-radius: 0; transition: width 1s linear; }
-.zh-zeit-reihe { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-.zh-zeit-reihe .zh-zeit { flex: 1; }
-.zh-zeit-t { font: var(--kb-t-klein); color: var(--kb-text-leise); min-width: 4ch; }
-.zh-zeit-reihe .zh-zeit-t:last-child { text-align: right; }
 /* Kreisender Ladepunkt → kleine Mess-Welle (steht unter reduzierter Bewegung still) */
 .laeuft { display: flex; align-items: center; gap: 8px; color: var(--kb-text-leise); }
 .laeuft::before { content: ""; width: 16px; height: 12px; flex: none; border: 0; border-radius: 0; background: var(--kb-signal);
@@ -534,35 +566,37 @@ details.mehr > :not(summary) { animation: aufklappen var(--kb-zeit) var(--kb-kur
 .zh-jetzt-karte { --vol-ink: var(--kb-text); --vol-leise: var(--kb-text-leise); --vol-nadel: var(--kb-signal); --vol-schleier: var(--kb-ebene-schleier);
   --vol-over-ink: var(--kb-ebene-text); --vol-over-leise: var(--kb-cover-schrift); --vol-strich: var(--kb-skala-leer); --vol-strich-an: var(--kb-ebene-text);
   --vol-schrift: var(--kb-schrift); --vol-zeit: var(--kb-zeit); }
-.zh-jetzt-zeile { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
-.zh-jetzt-zeile h2 { min-width: 0; }
-.zh-vol-klein { flex: none; display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; min-height: 44px; min-width: 44px; padding: 0; background: none; box-shadow: none; border: 0;
-  color: var(--vol-leise); font: 500 17px/20px var(--kb-schrift); cursor: default; }
-.zh-vol-klein svg { width: 15px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
-.zh-vol-klein[data-stumm="1"] .welle { display: none; }
+.zh-jetzt-zeile { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
+/* lange Titel (Hörspiele): höchstens zwei Zeilen mit Auslassung; die Zahl rechts steht bündig mit der ersten Zeile */
+.zh-jetzt-zeile h2 { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+/* Zahl am Ende der Linie (Variante B): Textfarbe, tabellarische Ziffern; „Stumm“ leise */
+.zh-vol-klein { flex: none; min-width: 3ch; text-align: right; color: var(--vol-ink); font: 500 17px/20px var(--kb-schrift); font-variant-numeric: var(--kb-zahlen); }
+.zh-vol-klein[hidden] { display: none; }
+.zh-vol-klein[data-stumm="1"] { color: var(--vol-leise); }
+/* Spielzeit hinter Interpret und Album: leise, tabellarisch */
+.zh-zeit-text { color: var(--kb-text-leise); font-variant-numeric: var(--kb-zahlen); white-space: nowrap; }
 .zh-jetzt-karte .lp, .zh-jetzt-karte.still { position: relative; }
 .zh-vol-over { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; border-radius: inherit; background: var(--vol-schleier);
   opacity: 0; pointer-events: none; transition: opacity var(--vol-zeit) var(--kb-kurve); }
 .zh-jetzt-karte .lp .zh-vol-over { border-radius: var(--kb-r); }
 .zh-jetzt-karte[data-laut="1"] .zh-vol-over { opacity: 1; }
-/* Bedienleiste nach dem Mockup: runde Knöpfe − und + (48 px, Haarlinie), dazwischen Linie mit Füllung und Punkt, darunter Text */
+/* Bedienleiste: runde Knöpfe − und + (44 px, Haarlinie), dazwischen mittig die Linie mit Füllung und Punkt, am Ende der Linie
+   die Zahl. Der Text der Mitte bleibt für Vorleser (aria-label, Ansage), sichtbar ist er nicht. */
 .zh-vol-leiste { display: flex; width: 100%; justify-self: stretch; align-items: center; gap: 12px; flex-wrap: nowrap; }
 .zh-vol-leiste[hidden] { display: none; }
-.zh-vol-knopf { flex: none; width: 48px; height: 48px; min-height: 48px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: transparent;
+.zh-vol-knopf { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; display: grid; place-items: center; border-radius: 50%; background: transparent;
   box-shadow: inset 0 0 0 1px var(--kb-linie); color: var(--kb-text); touch-action: manipulation; user-select: none; -webkit-user-select: none;
   -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; transition: background-color var(--kb-zeit-kurz) var(--kb-kurve); }
 .zh-vol-knopf svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 .zh-vol-knopf:active:not(:disabled) { background: var(--kb-flaeche); }
 .zh-vol-knopf:disabled { color: var(--kb-text-leise); opacity: .5; }
-.zh-vol-leiste[data-art="anzeige"] .zh-vol-knopf { display: none; }
-.zh-vol-mitte { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; justify-items: stretch; gap: 8px; width: 100%; min-width: 0; min-height: 48px; padding: 8px 0 0; background: none; box-shadow: none; border: 0; border-radius: 0;
+.zh-vol-mitte { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; justify-items: stretch; align-content: center; width: 100%; min-width: 0; min-height: 44px; padding: 0; background: none; box-shadow: none; border: 0; border-radius: 0;
   color: var(--kb-text-leise); text-align: left; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .zh-vol-mitte:active:not(:disabled) { background: none; }
 .zh-vol-linie { position: relative; display: block; width: 100%; height: 2px; background: var(--kb-linie); }
 .zh-vol-linie i { position: absolute; left: 0; top: 0; height: 2px; width: 0; background: var(--kb-text); }
 .zh-vol-linie b { position: absolute; top: -4px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--kb-signal); }
-.zh-vol-leiste[data-art="anzeige"] .zh-vol-linie b { background: var(--kb-text); }
-.zh-vol-mitte-text { font: var(--kb-t-klein); color: var(--kb-text-leise); overflow-wrap: anywhere; }
+.zh-vol-mitte-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .zh-vol-mitte-zahl { color: inherit; }
 .zh-jetzt-karte .zh-jetzt-text { transition: opacity var(--vol-zeit) var(--kb-kurve); }
 .zh-jetzt-karte[data-laut="1"] .zh-jetzt-text { opacity: 0; }
@@ -579,8 +613,6 @@ details.mehr > :not(summary) { animation: aufklappen var(--kb-zeit) var(--kb-kur
 .zh-vol-striche i.lang { height: 18px; }
 .zh-vol-striche i.an { background: var(--vol-strich-an); }
 .zh-vol-nadel { position: absolute; bottom: -2px; width: 2px; height: 24px; margin-left: -1px; background: var(--vol-nadel); border-radius: 0; }
-.zh-jetzt-karte[data-laut-art="anzeige"] .zh-vol-nadel { background: var(--vol-over-ink); }
-.zh-jetzt-karte[data-laut-art="anzeige"] .zh-vol-nadel[data-voll="1"] { background: var(--kb-signal); }
 .zh-vol-grenze { position: absolute; top: -4px; width: 1px; height: 4px; background: var(--vol-over-leise); text-decoration: none; }
 .zh-vol-ziffern { display: flex; justify-content: space-between; font: var(--kb-t-skala); color: var(--vol-over-leise); }
 .zh-vol-ziffern span { width: 0; display: flex; justify-content: center; white-space: nowrap; }
@@ -924,7 +956,7 @@ body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, var(--kb-
 @media (max-width: 340px) { .kb-gruppe.zeile { grid-template-columns: minmax(0, 1fr); } .kb-gruppe.zeile > .seg > button { white-space: normal; padding: 0 4px; } .zh-tabs button { min-width: 0; } }
 #zh-schalter-mehr #zh-schalter-hilfe { display: grid; gap: 8px; }
 .sheet-fuss { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 16px; padding-top: 8px; border-top: 1px solid var(--kb-linie); }
-.zh-held { position: relative; display: grid; gap: 4px; padding: 16px 0 0; border-top: 1px solid var(--kb-linie); overflow: visible; isolation: isolate; }
+.zh-held { position: relative; display: grid; gap: 4px; padding: 0; overflow: visible; isolation: isolate; }
 .zh-quelle { color: var(--kb-text-leise); font: var(--kb-t-klein); min-height: 20px; margin: 0; }
 .zh-quelle b { font-weight: 500; color: var(--kb-text); }
 .zh-ab { display: grid; gap: 8px; }
@@ -933,9 +965,20 @@ body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, var(--kb-
 .zh-ab-seg { flex: 1 1 200px; }
 .zh-ab-reihe #zh-blind { flex: none; min-height: 52px; }
 .zh-ab-text { margin: 0; }
+/* Hören: Bereich als Hauptsegment in voller Breite, darunter leise Zusätze (Chips mit Haarlinie, links; aktiv mit Rahmen in Signal) */
+.zh-bereich-seg[hidden], .zh-zusatz[hidden], .zh-zusatz-teil[hidden] { display: none; }
+.zh-bereich-seg > button { white-space: nowrap; padding: 0 8px; }
+.zh-zusatz, .zh-zusatz-teil { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.zh-zusatz { margin-top: 4px; }
+.zh-chip { flex: none; min-height: 44px; min-width: 44px; padding: 0 12px; background: transparent; box-shadow: inset 0 0 0 1px var(--kb-linie);
+  color: var(--kb-text-leise); font: var(--kb-t-bedien); touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.zh-chip:active:not(:disabled) { background: var(--kb-flaeche); }
+.zh-chip[aria-pressed="true"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--kb-signal); color: var(--kb-signal-text); font-weight: 600; }
+.zh-bereich-status { margin: 0; } .zh-bereich-status:empty { display: none; }
 .zh-ab-text .kb-link { min-height: 20px; font: var(--kb-t-klein); }
 .zh-klang-zeile { border-bottom: 0; }
-.zh-linkzeile { display: flex; gap: 0 20px; border-top: 1px solid var(--kb-linie); }
+.zh-linkzeile { display: flex; gap: 0 20px; }
+#zh-album-zeile .kb-zeile { border-bottom: 0; }   /* „Mehr zum Album ›“ wie „Klang ›“: keine eigene Haarlinie */
 .schritt[data-s="18"]:has(#zh-jetzt[hidden]) #zh-album-zeile, .schritt[data-s="18"]:has(.zh-jetzt-karte.still) #zh-album-zeile { display: none; }
 .zh-blind { display: grid; gap: 8px; } .zh-blind .knoepfe button { min-height: 48px; font: 600 19px/24px var(--kb-schrift); }
 .zh-ohne { margin: 0; }
@@ -983,6 +1026,10 @@ button.zh-karte-name:active:not(:disabled) { background: none; }
 .zh-gruppe { display: grid; }
 .zh-gruppe > .kb-label { margin: 0 0 4px; }
 .zh-gruppe > .kb-zeile:first-of-type { border-top: 1px solid var(--kb-linie); }
+/* Box › App › Darstellung: Zeile wie eine Listenzeile, darunter das Segment (drei Wörter passen nicht neben die Bezeichnung) */
+.zh-darstellung { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--kb-linie); color: var(--kb-text); font: 500 17px/24px var(--kb-schrift); }
+.zh-gruppe > .kb-label + .zh-darstellung { border-top: 1px solid var(--kb-linie); }
+.zh-darstellung .seg > button { white-space: nowrap; padding: 0 8px; }
 #zh-aktionen ~ .zh-platz { border-top: 0; padding-top: 8px; }   /* keine doppelte Haarlinie unter den Zeilen */
 .zh-leer { display: grid; gap: 12px; justify-items: start; padding: 8px 0; }
 .zh-leer p { margin: 0; }
@@ -1030,7 +1077,14 @@ body.rg-offen .sheet-lage { z-index: 80; }
 .zh-hinweise { display: grid; gap: 4px; }
 .zh-diag { display: grid; gap: 4px; }
 .zh-diag > .kb-label { margin: 0; }
-.zh-diag-links { display: flex; flex-wrap: wrap; gap: 0 20px; border-top: 1px solid var(--kb-linie); padding-top: 4px; }
+.zh-diag > #zh-diag-bericht { border-top: 1px solid var(--kb-linie); }
+.zh-diag-links { display: flex; flex-wrap: wrap; gap: 0 20px; }
+/* Fenster „Fehlersuche“: je Werkzeug eine Zeile, darunter ein Satz, wozu */
+.zh-fehler-liste { display: grid; }
+.zh-fehler { display: grid; padding-bottom: 12px; border-bottom: 1px solid var(--kb-linie); }
+.zh-fehler:first-child > .kb-zeile { border-top: 1px solid var(--kb-linie); }
+.zh-fehler > .kb-zeile { border-bottom: 0; }
+.zh-fehler > .klein { margin: -8px 0 0; }
 .zh-diag p { margin: 0; }
 .zh-bib-liste { max-height: 52vh; overflow-y: auto; }
 .zh-bib-zeile { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; text-align: left; background: transparent; color: var(--kb-text); min-height: 44px; padding: 8px 0;
@@ -1126,9 +1180,13 @@ body.rg-offen { overflow: hidden; }
 /* Platzhalter: Fläche „Cover leer“ und Anfangsbuchstabe, ohne Farbton je Album */
 .rg-platz { position: absolute; inset: 0; display: grid; place-items: end start; padding: 12px; font: 500 13px/16px var(--kb-schrift); color: var(--kb-cover-schrift); background: var(--kb-cover-leer); }
 .rg-platz::before { content: attr(data-k); }
-/* Serien-Stapel: zwei versetzte Haarlinien-Rahmen statt Schatten */
-.rg-stapel .rg-cover { box-shadow: none; outline: 1px solid var(--kb-linie); outline-offset: -1px; margin: 8px 8px 0 0; overflow: visible; }
-.rg-stapel .rg-cover::before { content: ""; position: absolute; inset: -4px -4px 4px 4px; border: 1px solid var(--kb-linie); border-radius: var(--kb-r); z-index: -1; }
+/* Serien-Stapel: eine Kachel mit feiner zweiter Kante dahinter (4 px nach rechts oben, nur Haarlinie, ohne Schatten).
+   Breite und oberer Rand zusammen wie eine normale Kachel: gleiche Höhe, die Textzeilen stehen an derselben Stelle. Die
+   Kante liegt nur oben und rechts neben dem Cover (nie darüber) und nimmt im Raster keinen Platz. */
+.rg-stapel { position: relative; }
+.rg-stapel .rg-cover { width: calc(100% - 4px); justify-self: start; margin-top: 4px; outline: 1px solid var(--kb-linie); outline-offset: -1px; }
+.rg-stapel::before { content: ""; position: absolute; top: 0; left: 4px; width: calc(100% - 4px); aspect-ratio: 1; box-sizing: border-box;
+  border: solid var(--kb-linie); border-width: 1px 1px 0 0; border-radius: var(--kb-r); pointer-events: none; }
 .rg-laeuft { all: unset; cursor: pointer; display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0;
   border-top: 1px solid var(--kb-linie); border-bottom: 1px solid var(--kb-linie); }
 .rg-chips + .rg-laeuft { border-top: 0; }   /* keine doppelte Haarlinie unter den Arten */
@@ -1893,22 +1951,22 @@ body.rg-offen { overflow: hidden; }
       <button type="button" class="zh-raum-waehler" id="zh-raum-waehler" data-sheet-block="zh-raum" data-sheet-titel="Raum" aria-haspopup="dialog"><span id="zh-anlage"></span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg></button>
       <!-- CD-Regal (regal.js): fester Knopf auf Hören, öffnet Regal und Booklets -->
       <button type="button" class="zh-regal-knopf" id="zh-regal" hidden>CD-Regal</button></div>
-    <div id="zh-jetzt" hidden></div><!-- Jetzt läuft (jetzt.js): Cover (Antippen dreht es), Titel, kleine Lautstärke, Zeitlinie, Lautstärke-Leiste -->
+    <div id="zh-jetzt" hidden></div><!-- Jetzt läuft (jetzt.js): Cover (Antippen dreht es), Titel, Interpret · Zeit, Lautstärke-Leiste (nur wenn die Box regelt) -->
     <div class="zh-held" id="zh-held" data-ab="nachher">
-      <!-- Vergleich: ein Segment „Nachher | Vorher“ und daneben „Blind“ (R6); im Blindtest heißen die Seiten A und B -->
-      <div class="zh-ab" id="zh-ab">
-        <div class="zh-ab-reihe">
-          <div class="seg zh-ab-seg" id="zh-ab-schalter" role="group" aria-label="Vergleich" data-ab="nachher">
-            <button type="button" id="zh-ab-links" data-zh-ab="nachher" aria-pressed="true">Nachher</button><button type="button" id="zh-ab-rechts" data-zh-ab="vorher" aria-pressed="false">Vorher</button></div>
-          <button type="button" class="zweit" id="zh-blind" aria-pressed="false">Blind</button></div>
-        <div class="zh-blind" id="zh-blind-wahl" hidden><span class="klein">Welche gefällt dir?</span>
-          <div class="knoepfe"><button type="button" class="zweit" data-zh-mag="A">A</button><button type="button" class="zweit" data-zh-mag="B">B</button></div></div>
-        <p class="klein zh-ab-text" id="zh-ab-text" aria-live="polite"></p>
-      </div>
+      <!-- Bereich „90 Hz · 150 Hz · Voll“ ist das Hauptelement (Nutzer 09.11.2026: „nicht Vorher/Nachher ist der Fokus“).
+           Darunter leise Zusätze: „Vorher“ (Tippen schaltet um, aktiv mit Rahmen in Signal; Halten hört Vorher, solange der
+           Finger drauf ist) und „Blind“. Im Blindtest: A hören · B hören · A besser · B besser · Beenden. Der volle Vergleich
+           steht zusätzlich im Fenster Klang (Gruppe „Vergleich“). -->
+      <div class="seg zh-bereich-seg" id="zh-bereich" role="group" aria-label="Bereich" hidden></div>
+      <div class="zh-zusatz" id="zh-zusatz" hidden>
+        <span class="zh-zusatz-teil" id="zh-zusatz-normal"><button type="button" class="zh-chip" id="zh-vorher" aria-pressed="false" aria-label="Vorher hören, ohne Einmessung">Vorher</button><button type="button" class="zh-chip" id="zh-blind-k">Blind</button></span>
+        <span class="zh-zusatz-teil" id="zh-zusatz-blind" hidden><button type="button" class="zh-chip" data-zh-hoer="a" aria-pressed="false">A hören</button><button type="button" class="zh-chip" data-zh-hoer="b" aria-pressed="false">B hören</button><button type="button" class="zh-chip" data-zh-mag="A">A besser</button><button type="button" class="zh-chip" data-zh-mag="B">B besser</button><button type="button" class="zh-chip" id="zh-blind-ende">Beenden</button></span></div>
+      <p class="klein zh-bereich-status" id="zh-urteil" aria-live="polite" tabindex="-1"></p>
+      <p class="klein zh-bereich-status" id="zh-bereich-status" aria-live="polite"></p>
       <!-- Eine Zeile „Klang · ‹Schalter›“ mit Pfeil öffnet das Fenster Klang (Bereich, Mitte, Stimme, Bass, Anpassung; R5). Im Blindtest verborgen -->
       <button type="button" class="kb-zeile zh-klang-zeile" id="zh-klang-zeile" data-sheet-block="zh-schalter" data-sheet-titel="Klang" hidden><span>Klang <span class="wert" id="zh-klang-wert"></span></span></button>
-      <!-- ruhige Linkzeile unter dem Player (§3.3): Mitwirkende, Quelle, Signalweg, Vollbild -->
-      <div class="zh-linkzeile" id="zh-album-zeile"><button type="button" class="kb-link" id="zh-album-link" data-sheet-block="zh-album" data-sheet-titel="Mehr zum Album">Mehr zum Album</button></div>
+      <!-- ruhige Zeile wie „Klang ›“: Mitwirkende, Quelle, Signalweg, Vollbild -->
+      <div class="zh-linkzeile" id="zh-album-zeile"><button type="button" class="kb-zeile" id="zh-album-link" data-sheet-block="zh-album" data-sheet-titel="Mehr zum Album">Mehr zum Album</button></div>
       <div class="zh-leer" id="zh-ab-ohne" hidden><p>Ohne Klång-Box gibt es hier nichts zu schalten. Vorher/Nachher: im Ergebnis unter Details.</p>
         <button type="button" class="zweit" id="zh-leer-verbinden">Klång-Box verbinden</button></div>
     </div>
@@ -2017,9 +2075,19 @@ body.rg-offen { overflow: hidden; }
         <button type="button" id="zh-auf-anlegen">Anlegen</button></div>
       <p class="klein" id="zh-auf-status" aria-live="polite"></p>
     </div>
-    <!-- Fenster Klang (Hören › „Klang · …“): Hör-Schalter (klangbox/feinabstimmung.py) Bereich, Mitte, Stimme, Bass, Anpassung;
+    <!-- Fenster Klang (Hören › „Klang · …“): Vergleich (Nachher | Vorher, Blind), Hör-Schalter (klangbox/feinabstimmung.py) Mitte, Stimme, Bass, Anpassung (Bereich steht auf Hören);
          im Kino Räumlichkeit, dazu Nachtmodus. Fuß: Klangprofil, Mehr zum Album, Knacken gehört. -->
     <div class="sheet-block" hidden data-block="zh-schalter" id="zh-schalter-block">
+      <!-- Vergleich: ein Segment „Nachher | Vorher“ und daneben „Blind“ (R6); im Blindtest heißen die Seiten A und B -->
+      <div class="kb-gruppe zh-ab" id="zh-ab"><span class="kb-label">Vergleich</span>
+        <div class="zh-ab-reihe">
+          <div class="seg zh-ab-seg" id="zh-ab-schalter" role="group" aria-label="Vergleich" data-ab="nachher">
+            <button type="button" id="zh-ab-links" data-zh-ab="nachher" aria-pressed="true">Nachher</button><button type="button" id="zh-ab-rechts" data-zh-ab="vorher" aria-pressed="false">Vorher</button></div>
+          <button type="button" class="zweit" id="zh-blind" aria-pressed="false">Blind</button></div>
+        <div class="zh-blind" id="zh-blind-wahl" hidden><span class="klein">Welche gefällt dir?</span>
+          <div class="knoepfe"><button type="button" class="zweit" data-zh-mag="A">A</button><button type="button" class="zweit" data-zh-mag="B">B</button></div></div>
+        <p class="klein zh-ab-text" id="zh-ab-text" aria-live="polite"></p>
+      </div>
       <div class="kb-gruppen eng" id="zh-schalter-gruppen"></div>
       <div class="kb-gruppen eng" id="zh-inhalt-gruppen"></div>
       <p class="klein" id="zh-schalter-status" aria-live="polite"></p>
@@ -10325,7 +10393,7 @@ $("p-weiter").addEventListener("click", () => { anwendenArt = "box"; zeigeSchrit
 // Export: Datei mit Raumanpassung und Profil (Form wie klangprofile.export in Python)
 // Korrekturbereich (Nutzer 06.11.2026: „die vertraute Stimmfarbe hat sich geändert“): r.bereich = 90 oder 150 Hz
 // lässt alle Raum-Filter darüber weg; null = voll (bis 300 Hz). Gleiche Messung, nur weniger Eingriff.
-const BEREICHE = [[null, "Voll"], [150, "150 Hz"], [90, "90 Hz"]];  // überall dieselbe Reihenfolge: Voll · 150 · 90
+const BEREICHE = [[90, "90 Hz"], [150, "150 Hz"], [null, "Voll"]];  // überall dieselbe Reihenfolge, aufsteigend: 90 · 150 · Voll
 const imBereich = (r, q) => !(r && r.bereich) || q.freq <= r.bereich;
 function exportObjekt(r, stand, einst, profil, geraet) {
   const kanal = (c) => ({ gain_db: c.gain_db, delay_ms: c.delay_ms, eq: c.eq.filter((q) => einst !== r.e.einstellungen || imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q })) });
@@ -11888,7 +11956,7 @@ async function rundenVonDerBox() {
 // Hör-Schalter: je Gruppe ein Segment; die Box lädt die Variante, die Wächter prüfen sie (klangbox/feinabstimmung.py)
 const HS_STANDARD = { stimme: "gemessen", bereich: null, bass: "voll", mitte: "ausgerichtet", anpassung: "geladen" };
 const HS_GRUPPEN = [
-  ["bereich", "Bereich", [[null, "Voll"], [150, "150 Hz"], [90, "90 Hz"]], "Bereich: bis zu welcher Tonhöhe die Einmessung den Raum ausgleicht. Voll heißt bis 300 Hz, 150 und 90 Hz lassen Stimmen ganz unberührt."],
+  ["bereich", "Bereich", [[90, "90 Hz"], [150, "150 Hz"], [null, "Voll"]], "Bereich: bis zu welcher Tonhöhe die Einmessung den Raum ausgleicht. 90 und 150 Hz lassen Stimmen ganz unberührt, Voll gleicht bis 300 Hz aus."],
   ["mitte", "Mitte", [["ausgerichtet", "Ausgerichtet"], ["raum", "Wie der Raum"]], "Mitte: Ausgerichtet steht die Stimme scharf in der Mitte. Wie der Raum klingt breiter und weicher."],
   ["stimme", "Stimme", [["gemessen", "Gemessen"], ["je_seite", "Je Seite"], ["teil", "Gemeinsam"], ["symmetrisch", "Beide gleich"]], "Stimme: wie die Box Stimmen und Instrumente (über 120 Hz) ausgleicht. Gemessen ist der Vorschlag der Messung, Beide gleich gibt beiden Boxen dieselbe Kurve."],
   ["bass", "Bass", [["voll", "Ganz"], ["maessig", "Gemäßigt"]], "Bass: Ganz senkt Dröhnen so weit wie nötig, Gemäßigt höchstens um 6 dB (oft satter)."]];
@@ -11901,7 +11969,7 @@ function hsZeigen() {
     : md.rechnet ? `<span class="laeuft">Die Box rechnet neu … (1 bis 5 Minuten, die Musik läuft weiter)</span>`
     : `${md.neu && md.neu.fehler ? `<span class="warn klein">Neu rechnen: ${esc(md.neu.fehler)}</span>` : ""}<button type="button" class="zweit" id="zh-neu-rechnen">${neuDa ? "Noch einmal neu rechnen" : "Aus den Messdaten neu rechnen"}</button>`;
   // kurz: Bezeichnung links, Segment rechts; die Erklärungen stehen gesammelt unter „Was die Schalter tun“ (Fuß bleibt sichtbar)
-  $("zh-schalter-gruppen").innerHTML = gruppen.map(([k, titel, werte]) => `<div class="kb-gruppe zeile"><span class="kb-label">${titel}</span>
+  $("zh-schalter-gruppen").innerHTML = gruppen.filter(([k]) => k !== "bereich").map(([k, titel, werte]) => `<div class="kb-gruppe zeile"><span class="kb-label">${titel}</span>
     <div class="seg" role="group" aria-label="${titel}">${werte.filter(([w]) => (w !== "je_seite" || (zh.st && zh.st.hoerschalter_voll) || s[k] === w)
       && (w !== "teil" || (zh.st && zh.st.hoerschalter_teil) || s[k] === w)).map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="${s[k] === w}">${t}</button>`).join("")}</div></div>`).join("");
   $("zh-schalter-hilfe").innerHTML = gruppen.map(([, , , hilfe]) => `<p class="klein">${hilfe}</p>`).join("") + `<p class="klein">Nachtmodus: leise Stellen lauter, laute leiser.</p>`;
@@ -11991,10 +12059,33 @@ $("zh-auf-anlegen").addEventListener("click", async () => {
 function klangZeileZeigen() {
   const el = $("zh-klang-zeile"), st = zh.st;
   el.hidden = !boxBereit() || !st || $("zh-ab").hidden || !!zh.blind;
+  bereichZeigen();
   if (el.hidden) return;
+  // Mitte immer, dazu Stimme, Bass, Rechnung, wenn anders als gemessen (sonst „Wie gemessen“); im Blindtest ohne Werte
   const s = hsStand(), name = ([k, , werte]) => (werte.find(([w]) => w === s[k]) || [])[1];
-  const teile = [HS_GRUPPEN[0], HS_GRUPPEN[1]].map(name).concat(HS_GRUPPEN.slice(2).concat([HS_ANPASSUNG]).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name)).filter(Boolean);
+  const rest = HS_GRUPPEN.slice(2).concat([HS_ANPASSUNG]).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name).filter(Boolean);
+  const teile = [name(HS_GRUPPEN[1])].concat(rest.length ? rest : ["Wie gemessen"]).filter(Boolean);
   $("zh-klang-wert").textContent = st.hoerschalter ? `· ${teile.join(" · ")}` : "";
+}
+// Hören: Bereich als Hauptsegment (Hör-Schalter „bereich“, gleiche Logik wie im Fenster), darunter leise „Vorher“ und „Blind“.
+// Im Blindtest kein Bereich (die Schalter würden verraten, welche Seite die Box ist), dafür der Ablauf als leise Zusätze.
+function bereichZeigen() {
+  const st = zh.st, da = boxBereit() && !!st && !$("zh-ab").hidden, blind = zh.blind;
+  $("zh-bereich").hidden = !da || !st.hoerschalter || !!blind;
+  $("zh-zusatz").hidden = !da;
+  if (!da) { $("zh-bereich-status").textContent = ""; return; }
+  if (!$("zh-bereich").hidden) {
+    // einmal bauen, danach nur aria-pressed (Neubau bei jedem Status nähme Tastatur und VoiceOver den Fokus)
+    const s = hsStand(), [k, , werte] = HS_GRUPPEN[0], seg = $("zh-bereich");
+    if (!seg.children.length) seg.innerHTML = werte.map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="false">${t}</button>`).join("");
+    for (const b of seg.children) b.setAttribute("aria-pressed", String(s[k] === (b.dataset.hsWert ? +b.dataset.hsWert : null)));
+  }
+  $("zh-zusatz-normal").hidden = !!blind; $("zh-zusatz-blind").hidden = !blind;
+  const v = $("zh-vorher"), an = zh.ab === "vorher";
+  v.setAttribute("aria-pressed", String(an)); v.setAttribute("aria-label", an ? "Vorher läuft, ohne Einmessung. Antippen für Nachher" : "Vorher hören, ohne Einmessung");
+  document.querySelectorAll("[data-zh-hoer]").forEach((b) => b.setAttribute("aria-pressed", String(!!blind && zh.ab === blind[b.dataset.zhHoer])));
+  const u = blind ? "Hör A und B, dann wähl. Die Namen bleiben verdeckt." : zh.urteil || "";
+  if ($("zh-urteil").innerHTML !== u) $("zh-urteil").innerHTML = u;
 }
 // „Für alle Plätze“ mit sanfterer Variante (status.hoerschalter_gleich): alle Schalter auf Standard heißt dann volle
 // Anpassung, nicht „wie gemessen“ (geladen ist die Variante); stehen sie wie von der Box gesetzt, ist es die Variante
@@ -12005,7 +12096,8 @@ const hsKurz = () => { const s = hsStand(), g = hsGleich(), an = [HS_ANPASSUNG].
   if (auto) return `Variante für alle Plätze (${an.join(" · ")})`;
   return an.length ? an.join(" · ") : g && g.variante ? "volle Anpassung" : "wie gemessen"; };
 async function hsSetzen(neu) {
-  const st = (t) => { $("zh-schalter-status").innerHTML = t; };
+  // im Fenster der ganze Satz; auf Hören (unter dem Bereich) nur Warnungen, ein Erfolg braucht dort keinen Satz
+  const st = (t) => { $("zh-schalter-status").innerHTML = t; $("zh-bereich-status").innerHTML = /class="warn"/.test(t) ? t : ""; };
   if (!nativ || !boxBereit()) { st(`<span class="warn">Die Klång-Box ist nicht verbunden.</span>`); return; }
   st(`<span class="laeuft">Schaltet um…</span>`);
   // nur, was vom Standard abweicht: eine noch nicht aktualisierte Box kennt neue Schalter (anpassung) nicht (Prüfer)
@@ -12021,6 +12113,7 @@ document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-hs]"); if (!b) return;
   const k = b.dataset.hs, roh = b.dataset.hsWert, w = k === "bereich" ? (roh ? +roh : null) : roh;
   const s = hsStand(); if (s[k] === w) return;
+  if (k === "bereich" && zh.ab === "vorher" && !zh.blind) zhAbSetzen("nachher");  // den neuen Bereich hören, nicht Vorher
   hsSetzen({ ...s, [k]: w });
 });
 $("zh-schalter-zurueck").addEventListener("click", () => hsSetzen({}));
@@ -12064,6 +12157,27 @@ function zhAktion(id, icon, text, an = true, extra = "") {
   return an ? `<button type="button" class="zh-aktion kb-zeile" id="${id}"${extra}>${icon ? `<span class="zh-ic">${icon}</span>` : ""}<span class="zh-aktion-text">${text}</span></button>` : "";
 }
 const zhGruppe = (titel, zeilen) => zeilen ? `<section class="zh-gruppe" aria-label="${titel}"><h2 class="kb-label">${titel}</h2>${zeilen}</section>` : "";
+// Box-Liste: nur neu setzen, wenn sich etwas ändert, und den Fokus (Tastatur, VoiceOver) auf dasselbe Element zurücklegen
+function zhListeSetzen(html) {
+  const l = $("zh-box-liste"); if (l.dataset.html === html) return;
+  const f = document.activeElement && l.contains(document.activeElement) ? document.activeElement : null;
+  const wahl = f ? (f.id ? `#${CSS.escape(f.id)}` : f.dataset.darstellung ? `[data-darstellung="${f.dataset.darstellung}"]` : null) : null;
+  l.innerHTML = html; l.dataset.html = html;
+  if (wahl) { const n = l.querySelector(wahl); if (n) try { n.focus({ preventScroll: true }); } catch (e) { /* ohne Fokus */ } }
+}
+// Box › App: Einstellungen der App (nur in der App) und die Darstellung (überall; Vorspann ganz oben setzt data-thema)
+const DARSTELLUNG = [["auto", "Automatisch"], ["hell", "Hell"], ["dunkel", "Dunkel"]];
+const zhDarstellung = () => { const w = window.klangboxDarstellung ? klangboxDarstellung.wert() : "auto";
+  return `<div class="zh-darstellung"><span id="zh-darstellung-label">Darstellung</span><div class="seg" role="group" aria-labelledby="zh-darstellung-label">${DARSTELLUNG.map(([k, t]) =>
+    `<button type="button" data-darstellung="${k}" aria-pressed="${w === k}">${t}</button>`).join("")}</div></div>`; };
+const zhAppGruppe = () => zhGruppe("App", zhAktion("zh-app", ZH_IC.app, "Einstellungen der App<small>AirPlay, Raumscan, Freigaben</small>", !!nativ && !window.klangboxBedienseite) + zhDarstellung());
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-darstellung]"); if (!b || !window.klangboxDarstellung) return;
+  const w = klangboxDarstellung.setzen(b.dataset.darstellung);
+  for (const k of document.querySelectorAll("[data-darstellung]")) k.setAttribute("aria-pressed", String(k.dataset.darstellung === w));
+});
+// Nach dem Umschalten: was Farben aus den Tokens liest, neu zeichnen (3D-Akzent liest --kb-signal; SVG-Skizzen folgen von selbst)
+window.addEventListener("klangboxthema", () => { try { if (window.Raum3D && Raum3D.setAkzent) Raum3D.setAkzent(); } catch (e) { /* ohne 3D */ } });
 const zhLayout = () => (boxBereit() && zh.st && zh.st.layout) || MA.layout;
 // Symbole im Box-Reiter: je Zeile ein eigenes (Linien 1,6 px, 24 px), keine Wiederholung
 const ZH_IC = {
@@ -12133,7 +12247,7 @@ function zuhauseZeigen(laden = true) {
     + zhAktion("zh-musik", "", `Musik-Analyse<small>was die Einmessung im Lied ändert</small>`, boxDa, ` data-sheet-block="zh-musik" data-sheet-titel="Musik-Analyse"`);
   // Box: gruppierte Liste (Zustand steht darüber als aufklappbare Zeile, Hilfe darunter)
   const sb = st && st.standby, lr = st && st.lautstaerke;
-  $("zh-box-liste").innerHTML = !boxDa ? zhGruppe("Box", zhAktion("zh-verbinden", ZH_IC.verbinden, "Klång-Box verbinden<small>freiwillig</small>", true)) :
+  zhListeSetzen(!boxDa ? zhGruppe("Box", zhAktion("zh-verbinden", ZH_IC.verbinden, "Klång-Box verbinden<small>freiwillig</small>", true)) + zhAppGruppe() :
     zhGruppe("Quellen", zhAktion("zh-quellen-k", ZH_IC.quellen, `Quellen<small>${esc(quellenKurz(st))}</small>`, !!(st && st.streamer), ` data-sheet-block="zh-quellen" data-sheet-titel="Quellen und Dienste"`))
     + zhGruppe("Bild und Ton", zhAktion("zh-lippen", ZH_IC.lippen, `Lippen-Sync<small>${zk(lippenMs(st), 0)} ms</small>`, true, ` data-sheet-block="zh-lippen" data-sheet-titel="Lippen-Sync"`)
       // Lautstärke: Leiste und Anzeige stehen auf Hören (lautstaerke.js); hier, wer regelt (0.2.54)
@@ -12143,8 +12257,8 @@ function zuhauseZeigen(laden = true) {
       + zhAktion("zh-standby", ZH_IC.standby, `Standby<small>${esc(standbyKurz(sb))}</small>`, !!sb && st.rolle !== "satellit" && "minuten" in sb, ` data-sheet-block="zh-standby" data-sheet-titel="Standby"`)
       + (window.klangboxBedienseite ? "" : zhAktion("zh-rear", ZH_IC.rear, "Rear-Box hinzufügen<small>zweite Box hinten, über Funk</small>", !!(nativ && nativ.boxen) && !(st && (st.satelliten || []).length))))
     + zhGruppe("Hördosis", zhAktion("zh-dosis-k", ZH_IC.dosis, `Hördosis<small>${esc(dosisKurz(st))}</small>`, !!(st && st.pegel), ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`))
-    + zhGruppe("App", zhAktion("zh-app", ZH_IC.app, "Einstellungen der App<small>AirPlay, Raumscan, Freigaben</small>", !!nativ && !window.klangboxBedienseite))
-    + zhGruppe("Labor", zhAktion("zh-takt", ZH_IC.takt, `Takt-Labor<small>${esc(taktKurz(st))}</small>`, !!(st && st.takt), ` data-sheet-block="zh-takt" data-sheet-titel="Takt-Labor"`));
+    + zhAppGruppe()
+    + zhGruppe("Labor", zhAktion("zh-takt", ZH_IC.takt, `Takt-Labor<small>${esc(taktKurz(st))}</small>`, !!(st && st.takt), ` data-sheet-block="zh-takt" data-sheet-titel="Takt-Labor"`)));
   standbyZeigen();
   // Box-Zustand: Funk je Satellit, Eingang, Warnungen der Wächter
   $("zh-zustand").hidden = !boxDa || !st;
@@ -12208,18 +12322,53 @@ function zhAbZeigen() {
   $("zh-ab-text").innerHTML = t; $("zh-ab-text").hidden = !t;
   klangZeileZeigen();
 }
-async function zhAbSetzen(seite) {
-  if (!boxBereit() || seite === zh.ab) return;
+// Vorher/Nachher zur Box: nie zwei Anfragen zugleich, immer nur der letzte Wunsch (Halten: an, los, an … in schneller Folge).
+// Zurückgenommen wird nur, wenn die letzte Anfrage scheitert und danach nichts Neues gewünscht wurde.
+const abSender = { inFlug: null, soll: null };
+function zhAbSetzen(seite) {
+  if (!boxBereit() || seite === zh.ab) return abSender.inFlug || Promise.resolve();
   zh.ab = seite; zh.abGesetzt = true; zh.urteil = ""; zhAbZeigen();
-  const a = await nativ.box("aus", { aus: seite === "vorher" }, { zeitMs: 6000 });
-  if (!a.ok) { zh.ab = seite === "vorher" ? "nachher" : "vorher"; zhAbZeigen(); $("zh-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; }
+  abSender.soll = seite;
+  if (!abSender.inFlug) abSender.inFlug = (async () => {
+    while (abSender.soll !== null) {
+      const s = abSender.soll; abSender.soll = null;
+      const a = await nativ.box("aus", { aus: s === "vorher" }, { zeitMs: 6000 });
+      if (!a.ok && abSender.soll === null && zh.ab === s) { zh.ab = s === "vorher" ? "nachher" : "vorher"; zhAbZeigen(); $("zh-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; }
+    }
+    abSender.inFlug = null;
+  })();
+  return abSender.inFlug;
 }
+// Hören › „Vorher“: Tippen schaltet um, Halten (ab 450 ms) hört Vorher, bis der Finger loslässt
+let vorherHalten = null;
+$("zh-vorher").addEventListener("pointerdown", (ev) => {
+  if (ev.button > 0 || zh.blind || zh.ab === "vorher" || !boxBereit()) return;
+  const h = vorherHalten = { an: false, gehalten: false };
+  h.uhr = setTimeout(() => { if (vorherHalten === h) { h.an = true; zhAbSetzen("vorher"); } }, 450);
+});
+const vorherLos = () => { const h = vorherHalten; if (!h) return; clearTimeout(h.uhr);
+  if (h.an && !h.gehalten) { h.gehalten = true; zhAbSetzen("nachher");
+    setTimeout(() => { if (vorherHalten === h) vorherHalten = null; }, 400);  // iOS schickt nach langem Drücken oft kein click
+  } else if (!h.an) vorherHalten = null; };
+["pointerup", "pointercancel", "pointerleave"].forEach((a) => $("zh-vorher").addEventListener(a, vorherLos));
+$("zh-vorher").addEventListener("contextmenu", (ev) => ev.preventDefault());
+$("zh-vorher").addEventListener("click", () => {
+  const h = vorherHalten; vorherHalten = null;
+  if (h && h.gehalten) return;  // war Halten: schon zurück auf Nachher
+  if (!zh.blind) zhAbSetzen(zh.ab === "vorher" ? "nachher" : "vorher");
+});
+// Blind auf Hören: startet bzw. beendet denselben Blindtest wie im Fenster Klang; „A/B hören“ schaltet die Seite
+$("zh-blind-k").addEventListener("click", () => $("zh-blind").click());
+$("zh-blind-ende").addEventListener("click", () => { if (zh.blind) $("zh-blind").click(); });
+document.querySelectorAll("[data-zh-hoer]").forEach((b) => b.addEventListener("click", () => { if (zh.blind) zhAbSetzen(zh.blind[b.dataset.zhHoer]); }));
 function zhAbZurueck() {
   zh.blind = null;
-  if (zh.abGesetzt && zh.ab === "vorher" && boxBereit()) nativ.box("aus", { aus: false }, { zeitMs: 6000 });
+  // Läuft noch eine Anfrage des Senders, folgt „nachher“ in seiner Reihe (eine späte „vorher“-Anfrage überholt es nie)
+  if (abSender.inFlug) abSender.soll = "nachher";
+  else if (zh.abGesetzt && zh.ab === "vorher" && boxBereit()) nativ.box("aus", { aus: false }, { zeitMs: 6000 });
   zh.ab = "nachher"; zh.abGesetzt = false; zh.urteil = "";
 }
-window.addEventListener("pagehide", () => { if (zh.abGesetzt && zh.ab === "vorher" && boxBereit()) nativ.box("aus", { aus: false }); });
+window.addEventListener("pagehide", () => { if (abSender.inFlug) abSender.soll = "nachher"; else if (zh.abGesetzt && zh.ab === "vorher" && boxBereit()) nativ.box("aus", { aus: false }); });
 $("zh-ab-schalter").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-zh-ab]"); if (!b) return;
   zhAbSetzen(b.dataset.zhAb);
@@ -12231,9 +12380,10 @@ $("zh-blind").addEventListener("click", () => {
 document.querySelectorAll("[data-zh-mag]").forEach((k) => k.addEventListener("click", () => {
   if (!zh.blind) return;
   const wahl = k.dataset.zhMag === "A" ? zh.blind.a : zh.blind.b;
-  zh.urteil = wahl === "nachher" ? `${k.dataset.zhMag} war mit Box.` : `${k.dataset.zhMag} war ohne Box. <button type="button" class="kb-link" data-zh-profil-link>Klangprofil</button>`;
+  zh.urteil = wahl === "nachher" ? `${k.dataset.zhMag} war mit Box.` : `${k.dataset.zhMag} war ohne Box. <button type="button" class="kb-link" data-zh-profil-link="">Klangprofil</button>`;
   zh.blind = null; zhAbZeigen();
-  const t = $("zh-ab-text"); t.tabIndex = -1; try { t.focus({ preventScroll: true }); } catch (e) { /* ohne Fokus */ }  // Ergebnis gleich vorlesen
+  // Ergebnis gleich vorlesen: von Hören aus unter den Zusätzen, sonst im Fenster Klang
+  const t = k.closest("#zh-zusatz") ? $("zh-urteil") : $("zh-ab-text"); t.tabIndex = -1; try { t.focus({ preventScroll: true }); } catch (e) { /* ohne Fokus */ }
 }));
 document.addEventListener("click", (ev) => { if (ev.target.closest("[data-zh-profil-link]")) $("zh-klang").click(); });
 document.querySelectorAll("[data-zh-modus]").forEach((b) => b.addEventListener("click", async () => {
@@ -14297,12 +14447,13 @@ function saOberflaeche(K) {
 </script>
 <script>// Hören (Mockup „Hören aufgeräumt“, D+): eine Ansicht, kein Player (Nutzer 08.11.2026: kein Play/Pause, kein Titelwechsel,
 // keine Gesten auf dem Cover). Cover (Antippen dreht es auf die Rückseite mit der Titelliste), Titel mit kleiner
-// Lautstärke-Anzeige (lautstaerke.js), Interpret, Zeitlinie. „Mehr zum Album“ (Fenster): Mitwirkende, Über das Album,
+// Interpret · Album · Spielzeit als Text, Lautstärke-Leiste (lautstaerke.js). „Mehr zum Album“ (Fenster): Mitwirkende, Über das Album,
 // Quelle und Format, Signalweg, Vollbild. Die Bibliothek der Box steht im CD-Regal (bibZeile, regal.js).
 // Daten nur aus GET /api/jetzt (SCHNITTSTELLE „Jetzt läuft“), Bibliothek und Warteschlange über mpd, Updates aus dem
-// Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu „Diagnose kopieren“, „Bericht teilen“
+// Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu Box › Hilfe: „Bericht für Claude“
 // (GET /api/bericht: Bericht in drei Phasen als Datei klangbox-bericht.txt, sonst Text bzw. Zwischenablage), der Schalter „Externer Streamer am Eingang“ (POST /api/modus) und „WLAN“ (mehrere
-// WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt).
+// WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt). „Fehlersuche“ (Fenster): Diagnose kopieren
+// (GET /api/diagnose, schnell und ohne Sperre der Box: Rückfall, wenn der Bericht zu lange braucht), Dolby prüfen, Ton direkt testen.
 // Nutzt von der Seite: nativ, boxBereit, zh (Zuhause-Zustand), esc, zk, sheet, zuhauseZeigen, SITZ_KURZ, profilInfo.
 const JETZT = (() => {
   const $ = (id) => document.getElementById(id);
@@ -14317,7 +14468,11 @@ const JETZT = (() => {
   async function laden() {
     if (!da()) return;
     const a = await nativ.box("jetzt", {}, { zeitMs: 5000 });
-    if (a && a.ok !== false && "quelle" in a) { j = a; jZeit = Date.now() / 1000; }
+    if (a && a.ok !== false && "quelle" in a) {
+      // neuer Titel: Vorher (ohne Einmessung) endet, damit man es nicht vergisst; nicht im Blindtest
+      const vor = j && j.titel, neu = a.titel;
+      if (vor && neu && vor !== neu && typeof zh !== "undefined" && zh.ab === "vorher" && !zh.blind && typeof zhAbSetzen === "function") zhAbSetzen("nachher");
+      j = a; jZeit = Date.now() / 1000; }
     const schluessel = j ? [j.interpret, j.album, j.titel].join("|") : "";
     if (j && j.titel && (schluessel !== detFuer || (det && det.stand === "laedt") || j.details_stand === "fertig" && (!det || det.stand !== "fertig"))) details(schluessel);
     if (j && (j.cover || "") !== coverFuer) cover(j.cover || "");
@@ -14412,19 +14567,18 @@ const JETZT = (() => {
     if (!an) { clearInterval(uhr); uhr = 0; return; }
     if (typeof LAUT !== "undefined" && LAUT.beschaeftigt()) return;  // während der Lautstärke-Anzeige nicht neu zeichnen
     const still = j.zustand === "still" && !j.titel;
-    // Lautstärke klein rechts in der Titelzeile (lautstaerke.js füllt sie); Antippen zeigt nur die große Anzeige
-    const laut = `<button type="button" class="zh-vol-klein" id="zh-vol-klein" hidden aria-hidden="true" tabindex="-1"></button>`;
     // Bedienleiste der Lautstärke unter Cover und Titelzeile (nur wenn die Klång-Box regelt; lautstaerke.js füllt sie)
     const leiste = `<div class="zh-vol-leiste" id="zh-vol-leiste" role="group" aria-label="Lautstärke" hidden></div>`;
     const quelle = [j.quelle_name, j.format && j.format.text].filter(Boolean).join("&nbsp;· ");
     const p = position(), d = +j.dauer_s || 0;
+    // Spielzeit als Text hinter Interpret und Album („· 0:09 / 1:17“, leise, tabellarisch); keine Zeitlinie (nur eine Linie auf Hören)
+    const zt = d && p !== null ? `<span class="zh-zeit-text">${j.interpret || j.album ? "&nbsp;· " : ""}<span id="zh-zeit-t">${zeit(p)}</span> / ${zeit(d)}</span>` : "";
     // Hören ist eine Ansicht (Nutzer 08.11.2026): kein Play/Pause, kein Titelwechsel; gespielt wird in der Quelle
     ziel.innerHTML = `<section class="zh-jetzt-karte${still ? " still" : ""}" id="zh-jetzt-karte" aria-labelledby="zh-jetzt-titel">
-      ${still ? `<div class="zh-jetzt-zeile"><h2 id="zh-jetzt-titel">Gerade läuft nichts.</h2>${laut}</div><p class="klein">${quelle || "Spiel etwas ab: AirPlay, Spotify, Fernseher oder die Bibliothek."}</p>${leiste}` : `
+      ${still ? `<div class="zh-jetzt-zeile"><h2 id="zh-jetzt-titel">Gerade läuft nichts.</h2></div><p class="klein">${quelle || "Spiel etwas ab: AirPlay, Spotify, Fernseher oder die Bibliothek."}</p>${leiste}` : `
       ${huelle("zh-lp", false)}
-      <div class="zh-jetzt-text"><div class="zh-jetzt-zeile"><h2 id="zh-jetzt-titel">${h(j.titel || j.sender || j.quelle_name || "")}</h2>${laut}</div>
-        ${j.interpret || j.album ? `<p>${[j.interpret, j.album].filter(Boolean).map(h).join("&nbsp;· ")}</p>` : ""}
-        ${d && p !== null ? `<div class="zh-zeit-reihe"><span class="zh-zeit-t" id="zh-zeit-t">${zeit(p)}</span><div class="zh-zeit" aria-hidden="true"><i id="zh-zeit-i" style="width:${Math.min(100, (p / d) * 100).toFixed(1)}%"></i></div><span class="zh-zeit-t">${zeit(d)}</span></div>` : ""}</div>
+      <div class="zh-jetzt-text"><div class="zh-jetzt-zeile"><h2 id="zh-jetzt-titel">${h(j.titel || j.sender || j.quelle_name || "")}</h2></div>
+        ${j.interpret || j.album || zt ? `<p>${[j.interpret, j.album].filter(Boolean).map(h).join("&nbsp;· ")}${zt}</p>` : ""}
       ${leiste}`}
     </section>`;
     if (!$("zh-album-block")?.hidden) window.zhAlbumInhalt();  // offenes Fenster: Infos kommen nach
@@ -14435,8 +14589,7 @@ const JETZT = (() => {
   }
   function tick() {
     if (document.hidden || !j || document.querySelector('.schritt[data-s="18"]').hidden) { clearInterval(uhr); uhr = 0; return; }
-    const p = position(), d = +j.dauer_s || 0, i = $("zh-zeit-i"), t = $("zh-zeit-t");
-    if (i && d) i.style.width = `${Math.min(100, (p / d) * 100).toFixed(1)}%`;
+    const p = position(), d = +j.dauer_s || 0, t = $("zh-zeit-t");
     if (t && d) t.textContent = zeit(p);
     const vi = $("zh-voll-zeit"); if (vi && d) vi.style.width = `${Math.min(100, (p / d) * 100).toFixed(1)}%`;
   }
@@ -14612,7 +14765,7 @@ const JETZT = (() => {
   // --- Diagnose kopieren ------------------------------------------------------------------------------------------
   async function diagnoseKopieren(knopf) {
     const holen = async () => { const d = await nativ.box("diagnose", {}, { zeitMs: 10000 }); if (!d || d.ok === false || !d.text) throw new Error((d && d.fehler) || "Keine Diagnose"); return d.text; };
-    const st = $("zh-diag-status");
+    const st = $("zh-fehler-status");
     if (!ablageDa()) {
       try { zumKopierenZeigen(st, await holen(), "Diagnose"); }
       catch (e) { st.innerHTML = `<span class="warn">${h((e && e.message) || "Keine Diagnose")}</span>`; }
@@ -14662,11 +14815,18 @@ const JETZT = (() => {
     const s = document.querySelector('.schritt[data-s="18"]'); if (!s) return;
     let u = $("zh-diag");
     if (!u) { u = document.createElement("div"); u.id = "zh-diag"; u.className = "zh-diag";
-      // Box › Hilfe: ruhige Linkzeile (§3.3)
-      u.innerHTML = `<h2 class="kb-label">Hilfe</h2><div class="zh-diag-links"><button type="button" class="kb-link" id="zh-diag-bericht" data-name="Bericht für Claude">Bericht für Claude</button><button type="button" class="kb-link" id="zh-diag-kopieren">Diagnose kopieren</button><button type="button" class="kb-link" id="zh-diag-bitstream">Dolby prüfen</button><button type="button" class="kb-link" id="zh-diag-direkt">Ton direkt testen</button></div><p class="klein" id="zh-diag-status" aria-live="polite"></p>`;
+      // Box › Hilfe: eine Zeile „Bericht für Claude“, darunter ruhig „Fehlersuche ›“ (Fenster mit den selteneren Werkzeugen)
+      u.innerHTML = `<h2 class="kb-label">Hilfe</h2><button type="button" class="kb-zeile" id="zh-diag-bericht" data-name="Bericht für Claude">Bericht für Claude</button>`
+        + `<p class="klein" id="zh-diag-status" aria-live="polite"></p>`
+        + `<div class="zh-diag-links"><button type="button" class="kb-link" id="zh-diag-fehler" data-sheet-block="zh-fehlersuche" data-sheet-titel="Fehlersuche">Fehlersuche ›</button></div>`
+        + `<div class="sheet-block" hidden data-block="zh-fehlersuche" id="zh-fehlersuche"><div class="zh-fehler-liste">`
+        + `<div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-kopieren">Diagnose kopieren</button><p class="klein">Kurzer Stand der Box als Text, sofort. Für den Fall, dass der Bericht nicht kommt.</p></div>`
+        + `<div class="zh-fehler" id="zh-diag-bitstream-zeile"><button type="button" class="kb-zeile" id="zh-diag-bitstream">Dolby prüfen</button><p class="klein">Prüft, ob Dolby und DTS sauber ankommen. Die Box ist dafür etwa 15 Sekunden still.</p></div>`
+        + `<div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-direkt">Ton direkt testen</button><p class="klein">Drei leise Töne direkt auf die Ausgänge, an allem vorbei. Klingt das, sind Karte und Kabel in Ordnung.</p></div>`
+        + `</div><p class="klein" id="zh-fehler-status" aria-live="polite"></p></div>`;
       const nach = $("zh-tipps"); if (nach && nach.parentNode === s) nach.after(u); else s.appendChild(u); }
     u.hidden = !da();
-    $("zh-diag-bitstream").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
+    $("zh-diag-bitstream-zeile").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
   }
 
   // --- Externer Streamer am Eingang (Nutzer: „Du bist der Streamer, also die Box = Stereo. Ist sie es nicht, ist es Kino.“)
@@ -14768,12 +14928,12 @@ const JETZT = (() => {
     if (t.closest("#zh-diag-bericht")) { berichtTeilen(t.closest("button")); return; }
     // „Bericht für Claude“ auch im Fenster Klang (neben „Knacken gehört“): ein Tipp holt, der zweite teilt
     if (t.closest("#zh-hs-bericht")) { berichtTeilen(t.closest("button"), $("zh-schalter-status")); return; }
-    if (t.closest("#zh-diag-direkt")) { const z = $("zh-diag-status"); z.textContent = "Startet …";
+    if (t.closest("#zh-diag-direkt")) { const z = $("zh-fehler-status"); z.textContent = "Startet …";
       const a = await nativ.box("diagnose", { direktton: true }, { zeitMs: 15000 });
       z.innerHTML = a && a.ok !== false ? h(a.hinweis || "Läuft.") : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
-    if (t.closest("#zh-diag-bitstream")) { const z = $("zh-diag-status"); z.textContent = "Prüft: Die Box ist dafür etwa 15 Sekunden still …";
+    if (t.closest("#zh-diag-bitstream")) { const z = $("zh-fehler-status"); z.textContent = "Prüft: Die Box ist dafür etwa 15 Sekunden still …";
       const a = await nativ.box("diagnose", { bitstream_pruefen: true }, { zeitMs: 35000 });
-      z.innerHTML = a && a.ok !== false ? "✓ Geprüft. Das Ergebnis steht jetzt in der Diagnose: „Diagnose kopieren“." : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
+      z.innerHTML = a && a.ok !== false ? "✓ Geprüft. Das Ergebnis steht jetzt in der Diagnose und im Bericht für Claude." : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
     if (t.closest("#zh-handy-schalter")) { const b = $("zh-handy-schalter"), neu = b.getAttribute("aria-checked") !== "true";
       const a = await nativ.box("lautstaerke", { fuehren: neu }, { zeitMs: 6000 });
       if (a && a.ok !== false) { if (zh.st) zh.st.lautstaerke = a.lautstaerke || { ...(zh.st.lautstaerke || {}), fuehren: neu }; b.setAttribute("aria-checked", String(neu)); }
@@ -14833,8 +14993,12 @@ const REGAL = (() => {
   const ART_EIN = { musik: "Musik", hoerspiel: "Hörspiel", hoerbuch: "Hörbuch", live: "Live", soundtrack: "Soundtrack", klassik: "Klassik", kinder: "Kinder", sonstiges: "Sonstiges" };
   let fokusVorher = null;
   let daten = null, filter = "alle", stapel = null, offen = null, bk = null, fehler = "", nachladen = 0, versuche = 0, artWahl = false;
-  const BILDER_MAX = 80, BILD_PARALLEL = 4;
+  // Zwischenspeicher: höchstens BILDER_MAX Bilder und BILDER_BYTES Zeichen data-URL zusammen (ein Cover darf auf der
+  // Box bis 4 MB groß sein; als data-URL gut ein Drittel mehr). Die Box liefert jedes Bild in einer Größe.
+  const BILDER_MAX = 80, BILDER_BYTES = 40e6, BILD_PARALLEL = 4;
   const bilder = new Map(); // Pfad → Promise(data-URL), älteste zuerst (Reihenfolge = zuletzt benutzt)
+  const groesse = new Map(); // Pfad → Länge der data-URL (erst wenn geladen)
+  let bilderBytes = 0;
   let bildLaufend = 0, beobachter = null;
   const bildWarten = [];
 
@@ -14850,10 +15014,22 @@ const REGAL = (() => {
     if (!pfad) return Promise.resolve("");
     const alt = bilder.get(pfad);
     if (alt) { bilder.delete(pfad); bilder.set(pfad, alt); return alt; }
-    const p = bildHolen(pfad).then((src) => { if (!src && bilder.get(pfad) === p) bilder.delete(pfad); return src; }); // Fehlschlag: nächstes Mal neu
+    const p = bildHolen(pfad).then((src) => {
+      if (bilder.get(pfad) !== p) return src;  // schon wieder verdrängt
+      if (!src) { bilder.delete(pfad); return src; }  // Fehlschlag: nächstes Mal neu
+      groesse.set(pfad, src.length); bilderBytes += src.length; aufraeumen(pfad);
+      return src;
+    });
     bilder.set(pfad, p);
-    while (bilder.size > BILDER_MAX) bilder.delete(bilder.keys().next().value);
+    aufraeumen(pfad);
     return p;
+  }
+  function weg(pfad) { bilder.delete(pfad); bilderBytes -= groesse.get(pfad) || 0; groesse.delete(pfad); }
+  function aufraeumen(behalten) {  // älteste zuerst; das gerade geholte bleibt
+    for (const k of [...bilder.keys()]) {
+      if (bilder.size <= BILDER_MAX && bilderBytes <= BILDER_BYTES) break;
+      if (k !== behalten) weg(k);
+    }
   }
   function bildZeigen(i) {
     bild(i.dataset.regalBild).then((src) => { if (src && i.isConnected) { i.src = src; i.closest(".rg-cover")?.classList.add("da"); } });
@@ -15096,20 +15272,20 @@ const REGAL = (() => {
   // fester Knopf auf Hören: nur mit Box; immer an derselben Stelle (Kopf von Zuhause)
   function knopf() { const k = $("zh-regal"); if (k) k.hidden = !da(); }
   document.addEventListener("click", (ev) => { if (ev.target.closest("#zh-regal")) auf(); });
-  return { auf, zu, knopf, laden, _zustand: () => ({ daten, offen, bk, filter, stapel }) };
+  return { auf, zu, knopf, laden, _zustand: () => ({ daten, offen, bk, filter, stapel }),
+    _bilder: { bild, stand: () => ({ anzahl: bilder.size, bytes: bilderBytes, pfade: [...bilder.keys()] }) } };
 })();
 </script>
 <script>// Lautstärke auf Hören (docs/LAUTSTAERKE.md, Entwurf „Hören aufgeräumt“, Nutzer 08.11.2026):
-// - Klein rechts in der Titelzeile von „Jetzt läuft“ (Lautsprecher-Zeichen und „42“, bzw. „−18 dB“, wenn der Verstärker
-//   regelt). Antippen zeigt nur die große Anzeige, ändert nichts.
+// - Neben dem Titel keine Lautstärke (Nutzer 09.11.2026, Variante B): die Zahl steht am Ende der Linie in der Leiste.
 // - Bedienen nur über eine eigene Leiste unter Cover und Titelzeile (Nutzer: „wie bei Linn eine Bedienung darunter,
 //   nicht dass man aus Versehen wischt“): „−“ und „+“ als große Tippflächen (56 px), dazwischen die Zahl über einer
 //   schlanken Skala (Tippen darauf = stumm). Gehalten wiederholt „−/+“ mit Beschleunigung. Dazu die iPhone-Tasten (App,
 //   VolumeTasten.swift) und die Fernbedienung (Box). Keine Gesten auf dem Cover.
 // - Beim Bedienen dunkelt das Cover ab (≈ 72 %, 200 ms), groß die Zahl mit Etikett und Skala (Nadel in Signalfarbe;
-//   Verstärker: Pegel und Spitzenwert). 1,5 s nach der letzten Änderung blendet alles zurück.
-// - Verstärker regelt (Standard): keine Leiste, nur die Anzeige in der Titelzeile. Ruhiger als eine Leiste ohne
-//   Funktion: Was man nicht bedienen kann, steht nicht als Bedienelement da; der Pegel bleibt sichtbar.
+//   1,5 s nach der letzten Änderung blendet alles zurück.
+// - Verstärker regelt (Standard): auf Hören gar keine Lautstärke-Anzeige, keine Abfrage des Ausgangspegels (Nutzer
+//   09.11.2026: „das springt mit jeder Sekunde“). Wer regelt, steht nur unter Box › Lautstärke.
 // - Die Zahl folgt jedem Druck sofort; zur Box geht höchstens alle 40 ms der letzte Wert, nie zwei Anfragen zugleich
 //   (kein Rückstau). Der Wert der Box gleicht erst nach einer Ruhepause ab (kein Zittern). Haptik je Stufe, deutlich am
 //   Höchstwert und bei stumm.
@@ -15120,25 +15296,22 @@ const REGAL = (() => {
 const LAUT = (() => {
   const $ = (id) => document.getElementById(id);
   const KNOTEN = [[1, -80], [10, -58], [30, -35], [100, 0]];
-  const STUMM_DB = -100, TAKT_MS = 40, RUHE_MS = 1500, ZEIGEN_MS = 1500, HALTEN_MS = 1500, TASTE_STUFEN = 2;
+  const STUMM_DB = -100, TAKT_MS = 40, RUHE_MS = 1500, ZEIGEN_MS = 1500, TASTE_STUFEN = 2;
   const dbAus = (s) => { s = Math.max(0, Math.min(100, +s)); if (s <= 0) return STUMM_DB; if (s < 1) return -80;
     for (let i = 1; i < KNOTEN.length; i++) { const [s0, d0] = KNOTEN[i - 1], [s1, d1] = KNOTEN[i]; if (s <= s1) return Math.round((d0 + (d1 - d0) * (s - s0) / (s1 - s0)) * 100) / 100; }
     return 0; };
   const stufeAus = (d) => { if (d == null || !isFinite(+d) || +d < -80 - 1e-9) return 0; d = Math.min(+d, 0);
     for (let i = 1; i < KNOTEN.length; i++) { const [s0, d0] = KNOTEN[i - 1], [s1, d1] = KNOTEN[i]; if (d <= d1 + 1e-9) return Math.round((s0 + (s1 - s0) * (d - d0) / (d1 - d0)) * 100) / 100; }
     return 100; };
-  const minus = (x) => String(x).replace("-", "−");
   const z = { art: "leer", wert: null, grenze: 100, stumm: false, regelt: null, fuehrt: false, spl: null, splBei: null,
     inFlug: false, offen: null, zuletztGesendet: 0, bedient: 0, ziehen: null, takt: 0, hapGrenze: false, sichtbar: false,
-    zeigenBis: 0, zeigenUhr: 0, nachholen: false, tasten: false,  // tasten: der App gemeldet, dass sie die iPhone-Tasten abfangen soll (nur auf Hören, nur wenn die Box regelt)
-    pegel: { rms: null, spitze: null, halten: null, haltenBis: 0, uhr: 0 } };
+    zeigenBis: 0, zeigenUhr: 0, nachholen: false, tasten: false };  // tasten: der App gemeldet, dass sie die iPhone-Tasten abfangen soll (nur auf Hören, nur wenn die Box regelt)
   const da = () => typeof boxBereit === "function" && boxBereit() && typeof nativ !== "undefined" && !!nativ;
   const nativDa = () => nativ && typeof nativ.ereignis === "function" && !window.klangboxBedienseite;
   const haptik = (wert) => { if (z.fuehrt && nativDa()) nativ.ereignis({ art: "haptik", wert }); };
   const hoerenOffen = () => { const s = document.querySelector('.schritt[data-s="18"]'); return !!s && !s.hidden && (s.dataset.tab || "hoeren") === "hoeren" && !document.hidden; };
   const STRICHE = 41;
-  const SKALA = { regler: ["0", "25", "50", "75", "100"], anzeige: ["−60", "−45", "−30", "−15", "0"] };
-  const GLYPHE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4h4l5 4V6L8 10z"/><path class="welle" d="M16 9a4 4 0 0 1 0 6"/></svg>';
+  const SKALA = { regler: ["0", "25", "50", "75", "100"] };
 
   // Zugang: verstecktes Range-Element, bleibt über das Neuzeichnen von „Jetzt läuft“ erhalten (Fokus, VoiceOver)
   function zugang() {
@@ -15164,19 +15337,19 @@ const LAUT = (() => {
   }
   const flaeche = () => { const k = $("zh-jetzt-karte"); return k ? (k.querySelector("#zh-lp") || k) : null; };
   // Bedienleiste (Mockup „Hören aufgeräumt“): runde Knöpfe − und + mit Haarlinie, dazwischen eine feine Linie mit Füllung
-  // und Punkt (Signal, wenn die Box regelt), darunter klein „Lautstärke 42“ (Tippen = stumm). Regelt der Verstärker: ohne
-  // Knöpfe, Linie bis zum Pegel, darunter „Regelt der Verstärker · Box lässt −18 dB durch“. Die große Zahl mit 41er-Skala
+  // und Punkt in Signal (Tippen = stumm), am Ende der Linie die Zahl. Nur, wenn die Box regelt. Die große Zahl mit 41er-Skala
   // steht nur in der Ebene über dem Cover, beim Bedienen. Darunter eine Ansage für Vorleser.
   function leisteHtml() {
     const minusIc = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10"/></svg>', plusIc = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10"/></svg>';
     return `<button type="button" class="zh-vol-knopf" id="zh-vol-leiser" data-laut-schritt="-1" aria-label="Leiser">${minusIc}</button>
       <button type="button" class="zh-vol-mitte" id="zh-vol-stumm" aria-pressed="false" aria-label="Stumm"><span class="zh-vol-linie" aria-hidden="true"><i id="zh-vol-fuellung"></i><b id="zh-vol-punkt"></b></span>
         <span class="zh-vol-mitte-text"><span id="zh-vol-mitte-etikett">Lautstärke</span> <span class="zh-vol-mitte-zahl" id="zh-vol-mitte-zahl">–</span></span></button>
+      <span class="zh-vol-klein" id="zh-vol-klein" aria-hidden="true" hidden></span>
       <button type="button" class="zh-vol-knopf" id="zh-vol-lauter" data-laut-schritt="1" aria-label="Lauter">${plusIc}</button>
       <span class="zh-vol-zugang" id="zh-vol-ansage" aria-live="polite"></span>`;
   }
 
-  // Nach jedem Zeichnen von „Jetzt läuft“ (JETZT.zeigen): kleine Anzeige in der Titelzeile, Overlay ans Cover, Leiste
+  // Nach jedem Zeichnen von „Jetzt läuft“ (JETZT.zeigen): Overlay ans Cover, Leiste (mit der Zahl am Ende der Linie)
   function einhaengen() {
     zugang();
     const f = flaeche(); if (!f) return;
@@ -15201,28 +15374,18 @@ const LAUT = (() => {
       const zahl = z.stumm ? "Stumm" : w == null ? "–" : String(w);
       return { etikett: "Lautstärke", zahl, einheit: "", w, spl, klein: zahl };
     }
-    if (z.art === "anzeige") {
-      const p = z.pegel, an = p.rms != null && p.rms > -90, t = an ? minus(Math.round(p.rms)) : "–";
-      return { etikett: "Verstärker", zahl: t, einheit: an ? "dB" : "", klein: an ? `${t} dB` : "", an };
-    }
     return { etikett: "", zahl: "–", einheit: "", klein: "" };
   }
   function zeichnen() {
     const t = texte(), k = $("zh-vol-klein"), r = $("zh-vol-regler"), karte = $("zh-jetzt-karte");
     if (k) { k.hidden = z.art === "leer" || !t.klein; k.dataset.art = z.art; k.dataset.stumm = z.stumm && z.art === "regler" ? "1" : "0";
-      k.innerHTML = `${GLYPHE}<span id="zh-vol-klein-zahl">${t.klein}</span>`; }
+      k.textContent = t.klein; }
     if (karte) { karte.dataset.laut = z.sichtbar ? "1" : "0"; karte.dataset.lautArt = z.art; karte.dataset.lautStumm = z.stumm && z.art === "regler" ? "1" : "0"; }
     const l = $("zh-vol-leiste");
     if (l) {
-      // Box regelt: Bedienleiste; Verstärker regelt: nur die Zeile „Regelt der Verstärker · Box lässt … durch“ (ohne Pegel aus)
-      l.hidden = !(z.art === "regler" || (z.art === "anzeige" && t.an));
+      // Bedienleiste nur, wenn die Box regelt (regelt der Verstärker, steht auf Hören keine Lautstärke)
+      l.hidden = z.art !== "regler";
       l.dataset.art = z.art;
-      if (!l.hidden && z.art === "anzeige" && $("zh-vol-mitte-zahl")) {
-        const p = z.pegel, n = Math.max(0, Math.min(100, (p.rms + 60) / 60 * 100));
-        $("zh-vol-mitte-etikett").textContent = "Regelt der Verstärker · Box lässt"; $("zh-vol-mitte-zahl").textContent = `${t.zahl} dB durch`;
-        $("zh-vol-fuellung").style.width = `${n}%`; $("zh-vol-punkt").style.left = `${n}%`;
-        $("zh-vol-stumm").setAttribute("aria-label", `Pegel, den die Box durchlässt: ${t.zahl.replace("−", "minus ")} dB`);
-      }
       if (!l.hidden && z.art === "regler" && $("zh-vol-mitte-zahl")) {
         $("zh-vol-mitte-etikett").textContent = z.stumm ? "" : "Lautstärke";
         $("zh-vol-mitte-zahl").textContent = t.zahl;
@@ -15236,17 +15399,12 @@ const LAUT = (() => {
         $("zh-vol-leiser").disabled = z.wert == null || z.wert <= 0;
       }
     }
-    if ($("zh-vol-zahl")) {
+    if ($("zh-vol-zahl") && z.art === "regler") {
       $("zh-vol-etikett").textContent = t.etikett; $("zh-vol-zahl").textContent = t.zahl; $("zh-vol-einheit").textContent = t.einheit;
       if (z.art === "regler") {
         skalaZeigen("regler", z.wert == null || z.stumm ? null : z.wert, z.wert);
         $("zh-vol-grenze").style.left = `${z.grenze}%`; $("zh-vol-grenze").hidden = z.grenze >= 100;
         $("zh-vol-spl").textContent = t.spl != null ? `≈ ${t.spl} dB` : "";
-      } else {
-        const p = z.pegel, pos = (d) => (d == null ? null : Math.max(0, Math.min(100, (d + 60) / 60 * 100)));  // −60 … 0 dBFS
-        skalaZeigen("anzeige", p.rms != null && p.rms > -90 ? pos(p.rms) : null, p.halten != null && p.halten > -60 ? pos(p.halten) : null);
-        $("zh-vol-nadel").dataset.voll = p.halten != null && p.halten > -0.5 ? "1" : "0";
-        $("zh-vol-grenze").hidden = true; $("zh-vol-spl").textContent = "";
       }
     }
     if (r) {
@@ -15256,15 +15414,15 @@ const LAUT = (() => {
         r.setAttribute("aria-valuetext", z.stumm ? "Stumm" : t.w == null ? "unbekannt" : `${t.w}${t.spl != null ? `, etwa ${t.spl} Dezibel` : ""}`);
       } else {
         r.disabled = true; r.setAttribute("aria-disabled", "true");
-        r.setAttribute("aria-label", z.art === "anzeige" ? "Ausgangspegel, Lautstärke regelt der Verstärker" : "Lautstärke");
+        r.setAttribute("aria-label", z.art === "verstaerker" ? "Lautstärke, regelt der Verstärker" : "Lautstärke");
         r.setAttribute("aria-valuetext", t.klein || "unbekannt");
       }
     }
   }
   // Große Anzeige zeigen; 1,5 s nach der letzten Änderung (und nach dem Loslassen) blendet sie zurück
   function anzeigen() {
-    if (!$("zh-vol-over")) return;
-    z.sichtbar = true; z.zeigenBis = Date.now() + ZEIGEN_MS; zeichnen(); pegelTakt();
+    if (!$("zh-vol-over") || z.art !== "regler") return;
+    z.sichtbar = true; z.zeigenBis = Date.now() + ZEIGEN_MS; zeichnen();
     clearTimeout(z.zeigenUhr);
     const pruefen = () => {
       if (z.ziehen || Date.now() < z.zeigenBis) { z.zeigenUhr = setTimeout(pruefen, Math.max(50, z.zeigenBis - Date.now())); return; }
@@ -15280,10 +15438,10 @@ const LAUT = (() => {
   function zeigen() {
     const st = typeof zh !== "undefined" && zh ? zh.st : null, lz = st && st.lautstaerke, r = lz && lz.regler;
     zugang();
-    if (!da() || !lz || (st && st.rolle === "satellit")) { z.art = "leer"; pegelStopp(); tastenMelden(); zeichnen(); return; }
+    if (!da() || !lz || (st && st.rolle === "satellit")) { z.art = "leer"; tastenMelden(); zeichnen(); return; }
     z.fuehrt = lz.fuehrt === "box";
     z.regelt = r ? r.regelt : lz.fuehren ? "box" : "verstaerker";
-    const art = z.fuehrt ? "regler" : "anzeige";
+    const art = z.fuehrt ? "regler" : "verstaerker";  // Verstärker: auf Hören nichts (keine Anzeige, kein Pegel)
     if (z.art !== art) { z.art = art; z.wert = null; }
     if (!$("zh-lautstaerke-block") || !$("zh-lautstaerke-block").hidden) sheetZeigen();
     if (art === "regler") {
@@ -15297,7 +15455,7 @@ const LAUT = (() => {
       z.grenze = r && r.grenze_stufe != null ? +r.grenze_stufe : 100;
       z.spl = r && r.spl_db != null ? +r.spl_db : null; z.splBei = r ? +r.stufe : null;
     }
-    pegelTakt(); tastenMelden(); zeichnen();
+    tastenMelden(); zeichnen();
   }
 
   // --- Senden: höchstens alle 40 ms, immer der letzte Wert, nie zwei zugleich -----------------------------------------
@@ -15340,7 +15498,7 @@ const LAUT = (() => {
   }
   // Lautstärketaste am iPhone (App: VolumeTasten.swift): je Druck 2 Stufen (1 dB im Hörbereich)
   function taste(n) {
-    if (z.art !== "regler" || z.wert == null) { if (z.art === "anzeige") anzeigen(); return; }
+    if (z.art !== "regler" || z.wert == null) return;
     setzen(z.wert + Math.sign(+n || 0) * TASTE_STUFEN);
     anzeigen();
   }
@@ -15380,33 +15538,12 @@ const LAUT = (() => {
       const k = ev.target.closest("[data-laut-schritt]");
       if (k) { if (ev.detail === 0) schrittKnopf(+k.dataset.lautSchritt); return; }  // Tastatur, VoiceOver; Zeiger: pointerdown
       if (ev.target.closest("#zh-vol-stumm") && z.art === "regler") { stummUmschalten(); anzeigen(); }
-      else if (ev.target.closest("#zh-vol-stumm") && z.art === "anzeige") anzeigen();  // Verstärker regelt: nur groß zeigen
     });
     l.addEventListener("contextmenu", (ev) => ev.preventDefault());  // langes Drücken: kein Menü
   }
-  // Die kleine Anzeige in der Titelzeile zeigt nur die große, ändert nichts
-  document.addEventListener("click", (ev) => {
-    if (ev.target.closest && ev.target.closest("#zh-vol-klein")) { ev.stopPropagation(); anzeigen(); }
-  }, true);
 
-  // --- Pegel (Verstärker regelt): klein alle 0,5 s, groß alle 150 ms; Spitzenwert hält 1,5 s ---------------------------
-  async function pegelHolen() {
-    const p = z.pegel;
-    if (z.art !== "anzeige" || !hoerenOffen()) { p.uhr = 0; return; }
-    const a = await nativ.box("ausgangspegel", {}, { zeitMs: 2000 });
-    if (a && a.ok !== false) {
-      p.rms = a.rms_db; p.spitze = a.spitze_db;
-      const jetzt = Date.now();
-      if (p.spitze != null && (p.halten == null || p.spitze >= p.halten || jetzt > p.haltenBis)) { p.halten = p.spitze; p.haltenBis = jetzt + HALTEN_MS; }
-      if (a.regelt === "box" && typeof zhLaden === "function" && !zh.laedt) zhLaden();
-    }
-    zeichnen();
-    if (p.uhr) p.uhr = setTimeout(pegelHolen, z.sichtbar ? 150 : 500);
-  }
-  function pegelTakt() { if (z.art === "anzeige" && hoerenOffen()) { if (!z.pegel.uhr) { z.pegel.uhr = -1; pegelHolen(); } } else pegelStopp(); }
-  function pegelStopp() { if (z.pegel.uhr > 0) clearTimeout(z.pegel.uhr); z.pegel.uhr = 0; }
   document.addEventListener("visibilitychange", () => { zeigen(); });
-  // Bereich gewechselt (Hören, Einmessen, Box): Tasten der App und Pegelabfrage nur auf Hören
+  // Bereich gewechselt (Hören, Einmessen, Box): Tasten der App nur auf Hören
   try { const sec = document.querySelector('.schritt[data-s="18"]');
     if (sec && typeof MutationObserver === "function") new MutationObserver(() => zeigen()).observe(sec, { attributes: true, attributeFilter: ["data-tab", "hidden"] }); } catch (e) {}
   window.addEventListener("pagehide", () => { if (z.tasten && nativDa()) { z.tasten = false; nativ.ereignis({ art: "volumeTasten", an: false }); } });

@@ -1,4 +1,4 @@
-/* raum3d.js – Klang-Box: 3D-Nachbau eines Raum-Scans (Apple RoomPlan) mit Anlage und ersten Reflexionen.
+/* raum3d.js – Klång-Box: 3D-Nachbau eines Raum-Scans (Apple RoomPlan) mit Anlage und ersten Reflexionen.
  *
  * Klassisches Script (kein Build-Tool, läuft offline in WKWebView). Erwartet three.js als globales THREE:
  *   <script src="three.min.js"></script>   three.js r160 (0.160.0), MIT-Lizenz,
@@ -12,8 +12,9 @@
  *     ansicht.zuruecksetzen()                    Kamera auf Startansicht
  *     ansicht.setAkzent(farbe) / ansicht.akzent() Akzent live umfärben (Direktschall, Hörplatz-Kugel) / lesen
  *   Raum3D.setAkzent(farbe)                     dasselbe für alle offenen Ansichten; ohne Argument --akzent neu lesen
- *   Akzentfarbe: beim Start aus der CSS-Variable --akzent auf :root (Blau #7FB0FF, Mint #8CE0C4, Violett #B79CFF),
- *   fehlt sie, gilt #7FB0FF. Reflexionen bleiben fest #FFB547, der Vorschlags-Geist bleibt #7FB0FF.
+ *   Akzentfarbe (Direktschall, Hörplatz): beim Start aus --kb-signal (D+), sonst --akzent auf :root; fehlt beides, gilt
+ *   das Signal von D+ (#E2622C, die Szene ist dunkel). Reflexionen in Tinte (#EDEBE6), Fenster und Vorschlags-Geist leise
+ *   (#9C9993). Alle Rückfallfarben sind D+-Werte (docs/ci/tokens.css, Ebene dunkel); Etiketten in Barlow, 6 px Rundung.
  *     ansicht.zerstoeren()                       WebGL, Listener und Canvas freigeben
  *   Raum3D.berechneReflexionen(raum, anlage, optionen)   reine Geometrie, ohne WebGL (auch in Node nutzbar)
  *   Raum3D.beschreibung(raum)                            Kurztext für aria-label
@@ -37,14 +38,15 @@
   const SCHALL = 343;            // m/s
   const EPS = 1e-6;
   const WANDSTAERKE = 0.1;       // nur Optik, nach außen
-  // Farben nach docs/app/mockups/STIL.md und Raum.dc.html
+  // Farben „D+“, Ebene dunkel (docs/ci/tokens.css): Grund #17181A, Fläche #202124, Linie #2C2D30, Text #EDEBE6,
+  // leise #9C9993, Signal #E2622C. Möbel flach in Graustufen, Farbe nur mit Bedeutung (Direktschall, Hörplatz).
   const FARBEN = {
-    hintergrund: 0x0b0d10, wand: 0x1c222b, wandInnen: 0x171c24, wandkante: 0x3a4452, krone: 0x2a313b, bodenSeite: 0x1a1510,
-    glas: 0x7fb0ff, glasRand: 0x9cc8ff, tuerrahmen: 0xffb547,
-    sofa: 0xc9623f, sofaKissen: 0xd06a46, sofaDunkel: 0xa84f31, holz: 0x6b5140, holzHell: 0x7a5d45, stuhl: 0x4a5563, tv: 0x0a0c0f,
-    bett: 0x4a5563, matratze: 0xd9dde3, decke: 0x5f7387, schrank: 0x3a4452, kamin: 0x4a5563, sonst: 0x4a5563,
-    box: 0xe9ecf0, ständer: 0x3a4452, membran: 0x0b0d10, kalotte: 0x2a313b, kopf: 0x7fb0ff,
-    direkt: 0x7fb0ff, reflex: 0xffb547, fenster: 0xffb547, geist: 0x7fb0ff, text: "#F2F4F7", karte: "rgba(23,27,33,0.9)", rand: "rgba(58,68,82,0.9)",
+    hintergrund: 0x17181a, wand: 0x232427, wandInnen: 0x202124, wandkante: 0x2c2d30, krone: 0x2c2d30, bodenSeite: 0x1c1d1f,
+    glas: 0x9c9993, glasRand: 0x9c9993, tuerrahmen: 0x9c9993,
+    sofa: 0x3a3b3e, sofaKissen: 0x44454a, sofaDunkel: 0x303134, holz: 0x3a3b3e, holzHell: 0x44454a, stuhl: 0x3a3b3e, tv: 0x0e0f10,
+    bett: 0x3a3b3e, matratze: 0xdcd9d2, decke: 0x5e5b55, schrank: 0x2c2d30, kamin: 0x3a3b3e, sonst: 0x3a3b3e,
+    box: 0xedebe6, ständer: 0x2c2d30, membran: 0x17181a, kalotte: 0x2c2d30, kopf: 0xe2622c,
+    direkt: 0xe2622c, reflex: 0xedebe6, fenster: 0x9c9993, geist: 0x9c9993, text: "#EDEBE6", karte: "rgba(23,24,26,0.92)", rand: "#2C2D30",
   };
   const FLAECHEN_TEXT = { links: "linke Seitenwand", rechts: "rechte Seitenwand", boden: "Boden", decke: "Decke", vorne: "Wand hinter den Boxen", hinten: "Rückwand" };
 
@@ -208,8 +210,8 @@
       "Ein Finger dreht, zwei Finger zoomen, Doppeltipp setzt die Ansicht zurück.";
   }
 
-  // Akzentfarbe (wählbar: Blau #7FB0FF, Mint #8CE0C4, Violett #B79CFF) aus der CSS-Variable --akzent
-  const AKZENT_STANDARD = "#7FB0FF";
+  // Akzentfarbe aus --kb-signal (D+), sonst --akzent; Rückfall: Signal von D+ in der dunklen Ebene
+  const AKZENT_STANDARD = "#E2622C";
   const offene = new Set();   // laufende Ansichten, für Raum3D.setAkzent
   function hexFarbe(farbe) {
     const f = String(farbe == null ? "" : farbe).trim();
@@ -222,7 +224,8 @@
   function akzentAusCss() {
     try {
       if (typeof document === "undefined" || typeof getComputedStyle === "undefined") return AKZENT_STANDARD.toLowerCase();
-      return hexFarbe(getComputedStyle(document.documentElement).getPropertyValue("--akzent")) || AKZENT_STANDARD.toLowerCase();
+      const st = getComputedStyle(document.documentElement);
+      return hexFarbe(st.getPropertyValue("--kb-signal")) || hexFarbe(st.getPropertyValue("--akzent")) || AKZENT_STANDARD.toLowerCase();
     } catch (e) { return AKZENT_STANDARD.toLowerCase(); }
   }
 
@@ -339,17 +342,18 @@
     const etiketten = [];
     function etikett(text, pos, art, unten) {
       const px = 3, fs = art === "klein" ? 12 : 14, c = document.createElement("canvas"), ctx = c.getContext("2d");
-      const font = `600 ${fs * px}px Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`;
+      const font = `500 ${fs * px}px "Barlow Semi Condensed", system-ui, -apple-system, sans-serif`;
       ctx.font = font;
       const w = Math.ceil(ctx.measureText(text).width) + 16 * px, h = (fs + 10) * px;
       c.width = w; c.height = h;
       ctx.font = font;
-      const rr = h / 2;
-      ctx.fillStyle = art === "geist" ? "rgba(19,32,47,0.92)" : art === "warn" ? "rgba(48,34,12,0.92)" : FARBEN.karte;
+      const rr = 6 * px;
+      ctx.fillStyle = FARBEN.karte;
       ctx.beginPath(); ctx.moveTo(rr, 0); ctx.arcTo(w, 0, w, h, rr); ctx.arcTo(w, h, 0, h, rr); ctx.arcTo(0, h, 0, 0, rr); ctx.arcTo(0, 0, w, 0, rr); ctx.fill();
-      ctx.strokeStyle = art === "geist" ? "rgba(127,176,255,0.7)" : art === "warn" ? "rgba(255,181,71,0.85)" : FARBEN.rand;
-      ctx.lineWidth = px; ctx.stroke();
-      ctx.fillStyle = art === "geist" ? "#A8C8EE" : art === "warn" ? "#FFB547" : FARBEN.text;
+      ctx.strokeStyle = art === "warn" ? "#E2622C" : FARBEN.rand;
+      if (art === "geist") ctx.setLineDash([3 * px, 4 * px]);
+      ctx.lineWidth = px; ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = art === "geist" ? "#9C9993" : FARBEN.text;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(text, w / 2, h / 2 + px * 0.5);
       const tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4;
@@ -411,7 +415,7 @@
       const m = teil(raumGruppe, g, [top, seite], 0, 0, 0, false);
       m.receiveShadow = true;
       // dunkle Standfläche unter dem Modell
-      const glanz = new T.Mesh(new T.RingGeometry(0, radius * 1.6, 64), new T.MeshBasicMaterial({ color: 0x161a20, transparent: true, opacity: 0.7, depthWrite: false }));
+      const glanz = new T.Mesh(new T.RingGeometry(0, radius * 1.6, 64), new T.MeshBasicMaterial({ color: 0x101112, transparent: true, opacity: 0.7, depthWrite: false }));
       glanz.rotation.x = -Math.PI / 2; glanz.position.set(mitte.x, -BODEN - 0.004, mitte.z);
       raumGruppe.add(glanz);
     }
@@ -510,7 +514,7 @@
         klotz(g, am, 0, -t / 2 + lehne / 2, 0.06, b, lehne, h - 0.06, 0.05);
         klotz(g, am, -b / 2 + arm / 2, 0, 0.06, arm, t, h * 0.72 - 0.06, 0.05);
         klotz(g, am, b / 2 - arm / 2, 0, 0.06, arm, t, h * 0.72 - 0.06, 0.05);
-        const fm = mat(0x0b0d10);
+        const fm = mat(0x17181a);
         for (const sx of [-1, 1]) for (const sy of [-1, 1]) klotz(g, fm, sx * (b / 2 - 0.08), sy * (t / 2 - 0.08), 0, 0.05, 0.05, 0.06, 0.01);
       } else if (art === "tisch" || art === "stuhl") {
         const hm = mat(art === "tisch" ? FARBEN.holz : FARBEN.holzHell, { roughness: 0.6 });
@@ -529,7 +533,7 @@
         klotz(g, hm, -b / 2 + st / 2, 0, 0, st, t, h, 0.006); klotz(g, hm, b / 2 - st / 2, 0, 0, st, t, h, 0.006);
         klotz(g, mat(0x4a382a), 0, -t / 2 + 0.01, 0, b, 0.02, h, 0.004);
         const faecher = Math.max(1, Math.round(h / 0.38));
-        const buchFarben = [0x9aa3ad, 0x7fb0ff, 0xc9623f, 0x5f7387, 0xd9dde3, 0x8ce0c4];
+        const buchFarben = [0x9c9993, 0x5e5b55, 0xdcd9d2, 0x3a3b3e, 0xcbc7be, 0x44454a];  // Graustufen (D+)
         let seed = 3; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
         for (let i = 0; i <= faecher; i++) {
           const z = Math.min(h - st, i * (h - st) / faecher);
@@ -546,8 +550,8 @@
       } else if (art === "fernseher") {
         const tm = mat(FARBEN.tv, { roughness: 0.35, metalness: 0.2 });
         klotz(g, tm, 0, 0, 0, b, t, h, 0.01);
-        const bild = new T.Mesh(new T.PlaneGeometry(b - 0.04, h - 0.04), new T.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.15, metalness: 0.3, emissive: 0x1b2a3a, emissiveIntensity: 0.6 }));
-        bild.position.set(0, h / 2, spiegel * (t / 2 + 0.002)); bild.material.emissive.set(0x0d1520); if (spiegel < 0) bild.rotation.y = Math.PI; g.add(bild);
+        const bild = new T.Mesh(new T.PlaneGeometry(b - 0.04, h - 0.04), new T.MeshStandardMaterial({ color: 0x0e0f10, roughness: 0.15, metalness: 0.3, emissive: 0x202124, emissiveIntensity: 0.6 }));
+        bild.position.set(0, h / 2, spiegel * (t / 2 + 0.002)); bild.material.emissive.set(0x17181a); if (spiegel < 0) bild.rotation.y = Math.PI; g.add(bild);
       } else if (art === "bett") {
         klotz(g, mat(FARBEN.bett), 0, 0, 0, b, t, h * 0.55, 0.03);
         klotz(g, mat(FARBEN.matratze, { roughness: 0.95 }), 0, 0, h * 0.55, b - 0.06, t - 0.06, h * 0.25, 0.06);

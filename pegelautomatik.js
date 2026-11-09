@@ -1,4 +1,4 @@
-// Pegelautomatik: stellt die Lautstärke (Lautsprecher-Adapter der App oder Klang-Box) in kleinen Schritten ein, bis das
+// Pegelautomatik: stellt die Lautstärke (Lautsprecher-Adapter der App oder Klång-Box) in kleinen Schritten ein, bis das
 // Prüfsignal (pegel.wav: 2 s Stille, 3 s rosa Rauschen, 2 s Stille) sauber und mit genug Abstand zum
 // Raumgeräusch am Mikrofon ankommt. Reine Logik, ohne Browser: läuft auch in node (tests/pegelautomatik_test.js).
 //
@@ -116,7 +116,10 @@
     const verlauf = [], punkte = [];
     let ursprung = endlich(o.ursprung) ? Math.round(o.ursprung) : null;
     let aktuell = null, verstellt = false, obergrenze = max, letzteStufe = 1, uebersteuert = 0, versuche = 0;
-    let blindAb = null, ohneWirkung = 0, letzte = null, steigung = null;
+    // steigungBekannt: dB je Stufe, wenn das Gerät es genau weiß (Klång-Box: 1 Stufe = 1 dB). Dann springt die
+    // Automatik gleich auf den nötigen Wert statt sich vorzutasten (vorher 16 Prüftöne, 05.11.2026).
+    const bekannt = endlich(o.steigungBekannt) && o.steigungBekannt > 0 ? o.steigungBekannt : null;
+    let blindAb = null, ohneWirkung = 0, letzte = null, steigung = bekannt;
 
     const ergebnis = (ok, grund, extra) => {
       const e = {
@@ -126,7 +129,8 @@
         db_je_schritt: steigung === null ? null : Math.round((steigung - p.messunsicherheitDb / Math.max(1, spannweite())) * 100) / 100,
         wiederhergestellt: false, ...extra,
       };
-      e.text = e.text || (TEXTE[e.textArt || grund] || TEXTE.fehler)({ ...e, meldung: e.meldung || grund });
+      const eigen = o && o.texte ? o.texte[e.textArt || grund] : null;  // z. B. Klång-Box: „am Verstärker lauter“
+      e.text = e.text || (eigen || TEXTE[e.textArt || grund] || TEXTE.fehler)({ ...e, meldung: e.meldung || grund });
       if (ok) melde({ art: "ende", ergebnis: e });
       return e;
     };
@@ -235,7 +239,7 @@
         // Steigung lernen (nur saubere Messungen mit Signal, Pegel ohne Raumrauschen-Anteil)
         const reinDb = 10 * Math.log10(Math.max(1e-12, 10 ** (eintrag.pegel_db / 10) - 10 ** (eintrag.stoer_db / 10)));
         if (!punkte.length || punkte[punkte.length - 1].v !== ist) punkte.push({ v: ist, db: reinDb });
-        steigung = steigungOben(punkte, p.messunsicherheitDb);
+        steigung = bekannt || steigungOben(punkte, p.messunsicherheitDb);
         if (vorher && !vorher.clip && vorher.abstand_db >= p.keinSignalDb && ist - vorher.lautstaerke >= 2) {
           ohneWirkung = eintrag.pegel_db - vorher.pegel_db < 0.3 ? ohneWirkung + 1 : 0;
           if (ohneWirkung >= 2) return await scheitern("lautstaerke_wirkt_nicht");

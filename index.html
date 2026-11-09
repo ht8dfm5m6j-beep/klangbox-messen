@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="e2ce7f46b081">
+<meta name="klangbox-stand" content="f1bb8a7d9d40">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -1230,6 +1230,47 @@ body.rg-offen { overflow: hidden; }
 .rg-titel li span { color: var(--kb-text-leise); font: var(--kb-t-skala); } .rg-titel li b { font-weight: 400; } .rg-titel li em { font-style: normal; color: var(--kb-text-leise); }
 .rg-titel li.rg-cd { display: block; color: var(--kb-text-leise); font: var(--kb-t-label); letter-spacing: var(--kb-ls-label); text-transform: uppercase; border: 0; padding-top: 12px; }
 .rg-unten { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* Abspielen aus dem Regal (regal.js, Nutzer 09.11.2026): die Hülle trägt einen ruhigen runden Knopf (Glas, Haarlinie,
+   56 px) und „Titel“ zum Umdrehen; umgedreht (Überblendung wie die LP auf Hören, ohne 3D) die Titel der Bibliothek.
+   Orange nur mit Bedeutung: „Läuft“ und der Punkt „zuletzt gehört“. */
+.rg-huelle { position: relative; width: var(--rg-s, 100%); aspect-ratio: 1; flex: none; }
+.rg-h-vorne, .rg-h-hinten { position: absolute; inset: 0; border-radius: var(--kb-r); transition: opacity var(--kb-zeit) var(--kb-kurve); }
+.rg-h-vorne > .rg-cover { width: 100%; height: 100%; }
+.rg-h-hinten { opacity: 0; pointer-events: none; display: flex; flex-direction: column; gap: 4px; padding: 12px 16px 0; overflow: hidden;
+  background: var(--kb-grund); box-shadow: inset 0 0 0 1px var(--kb-linie); text-align: left; }
+.rg-huelle.gedreht .rg-h-hinten { opacity: 1; pointer-events: auto; } .rg-huelle.gedreht .rg-h-vorne { opacity: 0; pointer-events: none; }
+.rg-h-knoepfe { position: absolute; inset: auto 12px 12px; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+.rg-h-knoepfe > * { pointer-events: auto; }
+#regal .rg-glas, #regal .rg-play { background: var(--kb-ebene-schleier); color: var(--kb-ebene-text); box-shadow: inset 0 0 0 1px var(--kb-skala-leer);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+#regal .rg-play { width: 56px; height: 56px; min-height: 56px; padding: 0; border-radius: 50%; display: grid; place-items: center; flex: none; }
+#regal .rg-play svg { margin-left: 3px; }   /* das Dreieck optisch in die Mitte */
+#regal .rg-play:active:not(:disabled) { opacity: .7; }
+#regal .rg-play:disabled { opacity: .7; cursor: progress; }
+#regal .rg-play[data-stand="startet"] svg { opacity: .45; }   /* startet: ruhig gedämpft, darunter „Startet …“ */
+#regal .rg-play:focus-visible, #regal .rg-dreh:focus-visible { outline: 2px solid var(--kb-ebene-text); outline-offset: 2px; }
+#regal .rg-dreh { margin-left: auto; min-height: 44px; padding: 0 16px; border-radius: var(--kb-r); font: var(--kb-t-bedien); }
+.rg-h-laeuft { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: var(--kb-r); }
+.rg-h-laeuft .kb-laeuft-label { color: var(--kb-ebene-text); }
+.rg-h-laeuft .kb-laeuft-label::before { background: var(--kb-signal); }
+.rg-h-kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.rg-h-kopf .leise { min-height: 44px; }
+.rg-h-liste { list-style: none; margin: 0 -16px; padding: 0 16px 12px; overflow-y: auto; flex: 1; min-height: 0; overscroll-behavior: contain; }
+.rg-h-liste li.rg-cd { color: var(--kb-text-leise); font: var(--kb-t-label); letter-spacing: var(--kb-ls-label); text-transform: uppercase; padding: 12px 0 4px; }
+#regal .rg-t { all: unset; box-sizing: border-box; width: 100%; min-height: 44px; display: grid; grid-template-columns: 2em minmax(0, 1fr) auto; gap: 8px;
+  align-items: center; padding: 8px 0; border-bottom: 1px solid var(--kb-linie); cursor: pointer; font: var(--kb-t-text); color: var(--kb-text); }
+#regal .rg-t:focus-visible { outline: 2px solid var(--kb-text); outline-offset: -2px; border-radius: var(--kb-r); }
+#regal .rg-t:active { background: var(--kb-flaeche); }
+.rg-t-nr { color: var(--kb-text-leise); font: var(--kb-t-skala); display: grid; place-items: center start; }
+.rg-t-name { display: grid; min-width: 0; } .rg-t-name b { font-weight: 400; overflow-wrap: anywhere; }
+.rg-t em { font-style: normal; color: var(--kb-text-leise); font: var(--kb-t-klein); }
+.rg-t.zuletzt .rg-t-name b { font-weight: 500; }
+.rg-zl { font: var(--kb-t-klein); color: var(--kb-text-leise); }
+.rg-punkt { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--kb-signal); flex: none; }
+.rg-h-hinweis { margin: 8px 0 0; }
+.rg-h-zuletzt { display: flex; gap: 12px; align-items: baseline; margin: 12px 0 0; } .rg-h-zuletzt > span:last-child { display: grid; gap: 2px; }
+.rg-spielstand { margin: -8px 0 0; text-align: center; color: var(--kb-text-leise); min-height: 0; }
+.rg-spielstand:empty { display: none; }
 
 /* Status einer Messung in der Leiste unten über den Knöpfen; leer: keine Höhe */
 .aktion-status { display: grid; gap: 8px; }
@@ -1300,6 +1341,9 @@ body.rg-offen { overflow: hidden; }
 @media (hover: hover) and (pointer: fine) {
   button.zweit:hover:not(:disabled), button.klein:hover:not(:disabled), .chip:hover:not([aria-pressed="true"]), .kb-zeile:hover, .zh-aktion:hover:not(:disabled) { background: var(--kb-flaeche); }
 }
+/* Korrekturbereich im Ergebnis: Name oben, Prognose klein darunter (Nutzer-Foto 09.11.2026: „VollPrognose 70“, „90 Hz“ brach um) */
+.seg[data-bereich-runde] > button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 4px; min-height: 56px; white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }   /* 200 % Schrift: umbrechen statt überlaufen */
+.seg[data-bereich-runde] > button small { display: block; white-space: normal; text-align: center; font: var(--kb-t-klein); font-weight: 400; opacity: .8; }
 </style>
 <!-- Startanimation (docs/raumcheck-seite/start.js): nur Kaltstart in App und Home-Bildschirm-App -->
 <script>// Startanimation „Ring erhaben → Klång-Box“ (docs/ci/UMBAU_BAUPLAN.md §5.3, Vorlage docs/ci/start_animation/start.html).
@@ -1389,7 +1433,7 @@ body.rg-offen { overflow: hidden; }
       g.font = `500 ${px}px ${SCHRIFT}`;
       const wv = g.measureText("Kl").width, wa = g.measureText("a").width, wn = g.measureText("ng-Box").width;
       const x = (W - (wv + wa + wn)) / 2, basis = 0.557 * H;
-      lay = { px, x, basis, zielX: x + wv + ring.cx, zielY: basis + ring.cy };
+      lay = { px, x, basis, wv, wa, zielX: x + wv + ring.cx, zielY: basis + ring.cy };
     }
 
     const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -1397,9 +1441,10 @@ body.rg-offen { overflow: hidden; }
     function frame(t) {
       g.setTransform(S, 0, 0, S, 0, 0);
       g.globalAlpha = 1; g.fillStyle = GRUND; g.fillRect(0, 0, W, H);
-      // Wortmarke (ohne Ring auf dem a)
+      // Wortmarke ohne Ring: ein schlichtes a. Den Ring bringt erst der springende Kreis (Nutzer 09.11.2026).
+      // In drei Teilen gesetzt, damit das a genau dort steht, wo layout() das Ziel des Rings misst.
       g.globalAlpha = klemm((t - 0.35) / 0.6); g.fillStyle = TINTE; g.font = `500 ${lay.px}px ${SCHRIFT}`; g.textBaseline = "alphabetic"; g.textAlign = "start";
-      g.fillText("Klång-Box", lay.x, lay.basis);
+      g.fillText("Kl", lay.x, lay.basis); g.fillText("a", lay.x + lay.wv, lay.basis); g.fillText("ng-Box", lay.x + lay.wv + lay.wa, lay.basis);
       g.globalAlpha = 1;
       // Der eine Ring: vom Icon (groß, erhaben) auf das a
       const p = ease(klemm((t - 0.9) / 1.0));
@@ -9597,14 +9642,21 @@ function karte(r, i, gross = false) {
   const tipps = e.tipps.length ? `<div><span class="klein">Tipps (freiwillig)</span><ul class="klein" style="margin:4px 0 0; padding-left:16px">${e.tipps.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : "";
   const pm = (s) => (s.plusminus ? ` · Spielraum ±${s.plusminus}` : "");
   // Neueste Runde: Held mit zwei Scheiben (mit Klång-Box groß, heute klein), Wellen und Jubel (heldZeigen)
-  const plus = sp.gesamt - sh.gesamt;
-  const held = `<div class="held" data-held>
-      <div class="scheibe gross"><span class="lbl">mit <span class="nobr">Klång-Box</span></span><span class="zahl" data-zaehle="${sp.gesamt}" data-takt="b">${sp.gesamt}</span><span class="note">${esc(sp.note || "")}<span class="pm">${pm(sp)}</span></span></div>
-      <div class="scheibe klein"><span class="lbl">heute</span><span class="zahl" data-zaehle="${sh.gesamt}" data-takt="h">${sh.gesamt}</span><span class="note">${esc(sh.note || "")}</span></div>
+  // Nachgemessen: groß stehen die GEMESSENEN Werte am Hörplatz (wie in der Einmessen-Liste), die Prognose nur klein dabei
+  // (Nutzer 09.11.2026: Liste 58 → 63, Ergebnis 63 → 70 – zwei verschiedene Zahlen für „heute“ verwirrten).
+  const gu = r.urteil && Number.isFinite(+r.urteil.score_nachher) && Number.isFinite(+r.urteil.score_vorher) && (r.status === "bestaetigt" || r.status === "zurueckgenommen") ? r.urteil : null;
+  const wA = gu ? Math.round(+gu.score_vorher) : sh.gesamt, wB = gu ? Math.round(+gu.score_nachher) : sp.gesamt;
+  const lA = gu ? "ohne Box · gemessen" : "heute", lB = gu ? "mit Klång-Box · gemessen" : progName();
+  const nA = gu ? "" : esc(sh.note || ""), nB = gu ? `Prognose war ${sp.gesamt}` : esc(sp.note || "");
+  const still = gu && r.status !== "bestaetigt";   // zurückgenommen: kein Plus, kein Jubel
+  const plus = still ? 0 : wB - wA;
+  const held = `<div class="held"${still ? " data-still" : ""} data-held>
+      <div class="scheibe gross"><span class="lbl">${gu ? "mit <span class=\"nobr\">Klång-Box</span> · gemessen" : "mit <span class=\"nobr\">Klång-Box</span>"}</span><span class="zahl" data-zaehle="${wB}" data-takt="b">${wB}</span><span class="note">${nB}<span class="pm">${gu ? "" : pm(sp)}</span></span></div>
+      <div class="scheibe klein"><span class="lbl">${esc(lA)}</span><span class="zahl" data-zaehle="${wA}" data-takt="h">${wA}</span><span class="note">${nA}</span></div>
       ${plus > 0 ? `<span class="plus">+<span data-zaehle="${plus}" data-takt="b">${plus}</span></span>` : ""}</div><!--ERINNERUNG-->`;
   const zahlen = r.geraet && !r.geraet.fehler ? dreiWerte(r) : gross ? held : `<div class="zahlpaar">
-      <div class="zahlkarte"><span class="lbl">heute</span><span class="zahl" style="color: var(--kb-text-leise)">${sh.gesamt}</span><span class="note">${esc(sh.note || "")}<span class="pm">${pm(sh)}</span></span></div>
-      <div class="zahlkarte prog"><span class="lbl">${esc(progName())}</span><span class="zahl" style="color: var(--kb-signal)">${sp.gesamt}</span><span class="note">${esc(sp.note || "")}<span class="pm">${pm(sp)}</span></span></div></div>`;
+      <div class="zahlkarte"><span class="lbl">${esc(lA)}</span><span class="zahl" style="color: var(--kb-text-leise)">${wA}</span><span class="note">${nA}<span class="pm">${gu ? "" : pm(sh)}</span></span></div>
+      <div class="zahlkarte prog"><span class="lbl">${esc(lB)}</span><span class="zahl" style="color: var(--kb-signal)">${wB}</span><span class="note">${nB}<span class="pm">${gu ? "" : pm(sp)}</span></span></div></div>`;
   const filterAlle = ["FL", "FR"].reduce((n, c) => n + (((e.einstellungen || {})[c] || {}).eq || []).length, 0);
   const filterDrin = ["FL", "FR"].reduce((n, c) => n + (((e.einstellungen || {})[c] || {}).eq || []).filter((q) => imBereich(r, q)).length, 0);
   // Korrekturbereich im Hauptbild (nicht in „Details“): Score je Stufe, sofern die Messung ihn gerechnet hat
@@ -10231,7 +10283,7 @@ function heldZeigen() {
     const s = (t - t0) / 1000, q = { h: ease((s - takt.h[0]) / takt.h[1]), b: ease((s - takt.b[0]) / takt.b[1]) };
     h.style.setProperty("--qh", q.h.toFixed(3)); h.style.setProperty("--qb", q.b.toFixed(3)); h.style.setProperty("--q", q.b.toFixed(3));
     for (const z of zahlen) z.textContent = Math.round(+z.dataset.zaehle * q[z.dataset.takt || "b"]);
-    if (s < 2.2) heldUhr = requestAnimationFrame(schritt); else { for (const z of zahlen) z.textContent = z.dataset.zaehle; jubel(h); }
+    if (s < 2.2) heldUhr = requestAnimationFrame(schritt); else { for (const z of zahlen) z.textContent = z.dataset.zaehle; if (!h.hasAttribute("data-still")) jubel(h); }
   };
   heldUhr = requestAnimationFrame(schritt);
 }
@@ -14999,6 +15051,11 @@ const JETZT = (() => {
 // POST /api/regal), nur gekoppelt. Bilder: höchstens BILD_PARALLEL Anfragen gleichzeitig, erst wenn sie ins Bild
 // kommen (IntersectionObserver), Fehlschläge nicht gemerkt, Zwischenspeicher begrenzt (BILDER_MAX, zuletzt benutzt).
 // Import läuft auf der Box im Hintergrund: die App fragt den Fortschritt ab (GET regal/import).
+// Abspielen (Nutzer 09.11.2026): Im Booklet trägt das Cover einen ruhigen runden Knopf, der das Album aus der Bibliothek
+// der Box spielt (POST regal/spielen: ganz ab Titel 1; Hörspiel/Hörbuch: weiter bei der gemerkten Stelle). „Titel“ dreht
+// die Hülle um (wie die LP auf Hören, ohne 3D): Titelliste aus der Bibliothek (GET regal/titel), ein Tipp spielt ab dort,
+// der zuletzt gehörte Titel ist markiert (die Box merkt ihn je Album). Kein Vorspulen, kein Überspringen, keine Pause.
+// Alben, die es nur über eine Quelle gab (AirPlay, Spotify): kein Knopf, ein ehrlicher Satz (Hörspiel: letzte Stelle).
 // Nutzt von der Seite: nativ, boxBereit, zhAlbumInstr (jetzt.js, optional).
 const REGAL = (() => {
   const $ = (id) => document.getElementById(id);
@@ -15012,6 +15069,11 @@ const REGAL = (() => {
   const ART_EIN = { musik: "Musik", hoerspiel: "Hörspiel", hoerbuch: "Hörbuch", live: "Live", soundtrack: "Soundtrack", klassik: "Klassik", kinder: "Kinder", sonstiges: "Sonstiges" };
   let fokusVorher = null;
   let daten = null, filter = "alle", stapel = null, offen = null, bk = null, fehler = "", nachladen = 0, versuche = 0, artWahl = false;
+  // Abspielen: tl = GET regal/titel des offenen Albums, gedreht = Rückseite, spiel = {stand: "startet"|"laeuft"|"fehler", text}
+  let tl = null, gedreht = false, spiel = null, tlUhr = 0, tlVergleich = "";
+  const RUECK_UNTER = "Rückseite · Titel";  // Bildunterschrift der umgedrehten Hülle
+  const NACHSEHEN_MS = 8000, NACH_START_MS = 30000;  // nur, solange es läuft bzw. kurz nach dem Start
+  const PLAY = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path d="M8.5 5.6v12.8a1 1 0 0 0 1.52.85l10.2-6.4a1 1 0 0 0 0-1.7l-10.2-6.4A1 1 0 0 0 8.5 5.6z" fill="currentColor"/></svg>`;
   // Zwischenspeicher: höchstens BILDER_MAX Bilder und BILDER_BYTES Zeichen data-URL zusammen (ein Cover darf auf der
   // Box bis 4 MB groß sein; als data-URL gut ein Drittel mehr). Die Box liefert jedes Bild in einer Größe.
   const BILDER_MAX = 80, BILDER_BYTES = 40e6, BILD_PARALLEL = 4;
@@ -15093,7 +15155,7 @@ const REGAL = (() => {
     await laden();
   }
   function zu() {
-    const r = $("regal"); if (!r) return; r.hidden = true; document.body.classList.remove("rg-offen"); clearTimeout(nachladen); offen = null;
+    const r = $("regal"); if (!r) return; r.hidden = true; document.body.classList.remove("rg-offen"); clearTimeout(nachladen); clearTimeout(tlUhr); offen = null;
     if (typeof hintergrundSperren === "function") hintergrundSperren(null);
     if (fokusVorher && fokusVorher.isConnected) try { fokusVorher.focus({ preventScroll: true }); } catch (e) { /* ohne Fokus */ }
   }
@@ -15151,7 +15213,7 @@ const REGAL = (() => {
   // --- Booklet -------------------------------------------------------------------------------------------------------
   async function bookletLaden(id, still) {
     clearTimeout(nachladen);
-    if (!still) { offen = id; bk = null; artWahl = false; versuche = 0; zeigen(); }
+    if (!still) { offen = id; bk = null; artWahl = false; versuche = 0; tl = null; tlVergleich = ""; gedreht = false; spiel = null; zeigen(); titelLaden(id); }
     const d = await nativ.box(`regal/booklet?id=${encodeURIComponent(id)}`, {}, { zeitMs: 15000 });
     if (offen !== id) return;
     bk = d && d.ok !== false && d.eintrag ? d : { fehler: (d && d.fehler) || "Das Booklet ließ sich nicht laden." };
@@ -15160,9 +15222,141 @@ const REGAL = (() => {
   }
   function seitenHtml(b) {
     const s = b.seiten && b.seiten.length ? b.seiten : null, e = b.eintrag;
-    if (!s) return `<div class="rg-seiten einzeln">${cover({ ...e, cover: b.cover_gross || e.cover }, true)}</div>`;
-    return `<div class="rg-seiten" id="rg-seiten" aria-label="Booklet blättern">${s.map((x, i) => `<figure class="rg-seite"><span class="rg-cover gross">${i ? "" : platz(e)}<img alt="${h(x.name)}" data-regal-bild="${h(x.bild)}"></span>
-      <figcaption class="klein">${h(x.name)} · ${i + 1}/${s.length}</figcaption></figure>`).join("")}</div>`;
+    if (!s) return `<div class="rg-seiten einzeln">${huelle(cover({ ...e, cover: b.cover_gross || e.cover }, true))}</div>`;
+    return `<div class="rg-seiten" id="rg-seiten" aria-label="Booklet blättern">${s.map((x, i) => {
+      const c = `<span class="rg-cover gross">${i ? "" : platz(e)}<img alt="${h(x.name)}" data-regal-bild="${h(x.bild)}"></span>`;
+      const unter = `${h(x.name)} · ${i + 1}/${s.length}`;
+      return i ? `<figure class="rg-seite">${c}<figcaption class="klein">${unter}</figcaption></figure>`
+        : `<figure class="rg-seite">${huelle(c)}<figcaption class="klein" id="rg-unter" data-vorne="${unter}">${gedreht ? RUECK_UNTER : unter}</figcaption></figure>`;
+    }).join("")}</div>`;
+  }
+
+  // --- Abspielen: Hülle mit Knopf, Rückseite mit Titeln ---------------------------------------------------------------
+  // Die Hülle bleibt beim Nachladen stehen (kein Flackern des Covers): neu gezeichnet werden nur Knöpfe, Rückseite und
+  // die Zeile darunter (spielTeile), der Fokus bleibt, wo er war.
+  function huelle(vorne) {
+    return `<div class="rg-huelle${gedreht ? " gedreht" : ""}" id="rg-huelle"><div class="rg-h-vorne"${gedreht ? " inert" : ""}>${vorne}
+      <div class="rg-h-knoepfe" id="rg-h-knoepfe">${knoepfeHtml()}</div></div>
+      <div class="rg-h-hinten" id="rg-h-hinten"${gedreht ? "" : " inert"}>${hintenHtml()}</div></div>`;
+  }
+  const kapitel = (x) => (x ? `${tl && tl.hoerspiel ? "Kapitel" : "Titel"} ${x.nr ?? (x.i != null ? x.i + 1 : "")}`.trim() : "");
+  const stelle = (x) => [x.nr != null || x.i != null ? kapitel(x) : x.titel || "", x.position_s >= 1 ? zeit(x.position_s) : ""].filter(Boolean).join(" · ");
+  const laeuftHier = () => !!(tl && (tl.laeuft || (spiel && spiel.stand === "laeuft")));
+  function knoepfeHtml() {
+    if (!tl) return "";
+    const w = tl.weiter, s = spiel && spiel.stand;
+    const play = !tl.abspielbar || laeuftHier() ? ""
+      : `<button type="button" class="rg-play" id="rg-play" aria-label="${s === "startet" ? "Startet" : w ? `Weiter abspielen: ${h(stelle(w))}` : "Album abspielen"}"${s === "startet" ? ` aria-busy="true" disabled data-stand="startet"` : ""}>${PLAY}</button>`;
+    const marke = laeuftHier() ? `<span class="rg-glas rg-h-laeuft"><span class="kb-laeuft-label">Läuft</span></span>` : "";
+    const dreh = `<button type="button" class="rg-glas rg-dreh" id="rg-dreh" aria-expanded="${gedreht}" aria-controls="rg-h-hinten" aria-label="Hülle umdrehen: Titel">Titel</button>`;
+    return play + marke + dreh;
+  }
+  function hintenHtml() {
+    const e = bk && bk.eintrag;
+    const kopf = `<div class="rg-h-kopf"><span class="eyebrow">${tl && tl.titel.length ? `Titel · ${tl.titel.length}` : "Rückseite"}</span>
+      <button type="button" class="leise klein rg-dreh-zurueck" id="rg-dreh-zurueck" aria-label="Hülle umdrehen: Cover">Cover</button></div>`;
+    if (!tl) return `${kopf}<p class="klein">${e ? "Die Titel werden geholt …" : ""}</p>`;
+    const z = tl.zuletzt;
+    if (!tl.abspielbar) {
+      return `${kopf}<p class="klein rg-h-hinweis">${h(tl.hinweis || "Nur über die Quelle abspielbar.")}</p>
+        ${z && tl.hoerspiel ? `<p class="rg-h-zuletzt"><span class="rg-punkt" aria-hidden="true"></span><span><span class="rg-zl">Zuletzt gehört</span><b>${h(z.titel || "")}</b>${z.position_s >= 1 ? `<span class="klein">bei ${zeit(z.position_s)}${z.zeit ? ` · ${h(datum(z.zeit))}` : ""}</span>` : ""}</span></p>` : ""}`;
+    }
+    const zi = z ? z.i : null, li = tl.laeuft ? tl.laeuft_i : null;
+    const cds = [...new Set(tl.titel.map((t) => t.cd).filter((x) => x != null))];
+    const zeile = (t) => {
+      const jetzt = li === t.i, zuletzt = !jetzt && zi === t.i;
+      const nr = t.nr ?? t.i + 1;
+      return `<li><button type="button" class="rg-t${zuletzt ? " zuletzt" : ""}${jetzt ? " jetzt" : ""}" data-rg-ab="${t.i}" aria-label="Ab Titel ${h(nr)} abspielen: ${h(t.titel)}${zuletzt ? " (zuletzt gehört)" : jetzt ? " (läuft)" : ""}">
+        <span class="rg-t-nr">${zuletzt ? `<span class="rg-punkt" aria-hidden="true"></span>` : h(nr)}</span><span class="rg-t-name"><b>${h(t.titel)}</b>${zuletzt ? `<span class="rg-zl">Zuletzt gehört${z.position_s >= 1 && tl.hoerspiel ? ` · ${zeit(z.position_s)}` : ""}</span>` : jetzt ? `<span class="kb-laeuft-label">Läuft</span>` : ""}</span>
+        <em>${t.dauer_s ? zeit(t.dauer_s) : ""}</em></button></li>`;
+    };
+    const liste = cds.length > 1 ? cds.map((c) => `<li class="rg-cd">CD ${h(c)}</li>${tl.titel.filter((t) => t.cd === c).map(zeile).join("")}`).join("") : tl.titel.map(zeile).join("");
+    return `${kopf}<ol class="rg-h-liste" aria-label="Titel des Albums">${liste}</ol>`;
+  }
+  function standHtml() {
+    if (!tl) return "";
+    if (spiel && spiel.stand === "fehler") return `<span class="warn">${h(spiel.text)}</span>`;
+    if (spiel && spiel.stand === "startet") return "Startet …";
+    if (laeuftHier()) return "";
+    if (tl.abspielbar && tl.weiter) return `Weiter bei ${h(stelle(tl.weiter))}`;
+    if (!tl.abspielbar) return h(tl.hoerspiel ? "Weiter in der App, mit der du es gehört hast." : "Nur über die Quelle abspielbar.");
+    return "";
+  }
+  // Fokus über ein Neuzeichnen retten: Kennung des Elements (id oder data-*), danach dasselbe wieder fokussieren
+  function fokusMerken() {
+    const a = document.activeElement, r = $("regal");
+    if (!a || !r || !r.contains(a) || a === document.body) return null;
+    if (a.id) return `#${CSS.escape(a.id)}`;
+    for (const k of ["rgAb", "rgFilter", "rgArt", "rgAlbum", "rgStapel"]) if (a.dataset && a.dataset[k] != null) {
+      return `[data-${k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}="${CSS.escape(a.dataset[k])}"]`;
+    }
+    return null;
+  }
+  function fokusZurueck(sel, ersatz) {
+    if (!sel) return;
+    const el = document.querySelector(`#regal ${sel}`) || (ersatz && $(ersatz));
+    if (el && el !== document.activeElement) try { el.focus({ preventScroll: true }); } catch (e) { /* ohne Fokus */ }
+  }
+  function spielTeile() {
+    const sel = fokusMerken();
+    const k = $("rg-h-knoepfe"), hi = $("rg-h-hinten"), st = $("rg-spielstand");
+    const liste = hi && hi.querySelector(".rg-h-liste"), oben = liste ? liste.scrollTop : 0;
+    if (k) k.innerHTML = knoepfeHtml();
+    if (hi) { hi.innerHTML = hintenHtml(); const l = hi.querySelector(".rg-h-liste"); if (l) l.scrollTop = oben; }
+    if (st) st.innerHTML = standHtml();
+    fokusZurueck(sel, gedreht ? "rg-dreh-zurueck" : "rg-dreh");
+  }
+  // Vergleich ohne Sekunden und Zeitstempel: die Rückseite wird nur neu gezeichnet, wenn sich etwas Sichtbares ändert
+  // (laufender Titel, zuletzt gehörter Titel), nicht alle paar Sekunden (VoiceOver bliebe sonst nicht auf der Zeile)
+  const vergleich = (d) => JSON.stringify(d, (k, v) => (k === "position_s" || k === "zeit" ? undefined : v));
+  function nachsehenPlanen(id) {
+    clearTimeout(tlUhr);
+    const frisch = spiel && spiel.zeit && Date.now() - spiel.zeit < NACH_START_MS;
+    if (!tl || !(tl.laeuft || frisch)) return;  // läuft hier nichts: nicht nachsehen
+    tlUhr = setTimeout(() => {
+      if (offen !== id || $("regal").hidden) return;
+      if (document.hidden) { nachsehenPlanen(id); return; }  // im Hintergrund: nicht fragen, später wieder
+      titelLaden(id, true);
+    }, frisch ? 1500 : NACHSEHEN_MS);
+  }
+  async function titelLaden(id, still) {
+    clearTimeout(tlUhr);
+    const d = await nativ.box(`regal/titel?id=${encodeURIComponent(id)}`, {}, { zeitMs: 10000 });
+    if (offen !== id) return;
+    if (d && d.ok !== false && Array.isArray(d.titel)) {
+      const v = vergleich(d), neu = v !== tlVergleich;
+      tl = d; tlVergleich = v;
+      // spielt nicht mehr (anderes Album, Stopp); kurz nach dem Start hat die Box es vielleicht noch nicht gesehen
+      if (spiel && spiel.stand === "laeuft" && !d.laeuft && still && Date.now() - spiel.zeit > 6000) { spiel = null; spielTeile(); }
+      else if (neu || !still) spielTeile();
+    } else if (!still) { tl = { ok: false, titel: [], abspielbar: false, hinweis: (d && d.fehler) || "Die Titel ließen sich nicht holen." }; tlVergleich = ""; spielTeile(); }
+    nachsehenPlanen(id);
+  }
+  async function abspielen(ab) {
+    if (!tl || !tl.abspielbar || !offen || (spiel && spiel.stand === "startet")) return;
+    const id = offen;
+    spiel = { stand: "startet" }; spielTeile();
+    // die Datei mitschicken: nach einem neuen Einlesen trifft sie noch den richtigen Titel (ab_titel nur ersatzweise)
+    const t = ab == null ? null : tl.titel.find((x) => x.i === ab);
+    const r = await nativ.box("regal/spielen", ab == null ? { id } : { id, ab_titel: ab, ...(t && t.uri ? { uri: t.uri } : {}) }, { zeitMs: 10000 });
+    if (offen !== id) return;
+    if (r && r.ok !== false) {
+      spiel = { stand: "laeuft", zeit: Date.now() };
+      tl = { ...tl, laeuft: true, laeuft_i: r.ab_titel };
+      spielTeile();
+      if (typeof JETZT !== "undefined" && JETZT.laden) try { JETZT.laden(); } catch (e) { /* Hören holt selbst nach */ }
+      nachsehenPlanen(id);
+    } else { spiel = { stand: "fehler", text: (r && r.fehler) || "Ging nicht." }; spielTeile(); }
+  }
+  function drehen() {
+    gedreht = !gedreht;
+    const u = $("rg-huelle"); if (!u) return;
+    u.classList.toggle("gedreht", gedreht);
+    u.querySelector(".rg-h-vorne").inert = gedreht; $("rg-h-hinten").inert = !gedreht;
+    const d = $("rg-dreh"); if (d) d.setAttribute("aria-expanded", String(gedreht));
+    const u2 = $("rg-unter"); if (u2) u2.textContent = gedreht ? RUECK_UNTER : u2.dataset.vorne;
+    const ziel = $(gedreht ? "rg-dreh-zurueck" : "rg-dreh");
+    if (ziel) try { ziel.focus({ preventScroll: true }); } catch (e) { /* ohne Fokus */ }
   }
   function titelHtml(liste) {
     if (!liste.length) return "";
@@ -15186,6 +15380,7 @@ const REGAL = (() => {
     const genres = (a.genres || []).slice(0, 4);
     const suche = encodeURIComponent(`${e.interpret} ${e.album}`.trim());
     return `${seitenHtml(bk)}
+      <p class="klein rg-spielstand" id="rg-spielstand" aria-live="polite">${standHtml()}</p>
       <div class="rg-titelblock"><span class="eyebrow">${h(e.interpret)}</span><h2>${h(a.titel || e.album)}</h2>
         ${fakten.length ? `<p class="klein">${fakten.map(h).join("&nbsp;· ")}</p>` : ""}
         ${genres.length ? `<div class="chips rg-genres">${genres.map((g) => `<span class="rg-genre">${h(g)}</span>`).join("")}</div>` : ""}</div>
@@ -15210,13 +15405,19 @@ const REGAL = (() => {
     const titel = offen ? "Booklet" : stapel ? stapel : "CD-Regal";
     $("regal-titel").textContent = titel;
     $("regal-zurueck").hidden = !offen && !stapel;
+    const sel = fokusMerken(), blatt = $("rg-seiten") ? $("rg-seiten").scrollLeft : 0;
     z.innerHTML = offen ? bookletHtml() : stapel && daten ? stapelHtml() : regalHtml();
+    if (blatt && $("rg-seiten")) $("rg-seiten").scrollLeft = blatt;
     bilderLaden(z);
+    fokusZurueck(sel);
   }
   async function klick(ev) {
     const t = ev.target;
     if (t.closest("#regal-zu")) { zu(); return; }
-    if (t.closest("#regal-zurueck")) { clearTimeout(nachladen); if (offen) offen = null; else stapel = null; zeigen(); if (!offen) laden(); $("regal-inhalt").scrollTop = 0; return; }
+    if (t.closest("#rg-play")) { abspielen(null); return; }
+    if (t.closest("#rg-dreh, #rg-dreh-zurueck")) { drehen(); return; }
+    const ab = t.closest("[data-rg-ab]"); if (ab) { abspielen(+ab.dataset.rgAb); return; }
+    if (t.closest("#regal-zurueck")) { clearTimeout(nachladen); clearTimeout(tlUhr); if (offen) offen = null; else stapel = null; zeigen(); if (!offen) laden(); $("regal-inhalt").scrollTop = 0; return; }
     const f = t.closest("[data-rg-filter]"); if (f) { filter = f.dataset.rgFilter; zeigen(); return; }
     const s = t.closest("[data-rg-stapel]"); if (s) { stapel = s.dataset.rgStapel; zeigen(); $("regal-inhalt").scrollTop = 0; return; }
     const a = t.closest("[data-rg-album]"); if (a) { $("regal-inhalt").scrollTop = 0; bookletLaden(a.dataset.rgAlbum); return; }
@@ -15291,7 +15492,8 @@ const REGAL = (() => {
   // fester Knopf auf Hören: nur mit Box; immer an derselben Stelle (Kopf von Zuhause)
   function knopf() { const k = $("zh-regal"); if (k) k.hidden = !da(); }
   document.addEventListener("click", (ev) => { if (ev.target.closest("#zh-regal")) auf(); });
-  return { auf, zu, knopf, laden, _zustand: () => ({ daten, offen, bk, filter, stapel }),
+  return { auf, zu, knopf, laden, _zustand: () => ({ daten, offen, bk, filter, stapel, tl, gedreht, spiel }),
+    _nachsehen: () => (offen ? titelLaden(offen, true) : null),
     _bilder: { bild, stand: () => ({ anzahl: bilder.size, bytes: bilderBytes, pfade: [...bilder.keys()] }) } };
 })();
 </script>

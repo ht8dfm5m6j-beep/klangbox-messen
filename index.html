@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="4878c9b2957d">
+<meta name="klangbox-stand" content="e2ce7f46b081">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -283,6 +283,7 @@ ol.tun b { font-weight: 600; }
   --kb-t-titel: 600 34px/40px var(--kb-schrift);         /* h1 */
   --kb-t-titel2: 600 24px/28px var(--kb-schrift);        /* Liedtitel, h2 */
   --kb-t-titel3: 600 20px/24px var(--kb-schrift);        /* Sheet-Titel, h3, Albumname */
+  --kb-t-lied: 400 20px/24px var(--kb-schrift);          /* Hören: „Titel · Interpret · Album“ in einer Zeile, leise */
   --kb-t-lead: 400 18px/24px var(--kb-schrift);          /* Satz im Messschritt */
   --kb-t-text: 400 17px/24px var(--kb-schrift);          /* Fließtext, Listenzeilen (Beschriftung 500) */
   --kb-t-meta: 400 16px/20px var(--kb-schrift);          /* Künstler · Album, Reiter, Links */
@@ -573,8 +574,8 @@ details.mehr > :not(summary) { animation: aufklappen var(--kb-zeit) var(--kb-kur
 .zh-vol-klein { flex: none; min-width: 3ch; text-align: right; color: var(--vol-ink); font: 500 17px/20px var(--kb-schrift); font-variant-numeric: var(--kb-zahlen); }
 .zh-vol-klein[hidden] { display: none; }
 .zh-vol-klein[data-stumm="1"] { color: var(--vol-leise); }
-/* Spielzeit hinter Interpret und Album: leise, tabellarisch */
-.zh-zeit-text { color: var(--kb-text-leise); font-variant-numeric: var(--kb-zahlen); white-space: nowrap; }
+/* Spielzeit rechts in der Info-Zeile: leise, tabellarisch */
+.zh-zeit-text { flex: none; margin-left: auto; color: var(--kb-text-leise); font-variant-numeric: var(--kb-zahlen); white-space: nowrap; }
 .zh-jetzt-karte .lp, .zh-jetzt-karte.still { position: relative; }
 .zh-vol-over { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; border-radius: inherit; background: var(--vol-schleier);
   opacity: 0; pointer-events: none; transition: opacity var(--vol-zeit) var(--kb-kurve); }
@@ -1044,8 +1045,20 @@ body.rg-offen .sheet-lage { z-index: 80; }
 #zh-jetzt { display: grid; }
 .zh-jetzt-karte { position: relative; display: grid; gap: 12px; padding: 0; }
 .zh-jetzt-karte.still { gap: 8px; }
-.zh-jetzt-text h2 { font: var(--kb-t-titel2); margin: 0; text-wrap: balance; }
-.zh-jetzt-text p { margin: 4px 0 0; color: var(--kb-text-leise); font: var(--kb-t-meta); }
+/* Das Lied in einer Zeile (Nutzer 09.11.2026, Variante J): „Titel · Interpret · Album“, eine Schrift, ein Gewicht, eine Farbe,
+   der Titel 1:1 eingereiht; höchstens zwei Zeilen, dann … Darunter leise links das Format (500, etwas heller), rechts die Zeit. */
+.zh-jetzt-text h2.zh-lied { font: var(--kb-t-lied); color: var(--kb-text-leise); margin: 0; display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; text-wrap: pretty; }
+.zh-jetzt-text .zh-lied-info { display: flex; align-items: baseline; gap: 12px; margin: 8px 0 0;
+  font: var(--kb-t-klein); color: var(--kb-text-leise); font-variant-numeric: var(--kb-zahlen); }
+.zh-lied-format { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 400; color: var(--kb-text-leise); }   /* so leise wie die Zeile darüber (Mockup J) */
+.zh-lied-format:empty { display: none; }
+/* Mehr Ruhe auf Hören (Nutzer 09.11.2026): Cover · Titel · Lautstärke mit 20 px, dann ein deutlicher Absatz (32 px)
+   zum Bereich, die leisen Zusätze dicht darunter (12 px), Klang wieder mit Abstand (16 px) */
+.zh-jetzt-karte:not(.still) { gap: 20px; }
+.schritt[data-s="18"][data-tab="hoeren"] > #zh-held { margin-top: 16px; }
+.schritt[data-s="18"][data-tab="hoeren"]:has(#zh-jetzt[hidden]) > #zh-held { margin-top: 0; }   /* ohne Jetzt-läuft kein Absatz unter dem Kopf */
+.schritt[data-s="18"][data-tab="hoeren"] #zh-klang-zeile { margin-top: 12px; }
 .zh-jetzt-quelle { color: var(--kb-text-leise) !important; }
 .lp { width: 100%; aspect-ratio: 1; justify-self: center; perspective: none; cursor: pointer; border-radius: var(--kb-r); -webkit-tap-highlight-color: transparent; }
 .lp.gross { width: min(100%, 56dvh, 560px); }
@@ -1272,6 +1285,7 @@ body.rg-offen { overflow: hidden; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) .zh-jetzt-text { grid-column: 2; grid-row: 3; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) .zh-vol-leiste { grid-column: 2; grid-row: 4; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) > #zh-held { grid-column: 2; grid-row: 5; }
+  .schritt[data-s="18"][data-tab="hoeren"]:has(.lp):not(:has(#zh-vol-leiste:not([hidden]))) > #zh-held { margin-top: 0; }   /* leere Zeile 4 gibt schon den Abstand */
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) > :is(#zh-hinweise, #zh-status) { grid-column: 2; grid-row: 6; align-self: start; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) > :not(.zh-kopf, #zh-jetzt, #zh-held, #zh-hinweise, #zh-status) { grid-column: 2; }
   /* Fenster Klang, Raum und Album als Seitenblatt rechts (400 px), nicht als zweite feste Spalte */
@@ -14571,14 +14585,19 @@ const JETZT = (() => {
     const leiste = `<div class="zh-vol-leiste" id="zh-vol-leiste" role="group" aria-label="Lautstärke" hidden></div>`;
     const quelle = [j.quelle_name, j.format && j.format.text].filter(Boolean).join("&nbsp;· ");
     const p = position(), d = +j.dauer_s || 0;
-    // Spielzeit als Text hinter Interpret und Album („· 0:09 / 1:17“, leise, tabellarisch); keine Zeitlinie (nur eine Linie auf Hören)
-    const zt = d && p !== null ? `<span class="zh-zeit-text">${j.interpret || j.album ? "&nbsp;· " : ""}<span id="zh-zeit-t">${zeit(p)}</span> / ${zeit(d)}</span>` : "";
+    // Das Lied in einer Zeile (Nutzer 09.11.2026, Variante J): „L-O-V-E · Nat King Cole · L-O-V-E“, alles gleich (Schrift,
+    // Gewicht, Farbe), der Titel 1:1 eingereiht; höchstens zwei Zeilen. Leeres fällt weg.
+    const titel = j.titel || j.sender || j.quelle_name || "";
+    const rest = [j.interpret, j.album, j.titel && !j.interpret && !j.album ? j.sender : null].filter(Boolean);
+    // Darunter leise: links das Format („FLAC 16/44,1“, „Dolby Digital 5.1“), rechts die Spielzeit (tabellarisch, tickt)
+    const fmt = j.format ? j.format.kurz || (j.format.text || "").replace(/(\d)\.(\d+)(?=\s*kHz)/g, "$1,$2") : "";
+    const zt = d && p !== null ? `<span class="zh-zeit-text"><span id="zh-zeit-t">${zeit(p)}</span> / ${zeit(d)}</span>` : "";
     // Hören ist eine Ansicht (Nutzer 08.11.2026): kein Play/Pause, kein Titelwechsel; gespielt wird in der Quelle
     ziel.innerHTML = `<section class="zh-jetzt-karte${still ? " still" : ""}" id="zh-jetzt-karte" aria-labelledby="zh-jetzt-titel">
       ${still ? `<div class="zh-jetzt-zeile"><h2 id="zh-jetzt-titel">Gerade läuft nichts.</h2></div><p class="klein">${quelle || "Spiel etwas ab: AirPlay, Spotify, Fernseher oder die Bibliothek."}</p>${leiste}` : `
       ${huelle("zh-lp", false)}
-      <div class="zh-jetzt-text"><div class="zh-jetzt-zeile"><h2 id="zh-jetzt-titel">${h(j.titel || j.sender || j.quelle_name || "")}</h2></div>
-        ${j.interpret || j.album || zt ? `<p>${[j.interpret, j.album].filter(Boolean).map(h).join("&nbsp;· ")}${zt}</p>` : ""}
+      <div class="zh-jetzt-text"><h2 class="zh-lied"><span id="zh-jetzt-titel">${h(titel)}</span>${rest.map((x) => `&nbsp;· ${h(x)}`).join("")}</h2>
+        ${fmt || zt ? `<p class="zh-lied-info"><span class="zh-lied-format">${h(fmt)}</span>${zt}</p>` : ""}</div>
       ${leiste}`}
     </section>`;
     if (!$("zh-album-block")?.hidden) window.zhAlbumInhalt();  // offenes Fenster: Infos kommen nach

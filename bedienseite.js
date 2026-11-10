@@ -117,7 +117,7 @@
     adresseZeigen(); obenZeigen();
   }
   // Lesende Aufrufe des Alltags (Jetzt läuft, Bibliothek …): ohne Daten per GET, die Abfrage steht im Namen
-  const LESEN = new Set(["status", "ausgangspegel", "jetzt", "jetzt/details", "signalweg", "diagnose", "bericht", "bibliothek", "warteschlange", "sicherung", "wlan", "regal", "regal/booklet", "regal/suche"]);
+  const LESEN = new Set(["status", "ausgangspegel", "jetzt", "jetzt/details", "jetzt/pegel", "signalweg", "diagnose", "bericht", "bibliothek", "warteschlange", "sicherung", "wlan", "regal", "regal/booklet", "regal/suche"]);
   const leer = (d) => !d || (typeof d === "object" && !Object.keys(d).length);
   async function aufruf(name, daten, boxId) {
     const sat = boxId && boxId !== "box" && status && boxId !== status.id;

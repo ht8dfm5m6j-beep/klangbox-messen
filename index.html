@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="9bdb8231be63">
+<meta name="klangbox-stand" content="25637f9f5b22">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -335,6 +335,22 @@ ol.tun b { font-weight: 600; }
   --kb-signal: #E2622C; --kb-signal-text: #E2622C; --kb-schleier: rgba(0, 0, 0, .5); --kb-cover-leer: #3A3B3E;
   color-scheme: dark;
 }
+
+/* --- Raumansicht auf Hören (Digitaleingang ohne Cover, jetzt.js raumSvg) ----------------------------------------------
+   Grundwert hell: keine dunkle Kachel, ein heller Grund dicht an der Seite, Boxen in Textfarbe, hohle Kreise mittelgrau,
+   Signal für Punkte und Phantommitte; dunkel kehrt das um. Variante „Kachel“ (dunkle Fläche wie im ersten Mockup) nur über
+   <html data-raum-stil="kachel">. */
+:root {
+  --kb-raum-grund: #F3F1ED; --kb-raum-rahmen: var(--kb-linie); --kb-raum-box: var(--kb-text); --kb-raum-box-schrift: var(--kb-grund);
+  --kb-raum-hohl: #8E8A83; --kb-raum-hohl-schrift: var(--kb-text-leise); --kb-raum-weg: #A7A29A; --kb-raum-akzent: #E2622C;
+  --kb-raum-spur: var(--kb-raum-akzent); --kb-raum-text: var(--kb-text-leise); --kb-raum-du: var(--kb-raum-akzent);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-thema="hell"]) { --kb-raum-grund: #1F2023; --kb-raum-hohl: #77756F; --kb-raum-weg: #55534F; }
+}
+:root[data-thema="dunkel"], .kb-dunkel { --kb-raum-grund: #1F2023; --kb-raum-hohl: #77756F; --kb-raum-weg: #55534F; }
+[data-raum-stil="kachel"] .zh-raum { --kb-raum-grund: #2A2927; --kb-raum-rahmen: #45433F; --kb-raum-box: #EDEBE6; --kb-raum-box-schrift: #2A2927;
+  --kb-raum-hohl: #9C9993; --kb-raum-hohl-schrift: #9C9993; --kb-raum-weg: #4D4B47; --kb-raum-text: #9C9993; }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --kb-zeit-kurz: 0ms; --kb-zeit: 0ms; --kb-zeit-lang: 0ms; }
@@ -1086,6 +1102,36 @@ body.rg-offen .sheet-lage { z-index: 80; }
 .lp-platz { width: 100%; height: 100%; display: grid; place-items: end start; align-content: end; gap: 4px; background: var(--kb-cover-leer); color: var(--kb-cover-schrift); text-align: left; padding: 16px; }
 .lp-platz svg { display: none; }
 .lp-platz.film span, .lp-platz span { font: 500 13px/16px var(--kb-schrift); color: var(--kb-cover-schrift); }
+/* Raumansicht statt Cover (Digitaleingang, jetzt.js raumSvg): das Wohnzimmer von oben. Alle Farben als Tokens
+   (--kb-raum-* in docs/ci/tokens.css, hell, dunkel und die Variante „Kachel“), damit sich das Aussehen ohne die Logik
+   umstellen lässt. --raum-st (0…1) setzt jetzt.js je Kanal aus dem Pegel. */
+.lp-vorne.mit-raum { background: var(--kb-raum-grund); box-shadow: inset 0 0 0 1px var(--kb-raum-rahmen); }
+.zh-raum { width: 100%; height: 100%; background: var(--kb-raum-grund); }
+.zh-raum svg { display: block; width: 100%; height: 100%; }
+.zh-raum text { font-family: var(--kb-schrift); text-anchor: middle; }
+.zh-raum .raum-rahmen { fill: none; stroke: var(--kb-raum-rahmen); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.zh-raum .raum-bild { stroke: var(--kb-raum-box); stroke-width: 3; }
+.zh-raum .raum-text { font-size: 11px; fill: var(--kb-raum-text); letter-spacing: .06em; font-weight: 500; }
+.zh-raum .raum-flaeche { fill: var(--kb-raum-box); }
+.zh-raum .raum-box-name { font-size: 12px; font-weight: 600; fill: var(--kb-raum-box-schrift); }
+.zh-raum .raum-box-name.klein { font-size: 9px; }
+.zh-raum .raum-ring { fill: none; stroke: var(--kb-raum-akzent); stroke-width: 1.5; opacity: 0; transition: opacity .25s linear; }
+.zh-raum .raum-kanal circle { fill: none; stroke: var(--kb-raum-hohl); stroke-width: 1.3; }
+.zh-raum .raum-kanal text { font-size: 10px; font-weight: 500; fill: var(--kb-raum-hohl-schrift); }
+.zh-raum .raum-kanal.lfe circle { stroke-dasharray: 2 3; }
+.zh-raum .raum-kanal.lfe text { font-size: 8px; }
+.zh-raum .raum-kanal.phantom circle { stroke: var(--kb-raum-akzent); }
+.zh-raum .raum-kanal.phantom text { fill: var(--kb-raum-akzent); }
+.zh-raum.laeuft .raum-kanal circle { stroke-width: calc(1.3px + 1.2px * var(--raum-st, 0)); }
+.zh-raum .raum-weg { fill: none; stroke: var(--kb-raum-weg); stroke-width: 1.1; stroke-dasharray: 2 4; stroke-linecap: round; }
+.zh-raum .raum-spur { fill: none; stroke: var(--kb-raum-spur); stroke-width: .8; opacity: .18; }
+.zh-raum.laeuft .raum-spur { opacity: calc(.18 + .3 * var(--raum-st, 0)); }
+.zh-raum .raum-du { fill: var(--kb-raum-du); }
+.zh-raum .raum-teilchen { fill: var(--kb-raum-akzent); }
+@media (prefers-reduced-motion: reduce) {
+  .zh-raum .raum-teilchen { display: none; }
+  .zh-raum.laeuft .raum-weg { stroke: var(--kb-raum-akzent); opacity: calc(.25 + .75 * var(--raum-st, 0)); }
+}
 .lp-rueck h3 { margin: 0; font: var(--kb-t-titel3); }
 .lp-titel { list-style: none; margin: 4px 0 0; padding: 0; display: grid; font: 400 15px/20px var(--kb-schrift); }
 .lp-titel li { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; padding: 8px 0; color: var(--kb-text-leise); border-bottom: 1px solid var(--kb-linie); }
@@ -12140,6 +12186,7 @@ function zhTab(name, merken = true) {
   $("h-zuhause").textContent = ZH_TAB_TITEL[name];
   if (name !== "hoeren" && sheet.offen()) sheet.zu();
   if (merken) schreiben("klangbox-tab", name);
+  if (typeof JETZT !== "undefined" && JETZT.raumPruefen) JETZT.raumPruefen();  // Raumansicht: Pegel nur auf Hören abfragen
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zh-tab]"); if (!b) return; zhTab(b.dataset.zhTab); window.scrollTo(0, 0); });
 // sicher: der Stand ist bekannt (Status der Box da oder keine Box). Vorher vorläufig „Hören“, danach einmal richtig
@@ -12155,7 +12202,10 @@ function zhTabStart(einmessungDa, sicher = true) {
 // Takt-Labor: Varianten testen (5 Minuten, automatischer Rückfall), Ergebnisse, behalten oder zurück
 const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen bei gleicher Rate (besser für die Qualität)"],
   roehre: ["Röhre", "nur Fernseher (optisch): Weiche direkt an CamillaDSP statt über den groben Takt; geschätzt etwa 25 ms, gemessen wird im Test"],
-  roehre_knapp: ["Röhre knapp", "dasselbe mit halb so großen Blöcken: geschätzt etwa 15 ms, wenn es ohne Aussetzer bleibt"] };
+  roehre_knapp: ["Röhre knapp", "dasselbe mit halb so großen Blöcken und kleinstem Puffer: am schnellsten, verwirft aber leicht"],
+  roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Puffer bis 5,3 ms: zwischen knapp und Röhre"],
+  roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Puffer bis 6,7 ms"],
+  roehre_mittel3: ["Röhre mittel 3", "kleine Blöcke, Puffer bis 8 ms: am sichersten der drei"] };
 function taktZeigen() {
   const t = (zh.st && zh.st.takt) || {}, lab = t.labor;
   $("zh-takt-laeuft").innerHTML = lab ? `<div class="kasten"><b>Test läuft: ${esc(TAKT[lab.variante][0])}</b> · noch ${lab.rest_s} s
@@ -14818,10 +14868,131 @@ const JETZT = (() => {
   const position = () => { if (!j || !Number.isFinite(+j.position_s)) return null;
     const p = +j.position_s + (j.zustand === "spielt" ? Math.max(0, Date.now() / 1000 - jZeit) : 0); return j.dauer_s ? Math.min(+j.dauer_s, p) : p; };
 
+  // --- Raumansicht (Mockup „B · Raum“): Digitaleingang ohne Cover --------------------------------------------------------
+  // Das Wohnzimmer von oben: echte Boxen des Layouts (gefüllt), Kanäle der Quelle ohne eigene Box (hohl), gepunktete Wege
+  // dorthin, wohin die Box sie mischt (j.raum aus GET /api/jetzt: raumfluss.py liest sie aus dem Plan der Kette). Live:
+  // kleine Punkte laufen die Wege entlang, Helligkeit, Größe und Takt folgen dem Pegel je Kanal (GET /api/jetzt/pegel,
+  // etwa viermal je Sekunde, nur solange die Ansicht auf Hören zu sehen ist). Ohne Ton steht alles still; mit
+  // „Bewegung reduzieren“ keine Punkte, der Pegel nur als Deckkraft. Alle Farben über CSS-Variablen (ci.css, .zh-raum).
+  const RAUM_POS = { FL: [73, 64], FR: [227, 64], C: [150, 64], SL: [44, 186], SR: [256, 186], BL: [98, 248], BR: [202, 248],
+    LFE: [254, 250], SUB: [254, 250] };
+  const RAUM_DU = [150, 180];
+  const RAUM_NAME = { FL: "L", FR: "R", C: "C", SL: "SL", SR: "SR", BL: "BL", BR: "BR", LFE: "LFE", SUB: "SUB" };
+  const raumDirekt = (ch, ziel) => ziel === ch || (ch === "LFE" && ziel === "SUB");
+  const raum = { timer: 0, frame: 0, pegel: {}, glatt: {}, still: true, unterwegs: false, teilchen: [], letzt: 0 };
+  const raumAn = () => !!(j && j.quelle === "optisch" && j.raum && !bild);
+  function raumWeg(ch, ziel) {
+    const [px, py] = RAUM_POS[ch], [qx, qy] = RAUM_POS[ziel];
+    const l = Math.hypot(qx - px, qy - py) || 1, ab = ch === "LFE" ? 9 : 12, an = ziel === "SUB" ? 11 : 15;
+    const a = [px + ((qx - px) / l) * ab, py + ((qy - py) / l) * ab], e = [qx - ((qx - px) / l) * an, qy - ((qy - py) / l) * an];
+    if (Math.abs(py - qy) < 1) return `M${a[0].toFixed(1)} ${a[1].toFixed(1)} L${e[0].toFixed(1)} ${e[1].toFixed(1)}`;
+    // am Rand entlang (Surround nach vorne); der Bass aus der Ecke: zur nahen Seite innen an der Seitenbox vorbei, zur
+    // fernen Seite unter dem Hörplatz durch
+    const fern = ch === "LFE" && px - qx > 100;
+    const cx = fern ? qx + 30 : ch === "LFE" ? qx * 0.7 + RAUM_DU[0] * 0.3 : px * 0.75 + qx * 0.25;
+    const cy = fern ? py - 10 : ch === "LFE" ? (py + qy) / 2 : qy * 0.6 + py * 0.4;
+    return `M${a[0].toFixed(1)} ${a[1].toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${e[0].toFixed(1)} ${e[1].toFixed(1)}`;
+  }
+  function raumSvg(r) {
+    const boxen = r.boxen || [], hohl = r.hohl || [], wege = r.wege || {};
+    const box = (ch) => { const [x, y] = RAUM_POS[ch], sub = ch === "SUB", w = sub ? 26 : 30, hh = sub ? 18 : 24;
+      return `<g class="raum-box" data-box="${ch}"><rect class="raum-ring" data-ring="${ch}" x="${x - w / 2 - 3}" y="${y - hh / 2 - 3}" width="${w + 6}" height="${hh + 6}" rx="5"/>
+        <rect class="raum-flaeche" x="${x - w / 2}" y="${y - hh / 2}" width="${w}" height="${hh}" rx="3"/><text class="raum-box-name${sub ? " klein" : ""}" x="${x}" y="${y + (sub ? 3 : 4)}">${RAUM_NAME[ch]}</text></g>`; };
+    const kreis = (ch) => { const [x, y] = RAUM_POS[ch], lfe = ch === "LFE";
+      return `<g class="raum-kanal${ch === "C" ? " phantom" : ""}${lfe ? " lfe" : ""}" data-kanal="${ch}"><circle cx="${x}" cy="${y}" r="${lfe ? 8 : 11}"/><text x="${x}" y="${y + (lfe ? 3 : 3.5)}">${RAUM_NAME[ch]}</text></g>`; };
+    const pfade = [], spuren = [];
+    for (const ch of r.kanaele || []) for (const z of wege[ch] || []) {
+      if (!RAUM_POS[ch] || !RAUM_POS[z]) continue;
+      if (raumDirekt(ch, z)) { const [x, y] = RAUM_POS[z];  // direkt: Ton geht von der Box zum Hörplatz
+        spuren.push(`<path class="raum-spur" data-kanal="${ch}" data-ziel="${z}" data-direkt="1" d="M${x} ${y} L${RAUM_DU[0]} ${RAUM_DU[1]}"/>`); }
+      else pfade.push(`<path class="raum-weg" data-kanal="${ch}" data-ziel="${z}" d="${raumWeg(ch, z)}"/>`);
+    }
+    return `<div class="zh-raum" data-zeile="${h(r.zeile || "")}" data-hohl="${h(hohl.join(" "))}" data-boxen="${h(boxen.join(" "))}">
+      <svg viewBox="0 0 300 300" role="img" aria-label="${h(`Raumansicht von oben: ${r.zeile || ""}. Deine Boxen: ${boxen.map((b) => RAUM_NAME[b]).join(", ")}${hohl.length ? `; ohne eigene Box: ${hohl.map((b) => RAUM_NAME[b]).join(", ")}` : ""}.`)}">
+        <rect class="raum-rahmen" x="24" y="34" width="252" height="234" rx="6"/>
+        <text class="raum-text" x="150" y="25">BILD</text><line class="raum-bild" x1="112" y1="34" x2="188" y2="34"/>
+        <g class="raum-spuren">${spuren.join("")}</g><g class="raum-wege">${pfade.join("")}</g>
+        <g class="raum-kanaele">${hohl.filter((c) => RAUM_POS[c]).map(kreis).join("")}</g>
+        <g class="raum-boxen">${boxen.filter((c) => RAUM_POS[c]).map(box).join("")}</g>
+        <circle class="raum-du" cx="${RAUM_DU[0]}" cy="${RAUM_DU[1]}" r="7"/><text class="raum-text" x="${RAUM_DU[0]}" y="${RAUM_DU[1] + 22}">DU</text>
+        <g class="raum-teilchen"></g>
+        <text class="raum-text raum-zeile" x="150" y="288">${h((r.zeile || "").toUpperCase())}</text>
+      </svg></div>`;
+  }
+  // Pegel (dBFS) → 0…1: unter −60 nichts, ab −10 voll
+  const raumStaerke = (db) => (Number.isFinite(+db) ? Math.max(0, Math.min(1, (+db + 60) / 50)) : 0);
+  function raumSichtbar() {
+    const sec = document.querySelector('.schritt[data-s="18"]');
+    if (document.hidden || !sec || sec.hidden || (sec.dataset.tab && sec.dataset.tab !== "hoeren")) return false;
+    const r = document.querySelector(".zh-raum");
+    return !!r && !gedreht && !!(r.offsetParent || r.getClientRects().length);
+  }
+  function raumPruefen() {
+    const an = raumAn() && raumSichtbar();
+    if (an && !raum.timer) { raum.timer = setInterval(raumAbfragen, 250); raumAbfragen(); }
+    else if (!an && raum.timer) { clearInterval(raum.timer); raum.timer = 0; raum.pegel = {}; raum.still = true; raum.teilchen = []; raumAnhalten(); }
+    if (an) raumZeichnen();
+  }
+  async function raumAbfragen() {
+    if (!raumAn() || !raumSichtbar()) { raumPruefen(); return; }
+    if (raum.unterwegs) return;  // nie zwei Anfragen zugleich (langsames WLAN)
+    raum.unterwegs = true;
+    let a = null;
+    try { a = await nativ.box("jetzt/pegel", {}, { zeitMs: 1500 }); } catch (e) { a = null; }
+    raum.unterwegs = false;
+    if (!raum.timer || !raumAn()) return;  // Quelle gewechselt, während die Anfrage lief (Prüfer 10.11.2026)
+    raum.pegel = a && a.ok !== false && a.kanaele ? a.kanaele : {};
+    raum.still = !a || a.still !== false || a.alter_s == null;
+    raumZeichnen();
+  }
+  function raumAnhalten() { if (raum.frame) cancelAnimationFrame(raum.frame); raum.frame = 0;
+    document.querySelectorAll(".zh-raum .raum-teilchen").forEach((g) => { g.textContent = ""; }); }
+  // Deckkraft je Kanal (auch ohne Bewegung): Ring um die Box, Weg, hohler Kreis
+  function raumZeichnen() {
+    const st = (ch) => (raum.still ? 0 : raumStaerke(raum.pegel[ch]));
+    document.querySelectorAll(".zh-raum").forEach((wurzel) => {
+      wurzel.classList.toggle("laeuft", !raum.still);
+      wurzel.querySelectorAll("[data-ring]").forEach((e) => { const ch = e.dataset.ring;
+        const zu = (j.raum.kanaele || []).filter((k) => (j.raum.wege[k] || []).includes(ch)).map(st);
+        e.style.opacity = (zu.length ? Math.max(...zu) : 0).toFixed(2); });
+      wurzel.querySelectorAll(".raum-weg, .raum-spur").forEach((e) => { e.style.setProperty("--raum-st", st(e.dataset.kanal).toFixed(2)); });
+      wurzel.querySelectorAll(".raum-kanal").forEach((e) => { e.style.setProperty("--raum-st", st(e.dataset.kanal).toFixed(2)); });
+    });
+    if (!raum.still && !ruhig() && !raum.frame) { raum.letzt = performance.now(); raum.frame = requestAnimationFrame(raumSchritt); }
+  }
+  function raumSchritt(t) {
+    raum.frame = 0;
+    if (!raum.timer) { raumAnhalten(); return; }
+    const dt = Math.min(0.1, (t - raum.letzt) / 1000); raum.letzt = t;
+    const wurzel = document.querySelector(".zh-raum"), g = wurzel && wurzel.querySelector(".raum-teilchen");
+    if (!g || !raumAn()) { raum.teilchen = []; return; }
+    // Wege dieses Bilds (die Karte wird ab und zu neu gezeichnet: die Punkte laufen auf den neuen Wegen weiter)
+    const wege = {};
+    wurzel.querySelectorAll(".raum-weg, .raum-spur").forEach((p) => { wege[`${p.dataset.kanal}>${p.dataset.ziel}`] = p; });
+    // geglätteter Pegel (nicht springen zwischen zwei Abfragen)
+    for (const ch of j.raum.kanaele || []) { const ziel = raum.still ? 0 : raumStaerke(raum.pegel[ch]);
+      raum.glatt[ch] = (raum.glatt[ch] || 0) + (ziel - (raum.glatt[ch] || 0)) * Math.min(1, dt * 6); }
+    // neue Punkte: je Weg bis zu ~3 je Sekunde bei vollem Pegel
+    if (!raum.still) for (const [k, p] of Object.entries(wege)) {
+      const a = raum.glatt[p.dataset.kanal] || 0;
+      if (a > 0.04 && Math.random() < dt * (0.6 + 2.6 * a) && raum.teilchen.length < 60)
+        raum.teilchen.push({ k, s: 0, dauer: p.dataset.kanal === "LFE" ? 2.4 : p.dataset.direkt ? 1.0 : 1.4, a,
+          r: (p.dataset.kanal === "LFE" ? 2.6 : 1.5) + 1.6 * a });
+    }
+    raum.teilchen = raum.teilchen.filter((q) => (q.s += dt / q.dauer) < 1 && wege[q.k]);
+    let html = "";
+    for (const q of raum.teilchen) { const p = wege[q.k], pt = p.getPointAtLength(q.s * p.getTotalLength()), aus = Math.min(1, (1 - q.s) * 5, q.s * 8);
+      html += `<circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${q.r.toFixed(1)}" opacity="${((0.35 + 0.65 * q.a) * aus).toFixed(2)}"/>`; }
+    g.innerHTML = html;
+    if (raum.teilchen.length || !raum.still) raum.frame = requestAnimationFrame(raumSchritt);
+  }
+  document.addEventListener("visibilitychange", () => raumPruefen());
+
   // --- LP-Hülle ----------------------------------------------------------------------------------------------------
   const film = () => j && (j.erkannt === "fernseher" || /Dolby|DTS/.test((j.format && j.format.text) || "") || j.quelle === "testclip");
   function vorne(gross) {
     if (bild) return `<img class="lp-cover" src="${h(bild)}" alt="Cover: ${h(j.album || j.titel || "")}">`;
+    if (raumAn()) return raumSvg(j.raum);  // Digitaleingang: statt der leeren Fläche das Wohnzimmer von oben
     const t = film() ? (j.format && j.format.text) || "Film" : j.quelle_name || "Klång-Box";
     // Platzhalter (D+ §3.11): Fläche „Cover leer“, unten links der Name, ohne Ring und ohne Buchstaben
     return `<div class="lp-platz${film() ? " film" : ""}"><span class="${gross ? "" : "klein"}">${h(t)}</span></div>`;
@@ -14839,7 +15010,7 @@ const JETZT = (() => {
   }
   function huelle(id, gross) {
     return `<div class="lp${gedreht ? " gedreht" : ""}${gross ? " gross" : ""}" id="${id}" role="button" tabindex="0" aria-pressed="${gedreht}" aria-label="Plattenhülle umdrehen">
-      <div class="lp-innen"><div class="lp-seite lp-vorne">${vorne(gross)}</div><div class="lp-seite lp-hinten">${hinten()}</div></div></div>`;
+      <div class="lp-innen"><div class="lp-seite lp-vorne${raumAn() ? " mit-raum" : ""}">${vorne(gross)}</div><div class="lp-seite lp-hinten">${hinten()}</div></div></div>`;
   }
   // Instrumente aus MusicBrainz (englisch) auf Deutsch, die häufigen; Unbekanntes bleibt, wie es kommt
   const INSTR = { trumpet: "Trompete", "tenor saxophone": "Tenorsaxofon", "alto saxophone": "Altsaxofon", "soprano saxophone": "Sopransaxofon",
@@ -14872,7 +15043,7 @@ const JETZT = (() => {
     const ziel = $("zh-jetzt"); if (!ziel) return;
     const an = da() && !!j && !window.__ohneJetzt;
     ziel.hidden = !an;
-    if (!an) { clearInterval(uhr); uhr = 0; return; }
+    if (!an) { clearInterval(uhr); uhr = 0; raumPruefen(); return; }
     if (typeof LAUT !== "undefined" && LAUT.beschaeftigt()) return;  // während der Lautstärke-Anzeige nicht neu zeichnen
     const still = j.zustand === "still" && !j.titel;
     // Bedienleiste der Lautstärke unter Cover und Titelzeile (nur wenn die Klång-Box regelt; lautstaerke.js füllt sie)
@@ -14885,13 +15056,16 @@ const JETZT = (() => {
     const rest = [j.interpret, j.album, j.titel && !j.interpret && !j.album ? j.sender : null].filter(Boolean);
     // Darunter leise: links das Format („FLAC 16/44,1“, „Dolby Digital 5.1“), rechts die Spielzeit (tabellarisch, tickt)
     const fmt = j.format ? j.format.kurz || (j.format.text || "").replace(/(\d)\.(\d+)(?=\s*kHz)/g, "$1,$2") : "";
+    // Raumansicht: wohin das Format geht und welches Profil spielt („Dolby Digital 5.1 → 2.0 · Kino“)
+    const r = raumAn() ? j.raum : null, prof = { kino: "Kino", stereo: "Stereo" }[j.modus];
+    const fmtZeile = r ? [fmt + (r.quelle !== "2.0" && (r.direkt || []).length < (r.kanaele || []).length ? ` → ${r.layout}` : ""), prof].filter(Boolean).join(" · ") : fmt;
     const zt = d && p !== null ? `<span class="zh-zeit-text"><span id="zh-zeit-t">${zeit(p)}</span> / ${zeit(d)}</span>` : "";
     // Hören ist eine Ansicht (Nutzer 08.11.2026): kein Play/Pause, kein Titelwechsel; gespielt wird in der Quelle
     ziel.innerHTML = `<section class="zh-jetzt-karte${still ? " still" : ""}" id="zh-jetzt-karte" aria-labelledby="zh-jetzt-titel">
       ${still ? `<div class="zh-jetzt-zeile"><h2 id="zh-jetzt-titel">Gerade läuft nichts.</h2></div><p class="klein">${quelle || "Spiel etwas ab: AirPlay, Spotify, Fernseher oder die Bibliothek."}</p>${leiste}` : `
       ${huelle("zh-lp", false)}
       <div class="zh-jetzt-text"><h2 class="zh-lied"><span id="zh-jetzt-titel">${h(titel)}</span>${rest.map((x) => `&nbsp;· ${h(x)}`).join("")}</h2>
-        ${fmt || zt ? `<p class="zh-lied-info"><span class="zh-lied-format">${h(fmt)}</span>${zt}</p>` : ""}</div>
+        ${fmtZeile || zt ? `<p class="zh-lied-info"><span class="zh-lied-format">${h(fmtZeile)}</span>${zt}</p>` : ""}</div>
       ${leiste}`}
     </section>`;
     if (!$("zh-album-block")?.hidden) window.zhAlbumInhalt();  // offenes Fenster: Infos kommen nach
@@ -14899,6 +15073,7 @@ const JETZT = (() => {
     clearInterval(uhr); uhr = 0;
     if (!still && j.zustand === "spielt" && d) uhr = setInterval(tick, 1000);
     if (voll) vollZeigen();
+    raumPruefen();
   }
   function tick() {
     if (document.hidden || !j || document.querySelector('.schritt[data-s="18"]').hidden) { clearInterval(uhr); uhr = 0; return; }
@@ -14909,6 +15084,7 @@ const JETZT = (() => {
   function drehen() {
     gedreht = !gedreht;
     document.querySelectorAll(".lp").forEach((l) => { l.classList.toggle("gedreht", gedreht); l.setAttribute("aria-pressed", String(gedreht)); });
+    raumPruefen();
   }
 
   // --- Vollbild (z. B. ein altes iPad als Wohnzimmer-Display) ---------------------------------------------------------
@@ -15287,7 +15463,7 @@ const JETZT = (() => {
   function nachZeichnen() { bloecke(); quellenBlock(); untenZeigen(); hinweiseZeigen(); zeigen(); }
   // „Meine Anlage“ geändert: die eigene Wahl im Schalter gilt nicht mehr, die Anlage entscheidet
   function anlageGeaendert() { try { localStorage.removeItem("raumcheck-externer-streamer"); } catch (e) {} streamerAbgleichen(true); }
-  return { laden, zeigen, kacheln, bibZeile, nachStatus, nachZeichnen, vollZu, streamerAbgleichen, anlageGeaendert, _drehen: drehen };
+  return { laden, zeigen, kacheln, bibZeile, nachStatus, nachZeichnen, vollZu, streamerAbgleichen, anlageGeaendert, raumPruefen, _drehen: drehen };
 })();
 </script>
 <script>// CD-Regal (klangbox/dienst/regal.py, docs/CD_REGAL.md): „wie 20 CDs mit ihren Booklets vor mir, nur digital“.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="e7bd680be029">
+<meta name="klangbox-stand" content="154f4ab59375">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -14716,7 +14716,8 @@ function saOberflaeche(K) {
 // Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu Box › Hilfe: „Bericht für Claude“
 // (GET /api/bericht: Bericht in drei Phasen als Datei klangbox-bericht.txt, sonst Text bzw. Zwischenablage), der Schalter „Externer Streamer am Eingang“ (POST /api/modus) und „WLAN“ (mehrere
 // WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt). „Fehlersuche“ (Fenster): Diagnose kopieren
-// (GET /api/diagnose, schnell und ohne Sperre der Box: Rückfall, wenn der Bericht zu lange braucht), Dolby prüfen, Ton direkt testen.
+// (GET /api/diagnose, schnell und ohne Sperre der Box: Rückfall, wenn der Bericht zu lange braucht), Dolby prüfen, Eingang prüfen,
+// Ton direkt testen.
 // Nutzt von der Seite: nativ, boxBereit, zh (Zuhause-Zustand), esc, zk, sheet, zuhauseZeigen, SITZ_KURZ, profilInfo.
 const JETZT = (() => {
   const $ = (id) => document.getElementById(id);
@@ -15090,11 +15091,12 @@ const JETZT = (() => {
         + `<div class="sheet-block" hidden data-block="zh-fehlersuche" id="zh-fehlersuche"><div class="zh-fehler-liste">`
         + `<div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-kopieren">Diagnose kopieren</button><p class="klein">Kurzer Stand der Box als Text, sofort. Für den Fall, dass der Bericht nicht kommt.</p></div>`
         + `<div class="zh-fehler" id="zh-diag-bitstream-zeile"><button type="button" class="kb-zeile" id="zh-diag-bitstream">Dolby prüfen</button><p class="klein">Prüft, ob Dolby und DTS sauber ankommen. Die Box ist dafür etwa 15 Sekunden still.</p></div>`
+        + `<div class="zh-fehler" id="zh-diag-eingang-zeile"><button type="button" class="kb-zeile" id="zh-diag-eingang">Eingang prüfen</button><p class="klein">Schaut, ob am optischen Eingang ein Signal ankommt. Dafür öffnet die Box ihn etwa 6 Sekunden.</p></div>`
         + `<div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-direkt">Ton direkt testen</button><p class="klein">Drei leise Töne direkt auf die Ausgänge, an allem vorbei. Klingt das, sind Karte und Kabel in Ordnung.</p></div>`
         + `</div><p class="klein" id="zh-fehler-status" aria-live="polite"></p></div>`;
       const nach = $("zh-tipps"); if (nach && nach.parentNode === s) nach.after(u); else s.appendChild(u); }
     u.hidden = !da();
-    $("zh-diag-bitstream-zeile").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
+    $("zh-diag-bitstream-zeile").hidden = $("zh-diag-eingang-zeile").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
   }
 
   // --- Externer Streamer am Eingang (Nutzer: „Du bist der Streamer, also die Box = Stereo. Ist sie es nicht, ist es Kino.“)
@@ -15199,6 +15201,11 @@ const JETZT = (() => {
     if (t.closest("#zh-diag-direkt")) { const z = $("zh-fehler-status"); z.textContent = "Startet …";
       const a = await nativ.box("diagnose", { direktton: true }, { zeitMs: 15000 });
       z.innerHTML = a && a.ok !== false ? h(a.hinweis || "Läuft.") : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
+    if (t.closest("#zh-diag-eingang")) { const k = t.closest("button"); if (k.disabled) return;
+      const z = $("zh-fehler-status"); z.textContent = "Prüft den Eingang …"; k.disabled = true;
+      try { const a = await nativ.box("diagnose", { eingang_pruefen: true }, { zeitMs: 15000 });
+        z.innerHTML = a && a.ok !== false ? h(a.hinweis || "Geprüft. Das Ergebnis steht im Bericht für Claude.") : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`;
+      } finally { k.disabled = false; } return; }
     if (t.closest("#zh-diag-bitstream")) { const z = $("zh-fehler-status"); z.textContent = "Prüft: Die Box ist dafür etwa 15 Sekunden still …";
       const a = await nativ.box("diagnose", { bitstream_pruefen: true }, { zeitMs: 35000 });
       z.innerHTML = a && a.ok !== false ? "✓ Geprüft. Das Ergebnis steht jetzt in der Diagnose und im Bericht für Claude." : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }

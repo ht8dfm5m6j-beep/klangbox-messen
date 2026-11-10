@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="154f4ab59375">
+<meta name="klangbox-stand" content="9bdb8231be63">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -2032,6 +2032,10 @@ body.rg-offen { overflow: hidden; }
            Finger drauf ist) und „Blind“. Im Blindtest: A hören · B hören · A besser · B besser · Beenden. Der volle Vergleich
            steht zusätzlich im Fenster Klang (Gruppe „Vergleich“). -->
       <div class="seg zh-bereich-seg" id="zh-bereich" role="group" aria-label="Bereich" hidden></div>
+      <!-- Kino an 2.0/2.1 mit beiden Rechnungen (Nutzer 10.11.2026, zum Test): „Kino-Linie · Wie Stereo“ (Hör-Schalter „ziel“),
+           wie der Bereich; nur sichtbar, wenn die Box beide hat (status.hoerschalter_kino_linie), sonst höchstens ein Hinweis -->
+      <div class="seg zh-bereich-seg" id="zh-ziel" role="group" aria-label="Kino-Ziel" hidden></div>
+      <p class="klein zh-bereich-status" id="zh-ziel-hinweis"></p>
       <div class="zh-zusatz" id="zh-zusatz" hidden>
         <span class="zh-zusatz-teil" id="zh-zusatz-normal"><button type="button" class="zh-chip" id="zh-vorher" aria-pressed="false" aria-label="Vorher hören, ohne Einmessung">Vorher</button><button type="button" class="zh-chip" id="zh-blind-k">Blind</button></span>
         <span class="zh-zusatz-teil" id="zh-zusatz-blind" hidden><button type="button" class="zh-chip" data-zh-hoer="a" aria-pressed="false">A hören</button><button type="button" class="zh-chip" data-zh-hoer="b" aria-pressed="false">B hören</button><button type="button" class="zh-chip" data-zh-mag="A">A besser</button><button type="button" class="zh-chip" data-zh-mag="B">B besser</button><button type="button" class="zh-chip" id="zh-blind-ende">Beenden</button></span></div>
@@ -3888,11 +3892,21 @@ function zusatzDazu(einst, haupt, zusatz, neutral) {
 }
 // Kino ohne Center und ohne Rückkanäle (2.0/2.1, Profil stereo_kino): Raumanpassung wie Stereo (wie rechen_modus in raumcheck.py)
 function rechenModus(modus, kanaele) { const k = kanaele && kanaele.length ? kanaele : ["FL", "FR"]; return modus === "kino" && k.length === 2 && k[0] === "FL" && k[1] === "FR" ? "stereo" : modus; }
-function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null, sitzmodus = "allein", ziel = "ausgewogen", umgebung = false, funkMs = null, bewegtGemessen = false) {
+// Kino-Linie (Hör-Schalter „ziel“, Nutzer 10.11.2026, zum Test): dieselben Aufnahmen mit dem alten Kino-Ziel, die Fronts
+// davon (die volle Variante, voll_eq, teil_eq) gehen als kino_linie mit (wie kino_linie_aus in raumcheck.py)
+function kinoLinieAus(e) {
+  if (!e || e.fehler || e.rechen_modus !== "kino") return null;
+  const q = e.gleich_voll || e.einstellungen || {};
+  if (!q.FL || !q.FR) return null;
+  const liste = (o, c) => ((o || {})[c] || []).map((x) => ({ ...x }));
+  return { einstellungen: Object.fromEntries(["FL", "FR"].map((c) => [c, { gain_db: q[c].gain_db, eq: q[c].eq.map((x) => ({ ...x })) }])),
+    voll_eq: { FL: liste(e.voll_eq, "FL"), FR: liste(e.voll_eq, "FR") }, teil_eq: { FL: liste(e.teil_eq, "FL"), FR: liste(e.teil_eq, "FR") } };
+}
+function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null, sitzmodus = "allein", ziel = "ausgewogen", umgebung = false, funkMs = null, bewegtGemessen = false, kinoLinie = false) {
   if (!SITZMODI.includes(sitzmodus)) throw new Error(`Unbekannter Sitzmodus ${sitzmodus}`);
   if (!ZIELE.includes(ziel)) throw new Error(`Unbekanntes Ziel ${ziel}`);
   const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null, folge = folgeFuer(kanaele);
-  const modusRunde = modus; modus = rechenModus(modus, kanaele);  // ab hier: das Ziel, mit dem gerechnet wird
+  const modusRunde = modus; modus = kinoLinie ? modus : rechenModus(modus, kanaele);  // ab hier: das Ziel, mit dem gerechnet wird
   const erg = { aufnahmen: [], fehler: null, modus: modusRunde, rechen_modus: modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
   const punkte = [];
   for (const { name, daten } of aufnahmen) {
@@ -5118,7 +5132,7 @@ function kanalCheckAufnahme(daten, kanaele, layout, opt = {}, mikrofon = null, b
   return kanalCheck(aw, kanaele, layout, o);
 }
 
-if (typeof module !== "undefined") module.exports = { raumcheck, lrPegelVorsichtig, messampel, kalibrierdateiLesen, mikroKalibrierung, messgenauigkeit, MESSGENAUIGKEIT, geraetVonKennung, geraetVonUa, androidModellAusUa, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, profilFilterDb, zahlText, zahlKurz,
+if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, lrPegelVorsichtig, messampel, kalibrierdateiLesen, mikroKalibrierung, messgenauigkeit, MESSGENAUIGKEIT, geraetVonKennung, geraetVonUa, androidModellAusUa, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, profilFilterDb, zahlText, zahlKurz,
   nachpruefen, praesenzAusLeistung, praesenzAnhebung, raumUeberhoehung, direktschall, direktFenster, absenkungPruefen, reflexion, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
   baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort, kanalCheck, kanalCheckAufnahme, bewegtProben, KC,
   rueckPruefen, rueckUrteil, direktDb, gleichmaessigkeit, gleichmaessigWaehlen, hoerVariante, gleichName, GLEICH_VARIANTEN, RUECK_ECHO_MS, RUECK_VERDECKT_DB, RUECK_VERDECKT_GEGEN_VORNE_DB, RUECK_WEG_MAX_MS, FUNK_MS, GLEICH_SPANNE_DB, GLEICH_STREUUNG_DB };
@@ -9648,7 +9662,11 @@ self.onmessage = (ev) => {
         ev.data.raumM3, ev.data.sub, ev.data.gedreht ? new Float64Array(ev.data.gedreht) : null, ev.data.sitzmodus || "allein", ev.data.ziel || "ausgewogen") }); return;
     }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
-    self.postMessage({ ok: true, ergebnis: raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null, ev.data.sitzmodus || "allein", ev.data.ziel || "ausgewogen", !!ev.data.umgebung, ev.data.funkMs ?? null)});
+    const rc = (linie) => raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null, ev.data.sitzmodus || "allein", ev.data.ziel || "ausgewogen", !!ev.data.umgebung, ev.data.funkMs ?? null, false, linie);
+    const erg = rc(false);
+    // Kino an 2.0/2.1 (Stereo-Ziel): dieselben Aufnahmen noch einmal mit dem alten Kino-Ziel, für den Hör-Schalter „Kino-Linie“
+    if (erg && !erg.fehler && erg.modus === "kino" && erg.rechen_modus === "stereo") { try { const l = kinoLinieAus(rc(true)); if (l) erg.kino_linie = l; } catch (e) { /* nur eine Zugabe */ } }
+    self.postMessage({ ok: true, ergebnis: erg });
   } catch (e) { self.postMessage({ ok: false, fehler: String(e && e.message || e) }); }
 };`;
 const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: "text/javascript" }));
@@ -10663,7 +10681,14 @@ function exportObjekt(r, stand, einst, profil, geraet) {
     // Korrekturbereich ausdrücklich gewählt (r.bereich_gewaehlt): er gilt, der „Bereich“ der Variante fällt weg (Prüfer 08.11.2026)
     ...(einst === r.e.einstellungen && r.e.gleich_voll && r.e.hoerschalter ? { gleich_voll: { FL: kanalVoll(r.e.gleich_voll.FL), FR: kanalVoll(r.e.gleich_voll.FR) },
       hoerschalter: Object.fromEntries(Object.entries(r.e.hoerschalter).filter(([k]) => ["bereich", "bass", "mitte"].includes(k) && !(k === "bereich" && r.bereich_gewaehlt))) } : {}),
-    ...(einst === r.e.einstellungen && r.e.teil_eq ? { teil_eq: Object.fromEntries(Object.entries(r.e.teil_eq).map(([ch, l]) => [ch, (l || []).filter((q) => imBereich(r, q))])) } : {}) };
+    ...(einst === r.e.einstellungen && r.e.teil_eq ? { teil_eq: Object.fromEntries(Object.entries(r.e.teil_eq).map(([ch, l]) => [ch, (l || []).filter((q) => imBereich(r, q))])) } : {}),
+    // Kino an 2.0/2.1: die Fronts mit dem alten Kino-Ziel (Hör-Schalter „Kino-Linie · Wie Stereo“), im selben Korrekturbereich
+    ...(einst === r.e.einstellungen && r.e.kino_linie ? { kino_linie: kinoLinieExport(r, r.e.kino_linie) } : {}) };
+}
+function kinoLinieExport(r, k) {
+  const eqB = (l) => (l || []).filter((q) => imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q }));
+  const je = (o) => Object.fromEntries(["FL", "FR"].map((c) => [c, eqB((o || {})[c])]));
+  return { einstellungen: Object.fromEntries(["FL", "FR"].map((c) => [c, { gain_db: k.einstellungen[c].gain_db, eq: eqB(k.einstellungen[c].eq) }])), voll_eq: je(k.voll_eq), teil_eq: je(k.teil_eq) };
 }
 const NEUTRAL_EINST = { FL: { gain_db: 0, delay_ms: 0, eq: [] }, FR: { gain_db: 0, delay_ms: 0, eq: [] } };
 function herunterladen(obj, name) {
@@ -12057,7 +12082,7 @@ function zhKinoAusStereo(id, box) {
   if (box && box.herkunft && box.status === "vorhergesagt")
     return `<div class="zh-kas" id="zh-kas"><span class="klein">Gerechnet, ohne neue Messung. Hör Vorher/Nachher, dann:</span>${box.herkunft_hinweis ? `<span class="klein" id="zh-kas-hinweis">${esc(box.herkunft_hinweis)}</span>` : ""}
     <div class="knoepfe"><button type="button" class="zweit" id="zh-kas-zurueck" data-zh-kas="zuruecknehmen">Zurücknehmen</button><button type="button" id="zh-kas-behalten" data-zh-kas="bestaetigen">Behalten</button></div></div>`;
-  if (k.rechnet) return `<span class="laeuft klein" id="zh-kas-status">${esc(k.wartet || "Die Box rechnet Kino aus deiner Stereo-Messung … (1 bis 5 Minuten)")}</span>`;
+  if (k.rechnet) return `<span class="laeuft klein" id="zh-kas-status">${esc(k.wartet || "Die Box rechnet Kino aus deiner Stereo-Messung … (2 bis 10 Minuten)")}</span>`;
   const f = k.fehler ? `<span class="warn klein" id="zh-kas-status">${esc(k.fehler)}</span>` : "";
   // Kino vom alten Kino-Ziel (vor 09.11.2026, klang dumpfer): Vorschlag, neu zu rechnen (bzw. neu zu messen); die Box tut
   // es nie von selbst. „Nicht mehr vorschlagen“ schweigt bis zur nächsten Stereo-Runde (kein Dauer-Hinweis)
@@ -12216,7 +12241,7 @@ async function rundenVonDerBox() {
   if (neu) { runden.sort((a, b) => String(b.id).localeCompare(String(a.id))); runden = rundenBehalten(); schreiben("raumcheck-runden", JSON.stringify(runden)); zeigeAlles(); zuhauseZeigen(false); }
 }
 // Hör-Schalter: je Gruppe ein Segment; die Box lädt die Variante, die Wächter prüfen sie (klangbox/feinabstimmung.py)
-const HS_STANDARD = { stimme: "gemessen", bereich: null, bass: "voll", mitte: "ausgerichtet", anpassung: "geladen" };
+const HS_STANDARD = { stimme: "gemessen", bereich: null, bass: "voll", mitte: "ausgerichtet", anpassung: "geladen", ziel: "stereo" };
 const HS_GRUPPEN = [
   ["bereich", "Bereich", [[90, "90 Hz"], [150, "150 Hz"], [null, "Voll"]], "Bereich: bis zu welcher Tonhöhe die Einmessung den Raum ausgleicht. 90 und 150 Hz lassen Stimmen ganz unberührt, Voll gleicht bis 300 Hz aus."],
   ["mitte", "Mitte", [["ausgerichtet", "Ausgerichtet"], ["raum", "Wie der Raum"]], "Mitte: Ausgerichtet steht die Stimme scharf in der Mitte. Wie der Raum klingt breiter und weicher."],
@@ -12224,6 +12249,9 @@ const HS_GRUPPEN = [
   ["bass", "Bass", [["voll", "Ganz"], ["maessig", "Gemäßigt"]], "Bass: Ganz senkt Dröhnen so weit wie nötig, Gemäßigt höchstens um 6 dB (oft satter)."]];
 const hsStand = () => ({ ...HS_STANDARD, ...((zh.st && zh.st.hoerschalter) || {}) });
 const HS_ANPASSUNG = ["anpassung", "Rechnung", [["geladen", "Wie geladen"], ["neu", "Neu"]], "Rechnung: Neu heißt aus denselben Messdaten mit der Auswertung dieser App-Version neu gerechnet."];
+// Kino an 2.0/2.1 (zum Test): dieselbe Messung mit dem alten Kino-Ziel (Kino-Linie: mehr Bass, volle Korrektur je Seite) oder wie Stereo (Standard)
+const HS_ZIEL = ["ziel", "Kino", [["kino", "Kino-Linie"], ["stereo", "Wie Stereo"]], "Kino: Kino-Linie rechnet die Boxen mit dem früheren Kino-Ziel (mehr Bass, volle Korrektur je Seite). Wie Stereo ist dieselbe Raumanpassung wie in Stereo. Nur zum Test, dieselbe Messung."];
+const kinoLinieDa = () => !!(zh.st && zh.st.hoerschalter_kino_linie);
 function hsZeigen() {
   const s = hsStand(), md = (zh.st && zh.st.messdaten) || {}, neuDa = !!(md.neu && !md.neu.fehler), hsDa = !!(zh.st && zh.st.hoerschalter);
   const gruppen = hsDa ? HS_GRUPPEN.concat(neuDa || s.anpassung === "neu" ? [HS_ANPASSUNG] : []) : [];
@@ -12234,9 +12262,9 @@ function hsZeigen() {
   $("zh-schalter-gruppen").innerHTML = gruppen.filter(([k]) => k !== "bereich").map(([k, titel, werte]) => `<div class="kb-gruppe zeile"><span class="kb-label">${titel}</span>
     <div class="seg" role="group" aria-label="${titel}">${werte.filter(([w]) => (w !== "je_seite" || (zh.st && zh.st.hoerschalter_voll) || s[k] === w)
       && (w !== "teil" || (zh.st && zh.st.hoerschalter_teil) || s[k] === w)).map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="${s[k] === w}">${t}</button>`).join("")}</div></div>`).join("");
-  $("zh-schalter-hilfe").innerHTML = gruppen.map(([, , , hilfe]) => `<p class="klein">${hilfe}</p>`).join("") + `<p class="klein">Nachtmodus: leise Stellen lauter, laute leiser.</p>`;
+  $("zh-schalter-hilfe").innerHTML = gruppen.concat(hsDa && kinoLinieDa() ? [HS_ZIEL] : []).map(([, , , hilfe]) => `<p class="klein">${hilfe}</p>`).join("") + `<p class="klein">Nachtmodus: leise Stellen lauter, laute leiser.</p>`;
   $("zh-schalter-zurueck").hidden = !hsDa;
-  $("zh-schalter-zurueck").disabled = HS_GRUPPEN.concat([HS_ANPASSUNG]).every(([k]) => s[k] === HS_STANDARD[k]);
+  $("zh-schalter-zurueck").disabled = HS_GRUPPEN.concat([HS_ANPASSUNG, HS_ZIEL]).every(([k]) => s[k] === HS_STANDARD[k]);
   inhaltZeigen();
   klangZeileZeigen();
 }
@@ -12325,7 +12353,7 @@ function klangZeileZeigen() {
   if (el.hidden) return;
   // Mitte immer, dazu Stimme, Bass, Rechnung, wenn anders als gemessen (sonst „Wie gemessen“); im Blindtest ohne Werte
   const s = hsStand(), name = ([k, , werte]) => (werte.find(([w]) => w === s[k]) || [])[1];
-  const rest = HS_GRUPPEN.slice(2).concat([HS_ANPASSUNG]).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name).filter(Boolean);
+  const rest = HS_GRUPPEN.slice(2).concat([HS_ANPASSUNG, HS_ZIEL]).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name).filter(Boolean);
   const teile = [name(HS_GRUPPEN[1])].concat(rest.length ? rest : ["Wie gemessen"]).filter(Boolean);
   $("zh-klang-wert").textContent = st.hoerschalter ? `· ${teile.join(" · ")}` : "";
 }
@@ -12335,13 +12363,14 @@ function bereichZeigen() {
   const st = zh.st, da = boxBereit() && !!st && !$("zh-ab").hidden, blind = zh.blind;
   $("zh-bereich").hidden = !da || !st.hoerschalter || !!blind;
   $("zh-zusatz").hidden = !da;
-  if (!da) { $("zh-bereich-status").textContent = ""; return; }
+  if (!da) { $("zh-bereich-status").textContent = ""; $("zh-ziel").hidden = true; $("zh-ziel-hinweis").textContent = ""; return; }
   if (!$("zh-bereich").hidden) {
     // einmal bauen, danach nur aria-pressed (Neubau bei jedem Status nähme Tastatur und VoiceOver den Fokus)
     const s = hsStand(), [k, , werte] = HS_GRUPPEN[0], seg = $("zh-bereich");
     if (!seg.children.length) seg.innerHTML = werte.map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="false">${t}</button>`).join("");
     for (const b of seg.children) b.setAttribute("aria-pressed", String(s[k] === (b.dataset.hsWert ? +b.dataset.hsWert : null)));
   }
+  zielZeigen(st, blind);
   $("zh-zusatz-normal").hidden = !!blind; $("zh-zusatz-blind").hidden = !blind;
   const v = $("zh-vorher"), an = zh.ab === "vorher";
   v.setAttribute("aria-pressed", String(an)); v.setAttribute("aria-label", an ? "Vorher läuft, ohne Einmessung. Antippen für Nachher" : "Vorher hören, ohne Einmessung");
@@ -12349,10 +12378,25 @@ function bereichZeigen() {
   const u = blind ? "Hör A und B, dann wähl. Die Namen bleiben verdeckt." : zh.urteil || "";
   if ($("zh-urteil").innerHTML !== u) $("zh-urteil").innerHTML = u;
 }
+// Kino an 2.0/2.1: „Kino-Linie · Wie Stereo“ unter dem Bereich (gleiche Art), nur wenn die Box beide Rechnungen hat. Hat
+// Stereo-Kino erst eine (Einmessung vor 10.11.2026): ein Hinweis, wie beide entstehen (die Box rechnet beide aus den Stereo-Aufnahmen)
+function zielZeigen(st, blind) {
+  const seg = $("zh-ziel"), lay = String(st.layout || "2.0"), kino = st.profil_aktiv === "stereo_kino" && lay.startsWith("2.");
+  seg.hidden = !st.hoerschalter || !!blind || !kino || !kinoLinieDa();
+  if (!seg.hidden) {
+    const s = hsStand(), [k, , werte] = HS_ZIEL;
+    if (!seg.children.length) seg.innerHTML = werte.map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w}" aria-pressed="false">${t}</button>`).join("");
+    for (const b of seg.children) b.setAttribute("aria-pressed", String(s[k] === b.dataset.hsWert));
+  }
+  const kas = st.kino_aus_stereo || {};
+  const h = !blind && kino && st.hoerschalter && !kinoLinieDa() && kas.moeglich && !kas.rechnet
+    ? "Kino-Linie oder Wie Stereo zum Vergleich: einmal „Kino aus der Stereo-Messung rechnen“ (Einmessen, Karte Stereo-Kino). Die Box rechnet dann beide." : "";
+  if ($("zh-ziel-hinweis").textContent !== h) $("zh-ziel-hinweis").textContent = h;
+}
 // „Für alle Plätze“ mit sanfterer Variante (status.hoerschalter_gleich): alle Schalter auf Standard heißt dann volle
 // Anpassung, nicht „wie gemessen“ (geladen ist die Variante); stehen sie wie von der Box gesetzt, ist es die Variante
 const hsGleich = () => { const g = zh.st && zh.st.hoerschalter_gleich; return g && typeof g === "object" ? g : null; };
-const hsKurz = () => { const s = hsStand(), g = hsGleich(), an = [HS_ANPASSUNG].concat(HS_GRUPPEN).filter(([k]) => s[k] !== HS_STANDARD[k]).map(([k, , werte]) => werte.find(([w]) => w === s[k])?.[1]).filter(Boolean);
+const hsKurz = () => { const s = hsStand(), g = hsGleich(), an = [HS_ANPASSUNG, HS_ZIEL].concat(HS_GRUPPEN).filter(([k]) => s[k] !== HS_STANDARD[k]).map(([k, , werte]) => werte.find(([w]) => w === s[k])?.[1]).filter(Boolean);
   const auto = g && g.auto && Object.keys(g.auto).length && Object.entries(g.auto).every(([k, v]) => s[k] === v)
     && HS_GRUPPEN.every(([k]) => k in g.auto || s[k] === HS_STANDARD[k]);
   if (auto) return `Variante für alle Plätze (${an.join(" · ")})`;
@@ -12375,7 +12419,7 @@ document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-hs]"); if (!b) return;
   const k = b.dataset.hs, roh = b.dataset.hsWert, w = k === "bereich" ? (roh ? +roh : null) : roh;
   const s = hsStand(); if (s[k] === w) return;
-  if (k === "bereich" && zh.ab === "vorher" && !zh.blind) zhAbSetzen("nachher");  // den neuen Bereich hören, nicht Vorher
+  if ((k === "bereich" || k === "ziel") && zh.ab === "vorher" && !zh.blind) zhAbSetzen("nachher");  // das Neue hören, nicht Vorher
   hsSetzen({ ...s, [k]: w });
 });
 $("zh-schalter-zurueck").addEventListener("click", () => hsSetzen({}));

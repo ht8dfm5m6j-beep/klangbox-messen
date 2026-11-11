@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="ff0c19c50817">
+<meta name="klangbox-stand" content="33a241b003f6">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -12210,9 +12210,9 @@ function zhTabStart(einmessungDa, sicher = true) {
 const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen bei gleicher Rate (besser für die Qualität)"],
   roehre: ["Röhre", "nur Fernseher (optisch): Weiche direkt an CamillaDSP statt über den groben Takt; geschätzt etwa 25 ms, gemessen wird im Test"],
   roehre_knapp: ["Röhre knapp", "dasselbe mit halb so großen Blöcken und kleinstem Puffer: am schnellsten, verwirft aber leicht"],
-  roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Puffer bis 5,3 ms: zwischen knapp und Röhre"],
-  roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Puffer bis 6,7 ms"],
-  roehre_mittel3: ["Röhre mittel 3", "kleine Blöcke, Puffer bis 8 ms: am sichersten der drei"] };
+  roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Reserve 3,3 ms, sanft geglättet"],
+  roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Reserve 4 ms, sanft geglättet"],
+  roehre_mittel3: ["Röhre mittel 3", "kleine Blöcke, Reserve 4,7 ms, sanft geglättet: am sichersten der drei"] };
 function taktZeigen() {
   const t = (zh.st && zh.st.takt) || {}, lab = t.labor;
   $("zh-takt-laeuft").innerHTML = lab ? `<div class="kasten"><b>Test läuft: ${esc(TAKT[lab.variante][0])}</b> · noch ${lab.rest_s} s

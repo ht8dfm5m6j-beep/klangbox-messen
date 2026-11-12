@@ -1160,6 +1160,7 @@ body.rg-offen .sheet-lage { z-index: 80; }
 .zh-diag p { margin: 0; }
 /* Testlabor: Fehlersuche und Takt-Labor als ruhige Gruppen wie unter Box */
 .zh-labor { display: grid; gap: 24px; }
+.zh-labor > .zh-zurueck { justify-self: start; margin-top: -8px; }
 .zh-labor .zh-gruppe { gap: 8px; }
 .zh-labor .zh-gruppe > .kb-label { margin: 0; }
 .zh-labor p { margin: 0; }
@@ -2119,9 +2120,12 @@ body.rg-offen { overflow: hidden; }
     </div>
     <details class="mehr" id="zh-tipps" hidden><summary>Einstellungen an deinen Geräten</summary><div id="zh-tipps-inhalt"></div></details>
     <!-- Testlabor (Nutzer 12.11.2026: alle Prüf- und Entwicklerwerkzeuge an einem Ort; die Hör-Schalter bleiben unter Hören).
+         Kein eigener Reiter (Nutzer 12.11.2026 abends: „zu viel“): eine Unterseite von Box, geöffnet über Box › Hilfe
+         „Testlabor ›“, zurück mit „‹ Box“; unten bleibt Box markiert.
          Fehlersuche (jetzt.js: Diagnose, Mehrkanal, Eingang, Ausgang, Funk-Protokoll, Ton direkt) und Takt-Labor
          (klangbox/dienst/klangkette.py TAKT_VARIANTEN). „Bericht für Claude“ steht zusätzlich unter Box › Hilfe. -->
     <div class="zh-labor" id="zh-labor">
+      <button type="button" class="kb-link zh-zurueck" id="zh-labor-zurueck" data-zh-tab="box" aria-label="Zurück zu Box">‹ Box</button>
       <p class="klein" id="zh-labor-ohne">Die Werkzeuge hier prüfen die Klång-Box. Sie erscheinen, sobald sie verbunden ist.</p>
       <section class="zh-gruppe" id="zh-fehlersuche" aria-label="Fehlersuche" hidden><h2 class="kb-label">Fehlersuche</h2>
         <div class="zh-fehler-liste">
@@ -2279,7 +2283,6 @@ body.rg-offen { overflow: hidden; }
       <button type="button" data-zh-tab="hoeren" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Hören</button>
       <button type="button" data-zh-tab="einmessen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>Einmessen</button>
       <button type="button" data-zh-tab="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="14" r="4"/><circle cx="12" cy="7" r="1"/></svg>Box</button>
-      <button type="button" data-zh-tab="labor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg>Testlabor</button>
     </nav>
   </section>
   <!-- Mess-Ansicht (Vollbild): erst „Handy umdrehen“, dann dreht sich alles um 180°, groß Restzeit und Abbrechen -->
@@ -12218,27 +12221,33 @@ function zhKarteInhalt(id) {
     <span class="zh-score"><span class="h">${links}</span> <em>→</em> <span class="b">${rechts}</span></span>
     <span class="klein ${ok ? "ok" : "warn"}">${ok ? "nachgemessen ✓" : r.status === "zurueckgenommen" ? "nachgemessen · zurückgenommen" : "Prognose · Nachmessung steht aus"} · ${esc(tag)}${box && box.eingemessen ? " · auf der Box" : ""}</span>${zhStreamerZeile(r, m)}</div>`;
 }
-// Bereiche auf Zuhause (Hören, Einmessen, Box, Testlabor): welche Teile wohin gehören, steht in ci.css (.zh-tabs). Ohne Einmessung
+// Bereiche auf Zuhause (Hören, Einmessen, Box; das Testlabor ist eine Unterseite von Box ohne eigenen Reiter): welche Teile
+// wohin gehören, steht in ci.css (.zh-tabs). Ohne Einmessung
 // beginnt die App bei „Einmessen“, danach bei „Hören“; die Wahl des Nutzers merkt sich die Seite.
 const ZH_TAB_TITEL = { hoeren: "Hören", einmessen: "Einmessen", box: "Box", labor: "Testlabor" };
 function zhTab(name, merken = true) {
   if (!ZH_TAB_TITEL[name]) name = "hoeren";
   const sec = document.querySelector('.schritt[data-s="18"]'); if (!sec) return;
   sec.dataset.tab = name; delete sec.dataset.tabAuto;
-  document.querySelectorAll("#zh-tabs [data-zh-tab]").forEach((b) => { if (b.dataset.zhTab === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+  const reiter = name === "labor" ? "box" : name;  // Testlabor gehört zu Box: unten bleibt Box markiert
+  document.querySelectorAll("#zh-tabs [data-zh-tab]").forEach((b) => { if (b.dataset.zhTab === reiter) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
   $("h-zuhause").textContent = ZH_TAB_TITEL[name];
   if (name !== "hoeren" && sheet.offen()) sheet.zu();
-  if (merken) schreiben("klangbox-tab", name);
+  if (merken) schreiben("klangbox-tab", reiter);  // nie mit der Unterseite starten
   if (name === "labor") { $("zh-takt-status").textContent = ""; taktZeigen(); }
   if (typeof JETZT !== "undefined" && JETZT.raumPruefen) JETZT.raumPruefen();  // Raumansicht: Pegel nur auf Hören abfragen
 }
-document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zh-tab]"); if (!b) return; zhTab(b.dataset.zhTab); window.scrollTo(0, 0); });
+document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zh-tab]"); if (!b) return; zhTab(b.dataset.zhTab);
+  // Testlabor hin und zurück: der Fokus geht nicht auf einen versteckten Knopf verloren (Prüfer 0.3.22)
+  if (b.id === "zh-labor-zurueck") { const l = $("zh-diag-labor"); if (l) { l.scrollIntoView({ block: "center" }); l.focus({ preventScroll: true }); } return; }
+  window.scrollTo(0, 0);
+  if (b.id === "zh-diag-labor") { const z = $("h-zuhause"); if (z) { z.tabIndex = -1; z.focus({ preventScroll: true }); } } });
 // sicher: der Stand ist bekannt (Status der Box da oder keine Box). Vorher vorläufig „Hören“, danach einmal richtig
 // wählen, solange der Nutzer nichts angetippt hat (Prüfer 06.11.2026: sonst öffnete eine eingemessene Box bei „Einmessen“)
 function zhTabStart(einmessungDa, sicher = true) {
   const sec = document.querySelector('.schritt[data-s="18"]'); if (!sec) return;
   const nav = $("zh-tabs"); if (nav && nav.parentNode !== document.body) document.body.appendChild(nav);  // nicht im animierten Schritt
-  const gemerkt = lesen("klangbox-tab", "");
+  const gemerkt = (lesen("klangbox-tab", "") || "").replace(/^labor$/, "box");
   if (gemerkt) { if (!sec.dataset.tab) zhTab(gemerkt, false); return; }
   if (!sicher) { if (!sec.dataset.tab) { zhTab("hoeren", false); sec.dataset.tabAuto = "1"; } return; }
   if (!sec.dataset.tab || sec.dataset.tabAuto) zhTab(einmessungDa ? "hoeren" : "einmessen", false);
@@ -12711,15 +12720,17 @@ function zuhauseZeigen(laden = true) {
   // Box: gruppierte Liste (Zustand steht darüber als aufklappbare Zeile, Hilfe darunter)
   const sb = st && st.standby, lr = st && st.lautstaerke;
   zhListeSetzen(!boxDa ? zhGruppe("Box", zhAktion("zh-verbinden", ZH_IC.verbinden, "Klång-Box verbinden<small>freiwillig</small>", true)) + zhAppGruppe() :
-    zhGruppe("Quellen", zhAktion("zh-quellen-k", ZH_IC.quellen, `Quellen<small>${esc(quellenKurz(st))}</small>`, !!(st && st.streamer), ` data-sheet-block="zh-quellen" data-sheet-titel="Quellen und Dienste"`))
-    + zhGruppe("Bild und Ton", zhAktion("zh-lippen", ZH_IC.lippen, `Lippen-Sync<small>${zk(lippenMs(st), 0)} ms</small>`, true, ` data-sheet-block="zh-lippen" data-sheet-titel="Lippen-Sync"`)
+    // Aufgeräumt (Nutzer 12.11.2026): vier Gruppen statt sechs. Anlage = was mit Quellen, Fernseher, Verstärker und Rears zu
+    // tun hat; Box = die Box selbst; App; darunter Hilfe (jetzt.js)
+    zhGruppe("Anlage", zhAktion("zh-quellen-k", ZH_IC.quellen, `Quellen<small>${esc(quellenKurz(st))}</small>`, !!(st && st.streamer), ` data-sheet-block="zh-quellen" data-sheet-titel="Quellen und Dienste"`)
       // Lautstärke: Leiste und Anzeige stehen auf Hören (lautstaerke.js); hier, wer regelt (0.2.54)
-      + zhAktion("zh-laut-k", ZH_IC.laut, `Lautstärke<small>regelt: ${lr && lr.fuehren ? "Klång-Box" : "Verstärker"}</small>`, !!lr && st.rolle !== "satellit", ` data-sheet-block="zh-lautstaerke" data-sheet-titel="Lautstärke &amp; Verstärker"`))
-    + zhGruppe("Box", (typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa) : "")
-      + zhAktion("zh-startklang", ZH_IC.start, `Startklang<small>${esc(startklangKurz(st))}</small>`, !!(st && st.startklang), ` data-sheet-block="zh-startklang" data-sheet-titel="Startklang"`)
-      + zhAktion("zh-standby", ZH_IC.standby, `Standby<small>${esc(standbyKurz(sb))}</small>`, !!sb && st.rolle !== "satellit" && "minuten" in sb, ` data-sheet-block="zh-standby" data-sheet-titel="Standby"`)
+      + zhAktion("zh-laut-k", ZH_IC.laut, `Lautstärke<small>regelt: ${lr && lr.fuehren ? "Klång-Box" : "Verstärker"}</small>`, !!lr && st.rolle !== "satellit", ` data-sheet-block="zh-lautstaerke" data-sheet-titel="Lautstärke &amp; Verstärker"`)
+      + zhAktion("zh-lippen", ZH_IC.lippen, `Lippen-Sync<small>${zk(lippenMs(st), 0)} ms</small>`, true, ` data-sheet-block="zh-lippen" data-sheet-titel="Lippen-Sync"`)
       + (window.klangboxBedienseite ? "" : zhAktion("zh-rear", ZH_IC.rear, "Rear-Box hinzufügen<small>zweite Box hinten, über Funk</small>", !!(nativ && nativ.boxen) && !(st && (st.satelliten || []).length))))
-    + zhGruppe("Hördosis", zhAktion("zh-dosis-k", ZH_IC.dosis, `Hördosis<small>${esc(dosisKurz(st))}</small>`, !!(st && st.pegel), ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`))
+    + zhGruppe("Box", (typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa) : "")
+      + zhAktion("zh-standby", ZH_IC.standby, `Standby<small>${esc(standbyKurz(sb))}</small>`, !!sb && st.rolle !== "satellit" && "minuten" in sb, ` data-sheet-block="zh-standby" data-sheet-titel="Standby"`)
+      + zhAktion("zh-startklang", ZH_IC.start, `Startklang<small>${esc(startklangKurz(st))}</small>`, !!(st && st.startklang), ` data-sheet-block="zh-startklang" data-sheet-titel="Startklang"`)
+      + zhAktion("zh-dosis-k", ZH_IC.dosis, `Hördosis<small>${esc(dosisKurz(st))}</small>`, !!(st && st.pegel), ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`))
     + zhAppGruppe());
   standbyZeigen();
   // Box-Zustand: Funk je Satellit, Eingang, Warnungen der Wächter
@@ -15447,7 +15458,7 @@ const JETZT = (() => {
     const s = document.querySelector('.schritt[data-s="18"]'); if (!s) return;
     let u = $("zh-diag");
     if (!u) { u = document.createElement("div"); u.id = "zh-diag"; u.className = "zh-diag";
-      // Box › Hilfe: eine Zeile „Bericht für Claude“, darunter ruhig „Testlabor ›“ (Reiter mit der Fehlersuche und dem Takt-Labor)
+      // Box › Hilfe: eine Zeile „Bericht für Claude“, darunter ruhig „Testlabor ›“ (Unterseite von Box: Fehlersuche, Takt-Labor)
       u.innerHTML = `<h2 class="kb-label">Hilfe</h2><button type="button" class="kb-zeile" id="zh-diag-bericht" data-name="Bericht für Claude">Bericht für Claude</button>`
         + `<p class="klein" id="zh-diag-status" aria-live="polite"></p>`
         + `<div class="zh-diag-links"><button type="button" class="kb-link" id="zh-diag-labor" data-zh-tab="labor">Testlabor ›</button></div>`;

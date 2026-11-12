@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="33a241b003f6">
+<meta name="klangbox-stand" content="77715ba7e324">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -8141,6 +8141,7 @@ function meldeBox(art, daten) {
 //   version, layout, haupt, boxen}. Seite → App {art: "box", reqId, box: <id oder null = Hauptbox>, aufruf, daten};
 //   aufruf = Pfad der Schnittstelle („status“, „rolle“, „kanaele“, „funk“, „einstellungen“, „bestaetigen“,
 //   „zuruecknehmen“, „aus“, „inhalt“, „messsignal“, „verzoegerung“ …) oder „suchen“, „koppeln“, „einrichtung“ (in der App).
+//   zeitMs: Zeitlimit der Seite; die App wartet so lange auf die Box (abzüglich 2 s), mindestens ihre eigene Vorgabe.
 //   App → Seite klangboxNativ.boxAntwort(reqId, antwort): immer mit ok, bei Fehler fehler (Satz) und grund (Code).
 //   Statusänderungen: Ereignis „klangboxbox“ auf window (detail = {box, status}). Ohne boxen bleibt alles wie bisher.
 // Ohne App (normaler Browser) ist nativ null und alles läuft wie bisher.
@@ -8211,7 +8212,7 @@ const nativ = (() => {
       return new Promise((ok) => {
         const t = setTimeout(() => { boxOffen.delete(reqId); ok({ ok: false, grund: "zeitueberschreitung", fehler: "Die App hat nicht rechtzeitig geantwortet." }); }, zeitMs);
         boxOffen.set(reqId, { ok, t });
-        if (!senden({ art: "box", reqId, box, aufruf, daten: daten || {} })) { clearTimeout(t); boxOffen.delete(reqId); ok({ ok: false, grund: "keine_app", fehler: "Die App antwortet nicht." }); }
+        if (!senden({ art: "box", reqId, box, aufruf, daten: daten || {}, zeitMs })) { clearTimeout(t); boxOffen.delete(reqId); ok({ ok: false, grund: "keine_app", fehler: "Die App antwortet nicht." }); }
       });
     },
   };
@@ -11840,12 +11841,25 @@ $("e-weiter-3").addEventListener("click", async () => {
 });
 $("e-funk-einrichten").addEventListener("click", async () => {
   const b = $("e-funk-einrichten"), sat = einSatelliten(); b.disabled = true;
-  $("e-funk").innerHTML = `<span class="laeuft">Die Hauptbox spannt das Funknetz auf und verbindet ${sat.length === 1 ? "die zweite Box" : `${sat.length} Boxen`}, etwa 20 Sekunden…</span>`;
+  $("e-funk").innerHTML = `<span class="laeuft">Die Hauptbox sucht einen freien Kanal, spannt das Funknetz auf und verbindet ${sat.length === 1 ? "die zweite Box" : `${sat.length} Boxen`}. Das dauert meist unter einer Minute, manchmal etwas länger…</span>`;
   // partner: die Satelliten (eine Box: Einzelform, mehrere: Liste); Adresse und Token ergänzt die App
   const partner = sat.length === 1 ? { id: sat[0] } : sat.map((id) => ({ id }));
-  const a = await nativ.box("funk", { aktion: "einrichten", partner }, { box: einHaupt(), zeitMs: 45000 + 15000 * Math.max(0, sat.length - 1) });
+  const a = await nativ.box("funk", { aktion: "einrichten", partner }, { box: einHaupt(), zeitMs: 95000 + 15000 * Math.max(0, sat.length - 1) });
   b.disabled = false; b.textContent = "Noch einmal einrichten";
   funkZeigen(a.ok ? a.funk : null, a.ok ? null : a.fehler || a.grund);
+});
+// Box › Zustand: „Funk einrichten“ beim Hinweis zum Funk-Stick (status.funk.stick). Mit den Satelliten der Einrichtung;
+// ohne sie nimmt die Hauptbox die schon bekannten. Die Zeile wird mit jedem Status neu gezeichnet: zhFunkLaeuft hält den Knopf aus.
+let zhFunkLaeuft = false;
+$("zh-zustand-zeilen").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("#zh-funk-einrichten"); if (!b || !nativ || zhFunkLaeuft) return;
+  const sat = einSatelliten(); zhFunkLaeuft = true; b.disabled = true; b.textContent = "Richtet ein … (bis zu einer Minute)";
+  const daten = sat.length ? { aktion: "einrichten", partner: sat.length === 1 ? { id: sat[0] } : sat.map((id) => ({ id })) } : { aktion: "einrichten" };
+  const a = await nativ.box("funk", daten, { box: einHaupt(), zeitMs: 95000 + 15000 * Math.max(0, sat.length - 1) });
+  zhFunkLaeuft = false;
+  const z = $("zh-funk-einrichten");
+  if (z) { z.disabled = false; z.textContent = a.ok ? "✓ Funk läuft" : "Funk einrichten"; if (!a.ok) z.insertAdjacentHTML("afterend", `<span class="warn"> ${esc(a.fehler || a.grund)}</span>`); }
+  if (a.ok && typeof zhLaden === "function") zhLaden();
 });
 $("e-funk").addEventListener("click", async (ev) => {
   if (!ev.target.closest("#e-funk-pruefen")) return;
@@ -12631,11 +12645,16 @@ function zuhauseZeigen(laden = true) {
     const sats = st.satelliten || [];
     for (const s of sats) { const a = funkAmpel(st.funk && Array.isArray(st.funk.partner) ? (st.funk.partner.find((p) => p.id === s.id) || st.funk) : st.funk);
       zeilen.push(`<div class="zeile"><i class="ampel ${s.erreichbar === false ? "rot" : a.stufe}"></i><span><b>${esc(s.name || "Satellit")}</b> · ${esc(s.erreichbar === false ? "nicht erreichbar" : a.titel)}</span></div>`); }
+    // Funk-Stick (status.funk.stick): neu erkannt (Funk noch nicht eingerichtet), abgezogen oder hostapd nicht gestartet
+    const stick = st.funk && st.funk.stick, stickSat = einSatelliten().length || sats.length;
+    const stickZeigen = !!stick && (stick.zustand !== "neu" || !!stickSat) && !window.klangboxBedienseite;
+    if (stickZeigen) zeilen.push(`<div class="zeile"><i class="ampel ${stick.zustand === "neu" ? "gelb" : "rot"}"></i><span><b>Funk-Stick</b> · ${esc(stick.text || "")}`
+      + (stick.zustand !== "fehlt" ? ` <button type="button" class="kb-link" id="zh-funk-einrichten"${zhFunkLaeuft ? " disabled" : ""}>${zhFunkLaeuft ? "Richtet ein …" : "Funk einrichten"}</button>` : "") + `</span></div>`);
     const e = st.eingang || {};
     zeilen.push(`<div class="zeile"><i class="ampel ${e.signal === false ? "gelb" : "gruen"}"></i><span><b>Eingang</b> · ${e.signal === false ? "kein Signal" : "Signal da"}</span></div>`);
     for (const w of warn) zeilen.push(`<div class="zeile"><i class="ampel gelb"></i><span>${esc(w.text || w.regel)}</span></div>`);
     $("zh-zustand-zeilen").innerHTML = zeilen.join("");
-    const schlecht = warn.length || e.signal === false || sats.some((s) => s.erreichbar === false);
+    const schlecht = warn.length || e.signal === false || sats.some((s) => s.erreichbar === false) || stickZeigen;
     $("zh-ampel").className = `ampel ${schlecht ? "gelb" : "gruen"}`;
     $("zh-zustand-kurz").textContent = schlecht ? "· bitte ansehen" : "· alles in Ordnung";
   }
@@ -15308,29 +15327,35 @@ const JETZT = (() => {
   // --- Bericht teilen (Bericht in drei Phasen: nach dem HiFiBerry, nach dem Einmessen, mit dem WLAN-Stick) -----------
   // Erster Tipp holt den Bericht (bis zu einer Minute: Ping, Stick). Teilen und Zwischenablage gehen in Safari nur im
   // Tipp selbst, darum teilt der zweite Tipp („Jetzt teilen“) sofort: als Datei, sonst als Text, sonst Zwischenablage.
-  let bericht = null;
-  async function berichtTeilen(knopf, statusEl) {
-    const st = statusEl || $("zh-diag-status"), name = (knopf && knopf.dataset.name) || "Bericht teilen";
+  // Dasselbe für das Funk-Prüfprotokoll (GET /api/funk/protokoll?messen=1, funkprotokoll.py): ✓/!/✗/? je Prüfpunkt.
+  const TEILEN = {
+    bericht: { aufruf: "bericht", datei: "klangbox-bericht.txt", titel: "Klång-Box-Bericht", wort: "Bericht" },
+    funk: { aufruf: "funk/protokoll?messen=1", datei: "klangbox-funkprotokoll.txt", titel: "Klång-Box Funk-Protokoll", wort: "Funk-Protokoll" },
+  };
+  const bereit = {};
+  async function berichtTeilen(knopf, statusEl, art = "bericht") {
+    const t = TEILEN[art], st = statusEl || $("zh-diag-status"), name = (knopf && knopf.dataset.name) || "Bericht teilen";
+    const bericht = bereit[art];
     if (!bericht || Date.now() - bericht.zeit > 5 * 60000) {
-      if (knopf) knopf.disabled = true; st.textContent = "Bericht wird erstellt (bis zu einer Minute) …";
-      const d = await nativ.box("bericht", {}, { zeitMs: 60000 });
+      if (knopf) knopf.disabled = true; st.textContent = `${t.wort} wird erstellt (bis zu einer Minute) …`;
+      const d = await nativ.box(t.aufruf, {}, { zeitMs: 60000 });
       if (knopf) knopf.disabled = false;
-      if (!d || d.ok === false || !d.text) { st.innerHTML = `<span class="warn">${h((d && d.fehler) || "Der Bericht kam nicht.")}</span>`; return; }
-      bericht = { text: d.text, zeit: Date.now(), phase: d.phase };
+      if (!d || d.ok === false || !d.text) { st.innerHTML = `<span class="warn">${h((d && d.fehler) || `${t.wort} kam nicht.`)}</span>`; return; }
+      bereit[art] = { text: d.text, zeit: Date.now(), phase: d.phase };
       if (knopf) knopf.textContent = "Jetzt teilen";
-      st.textContent = `Bericht bereit${d.phase ? ` (Phase ${d.phase})` : ""}, ${Math.max(1, Math.round(d.text.length / 1024))} KB. Noch einmal tippen: „Jetzt teilen“.`;
+      st.textContent = `${t.wort} bereit${d.phase ? ` (Phase ${d.phase})` : ""}, ${Math.max(1, Math.round(d.text.length / 1024))} KB. Noch einmal tippen: „Jetzt teilen“.`;
       return;
     }
     const text = bericht.text;
-    bericht = null; if (knopf) knopf.textContent = name;
+    bereit[art] = null; if (knopf) knopf.textContent = name;
     try {
-      const datei = typeof File === "function" ? new File([text], "klangbox-bericht.txt", { type: "text/plain" }) : null;
-      if (datei && navigator.canShare && navigator.canShare({ files: [datei] })) { await navigator.share({ files: [datei], title: "Klång-Box-Bericht" }); st.textContent = "✓ Geteilt."; return; }
-      if (navigator.share) { await navigator.share({ title: "Klång-Box-Bericht", text }); st.textContent = "✓ Geteilt."; return; }
+      const datei = typeof File === "function" ? new File([text], t.datei, { type: "text/plain" }) : null;
+      if (datei && navigator.canShare && navigator.canShare({ files: [datei] })) { await navigator.share({ files: [datei], title: t.titel }); st.textContent = "✓ Geteilt."; return; }
+      if (navigator.share) { await navigator.share({ title: t.titel, text }); st.textContent = "✓ Geteilt."; return; }
     } catch (e) { if (e && e.name === "AbortError") { st.textContent = ""; return; } }
-    if (!ablageDa()) { zumKopierenZeigen(st, text, "Bericht"); if (knopf) knopf.blur(); return; }
+    if (!ablageDa()) { zumKopierenZeigen(st, text, t.wort); if (knopf) knopf.blur(); return; }
     try { await navigator.clipboard.writeText(text); st.textContent = "✓ Kopiert – im Chat einfügen."; }
-    catch (e) { zumKopierenZeigen(st, text, "Bericht"); }
+    catch (e) { zumKopierenZeigen(st, text, t.wort); }
     if (knopf) knopf.blur();
   }
   function untenZeigen() {
@@ -15345,11 +15370,25 @@ const JETZT = (() => {
         + `<div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-kopieren">Diagnose kopieren</button><p class="klein">Kurzer Stand der Box als Text, sofort. Für den Fall, dass der Bericht nicht kommt.</p></div>`
         + `<div class="zh-fehler" id="zh-diag-bitstream-zeile"><button type="button" class="kb-zeile" id="zh-diag-bitstream">Dolby prüfen</button><p class="klein">Prüft, ob Dolby und DTS sauber ankommen. Die Box ist dafür etwa 15 Sekunden still.</p></div>`
         + `<div class="zh-fehler" id="zh-diag-eingang-zeile"><button type="button" class="kb-zeile" id="zh-diag-eingang">Eingang prüfen</button><p class="klein">Schaut, ob am optischen Eingang ein Signal ankommt. Dafür öffnet die Box ihn etwa 6 Sekunden.</p></div>`
+        + `<div class="zh-fehler" id="zh-ausgang-zeile" hidden><p class="kb-label">Ausgang</p><div class="zh-ausgang-wahl" role="radiogroup" aria-label="Ausgang"><button type="button" class="kb-zeile" role="radio" data-ausgang="spdif">Optisch</button><button type="button" class="kb-zeile" role="radio" data-ausgang="usb">USB</button></div><p class="klein" id="zh-ausgang-text"></p></div>`
+        + `<div class="zh-fehler" id="zh-diag-funk-zeile"><button type="button" class="kb-zeile" id="zh-diag-funk" data-name="Funk-Protokoll">Funk-Protokoll</button><p class="klein">Prüft den Funk zu den Rears Punkt für Punkt (Stick, Land, Kanal, hostapd, Satelliten) und misst 20 Sekunden. Zum Teilen.</p></div>`
         + `<div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-direkt">Ton direkt testen</button><p class="klein">Drei leise Töne direkt auf die Ausgänge, an allem vorbei. Klingt das, sind Karte und Kabel in Ordnung.</p></div>`
         + `</div><p class="klein" id="zh-fehler-status" aria-live="polite"></p></div>`;
       const nach = $("zh-tipps"); if (nach && nach.parentNode === s) nach.after(u); else s.appendChild(u); }
     u.hidden = !da();
     $("zh-diag-bitstream-zeile").hidden = $("zh-diag-eingang-zeile").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
+    // Funk-Protokoll: nur an der Hauptbox (sie prüft auch die Satelliten über den Funk)
+    $("zh-diag-funk-zeile").hidden = !(zh && zh.st && zh.st.rolle === "haupt");
+    // Ausgang wählen (Nutzer 11.11.2026: Nubert per USB testen): nur, wenn ein USB-Wandler steckt oder USB gewählt ist
+    const aus = zh && zh.st && zh.st.ausgang, az = $("zh-ausgang-zeile");
+    az.hidden = !(aus && ((aus.usb || []).length || aus.wahl === "usb"));
+    if (!az.hidden) {
+      az.querySelectorAll("[data-ausgang]").forEach((k) => k.setAttribute("aria-checked", String(k.dataset.ausgang === aus.wahl)));
+      const usb = (aus.usb || [])[0], name = usb ? `${usb.name || usb.karte || "USB"}${(usb.raten || []).length ? ` (${usb.raten.map((r) => String(r / 1000).replace(".", ",")).join(" / ")} kHz${(usb.formate || []).length ? ", " + usb.formate.join(", ") : ""})` : ""}` : "kein USB-Gerät";
+      $("zh-ausgang-text").textContent = aus.wahl === "usb"
+        ? `USB: ${name}${aus.aktiv !== "usb" ? " (gerade nicht aktiv" + (aus.grund ? ": " + aus.grund : "") + ")" : ""}. Die Röhre greift über USB nicht (eigener Takt des Geräts).`
+        : `Optisch zum DAC. Angesteckt per USB: ${name}.`;
+    }
   }
 
   // --- Externer Streamer am Eingang (Nutzer: „Du bist der Streamer, also die Box = Stereo. Ist sie es nicht, ist es Kino.“)
@@ -15449,8 +15488,13 @@ const JETZT = (() => {
     if (wv) { const n = wv.dataset.wlanVergessen; wlanAufruf({ aktion: "vergessen", ssid: n }, wv, () => `✓ „${n}“ vergessen.`); return; }
     if (t.closest("#zh-diag-kopieren")) { diagnoseKopieren(t.closest("button")); return; }
     if (t.closest("#zh-diag-bericht")) { berichtTeilen(t.closest("button")); return; }
+    if (t.closest("#zh-diag-funk")) { berichtTeilen(t.closest("button"), $("zh-fehler-status"), "funk"); return; }
     // „Bericht für Claude“ auch im Fenster Klang (neben „Knacken gehört“): ein Tipp holt, der zweite teilt
     if (t.closest("#zh-hs-bericht")) { berichtTeilen(t.closest("button"), $("zh-schalter-status")); return; }
+    if (t.closest("[data-ausgang]")) { const k = t.closest("[data-ausgang]"), z = $("zh-ausgang-text"); z.textContent = "Schaltet um …";
+      const a = await nativ.box("ausgang", { ausgang: k.dataset.ausgang }, { zeitMs: 8000 });
+      if (a && a.ok !== false) { if (zh.st) zh.st.ausgang = a.ausgang; untenZeigen(); }
+      else z.innerHTML = `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
     if (t.closest("#zh-diag-direkt")) { const z = $("zh-fehler-status"); z.textContent = "Startet …";
       const a = await nativ.box("diagnose", { direktton: true }, { zeitMs: 15000 });
       z.innerHTML = a && a.ok !== false ? h(a.hinweis || "Läuft.") : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }

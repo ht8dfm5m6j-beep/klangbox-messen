@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="77715ba7e324">
+<meta name="klangbox-stand" content="d4bcc23cffa1">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -1160,13 +1160,20 @@ body.rg-offen .sheet-lage { z-index: 80; }
 .zh-diag > .kb-label { margin: 0; }
 .zh-diag > #zh-diag-bericht { border-top: 1px solid var(--kb-linie); }
 .zh-diag-links { display: flex; flex-wrap: wrap; gap: 0 20px; }
-/* Fenster „Fehlersuche“: je Werkzeug eine Zeile, darunter ein Satz, wozu */
+/* Testlabor › Fehlersuche: je Werkzeug eine Zeile, darunter ein Satz, wozu */
 .zh-fehler-liste { display: grid; }
 .zh-fehler { display: grid; padding-bottom: 12px; border-bottom: 1px solid var(--kb-linie); }
 .zh-fehler:first-child > .kb-zeile { border-top: 1px solid var(--kb-linie); }
 .zh-fehler > .kb-zeile { border-bottom: 0; }
 .zh-fehler > .klein { margin: -8px 0 0; }
 .zh-diag p { margin: 0; }
+/* Testlabor: Fehlersuche und Takt-Labor als ruhige Gruppen wie unter Box */
+.zh-labor { display: grid; gap: 24px; }
+.zh-labor .zh-gruppe { gap: 8px; }
+.zh-labor .zh-gruppe > .kb-label { margin: 0; }
+.zh-labor p { margin: 0; }
+.zh-takt .reihe { gap: 12px; }
+.zh-takt .reihe > button { flex: none; white-space: nowrap; }
 .zh-bib-liste { max-height: 52vh; overflow-y: auto; }
 .zh-bib-zeile { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; text-align: left; background: transparent; color: var(--kb-text); min-height: 44px; padding: 8px 0;
   border-radius: 0; border-bottom: 1px solid var(--kb-linie); box-shadow: none; font: 400 17px/24px var(--kb-schrift); }
@@ -1188,6 +1195,8 @@ body.tippsperre { pointer-events: none; }
 .schritt[data-s="18"][data-tab="einmessen"][data-box="1"] #zh-tipps { display: none !important; }  /* R20: Geräte-Tipps nur ohne Box */
 .schritt[data-s="18"][data-tab="box"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-gehoer, #zh-sub, #zh-tipps) { display: none !important; }
 .schritt[data-s="18"]:not([data-tab="hoeren"]) :is(#zh-regal, #zh-raum-waehler) { display: none !important; }
+.schritt[data-s="18"][data-tab="labor"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-box, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-gehoer, #zh-sub, #zh-tipps, #zh-zustand, #zh-box-liste, #zh-diag) { display: none !important; }
+.schritt[data-s="18"]:not([data-tab="labor"]) #zh-labor { display: none !important; }
 
 /* --- Hörprobe „Wo ist die Kuh?“ (hoerprobe.js) ----------------------------------------------------------------- */
 html #hp { background: var(--kb-grund); padding-bottom: 0; }
@@ -1375,7 +1384,7 @@ body.rg-offen { overflow: hidden; }
   .rg-raster { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
   .rg-inhalt { max-width: 1180px; }
   .rg-inhalt:has(.rg-titelblock) { max-width: 640px; }   /* Booklet: Lesebreite */
-  .zh-box-liste, #zh-zustand, .zh-diag { max-width: 640px; }
+  .zh-box-liste, #zh-zustand, .zh-diag, .zh-labor { max-width: 640px; }
 }
 /* zweispaltig nur im Querformat (breiter als hoch), sonst eine Spalte */
 @media (min-width: 960px) and (min-height: 600px) and (orientation: landscape) {
@@ -2108,7 +2117,7 @@ body.rg-offen { overflow: hidden; }
     <div class="zh-platz" id="zh-gehoer" hidden></div><!-- „Gehör-Check“ (hoerprobe.js) -->
     <div class="zh-platz" id="zh-sub" hidden></div><!-- „Sub abgleichen“ (subabgleich.js), nur mit Sub -->
     <div id="zh-status" class="klein" aria-live="polite"></div>
-    <!-- Box: Zustand, dann Gruppen (Quellen, Bild und Ton, Box, Hördosis, Labor), unten Hilfe (jetzt.js) -->
+    <!-- Box: Zustand, dann Gruppen (Quellen, Bild und Ton, Box, Hördosis, App), unten Hilfe (jetzt.js) -->
     <details class="mehr" id="zh-zustand" hidden><summary><i class="ampel" id="zh-ampel"></i>Zustand <span class="wert" id="zh-zustand-kurz"></span></summary><div class="zeilen" id="zh-zustand-zeilen"></div></details>
     <div class="zh-box-liste" id="zh-box-liste"></div>
     <div class="sheet-block" hidden data-block="zh-standby" id="zh-standby-block">
@@ -2118,6 +2127,28 @@ body.rg-offen { overflow: hidden; }
       <p class="klein" id="zh-standby-status" aria-live="polite"></p>
     </div>
     <details class="mehr" id="zh-tipps" hidden><summary>Einstellungen an deinen Geräten</summary><div id="zh-tipps-inhalt"></div></details>
+    <!-- Testlabor (Nutzer 12.11.2026: alle Prüf- und Entwicklerwerkzeuge an einem Ort; die Hör-Schalter bleiben unter Hören).
+         Fehlersuche (jetzt.js: Diagnose, Mehrkanal, Eingang, Ausgang, Funk-Protokoll, Ton direkt) und Takt-Labor
+         (klangbox/dienst/klangkette.py TAKT_VARIANTEN). „Bericht für Claude“ steht zusätzlich unter Box › Hilfe. -->
+    <div class="zh-labor" id="zh-labor">
+      <p class="klein" id="zh-labor-ohne">Die Werkzeuge hier prüfen die Klång-Box. Sie erscheinen, sobald sie verbunden ist.</p>
+      <section class="zh-gruppe" id="zh-fehlersuche" aria-label="Fehlersuche" hidden><h2 class="kb-label">Fehlersuche</h2>
+        <div class="zh-fehler-liste">
+          <div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-kopieren">Diagnose kopieren</button><p class="klein">Kurzer Stand der Box als Text, sofort. Für den Fall, dass der Bericht nicht kommt.</p></div>
+          <div class="zh-fehler" id="zh-diag-bitstream-zeile"><button type="button" class="kb-zeile" id="zh-diag-bitstream">Mehrkanal prüfen</button><p class="klein">Prüft, ob Mehrkanal-Ton (Bitstream) sauber ankommt. Die Box ist dafür etwa 15 Sekunden still.</p></div>
+          <div class="zh-fehler" id="zh-diag-eingang-zeile"><button type="button" class="kb-zeile" id="zh-diag-eingang">Eingang prüfen</button><p class="klein">Schaut, ob am optischen Eingang ein Signal ankommt. Dafür öffnet die Box ihn etwa 6 Sekunden.</p></div>
+          <div class="zh-fehler" id="zh-ausgang-zeile" hidden><p class="kb-label">Ausgang</p><div class="zh-ausgang-wahl" role="radiogroup" aria-label="Ausgang"><button type="button" class="kb-zeile" role="radio" data-ausgang="spdif">Optisch</button><button type="button" class="kb-zeile" role="radio" data-ausgang="usb">USB</button></div><p class="klein" id="zh-ausgang-text"></p></div>
+          <div class="zh-fehler" id="zh-diag-funk-zeile"><button type="button" class="kb-zeile" id="zh-diag-funk" data-name="Funk-Protokoll">Funk-Protokoll</button><p class="klein">Prüft den Funk zu den Rears Punkt für Punkt (Stick, Land, Kanal, hostapd, Satelliten) und misst 20 Sekunden. Zum Teilen.</p></div>
+          <div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-direkt">Ton direkt testen</button><p class="klein">Drei leise Töne direkt auf die Ausgänge, an allem vorbei. Klingt das, sind Karte und Kabel in Ordnung.</p></div>
+        </div>
+        <p class="klein" id="zh-fehler-status" aria-live="polite"></p></section>
+      <section class="zh-gruppe zh-takt" id="zh-takt-block" aria-label="Takt-Labor" hidden><h2 class="kb-label">Takt-Labor</h2>
+        <p class="klein">Die Box probiert einen anderen Weg durch die Klangkette und misst dabei Verzögerung und Aussetzer. Bei jedem Problem schaltet sie sofort selbst zurück. Bitte dabei Ton laufen lassen: Fernseher (optisch) oder Spotify/AirPlay.</p>
+        <div id="zh-takt-laeuft" style="display: grid; gap: 8px"></div>
+        <div id="zh-takt-varianten" style="display: grid; gap: 8px"></div>
+        <div id="zh-takt-ergebnisse" style="display: grid; gap: 8px"></div>
+        <p class="klein" id="zh-takt-status" aria-live="polite"></p></section>
+    </div>
     <!-- Box-Funktionen als Sheets (B4): Quellen (Dienste, Ausgangsrate, Radio, Fernseh-Ton), Hördosis, Lippen-Sync -->
     <div class="sheet-block" hidden data-block="zh-quellen" id="zh-quellen">
       <div class="kasten"><h3>Dienste der Klång-Box</h3><span class="klein">Was aus ist, sieht man im Heimnetz nicht.</span><div class="zeilen" id="zh-dienste"></div></div>
@@ -2207,7 +2238,7 @@ body.rg-offen { overflow: hidden; }
       <p class="klein" id="zh-auf-status" aria-live="polite"></p>
     </div>
     <!-- Fenster Klang (Hören › „Klang · …“): Vergleich (Nachher | Vorher, Blind), Hör-Schalter (klangbox/feinabstimmung.py) Mitte, Stimme, Bass, Anpassung (Bereich steht auf Hören);
-         im Kino Räumlichkeit, dazu Nachtmodus. Fuß: Klangprofil, Mehr zum Album, Knacken gehört. -->
+         im Kino Räumlichkeit, dazu Nachtmodus und Vorne ↔ Hinten. Fuß: Klangprofil, Mehr zum Album, Knacken gehört. -->
     <div class="sheet-block" hidden data-block="zh-schalter" id="zh-schalter-block">
       <!-- Vergleich: ein Segment „Nachher | Vorher“ und daneben „Blind“ (R6); im Blindtest heißen die Seiten A und B -->
       <div class="kb-gruppe zh-ab" id="zh-ab"><span class="kb-label">Vergleich</span>
@@ -2235,14 +2266,6 @@ body.rg-offen { overflow: hidden; }
         <p class="klein zh-quelle" id="zh-quelle" aria-live="polite"></p></div>
       <div class="sheet-fuss"><button type="button" class="kb-link" data-sheet-block="zh-auf" data-sheet-titel="Aufstellungen">Aufstellungen bearbeiten</button><button type="button" class="kb-link" id="zh-laut-link" data-sheet-block="zh-lautstaerke" data-sheet-titel="Lautstärke &amp; Verstärker">Lautstärke &amp; Verstärker</button></div>
     </div>
-    <!-- Takt-Labor (klangbox/dienst/klangkette.py TAKT_VARIANTEN): Verzögerung senken ohne Qualitätsverlust -->
-    <div class="sheet-block" hidden data-block="zh-takt" id="zh-takt-block">
-      <p class="klein">Die Box probiert einen anderen Weg durch die Klangkette und misst dabei Verzögerung und Aussetzer. Bei jedem Problem schaltet sie sofort selbst zurück. Bitte dabei Ton laufen lassen: Fernseher (optisch) oder Spotify/AirPlay.</p>
-      <div id="zh-takt-laeuft" style="display: grid; gap: 8px"></div>
-      <div id="zh-takt-varianten" style="display: grid; gap: 8px"></div>
-      <div id="zh-takt-ergebnisse" style="display: grid; gap: 8px"></div>
-      <p class="klein" id="zh-takt-status" aria-live="polite"></p>
-    </div>
     <!-- Hörtest „Wo kommt der Ton her?“ (POST /api/testclip, clip raum_*; daten/testclips): fünf kurze Teile in echtem 5.1,
          je Teil ein Knopf und ein Satz, was man auf DIESER Anlage hört (fehlt ein Lautsprecher, sagt die Seite, was die Box daraus macht) -->
     <div class="sheet-block" hidden data-block="zh-raumtest" id="zh-raumtest-block">
@@ -2253,11 +2276,12 @@ body.rg-offen { overflow: hidden; }
       <div class="sheet-fuss" id="rt-fuss" hidden><button type="button" class="kb-link" id="rt-stopp">Stoppen</button></div>
       <p class="klein" id="rt-lizenz"></p>
     </div>
-    <!-- Drei Bereiche wie eine App (Entwurf vom 06.11.2026, vom Nutzer bestätigt): Hören, Einmessen, Box -->
+    <!-- Bereiche wie eine App (Entwurf vom 06.11.2026, vom Nutzer bestätigt): Hören, Einmessen, Box; dazu Testlabor (12.11.2026) -->
     <nav class="zh-tabs" id="zh-tabs" aria-label="Bereiche">
       <button type="button" data-zh-tab="hoeren" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Hören</button>
       <button type="button" data-zh-tab="einmessen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>Einmessen</button>
       <button type="button" data-zh-tab="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><circle cx="12" cy="14" r="4"/><circle cx="12" cy="7" r="1"/></svg>Box</button>
+      <button type="button" data-zh-tab="labor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg>Testlabor</button>
     </nav>
   </section>
   <!-- Mess-Ansicht (Vollbild): erst „Handy umdrehen“, dann dreht sich alles um 180°, groß Restzeit und Abbrechen -->
@@ -12196,17 +12220,18 @@ function zhKarteInhalt(id) {
     <span class="zh-score"><span class="h">${links}</span> <em>→</em> <span class="b">${rechts}</span></span>
     <span class="klein ${ok ? "ok" : "warn"}">${ok ? "nachgemessen ✓" : r.status === "zurueckgenommen" ? "nachgemessen · zurückgenommen" : "Prognose · Nachmessung steht aus"} · ${esc(tag)}${box && box.eingemessen ? " · auf der Box" : ""}</span>${zhStreamerZeile(r, m)}</div>`;
 }
-// Bereiche auf Zuhause (Hören, Einmessen, Box): welche Teile wohin gehören, steht in ci.css (.zh-tabs). Ohne Einmessung
+// Bereiche auf Zuhause (Hören, Einmessen, Box, Testlabor): welche Teile wohin gehören, steht in ci.css (.zh-tabs). Ohne Einmessung
 // beginnt die App bei „Einmessen“, danach bei „Hören“; die Wahl des Nutzers merkt sich die Seite.
-const ZH_TAB_TITEL = { hoeren: "Hören", einmessen: "Einmessen", box: "Box" };
+const ZH_TAB_TITEL = { hoeren: "Hören", einmessen: "Einmessen", box: "Box", labor: "Testlabor" };
 function zhTab(name, merken = true) {
   if (!ZH_TAB_TITEL[name]) name = "hoeren";
   const sec = document.querySelector('.schritt[data-s="18"]'); if (!sec) return;
   sec.dataset.tab = name; delete sec.dataset.tabAuto;
-  document.querySelectorAll("[data-zh-tab]").forEach((b) => { if (b.dataset.zhTab === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+  document.querySelectorAll("#zh-tabs [data-zh-tab]").forEach((b) => { if (b.dataset.zhTab === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
   $("h-zuhause").textContent = ZH_TAB_TITEL[name];
   if (name !== "hoeren" && sheet.offen()) sheet.zu();
   if (merken) schreiben("klangbox-tab", name);
+  if (name === "labor") { $("zh-takt-status").textContent = ""; taktZeigen(); }
   if (typeof JETZT !== "undefined" && JETZT.raumPruefen) JETZT.raumPruefen();  // Raumansicht: Pegel nur auf Hören abfragen
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zh-tab]"); if (!b) return; zhTab(b.dataset.zhTab); window.scrollTo(0, 0); });
@@ -12227,34 +12252,35 @@ const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen
   roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Reserve 3,3 ms, sanft geglättet"],
   roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Reserve 4 ms, sanft geglättet"],
   roehre_mittel3: ["Röhre mittel 3", "kleine Blöcke, Reserve 4,7 ms, sanft geglättet: am sichersten der drei"] };
+// Steht im Testlabor (nicht mehr als Fenster unter Box); neu gezeichnet nur, wenn sich etwas ändert (Status alle 5 s)
+const taktSetzen = (id, html) => { const e = $(id); if (e.dataset.html !== html) { e.innerHTML = html; e.dataset.html = html; } };
 function taktZeigen() {
   const t = (zh.st && zh.st.takt) || {}, lab = t.labor;
-  $("zh-takt-laeuft").innerHTML = lab ? `<div class="kasten"><b>Test läuft: ${esc(TAKT[lab.variante][0])}</b> · noch ${lab.rest_s} s
+  $("zh-takt-block").hidden = !(zh.st && zh.st.takt);
+  taktSetzen("zh-takt-laeuft", lab ? `<div class="kasten"><b>Test läuft: ${esc(TAKT[lab.variante][0])}</b> · noch ${lab.rest_s} s
     <span class="klein">Verzögerung jetzt ${lab.ms != null ? `${zk(lab.ms, 1)} ms` : "– (kein Ton?)"} · Aussetzer ${lab.aussetzer} · CamillaDSP ${esc(lab.zustand || "–")}${lab.ppm != null ? ` · Takt ${zk(lab.ppm, 0)} ppm` : ""}</span>
-    <button type="button" class="zweit klein" data-takt="stopp">Test abbrechen</button></div>` : "";
-  $("zh-takt-varianten").innerHTML = lab ? "" : Object.entries(TAKT).map(([k, [name, text]]) => `<div class="reihe"><span><b>${name}</b>${t.wirkt === k ? " · <span class=\"ok\">spielt</span>" : ""}<br><span class="klein">${text}</span></span>
+    <button type="button" class="zweit klein" data-takt="stopp">Test abbrechen</button></div>` : "");
+  taktSetzen("zh-takt-varianten", lab ? "" : Object.entries(TAKT).map(([k, [name, text]]) => `<div class="reihe"><span><b>${name}</b>${t.wirkt === k ? " · <span class=\"ok\">spielt</span>" : ""}<br><span class="klein">${text}</span></span>
     <button type="button" class="zweit klein" data-takt="start" data-variante="${k}">Testen (5 min)</button></div>`).join("")
-    + (t.variante ? `<button type="button" class="zweit" data-takt="standard">Zurück auf den bisherigen Weg</button>` : "");
+    + (t.variante ? `<button type="button" class="zweit" data-takt="standard">Zurück auf den bisherigen Weg</button>` : ""));
   const erg = (t.ergebnisse || []).slice().reverse();
-  $("zh-takt-ergebnisse").innerHTML = erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
+  taktSetzen("zh-takt-ergebnisse", erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
     <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
-    ${e.ok && t.variante !== e.variante ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "";
+    ${e.ok && t.variante !== e.variante ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "");
 }
 document.addEventListener("click", async (ev) => {
-  const b = ev.target.closest("[data-takt]"); if (!b) return;
+  const b = ev.target.closest("button[data-takt]"); if (!b) return;
   const st = (t) => { $("zh-takt-status").innerHTML = t; };
   const a = await nativ.box("takt_labor", { aktion: b.dataset.takt, ...(b.dataset.variante ? { variante: b.dataset.variante } : {}), ...(b.dataset.takt === "start" ? { dauer_s: 300 } : {}) }, { zeitMs: 20000 });
   if (!a.ok) { st(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return; }
   st(""); zh.st = { ...(zh.st || {}), takt: a.takt }; taktZeigen();
-  if (b.dataset.takt === "start") for (let i = 0; i < 200 && !$("zh-takt-block").hidden; i++) {
+  const imLabor = () => { const sec = document.querySelector('.schritt[data-s="18"]'); return !!sec && !sec.hidden && sec.dataset.tab === "labor"; };
+  if (b.dataset.takt === "start") for (let i = 0; i < 200 && imLabor(); i++) {
     await warte(2000);
     const s = await nativ.box("status", {}, { zeitMs: 6000 });
     if (s.ok) { zh.st = s; taktZeigen(); if (!s.takt || !s.takt.labor) break; }
   }
 });
-window.addEventListener("sheetauf", (ev) => { if (ev.detail && ev.detail.id === "zh-takt-block") { $("zh-takt-status").textContent = ""; taktZeigen(); } });
-const taktKurz = (st) => { const t = st && st.takt; if (!t) return ""; if (t.labor) return `Test läuft: ${(TAKT[t.labor.variante] || [""])[0]}`;
-  return t.variante ? `${(TAKT[t.variante] || [t.variante])[0]} behalten` : "bisheriger Weg"; };
 // Messdaten auf der Box (klangbox/dienst/messdaten.py): nach dem Laden die Aufnahmen (16 Bit) und die Runde hochladen,
 // in Stücken unter 1 MiB. Damit rechnet die Box später neu, ohne neu zu messen, und eine neue App holt die Runde zurück.
 const MD_STUECK = 600 * 1024;
@@ -12333,7 +12359,8 @@ function hsZeigen() {
   $("zh-schalter-gruppen").innerHTML = gruppen.filter(([k]) => k !== "bereich").map(([k, titel, werte]) => `<div class="kb-gruppe zeile"><span class="kb-label">${titel}</span>
     <div class="seg" role="group" aria-label="${titel}">${werte.filter(([w]) => (w !== "je_seite" || (zh.st && zh.st.hoerschalter_voll) || s[k] === w)
       && (w !== "teil" || (zh.st && zh.st.hoerschalter_teil) || s[k] === w)).map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="${s[k] === w}">${t}</button>`).join("")}</div></div>`).join("");
-  $("zh-schalter-hilfe").innerHTML = gruppen.concat(hsDa && kinoLinieDa() ? [HS_ZIEL] : []).map(([, , , hilfe]) => `<p class="klein">${hilfe}</p>`).join("") + `<p class="klein">Nachtmodus: leise Stellen lauter, laute leiser.</p>`;
+  $("zh-schalter-hilfe").innerHTML = gruppen.concat(hsDa && kinoLinieDa() ? [HS_ZIEL] : []).map(([, , , hilfe]) => `<p class="klein">${hilfe}</p>`).join("") + `<p class="klein">Nachtmodus: leise Stellen lauter, laute leiser.</p>`
+    + `<p class="klein">Vorne ↔ Hinten: Sitzt du andersherum (Bild an der Rückwand), spielen die Rear-Boxen vorne und die Fronts hinten. Nur mit Rear-Boxen.</p>`;
   $("zh-schalter-zurueck").hidden = !hsDa;
   $("zh-schalter-zurueck").disabled = HS_GRUPPEN.concat([HS_ANPASSUNG, HS_ZIEL]).every(([k]) => s[k] === HS_STANDARD[k]);
   inhaltZeigen();
@@ -12341,22 +12368,40 @@ function hsZeigen() {
 }
 // Im Fenster Klang: Räumlichkeit (nur Kino) und Nachtmodus (POST /api/inhalt); früher Kacheln im Box-Reiter
 const RAEUMLICH = ["aus", "wenig", "mittel", "viel"];
+// „Vorne ↔ Hinten“ (status.vorne_hinten, POST /api/inhalt {vorne_hinten}; plan.vorne_hinten_tausch): Bild an der Rückwand,
+// man dreht sich um. Nur mit Rears im Layout, sonst ausgegraut mit Grund; kostet der Tausch Lippen-Sync (neue Fronts über Funk), steht es darunter.
+function vorneHintenHtml(st, boxDa) {
+  const vh = st.vorne_hinten; if (!boxDa || !vh) return "";
+  // ohne Rears ausgegraut; war der Tausch an (Layout gewechselt), bleibt „Wie aufgestellt“ bedienbar, damit man ihn abschaltet
+  const ms = Math.round(Math.abs(+vh.lippen_ms || 0));
+  const text = !vh.moeglich ? vh.grund || "Nur mit Rear-Boxen."
+    : [vh.an && !vh.wirkt && vh.grund ? vh.grund : "Für ein Bild an der Rückwand: Die Rear-Boxen spielen vorne, die Fronts hinten. Die Einmessung bleibt bei jeder Box.",
+      vh.lippen_ms > 0 ? `Kostet ${ms} ms Lippen-Sync: Die neuen Fronts kommen über Funk, darum warten die Boxen an der Klång-Box.`
+        : vh.lippen_ms < 0 ? `Spart ${ms} ms Lippen-Sync: Die neuen Fronts hängen direkt an der Klång-Box.` : ""].filter(Boolean).join(" ");
+  // ohne Rears keine ausgegrauten Knöpfe (Design-Prüfstand: Kontrast), nur der Grund; war der Tausch an, nur „Wie aufgestellt“
+  const knoepfe = vh.moeglich
+    ? `<button type="button" data-zh-inhalt="vorne_hinten" data-wert="0" aria-pressed="${!vh.an}">Wie aufgestellt</button><button type="button" data-zh-inhalt="vorne_hinten" data-wert="1" aria-pressed="${!!vh.an}">Getauscht</button>`
+    : vh.an ? `<button type="button" data-zh-inhalt="vorne_hinten" data-wert="0" aria-pressed="false">Wie aufgestellt</button>` : "";
+  return `<div class="kb-gruppe" id="zh-vh"><span class="kb-label" id="zh-vh-label">Vorne ↔ Hinten</span>
+    ${knoepfe ? `<div class="seg" role="group" aria-labelledby="zh-vh-label">${knoepfe}</div>` : ""}
+    <p class="klein" id="zh-vh-text">${esc(text)}</p></div>`;
+}
 function inhaltZeigen() {
   const st = zh.st || {}, inh = st.inhalt || {}, boxDa = boxBereit(), kino = st.modus === "kino";
   const raum = boxDa && kino ? `<div class="kb-gruppe zeile" id="zh-raum"><span class="kb-label">Räumlich</span>
     <div class="seg" role="group" aria-label="Räumlichkeit">${RAEUMLICH.map((t, i) => `<button type="button" data-zh-inhalt="raeumlichkeit" data-wert="${i}" aria-pressed="${(inh.raeumlichkeit ?? 1) === i}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div></div>` : "";
   const nacht = boxDa ? `<div class="kb-gruppe zeile" id="zh-nacht"><span class="kb-label">Nacht</span>
     <div class="seg" role="group" aria-label="Nachtmodus"><button type="button" data-zh-inhalt="nachtmodus" data-wert="0" aria-pressed="${!inh.nachtmodus}">Aus</button><button type="button" data-zh-inhalt="nachtmodus" data-wert="1" aria-pressed="${!!inh.nachtmodus}">An</button></div></div>` : "";
-  $("zh-inhalt-gruppen").innerHTML = raum + nacht;
+  $("zh-inhalt-gruppen").innerHTML = raum + nacht + vorneHintenHtml(st, boxDa);
   const r = letzteRunde(modus), ok = !!(r && r.status === "bestaetigt"), k = $("zh-klang");
   k.disabled = !boxDa || !ok; k.textContent = ok ? `Klangprofil · ${(r.profil && r.profil.name) || "Neutral"}` : "Klangprofil · nach der Nachmessung";
 }
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-zh-inhalt]"); if (!b || b.getAttribute("aria-pressed") === "true") return;
   const st = zh.st || {}, inh = st.inhalt || {}, w = +b.dataset.wert;
-  const neu = b.dataset.zhInhalt === "nachtmodus" ? { nachtmodus: !!w } : { raeumlichkeit: w };
+  const neu = b.dataset.zhInhalt === "nachtmodus" ? { nachtmodus: !!w } : b.dataset.zhInhalt === "vorne_hinten" ? { vorne_hinten: !!w } : { raeumlichkeit: w };
   const a = await nativ.box("inhalt", { profil: inh.profil || "Film", raeumlichkeit: inh.raeumlichkeit ?? 1, ...neu }, { zeitMs: 6000 });
-  if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); }
+  if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt, ...(a.vorne_hinten ? { vorne_hinten: a.vorne_hinten } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); klangZeileZeigen(); }
   else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
 $("zh-klang").addEventListener("click", () => { const r = letzteRunde(modus); if (r && r.status === "bestaetigt") { anwendenArt = "box"; zeigeSchritt(9); } });
@@ -12426,7 +12471,8 @@ function klangZeileZeigen() {
   const s = hsStand(), name = ([k, , werte]) => (werte.find(([w]) => w === s[k]) || [])[1];
   const rest = HS_GRUPPEN.slice(2).concat([HS_ANPASSUNG, HS_ZIEL]).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name).filter(Boolean);
   const teile = [name(HS_GRUPPEN[1])].concat(rest.length ? rest : ["Wie gemessen"]).filter(Boolean);
-  $("zh-klang-wert").textContent = st.hoerschalter ? `· ${teile.join(" · ")}` : "";
+  const vh = st.vorne_hinten && st.vorne_hinten.an ? " · Vorne ↔ Hinten" : "";  // auch auf Hören sichtbar, solange getauscht
+  $("zh-klang-wert").textContent = st.hoerschalter ? `· ${teile.join(" · ")}${vh}` : vh;
 }
 // Hören: Bereich als Hauptsegment (Hör-Schalter „bereich“, gleiche Logik wie im Fenster), darunter leise „Vorher“ und „Blind“.
 // Im Blindtest kein Bereich (die Schalter würden verraten, welche Seite die Box ist), dafür der Ablauf als leise Zusätze.
@@ -12563,7 +12609,6 @@ const ZH_IC = {
   laut: '<svg viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>',
   quellen: '<svg viewBox="0 0 24 24"><circle cx="12" cy="11" r="2"/><path d="M8.5 7.5a5 5 0 0 0 0 7M15.5 7.5a5 5 0 0 1 0 7M5.6 4.6a9 9 0 0 0 0 12.8M18.4 4.6a9 9 0 0 1 0 12.8"/><path d="M12 13v8"/></svg>',
   start: '<svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
-  takt: '<svg viewBox="0 0 24 24"><path d="M9 3h6l4 18H5z"/><path d="M12 15l5-9"/><path d="M8 15h8"/></svg>',
   dosis: '<svg viewBox="0 0 24 24"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/></svg>',
   upd: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v9M8 12.5l4 4 4-4"/></svg>',
   wlan: '<svg viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg>',
@@ -12635,8 +12680,7 @@ function zuhauseZeigen(laden = true) {
       + zhAktion("zh-standby", ZH_IC.standby, `Standby<small>${esc(standbyKurz(sb))}</small>`, !!sb && st.rolle !== "satellit" && "minuten" in sb, ` data-sheet-block="zh-standby" data-sheet-titel="Standby"`)
       + (window.klangboxBedienseite ? "" : zhAktion("zh-rear", ZH_IC.rear, "Rear-Box hinzufügen<small>zweite Box hinten, über Funk</small>", !!(nativ && nativ.boxen) && !(st && (st.satelliten || []).length))))
     + zhGruppe("Hördosis", zhAktion("zh-dosis-k", ZH_IC.dosis, `Hördosis<small>${esc(dosisKurz(st))}</small>`, !!(st && st.pegel), ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`))
-    + zhAppGruppe()
-    + zhGruppe("Labor", zhAktion("zh-takt", ZH_IC.takt, `Takt-Labor<small>${esc(taktKurz(st))}</small>`, !!(st && st.takt), ` data-sheet-block="zh-takt" data-sheet-titel="Takt-Labor"`)));
+    + zhAppGruppe());
   standbyZeigen();
   // Box-Zustand: Funk je Satellit, Eingang, Warnungen der Wächter
   $("zh-zustand").hidden = !boxDa || !st;
@@ -12659,6 +12703,7 @@ function zuhauseZeigen(laden = true) {
     $("zh-zustand-kurz").textContent = schlecht ? "· bitte ansehen" : "· alles in Ordnung";
   }
   if (boxDa && st) zhBoxBloecke(st);
+  taktZeigen();
   // Gehör-Check (hoerprobe.js): Karte des aktiven Modus im Platz unter den Karten
   const gc = window.klangboxGehoerCheck && letzteRunde(modus) ? window.klangboxGehoerCheck.karte(modus) : "";
   $("zh-gehoer").hidden = !gc; $("zh-gehoer").innerHTML = gc;
@@ -14835,9 +14880,9 @@ function saOberflaeche(K) {
 // Daten nur aus GET /api/jetzt (SCHNITTSTELLE „Jetzt läuft“), Bibliothek und Warteschlange über mpd, Updates aus dem
 // Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu Box › Hilfe: „Bericht für Claude“
 // (GET /api/bericht: Bericht in drei Phasen als Datei klangbox-bericht.txt, sonst Text bzw. Zwischenablage), der Schalter „Externer Streamer am Eingang“ (POST /api/modus) und „WLAN“ (mehrere
-// WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt). „Fehlersuche“ (Fenster): Diagnose kopieren
-// (GET /api/diagnose, schnell und ohne Sperre der Box: Rückfall, wenn der Bericht zu lange braucht), Dolby prüfen, Eingang prüfen,
-// Ton direkt testen.
+// WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt). Testlabor › Fehlersuche: Diagnose kopieren
+// (GET /api/diagnose, schnell und ohne Sperre der Box: Rückfall, wenn der Bericht zu lange braucht), Mehrkanal prüfen, Eingang prüfen,
+// Ton direkt testen, Ausgang, Funk-Protokoll (Markup in der Vorlage, #zh-labor).
 // Nutzt von der Seite: nativ, boxBereit, zh (Zuhause-Zustand), esc, zk, sheet, zuhauseZeigen, SITZ_KURZ, profilInfo.
 const JETZT = (() => {
   const $ = (id) => document.getElementById(id);
@@ -15362,20 +15407,14 @@ const JETZT = (() => {
     const s = document.querySelector('.schritt[data-s="18"]'); if (!s) return;
     let u = $("zh-diag");
     if (!u) { u = document.createElement("div"); u.id = "zh-diag"; u.className = "zh-diag";
-      // Box › Hilfe: eine Zeile „Bericht für Claude“, darunter ruhig „Fehlersuche ›“ (Fenster mit den selteneren Werkzeugen)
+      // Box › Hilfe: eine Zeile „Bericht für Claude“, darunter ruhig „Testlabor ›“ (Reiter mit der Fehlersuche und dem Takt-Labor)
       u.innerHTML = `<h2 class="kb-label">Hilfe</h2><button type="button" class="kb-zeile" id="zh-diag-bericht" data-name="Bericht für Claude">Bericht für Claude</button>`
         + `<p class="klein" id="zh-diag-status" aria-live="polite"></p>`
-        + `<div class="zh-diag-links"><button type="button" class="kb-link" id="zh-diag-fehler" data-sheet-block="zh-fehlersuche" data-sheet-titel="Fehlersuche">Fehlersuche ›</button></div>`
-        + `<div class="sheet-block" hidden data-block="zh-fehlersuche" id="zh-fehlersuche"><div class="zh-fehler-liste">`
-        + `<div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-kopieren">Diagnose kopieren</button><p class="klein">Kurzer Stand der Box als Text, sofort. Für den Fall, dass der Bericht nicht kommt.</p></div>`
-        + `<div class="zh-fehler" id="zh-diag-bitstream-zeile"><button type="button" class="kb-zeile" id="zh-diag-bitstream">Dolby prüfen</button><p class="klein">Prüft, ob Dolby und DTS sauber ankommen. Die Box ist dafür etwa 15 Sekunden still.</p></div>`
-        + `<div class="zh-fehler" id="zh-diag-eingang-zeile"><button type="button" class="kb-zeile" id="zh-diag-eingang">Eingang prüfen</button><p class="klein">Schaut, ob am optischen Eingang ein Signal ankommt. Dafür öffnet die Box ihn etwa 6 Sekunden.</p></div>`
-        + `<div class="zh-fehler" id="zh-ausgang-zeile" hidden><p class="kb-label">Ausgang</p><div class="zh-ausgang-wahl" role="radiogroup" aria-label="Ausgang"><button type="button" class="kb-zeile" role="radio" data-ausgang="spdif">Optisch</button><button type="button" class="kb-zeile" role="radio" data-ausgang="usb">USB</button></div><p class="klein" id="zh-ausgang-text"></p></div>`
-        + `<div class="zh-fehler" id="zh-diag-funk-zeile"><button type="button" class="kb-zeile" id="zh-diag-funk" data-name="Funk-Protokoll">Funk-Protokoll</button><p class="klein">Prüft den Funk zu den Rears Punkt für Punkt (Stick, Land, Kanal, hostapd, Satelliten) und misst 20 Sekunden. Zum Teilen.</p></div>`
-        + `<div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-direkt">Ton direkt testen</button><p class="klein">Drei leise Töne direkt auf die Ausgänge, an allem vorbei. Klingt das, sind Karte und Kabel in Ordnung.</p></div>`
-        + `</div><p class="klein" id="zh-fehler-status" aria-live="polite"></p></div>`;
+        + `<div class="zh-diag-links"><button type="button" class="kb-link" id="zh-diag-labor" data-zh-tab="labor">Testlabor ›</button></div>`;
       const nach = $("zh-tipps"); if (nach && nach.parentNode === s) nach.after(u); else s.appendChild(u); }
     u.hidden = !da();
+    // Testlabor › Fehlersuche (Vorlage #zh-labor): nur mit Box
+    $("zh-fehlersuche").hidden = !da(); $("zh-labor-ohne").hidden = da();
     $("zh-diag-bitstream-zeile").hidden = $("zh-diag-eingang-zeile").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
     // Funk-Protokoll: nur an der Hauptbox (sie prüft auch die Satelliten über den Funk)
     $("zh-diag-funk-zeile").hidden = !(zh && zh.st && zh.st.rolle === "haupt");

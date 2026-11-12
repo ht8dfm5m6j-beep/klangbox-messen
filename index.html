@@ -1,9 +1,7 @@
-<!doctype html>
-<html lang="de">
-<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="d4bcc23cffa1">
+<title>Klång-Box Raum-Check</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="icon" href="favicon.svg?v=dp1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=dp1" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=dp1">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -40,13 +38,6 @@
   document.addEventListener("DOMContentLoaded", function () { anwenden(klangboxDarstellung.wert(), false); });
 })();
 </script>
-<style>body{margin:0}[hidden]{display:none!important}</style>
-</head>
-<body>
-<title>Klång-Box Raum-Check</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="icon" href="favicon.svg?v=dp1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=dp1" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=dp1">
-
 <style>
 /* Raum-Check: geführte Messung, Ergebnis heute → mit Klång-Box, Sweetspot-Finder.
    Eine Spalte wie die iPhone-App. Läuft offline in der App (WKWebView): die Schrift ist eingebettet. */
@@ -2148,6 +2139,13 @@ body.rg-offen { overflow: hidden; }
         <div id="zh-takt-varianten" style="display: grid; gap: 8px"></div>
         <div id="zh-takt-ergebnisse" style="display: grid; gap: 8px"></div>
         <p class="klein" id="zh-takt-status" aria-live="polite"></p></section>
+      <!-- Gastro (Test, Nutzer 12.11.2026): Hintergrund für ein Lokal auf der vorhandenen Einmessung (klangbox/dienst/gastro.py).
+           Nur zwei Wahlreihen (Tageszeit, Laden), dazu an/aus und eine Höchstgrenze; die Technik steht in der Tabelle im Code. -->
+      <section class="zh-gruppe" id="zh-gastro-block" aria-label="Gastro (Test)" hidden><h2 class="kb-label">Gastro (Test)</h2>
+        <p class="klein">Musik für ein Lokal, auf der vorhandenen Einmessung. Café/Restaurant: leiser, Gespräche fallen leichter. Bar: laut, aber angenehm. Die Box folgt Tageszeit und Laden. Nur bei Musik.</p>
+        <div id="zh-gastro-wahl" style="display: grid; gap: 8px"></div>
+        <p class="klein" id="zh-gastro-text"></p>
+        <p class="klein" id="zh-gastro-status" aria-live="polite"></p></section>
     </div>
     <!-- Box-Funktionen als Sheets (B4): Quellen (Dienste, Ausgangsrate, Radio, Fernseh-Ton), Hördosis, Lippen-Sync -->
     <div class="sheet-block" hidden data-block="zh-quellen" id="zh-quellen">
@@ -2238,7 +2236,7 @@ body.rg-offen { overflow: hidden; }
       <p class="klein" id="zh-auf-status" aria-live="polite"></p>
     </div>
     <!-- Fenster Klang (Hören › „Klang · …“): Vergleich (Nachher | Vorher, Blind), Hör-Schalter (klangbox/feinabstimmung.py) Mitte, Stimme, Bass, Anpassung (Bereich steht auf Hören);
-         im Kino Räumlichkeit, dazu Nachtmodus und Vorne ↔ Hinten. Fuß: Klangprofil, Mehr zum Album, Knacken gehört. -->
+         im Kino Räumlichkeit, dazu Nachtmodus, Hintergrund (nur Musik) und Vorne ↔ Hinten. Fuß: Klangprofil, Mehr zum Album, Knacken gehört. -->
     <div class="sheet-block" hidden data-block="zh-schalter" id="zh-schalter-block">
       <!-- Vergleich: ein Segment „Nachher | Vorher“ und daneben „Blind“ (R6); im Blindtest heißen die Seiten A und B -->
       <div class="kb-gruppe zh-ab" id="zh-ab"><span class="kb-label">Vergleich</span>
@@ -12252,6 +12250,35 @@ const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen
   roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Reserve 3,3 ms, sanft geglättet"],
   roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Reserve 4 ms, sanft geglättet"],
   roehre_mittel3: ["Röhre mittel 3", "kleine Blöcke, Reserve 4,7 ms, sanft geglättet: am sichersten der drei"] };
+// Gastro (Test): status.gastro, POST /api/inhalt {gastro: {an|tageszeit|fuelle|grenze_db}}. Einmal bauen, danach nur bei Änderung
+// (Status alle 5 s; ein Neubau nähme Tastatur und VoiceOver den Fokus)
+const GASTRO = [["an", "Gastro", [[false, "Aus"], [true, "An"]]],
+  ["art", "Art", [["cafe", "Café/Restaurant"], ["bar", "Bar"]]],
+  ["tageszeit", "Tageszeit", [["auto", "Uhr"], ["morgens", "Morgens"], ["mittags", "Mittags"], ["abends", "Abends"]]],
+  ["fuelle", "Laden", [["leer", "Leer"], ["mittel", "Mittel"], ["voll", "Voll"]]],
+  ["grenze_db", "Höchstens", [[-20, "−20 dB"], [-15, "−15 dB"], [-10, "−10 dB"], [-6, "−6 dB"]]]];
+const GASTRO_NAME = { morgens: "Morgens", mittags: "Mittags", abends: "Abends" };
+function gastroZeigen() {
+  const g = zh.st && zh.st.gastro; $("zh-gastro-block").hidden = !g; if (!g) return;
+  taktSetzen("zh-gastro-wahl", GASTRO.filter(([k]) => k === "an" || g.an).map(([k, titel, werte]) => `<div class="kb-gruppe zeile"><span class="kb-label" id="zh-gastro-${k}">${titel}</span>
+    <div class="seg" role="group" aria-labelledby="zh-gastro-${k}">${werte.map(([w, txt]) => `<button type="button" data-gastro="${k}" data-wert="${esc(JSON.stringify(w))}" aria-pressed="${g[k] === w}">${txt}</button>`).join("")}</div></div>`).join(""));
+  const db = (x) => `${x < 0 ? "−" : ""}${zk(Math.abs(x), 0)} dB`;
+  $("zh-gastro-text").textContent = !g.an ? "" : [`Uhr der Box ${g.box_uhr}${g.uhr_gestellt ? "" : " (nicht gestellt: Tageszeit von Hand wählen)"}`,
+    `jetzt ${GASTRO_NAME[g.fenster] || g.fenster}`, g.lautstaerke_db != null ? `Lautstärke ${db(g.lautstaerke_db)}` : "", g.grund || ""].filter(Boolean).join(" · ");
+  // Personal-Hinweis (über 85 dB(A)): da, solange der Status ihn meldet; sonst weg (Fehlermeldungen eines Tipps bleiben)
+  const ph = $("zh-gastro-status"), alt = ph.dataset.personal === "1";
+  if (g.an && g.personal_hinweis) { ph.innerHTML = `<span class="warn">${esc(g.personal_hinweis)}</span>`; ph.dataset.personal = "1"; }
+  else if (alt) { ph.textContent = ""; delete ph.dataset.personal; }
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("button[data-gastro]"); if (!b || b.getAttribute("aria-pressed") === "true") return;
+  const st = zh.st || {}, inh = st.inhalt || {};
+  const a = await nativ.box("inhalt", { profil: inh.profil || "Film", raeumlichkeit: inh.raeumlichkeit ?? 1, gastro: { [b.dataset.gastro]: JSON.parse(b.dataset.wert) } }, { zeitMs: 8000 });
+  if (!a.ok) { $("zh-gastro-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; delete $("zh-gastro-status").dataset.personal; return; }
+  $("zh-gastro-status").textContent = ""; delete $("zh-gastro-status").dataset.personal;
+  zh.st = { ...st, inhalt: a.inhalt || st.inhalt, ...(a.hintergrund ? { hintergrund: a.hintergrund } : {}), ...(a.gastro ? { gastro: a.gastro } : {}) };
+  gastroZeigen();
+});
 // Steht im Testlabor (nicht mehr als Fenster unter Box); neu gezeichnet nur, wenn sich etwas ändert (Status alle 5 s)
 const taktSetzen = (id, html) => { const e = $(id); if (e.dataset.html !== html) { e.innerHTML = html; e.dataset.html = html; } };
 function taktZeigen() {
@@ -12267,6 +12294,7 @@ function taktZeigen() {
   taktSetzen("zh-takt-ergebnisse", erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
     <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
     ${e.ok && t.variante !== e.variante ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "");
+  gastroZeigen();  // Gastro (Test) steht ebenfalls im Testlabor
 }
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("button[data-takt]"); if (!b) return;
@@ -12360,7 +12388,8 @@ function hsZeigen() {
     <div class="seg" role="group" aria-label="${titel}">${werte.filter(([w]) => (w !== "je_seite" || (zh.st && zh.st.hoerschalter_voll) || s[k] === w)
       && (w !== "teil" || (zh.st && zh.st.hoerschalter_teil) || s[k] === w)).map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="${s[k] === w}">${t}</button>`).join("")}</div></div>`).join("");
   $("zh-schalter-hilfe").innerHTML = gruppen.concat(hsDa && kinoLinieDa() ? [HS_ZIEL] : []).map(([, , , hilfe]) => `<p class="klein">${hilfe}</p>`).join("") + `<p class="klein">Nachtmodus: leise Stellen lauter, laute leiser.</p>`
-    + `<p class="klein">Vorne ↔ Hinten: Sitzt du andersherum (Bild an der Rückwand), spielen die Rear-Boxen vorne und die Fronts hinten. Nur mit Rear-Boxen.</p>`;
+    + `<p class="klein">Vorne ↔ Hinten: Sitzt du andersherum (Bild an der Rückwand), spielen die Rear-Boxen vorne und die Fronts hinten. Nur mit Rear-Boxen.</p>`
+    + `<p class="klein">Hintergrund: Musik nebenbei, etwa am Esstisch. Leiser, Gespräche fallen leichter. Bass bleibt, nur das Dröhnen geht. Nur bei Musik.</p>`;
   $("zh-schalter-zurueck").hidden = !hsDa;
   $("zh-schalter-zurueck").disabled = HS_GRUPPEN.concat([HS_ANPASSUNG, HS_ZIEL]).every(([k]) => s[k] === HS_STANDARD[k]);
   inhaltZeigen();
@@ -12386,22 +12415,32 @@ function vorneHintenHtml(st, boxDa) {
     ${knoepfe ? `<div class="seg" role="group" aria-labelledby="zh-vh-label">${knoepfe}</div>` : ""}
     <p class="klein" id="zh-vh-text">${esc(text)}</p></div>`;
 }
+// „Hintergrund“ (status.hintergrund, POST /api/inhalt {hintergrund}; plan.hintergrund_klang, Nutzer 12.11.2026): Musik im
+// Hintergrund, Gespräche fallen leicht. Wirkt nur bei Musik: im Kino ausgeblendet, war er an, steht „wirkt nur bei Musik“ da.
+function hintergrundHtml(st, boxDa) {
+  const an = !!(st.inhalt || {}).hintergrund, hg = st.hintergrund || {}, kino = st.modus === "kino";
+  if (!boxDa || (kino && !an)) return "";
+  const text = kino || (an && hg.grund) ? hg.grund || "Wirkt nur bei Musik." : "Leiser, Gespräche fallen leichter. Bass bleibt, nur das Dröhnen geht.";
+  return `<div class="kb-gruppe" id="zh-hg"><span class="kb-label" id="zh-hg-label">Hintergrund</span>
+    <div class="seg" role="group" aria-labelledby="zh-hg-label"><button type="button" data-zh-inhalt="hintergrund" data-wert="0" aria-pressed="${!an}">Aus</button><button type="button" data-zh-inhalt="hintergrund" data-wert="1" aria-pressed="${an}">An</button></div>
+    <p class="klein" id="zh-hg-text">${esc(text)}</p></div>`;
+}
 function inhaltZeigen() {
   const st = zh.st || {}, inh = st.inhalt || {}, boxDa = boxBereit(), kino = st.modus === "kino";
   const raum = boxDa && kino ? `<div class="kb-gruppe zeile" id="zh-raum"><span class="kb-label">Räumlich</span>
     <div class="seg" role="group" aria-label="Räumlichkeit">${RAEUMLICH.map((t, i) => `<button type="button" data-zh-inhalt="raeumlichkeit" data-wert="${i}" aria-pressed="${(inh.raeumlichkeit ?? 1) === i}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div></div>` : "";
   const nacht = boxDa ? `<div class="kb-gruppe zeile" id="zh-nacht"><span class="kb-label">Nacht</span>
     <div class="seg" role="group" aria-label="Nachtmodus"><button type="button" data-zh-inhalt="nachtmodus" data-wert="0" aria-pressed="${!inh.nachtmodus}">Aus</button><button type="button" data-zh-inhalt="nachtmodus" data-wert="1" aria-pressed="${!!inh.nachtmodus}">An</button></div></div>` : "";
-  $("zh-inhalt-gruppen").innerHTML = raum + nacht + vorneHintenHtml(st, boxDa);
+  $("zh-inhalt-gruppen").innerHTML = raum + nacht + hintergrundHtml(st, boxDa) + vorneHintenHtml(st, boxDa);
   const r = letzteRunde(modus), ok = !!(r && r.status === "bestaetigt"), k = $("zh-klang");
   k.disabled = !boxDa || !ok; k.textContent = ok ? `Klangprofil · ${(r.profil && r.profil.name) || "Neutral"}` : "Klangprofil · nach der Nachmessung";
 }
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-zh-inhalt]"); if (!b || b.getAttribute("aria-pressed") === "true") return;
   const st = zh.st || {}, inh = st.inhalt || {}, w = +b.dataset.wert;
-  const neu = b.dataset.zhInhalt === "nachtmodus" ? { nachtmodus: !!w } : b.dataset.zhInhalt === "vorne_hinten" ? { vorne_hinten: !!w } : { raeumlichkeit: w };
+  const art = b.dataset.zhInhalt, neu = art === "nachtmodus" || art === "vorne_hinten" || art === "hintergrund" ? { [art]: !!w } : { raeumlichkeit: w };
   const a = await nativ.box("inhalt", { profil: inh.profil || "Film", raeumlichkeit: inh.raeumlichkeit ?? 1, ...neu }, { zeitMs: 6000 });
-  if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt, ...(a.vorne_hinten ? { vorne_hinten: a.vorne_hinten } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); klangZeileZeigen(); }
+  if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt, ...(a.vorne_hinten ? { vorne_hinten: a.vorne_hinten } : {}), ...(a.hintergrund ? { hintergrund: a.hintergrund } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); klangZeileZeigen(); }
   else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
 $("zh-klang").addEventListener("click", () => { const r = letzteRunde(modus); if (r && r.status === "bestaetigt") { anwendenArt = "box"; zeigeSchritt(9); } });
@@ -12471,7 +12510,8 @@ function klangZeileZeigen() {
   const s = hsStand(), name = ([k, , werte]) => (werte.find(([w]) => w === s[k]) || [])[1];
   const rest = HS_GRUPPEN.slice(2).concat([HS_ANPASSUNG, HS_ZIEL]).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name).filter(Boolean);
   const teile = [name(HS_GRUPPEN[1])].concat(rest.length ? rest : ["Wie gemessen"]).filter(Boolean);
-  const vh = st.vorne_hinten && st.vorne_hinten.an ? " · Vorne ↔ Hinten" : "";  // auch auf Hören sichtbar, solange getauscht
+  const vh = (st.vorne_hinten && st.vorne_hinten.an ? " · Vorne ↔ Hinten" : "")  // auch auf Hören sichtbar, solange getauscht
+    + (st.inhalt && st.inhalt.hintergrund ? " · Hintergrund" : "");
   $("zh-klang-wert").textContent = st.hoerschalter ? `· ${teile.join(" · ")}${vh}` : vh;
 }
 // Hören: Bereich als Hauptsegment (Hör-Schalter „bereich“, gleiche Logik wie im Fenster), darunter leise „Vorher“ und „Blind“.
@@ -16387,6 +16427,3 @@ const LAUT = (() => {
   return { zeigen, einhaengen, beschaeftigt, taste, sheetZeigen, dbAus, stufeAus, _z: z };
 })();
 </script>
-
-</body>
-</html>

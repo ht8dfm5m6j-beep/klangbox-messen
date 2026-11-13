@@ -12260,7 +12260,6 @@ function zhTabStart(einmessungDa, sicher = true) {
 // Takt-Labor: Varianten testen (5 Minuten, automatischer Rückfall), Ergebnisse, behalten oder zurück
 const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen bei gleicher Rate (besser für die Qualität)"],
   roehre: ["Röhre", "nur Fernseher (optisch): Weiche direkt an CamillaDSP statt über den groben Takt; geschätzt etwa 25 ms, gemessen wird im Test"],
-  roehre_schlank: ["Röhre schlank", "wie Röhre, baut aber den Rückstau vom Start ab und hält nur eine feste Reserve im Ausgang; wird es knapp, gibt sie selbst eine Stufe nach. Etwa 4–5 ms weniger als Röhre"],
   roehre_knapp: ["Röhre knapp", "dasselbe mit halb so großen Blöcken und kleinstem Puffer: am schnellsten, verwirft aber leicht"],
   roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Reserve 3,3 ms, sanft geglättet"],
   roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Reserve 4 ms, sanft geglättet"],
@@ -12309,7 +12308,7 @@ function taktZeigen() {
     + (t.variante ? `<button type="button" class="zweit" data-takt="standard">Zurück auf den bisherigen Weg</button>` : ""));
   const erg = (t.ergebnisse || []).slice().reverse();
   taktSetzen("zh-takt-ergebnisse", erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
-    <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.boden != null ? ` · Reserve im Ausgang ${zk(e.boden / 48, 1)} ms${e.stufen_hoch ? ` (${e.stufen_hoch}× nachgegeben)` : ""}` : ""}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
+    <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
     ${e.ok && t.variante !== e.variante && !TAKT_GESPERRT.has(e.variante) ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "");
   gastroZeigen();  // Gastro (Test) steht ebenfalls im Testlabor
 }
@@ -15383,6 +15382,11 @@ const JETZT = (() => {
       : `<h3>Alles aktuell ✓</h3><p class="klein">Version ${h(u.version || "–")}. Die Box sieht einmal am Tag selbst nach.</p>${u.letztes ? `<p class="klein">Zuletzt: ${h(u.meldung || u.letztes)}</p>` : ""}
         <button type="button" class="zweit" id="zh-upd-pruefen">Nach Updates suchen</button>`;
     if (u.fehler && !u.laeuft) z.insertAdjacentHTML("beforeend", `<p class="klein warn">${h(u.fehler)}</p>`);
+    if (u.zurueck && u.behalten_offen && !u.laeuft) z.insertAdjacentHTML("afterbegin", `<div class="zh-upd-wahl"><h3>${u.zurueck.neuer ? "Ältere" : "Neue"} Version ${h(u.version || "")} läuft</h3>
+      <p class="klein">${u.zurueck.neuer ? `Die neuere Version ${h(u.zurueck.version)} liegt noch auf der Box.` : `Hör erst eine Weile. Klingt und läuft alles wie vorher oder besser: behalten. Sonst zurück zu Version ${h(u.zurueck.version)}.`} Ohne Antwort läuft weiter Version ${h(u.version || "")}.</p>
+      <button type="button" id="zh-upd-behalten">Behalten</button>
+      <button type="button" class="zweit" id="zh-upd-zurueck">${u.zurueck.neuer ? "Wieder zu" : "Zurück zu"} Version ${h(u.zurueck.version)}</button>
+      <p class="klein">Beim Wechseln startet die Box kurz neu, deine Einstellungen bleiben, „Automatisch nachts“ geht aus.</p></div>`);
     const au = $("zh-upd-auto"); if (!au) return;
     au.hidden = typeof u.automatisch !== "boolean";
     $("zh-upd-schalter").setAttribute("aria-checked", String(!!u.automatisch));
@@ -15629,6 +15633,22 @@ const JETZT = (() => {
       if ($("zh-bib-ben").value) d.benutzer = $("zh-bib-ben").value; if ($("zh-bib-pw").value) d.passwort = $("zh-bib-pw").value;
       const a = await nativ.box("bibliothek", d, { zeitMs: 15000 }); $("zh-bib-pw").value = "";
       $("zh-bib-status").innerHTML = a && a.ok !== false ? (a.verbunden ? "✓ Verbunden. Die Box liest die Musik ein." : "Noch nicht verbunden. Die Box versucht es jede Minute neu.") : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`;
+      return; }
+    if (t.closest("#zh-upd-behalten")) { const b = $("zh-upd-behalten"); if (b.disabled) return; b.disabled = true;
+      const a = await nativ.box("update", { aktion: "behalten" }, { zeitMs: 15000 });
+      $("zh-upd-status").innerHTML = a && a.ok !== false ? "✓ Behalten." : `<span class="warn">${h(fehlerText(a))}</span>`;
+      if (a && a.update && zh.st) zh.st.update = a.update; updZeigen(); return; }
+    if (t.closest("#zh-upd-zurueck")) { const b = $("zh-upd-zurueck");
+      if (b.disabled) return;
+      if (!b.dataset.sicher) { b.dataset.sicher = "1"; b.textContent = "Wirklich? Noch einmal tippen"; return; }
+      b.disabled = true; $("zh-upd-status").textContent = "Schaltet um …";
+      const a = await nativ.box("update", { aktion: "zurueck" }, { zeitMs: 15000 });
+      if (a && a.ok !== false) {
+        $("zh-upd-status").textContent = "✓ Die Box startet jetzt kurz neu (etwa eine Minute), dann läuft die andere Version.";
+        if (a.update && zh.st) { zh.st.update = a.update; zh.st.update.zurueck = null; }
+        updZeigen();
+      } else if (a && a.update) { $("zh-upd-status").innerHTML = `<span class="warn">${h(fehlerText(a))}</span>`; zh.st.update = a.update; updZeigen(); }
+      else $("zh-upd-status").textContent = "Keine Antwort: Die Box startet vermutlich gerade neu. In einer Minute hier nachsehen.";
       return; }
     if (t.closest("#zh-upd-los") || t.closest("#zh-upd-pruefen")) {
       const los = !!t.closest("#zh-upd-los"); $("zh-upd-status").textContent = los ? "Startet …" : "Sehe nach …";

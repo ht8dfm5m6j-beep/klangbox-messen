@@ -12260,6 +12260,7 @@ function zhTabStart(einmessungDa, sicher = true) {
 // Takt-Labor: Varianten testen (5 Minuten, automatischer Rückfall), Ergebnisse, behalten oder zurück
 const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen bei gleicher Rate (besser für die Qualität)"],
   roehre: ["Röhre", "nur Fernseher (optisch): Weiche direkt an CamillaDSP statt über den groben Takt; geschätzt etwa 25 ms, gemessen wird im Test"],
+  roehre_schlank: ["Röhre schlank", "wie Röhre, baut aber den Rückstau vom Start ab und hält nur eine feste Reserve im Ausgang; wird es knapp, gibt sie selbst eine Stufe nach. Etwa 4–5 ms weniger als Röhre"],
   roehre_knapp: ["Röhre knapp", "dasselbe mit halb so großen Blöcken und kleinstem Puffer: am schnellsten, verwirft aber leicht"],
   roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Reserve 3,3 ms, sanft geglättet"],
   roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Reserve 4 ms, sanft geglättet"],
@@ -12308,7 +12309,7 @@ function taktZeigen() {
     + (t.variante ? `<button type="button" class="zweit" data-takt="standard">Zurück auf den bisherigen Weg</button>` : ""));
   const erg = (t.ergebnisse || []).slice().reverse();
   taktSetzen("zh-takt-ergebnisse", erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
-    <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
+    <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.boden != null ? ` · Reserve im Ausgang ${zk(e.boden / 48, 1)} ms${e.stufen_hoch ? ` (${e.stufen_hoch}× nachgegeben)` : ""}` : ""}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
     ${e.ok && t.variante !== e.variante && !TAKT_GESPERRT.has(e.variante) ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "");
   gastroZeigen();  // Gastro (Test) steht ebenfalls im Testlabor
 }
@@ -12509,7 +12510,12 @@ function inhaltZeigen() {
     <div class="seg" role="group" aria-label="Räumlichkeit">${RAEUMLICH.map((t, i) => `<button type="button" data-zh-inhalt="raeumlichkeit" data-wert="${i}" aria-pressed="${(inh.raeumlichkeit ?? 1) === i}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div></div>` : "";
   const nacht = boxDa ? `<div class="kb-gruppe zeile" id="zh-nacht"><span class="kb-label">Nacht</span>
     <div class="seg" role="group" aria-label="Nachtmodus"><button type="button" data-zh-inhalt="nachtmodus" data-wert="0" aria-pressed="${!inh.nachtmodus}">Aus</button><button type="button" data-zh-inhalt="nachtmodus" data-wert="1" aria-pressed="${!!inh.nachtmodus}">An</button></div></div>` : "";
-  $("zh-inhalt-gruppen").innerHTML = raum + nacht + hintergrundHtml(st, boxDa) + vorneHintenHtml(st, boxDa);
+  // Kaputte Mehrkanal-Rahmen vom Fernseher: hart stumm (Knack) oder sanft überbrücken (Nutzer 13.11.2026), ab Werk sanft
+  const rs = st.rahmen_sanft;
+  const sanft = boxDa && rs ? `<div class="kb-gruppe zeile" id="zh-sanft"><span class="kb-label">Fehler im Film-Ton</span>
+    <div class="seg" role="group" aria-label="Kaputte Rahmen"><button type="button" data-zh-sanft="0" aria-pressed="${!rs.an}">Hart</button><button type="button" data-zh-sanft="1" aria-pressed="${!!rs.an}">Sanft</button></div>
+    ${rs.aus_grund ? `<span class="klein warn">Die Box hat „Sanft“ ausgeschaltet: ${esc(rs.aus_grund)}.</span>` : ""}</div>` : "";
+  $("zh-inhalt-gruppen").innerHTML = raum + nacht + sanft + hintergrundHtml(st, boxDa) + vorneHintenHtml(st, boxDa);
   const r = letzteRunde(modus), ok = !!(r && r.status === "bestaetigt"), k = $("zh-klang");
   k.disabled = !boxDa || !ok; k.textContent = ok ? `Klangprofil · ${(r.profil && r.profil.name) || "Neutral"}` : "Klangprofil · nach der Nachmessung";
 }
@@ -12522,6 +12528,15 @@ document.addEventListener("click", async (ev) => {
   else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
 $("zh-klang").addEventListener("click", () => { const r = letzteRunde(modus); if (r && r.status === "bestaetigt") { anwendenArt = "box"; zeigeSchritt(9); } });
+$("zh-inhalt-gruppen").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-zh-sanft]"); if (!b || !nativ || !boxBereit()) return;
+  const an = b.dataset.zhSanft === "1";
+  if (zh.st && zh.st.rahmen_sanft && zh.st.rahmen_sanft.an === an) return;
+  $("zh-schalter-status").innerHTML = `<span class="laeuft">Die Box stellt um, kurz still…</span>`;
+  const a = await nativ.box("rahmen_sanft", { an }, { zeitMs: 8000 });
+  if (a.ok && a.rahmen_sanft) { zh.st = { ...(zh.st || {}), rahmen_sanft: a.rahmen_sanft }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); }
+  else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+});
 // „Knacken gehört“ (Nutzer 07.11.2026): sofort tippen, die Box sieht nach, ob sie in den 20 s davor einen Aussetzer hatte
 $("zh-knacken").addEventListener("click", async () => {
   const st = (t) => { $("zh-schalter-status").innerHTML = t; };

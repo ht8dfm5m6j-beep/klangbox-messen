@@ -2143,6 +2143,11 @@ body.rg-offen { overflow: hidden; }
         <div id="zh-takt-varianten" style="display: grid; gap: 8px"></div>
         <div id="zh-takt-ergebnisse" style="display: grid; gap: 8px"></div>
         <p class="klein" id="zh-takt-status" aria-live="polite"></p></section>
+      <!-- Kernel-Test mit automatischem Rückfall (klangbox/dienst/kernelprobe.py, Nutzer 13.11.2026) -->
+      <section class="zh-gruppe" id="zh-kernel-block" aria-label="Kernel-Test" hidden><h2 class="kb-label">Kernel-Test</h2>
+        <p class="klein">Ein neuerer Systemkern, in dem der Fehler der hakenden Tonschnittstelle behoben ist. Er wird neben den bisherigen gelegt; die Box startet ihn genau einmal und prüft sich 10 Minuten lang selbst. Klappt etwas nicht, startet sie von selbst wieder mit dem bisherigen. Hängt sie: Strom kurz aus und wieder an, dann kommt ebenfalls der bisherige.</p>
+        <div id="zh-kernel-inhalt" style="display: grid; gap: 8px"></div>
+        <p class="klein" id="zh-kernel-status" aria-live="polite"></p></section>
       <!-- Gastro (Test, Nutzer 12.11.2026): Hintergrund für ein Lokal auf der vorhandenen Einmessung (klangbox/dienst/gastro.py).
            Nur zwei Wahlreihen (Tageszeit, Laden), dazu an/aus und eine Höchstgrenze; die Technik steht in der Tabelle im Code. -->
       <section class="zh-gruppe" id="zh-gastro-block" aria-label="Gastro (Test)" hidden><h2 class="kb-label">Gastro (Test)</h2>
@@ -12234,7 +12239,7 @@ function zhTab(name, merken = true) {
   $("h-zuhause").textContent = ZH_TAB_TITEL[name];
   if (name !== "hoeren" && sheet.offen()) sheet.zu();
   if (merken) schreiben("klangbox-tab", reiter);  // nie mit der Unterseite starten
-  if (name === "labor") { $("zh-takt-status").textContent = ""; taktZeigen(); }
+  if (name === "labor") { $("zh-takt-status").textContent = ""; taktZeigen(); kernelLaden(); }
   if (typeof JETZT !== "undefined" && JETZT.raumPruefen) JETZT.raumPruefen();  // Raumansicht: Pegel nur auf Hören abfragen
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zh-tab]"); if (!b) return; zhTab(b.dataset.zhTab);
@@ -12255,6 +12260,7 @@ function zhTabStart(einmessungDa, sicher = true) {
 // Takt-Labor: Varianten testen (5 Minuten, automatischer Rückfall), Ergebnisse, behalten oder zurück
 const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen bei gleicher Rate (besser für die Qualität)"],
   roehre: ["Röhre", "nur Fernseher (optisch): Weiche direkt an CamillaDSP statt über den groben Takt; geschätzt etwa 25 ms, gemessen wird im Test"],
+  roehre_schlank: ["Röhre schlank", "wie Röhre, baut aber den Rückstau vom Start ab und hält nur eine feste Reserve im Ausgang; wird es knapp, gibt sie selbst eine Stufe nach. Etwa 4–5 ms weniger als Röhre"],
   roehre_knapp: ["Röhre knapp", "dasselbe mit halb so großen Blöcken und kleinstem Puffer: am schnellsten, verwirft aber leicht"],
   roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Reserve 3,3 ms, sanft geglättet"],
   roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Reserve 4 ms, sanft geglättet"],
@@ -12303,7 +12309,7 @@ function taktZeigen() {
     + (t.variante ? `<button type="button" class="zweit" data-takt="standard">Zurück auf den bisherigen Weg</button>` : ""));
   const erg = (t.ergebnisse || []).slice().reverse();
   taktSetzen("zh-takt-ergebnisse", erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
-    <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
+    <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.boden != null ? ` · Reserve im Ausgang ${zk(e.boden / 48, 1)} ms${e.stufen_hoch ? ` (${e.stufen_hoch}× nachgegeben)` : ""}` : ""}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
     ${e.ok && t.variante !== e.variante && !TAKT_GESPERRT.has(e.variante) ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "");
   gastroZeigen();  // Gastro (Test) steht ebenfalls im Testlabor
 }
@@ -12322,6 +12328,66 @@ document.addEventListener("click", async (ev) => {
     else if (++still >= 3) st(`<span class="warn">Die Box antwortet gerade nicht. Sie bricht den Test selbst ab, spätestens nach der Testzeit. Hängt sie länger als 5 Minuten: Strom kurz aus und wieder an, dann den Bericht schicken.</span>`);
   }
 });
+// Kernel-Test (klangbox/dienst/kernelprobe.py): Vorprüfung ändert nichts; Testen startet einmal mit dem neuen Kernel,
+// fällt bei jedem Problem selbst zurück; erst „Behalten“ macht ihn zum Normalfall, „Zurück“ nimmt das wieder heraus.
+const KERNEL_TEXT = { neu: "Noch nicht geprüft.", pruefe: "Die Box prüft und lädt das Paket …", bereit: "Vorprüfung bestanden: bereit zum Testen.",
+  vorpruefung_fehler: "Vorprüfung nicht bestanden: nichts geändert.", spiele_ein: "Wird eingespielt …",
+  probe_start: "Die Box startet mit dem neuen Kern neu …", probe_laeuft: "Selbsttest läuft mit dem neuen Kern.",
+  bestanden: "Selbsttest bestanden. Behalten oder zurück?", bestanden_alt: "Selbsttest war bestanden, die Box läuft aber wieder mit dem bisherigen Kern. Zum Behalten einmal neu testen.",
+  gescheitert: "Nicht bestanden: die Box läuft wieder mit dem bisherigen Kern.", behalten: "Der neue Kern ist behalten.",
+  zurueck: "Zurück auf dem bisherigen Kern." };
+let kernelSt = null;
+function kernelZeigen() {
+  const k = kernelSt; $("zh-kernel-block").hidden = !k;
+  if (!k) return;
+  const z = k.zustand || "neu", knopf = (a, t, zweit = true) => `<button type="button" class="${zweit ? "zweit " : ""}klein" data-kernel="${a}">${t}</button>`;
+  const liste = (k.letzte_pruefung && z === "probe_laeuft" ? k.letzte_pruefung : k.pruefungen || [])
+    .map((p) => `<div class="zeile"><i class="ampel ${p.ok ? "gruen" : "rot"}"></i><span><b>${esc(p.name)}</b><br><span class="klein">${esc(p.text)}</span></span></div>`).join("");
+  const knoepfe = z === "pruefe" || z === "spiele_ein" || z === "probe_start" ? ""
+    : z === "bereit" ? knopf("testen", "Jetzt testen (Neustart)", false) + knopf("pruefen", "Neu prüfen")
+    : z === "bestanden" ? knopf("behalten", "Behalten", false) + knopf("zurueck", "Zurück zum bisherigen (Neustart)")
+    : z === "bestanden_alt" ? knopf("pruefen", "Noch einmal prüfen und testen")
+    : z === "behalten" ? knopf("zurueck", "Zurück zum bisherigen (Neustart)")
+    : z === "probe_laeuft" ? knopf("zurueck", "Abbrechen: zurück (Neustart)")
+    : knopf("pruefen", z === "neu" ? "Vorprüfung starten (ändert nichts)" : "Neu prüfen");
+  taktSetzen("zh-kernel-inhalt", `<div class="kasten"><b>${esc(KERNEL_TEXT[z] || z)}</b>${k.rest_s != null ? ` · noch ${Math.ceil(k.rest_s / 60)} min` : ""}
+    <span class="klein">Läuft jetzt: ${esc(k.kernel_jetzt || "–")} · neu: ${esc(k.kernel_neu || "–")}${k.fehler ? `<br><span class="warn">${esc(k.fehler)}</span>` : ""}</span>
+    <div class="reihe" style="gap: 8px; flex-wrap: wrap">${knoepfe}</div></div>${liste}`);
+}
+async function kernelLaden() {
+  if (!nativ || !boxBereit()) return;
+  const a = await nativ.box("kernel", { aktion: "status" }, { zeitMs: 8000 });
+  if (a.ok) { kernelSt = a; kernelZeigen(); kernelVerfolgen(); }
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("button[data-kernel]"); if (!b) return;
+  const st = (t) => { $("zh-kernel-status").innerHTML = t; };
+  const a0 = b.dataset.kernel;
+  if (a0 === "testen" && !confirm("Die Box startet jetzt neu, einmal mit dem neuen Kern (etwa 1 Minute ohne Ton). Danach prüft sie sich 10 Minuten. Bei jedem Problem kommt von selbst der bisherige Kern zurück. Starten?")) return;
+  if (a0 === "zurueck" && !confirm("Zurück zum bisherigen Kern? Die Box startet dafür neu, wenn nötig.")) return;
+  st("");
+  const a = await nativ.box("kernel", { aktion: a0, ...(a0 === "testen" ? { bestaetigen: true } : {}) }, { zeitMs: a0 === "pruefen" ? 15000 : 30000 });
+  if (!a.ok) { st(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return; }
+  kernelSt = a; kernelZeigen();
+  if (a0 === "testen" || a0 === "zurueck") st("Die Box startet gleich neu. Danach hier wieder nachsehen.");
+  kernelVerfolgen();
+});
+// Solange etwas läuft, nachsehen: Vorprüfung (Paket laden), Einspielen, Selbsttest (bis 10 min). Nach dem Neustart
+// antwortet die Box eine Weile nicht: weiter warten, nicht abbrechen.
+let kernelFolgt = false;
+async function kernelVerfolgen() {
+  if (kernelFolgt) return; kernelFolgt = true;
+  const imLabor = () => { const sec = document.querySelector('.schritt[data-s="18"]'); return !!sec && !sec.hidden && sec.dataset.tab === "labor"; };
+  try {
+    for (let i = 0; i < 400 && imLabor() && kernelSt && ["pruefe", "spiele_ein", "probe_start", "probe_laeuft"].includes(kernelSt.zustand); i++) {
+      await warte(kernelSt.zustand === "probe_laeuft" ? 10000 : 3000);
+      const s = await nativ.box("kernel", { aktion: "status" }, { zeitMs: 8000 });
+      if (s.ok) { kernelSt = s; kernelZeigen(); $("zh-kernel-status").textContent = ""; }
+      else $("zh-kernel-status").textContent = "Die Box startet gerade neu oder antwortet noch nicht …";
+    }
+  } finally { kernelFolgt = false; }
+}
+
 // Messdaten auf der Box (klangbox/dienst/messdaten.py): nach dem Laden die Aufnahmen (16 Bit) und die Runde hochladen,
 // in Stücken unter 1 MiB. Damit rechnet die Box später neu, ohne neu zu messen, und eine neue App holt die Runde zurück.
 const MD_STUECK = 600 * 1024;

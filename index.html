@@ -12259,6 +12259,8 @@ const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen
   roehre_mittel1: ["Röhre mittel 1", "kleine Blöcke, Reserve 3,3 ms, sanft geglättet"],
   roehre_mittel2: ["Röhre mittel 2", "kleine Blöcke, Reserve 4 ms, sanft geglättet"],
   roehre_mittel3: ["Röhre mittel 3", "kleine Blöcke, Reserve 4,7 ms, sanft geglättet: am sichersten der drei"] };
+// Kleine Blöcke (64) ließen die Box hängen (Bericht 13.11.2026): nur noch in alten Ergebnissen, nicht mehr zum Testen
+const TAKT_GESPERRT = new Set(["roehre_knapp", "roehre_mittel1", "roehre_mittel2", "roehre_mittel3"]);
 // Gastro (Test): status.gastro, POST /api/inhalt {gastro: {an|tageszeit|fuelle|grenze_db}}. Einmal bauen, danach nur bei Änderung
 // (Status alle 5 s; ein Neubau nähme Tastatur und VoiceOver den Fokus)
 const GASTRO = [["an", "Gastro", [[false, "Aus"], [true, "An"]]],
@@ -12296,13 +12298,13 @@ function taktZeigen() {
   taktSetzen("zh-takt-laeuft", lab ? `<div class="kasten"><b>Test läuft: ${esc(TAKT[lab.variante][0])}</b> · noch ${lab.rest_s} s
     <span class="klein">Verzögerung jetzt ${lab.ms != null ? `${zk(lab.ms, 1)} ms` : "– (kein Ton?)"} · Aussetzer ${lab.aussetzer} · CamillaDSP ${esc(lab.zustand || "–")}${lab.ppm != null ? ` · Takt ${zk(lab.ppm, 0)} ppm` : ""}</span>
     <button type="button" class="zweit klein" data-takt="stopp">Test abbrechen</button></div>` : "");
-  taktSetzen("zh-takt-varianten", lab ? "" : Object.entries(TAKT).map(([k, [name, text]]) => `<div class="reihe"><span><b>${name}</b>${t.wirkt === k ? " · <span class=\"ok\">spielt</span>" : ""}<br><span class="klein">${text}</span></span>
+  taktSetzen("zh-takt-varianten", lab ? "" : Object.entries(TAKT).filter(([k]) => !TAKT_GESPERRT.has(k) && !(k.startsWith("roehre") && Array.isArray(zh.st && zh.st.satelliten) && zh.st.satelliten.length)).map(([k, [name, text]]) => `<div class="reihe"><span><b>${name}</b>${t.wirkt === k ? " · <span class=\"ok\">spielt</span>" : ""}<br><span class="klein">${text}</span></span>
     <button type="button" class="zweit klein" data-takt="start" data-variante="${k}">Testen (5 min)</button></div>`).join("")
     + (t.variante ? `<button type="button" class="zweit" data-takt="standard">Zurück auf den bisherigen Weg</button>` : ""));
   const erg = (t.ergebnisse || []).slice().reverse();
   taktSetzen("zh-takt-ergebnisse", erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
     <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
-    ${e.ok && t.variante !== e.variante ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "");
+    ${e.ok && t.variante !== e.variante && !TAKT_GESPERRT.has(e.variante) ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "");
   gastroZeigen();  // Gastro (Test) steht ebenfalls im Testlabor
 }
 document.addEventListener("click", async (ev) => {
@@ -12312,10 +12314,12 @@ document.addEventListener("click", async (ev) => {
   if (!a.ok) { st(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return; }
   st(""); zh.st = { ...(zh.st || {}), takt: a.takt }; taktZeigen();
   const imLabor = () => { const sec = document.querySelector('.schritt[data-s="18"]'); return !!sec && !sec.hidden && sec.dataset.tab === "labor"; };
-  if (b.dataset.takt === "start") for (let i = 0; i < 200 && imLabor(); i++) {
+  // Antwortet die Box nicht mehr, nicht stumm bei „noch 300 s“ stehen bleiben (Bericht 13.11.2026)
+  if (b.dataset.takt === "start") for (let i = 0, still = 0; i < 200 && imLabor(); i++) {
     await warte(2000);
     const s = await nativ.box("status", {}, { zeitMs: 6000 });
-    if (s.ok) { zh.st = s; taktZeigen(); if (!s.takt || !s.takt.labor) break; }
+    if (s.ok) { still = 0; st(""); zh.st = s; taktZeigen(); if (!s.takt || !s.takt.labor) break; }
+    else if (++still >= 3) st(`<span class="warn">Die Box antwortet gerade nicht. Sie bricht den Test selbst ab, spätestens nach der Testzeit. Hängt sie länger als 5 Minuten: Strom kurz aus und wieder an, dann den Bericht schicken.</span>`);
   }
 });
 // Messdaten auf der Box (klangbox/dienst/messdaten.py): nach dem Laden die Aufnahmen (16 Bit) und die Runde hochladen,

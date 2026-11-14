@@ -2200,6 +2200,11 @@ body.rg-offen { overflow: hidden; }
         <div id="zh-takt-ergebnisse" style="display: grid; gap: 8px"></div>
         <p class="klein" id="zh-takt-status" aria-live="polite"></p></section>
       <!-- Kernel-Test mit automatischem Rückfall (klangbox/dienst/kernelprobe.py, Nutzer 13.11.2026) -->
+      <!-- Aufnahme mit Reserve (Recherche Knacken 13.11.2026): mehr Puffer am optischen Eingang, Rückschaltung nach Hängern -->
+      <section class="zh-gruppe" id="zh-reserve-block" aria-label="Aufnahme mit Reserve" hidden><h2 class="kb-label">Aufnahme mit Reserve</h2>
+        <p class="klein">Die Box nimmt den Fernseher mit mehr Puffer auf (21 statt 5 ms). Stockt sie kurz, gehen keine Werte verloren, die sonst einen Mehrkanal-Rahmen zerstören. Hängt die Box zweimal in 10 Minuten, schaltet sie das selbst wieder aus.</p>
+        <div class="seg" role="group" aria-label="Aufnahme mit Reserve" id="zh-reserve-seg"><button type="button" data-reserve="0" aria-pressed="true">Aus</button><button type="button" data-reserve="1" aria-pressed="false">An</button></div>
+        <p class="klein" id="zh-reserve-status" aria-live="polite"></p></section>
       <section class="zh-gruppe" id="zh-kernel-block" aria-label="Kernel-Test" hidden><h2 class="kb-label">Kernel-Test</h2>
         <p class="klein">Ein neuerer Systemkern, in dem der Fehler der hakenden Tonschnittstelle behoben ist. Er wird neben den bisherigen gelegt; die Box startet ihn genau einmal und prüft sich 10 Minuten lang selbst. Klappt etwas nicht, startet sie von selbst wieder mit dem bisherigen. Hängt sie: Strom kurz aus und wieder an, dann kommt ebenfalls der bisherige.</p>
         <div id="zh-kernel-inhalt" style="display: grid; gap: 8px"></div>
@@ -12922,6 +12927,21 @@ function zhListeSetzen(html) {
   l.innerHTML = html; l.dataset.html = html;
   if (wahl) { const n = l.querySelector(wahl); if (n) try { n.focus({ preventScroll: true }); } catch (e) { /* ohne Fokus */ } }
 }
+// Testlabor › Aufnahme mit Reserve (POST /api/aufnahme_reserve)
+function reserveZeigen() {
+  const r = boxBereit() && zh.st ? zh.st.aufnahme_reserve : null;
+  $("zh-reserve-block").hidden = !r; if (!r) return;
+  document.querySelectorAll("[data-reserve]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.reserve === "1") === !!r.an)));
+  if (r.aus_grund && !$("zh-reserve-status").textContent) $("zh-reserve-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(r.aus_grund)}.</span>`;
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-reserve]"); if (!b || !nativ || !boxBereit()) return;
+  const an = b.dataset.reserve === "1"; if (zh.st && zh.st.aufnahme_reserve && zh.st.aufnahme_reserve.an === an) return;
+  $("zh-reserve-status").innerHTML = `<span class="laeuft">Die Box stellt um, kurz still…</span>`;
+  const a = await nativ.box("aufnahme_reserve", { an }, { zeitMs: 8000 });
+  if (a.ok && a.aufnahme_reserve) { zh.st = { ...(zh.st || {}), aufnahme_reserve: a.aufnahme_reserve }; $("zh-reserve-status").textContent = ""; reserveZeigen(); }
+  else $("zh-reserve-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+});
 // Box › App: Einstellungen der App (nur in der App) und die Darstellung (überall; Vorspann ganz oben setzt data-thema)
 const DARSTELLUNG = [["auto", "Automatisch"], ["hell", "Hell"], ["dunkel", "Dunkel"]];
 const zhDarstellung = () => { const w = window.klangboxDarstellung ? klangboxDarstellung.wert() : "auto";
@@ -13087,6 +13107,7 @@ function zuhauseZeigen(laden = true) {
     if (boxBlick && !(warn.length || sats.some((s) => s.erreichbar === false) || stickZeigen)) $("zh-zustand").hidden = true;  // Box auf einen Blick: Zustand nur, wenn etwas nicht stimmt
   }
   if (boxDa && st) zhBoxBloecke(st);
+  reserveZeigen();
   taktZeigen();
   // Gehör-Check (hoerprobe.js): Karte des aktiven Modus im Platz unter den Karten
   const gc = window.klangboxGehoerCheck && letzteRunde(modus) ? window.klangboxGehoerCheck.karte(modus) : "";

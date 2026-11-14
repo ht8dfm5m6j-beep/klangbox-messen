@@ -3503,7 +3503,8 @@ function buehneKennzahlen(m, r, kino) {
 }
 // buehneMit: Sitzmodus „zu zweit“: je Platz true, wenn er ein Sitzplatz ist (Bühne dort, der schlechteste zählt).
 // mitKacheln: auch ohne Unsicherheit die Kacheln liefern (Teilwert-Wächter).
-function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = false, buehneMit = null, mitKacheln = false) {
+// raumVon: Score der ersten Messung (vorher); sein Raum gilt unverändert (wie kino_score raum_von, siehe Teil 9).
+function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = false, buehneMit = null, mitKacheln = false, raumVon = null) {
   r = r || rechner(HAUSKURVE[modus]);
   const kino = modus === "kino", haupt = plaetze[0], hatC = "C" in haupt;
   const bassCh = kino && hatC ? ["C", "FL", "FR"] : ["FL", "FR"], gew = GEWICHTE[modus];
@@ -3581,6 +3582,10 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
       Math.abs(dT) <= 0.1 ? "Der Raum klingt angenehm." : (dT > 0 ? "Der Raum hallt etwas nach – das kann keine Technik ganz wegrechnen." : "Der Raum ist sehr trocken."),
       raumM3 ? 1 : 0.75);
   } else setze("raum", null, null, "nicht gemessen", "Nachhall nicht messbar, bitte lauter messen.");
+  // Raum hängt nur am Raum, Box und EQ ändern ihn nicht: ein anderer Wert nachher wäre Messstreuung (RAUM_STUETZ ist steil)
+  // und sähe aus wie eine Wirkung der Box. Darum gilt nachher der Raum der ersten Messung, auch im Gesamtwert (Nutzer
+  // 14.11.2026: „Raum auch 2 Werte, nur immer gleich!“; wie bewertung.kino_score raum_von).
+  if (raumVon && raumVon.raum_roh) z.raum = { ...raumVon.raum_roh, gewicht: gew.raum };
 
   const gem = Object.values(z).filter((k) => k.punkte !== null);
   const summe = gem.reduce((s, k) => s + k.gewicht * k.konfidenz, 0);
@@ -3590,7 +3595,7 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
   let plusminus = null;
   if (unsicherheit && plaetze.length >= 3) {
     const loo = plaetze.slice(1).map((_, i) => score(plaetze.filter((__, j) => j !== i + 1), modus, raumM3, r, false, false,
-      buehneMit ? buehneMit.filter((__, j) => j !== i + 1) : null).gesamt);
+      buehneMit ? buehneMit.filter((__, j) => j !== i + 1) : null, false, raumVon).gesamt);
     plusminus = Math.max(1, Math.round(Math.max(...loo.map((x) => Math.abs(x - gesamt)))));
   }
   if (!unsicherheit && !mitKacheln) return { gesamt };
@@ -3612,7 +3617,7 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
   }
   const rund = (v, n) => Math.round(v * 10 ** n) / 10 ** n;
   return {
-    gesamt: Math.round(gesamt), gesamt_roh: gesamt, teile_roh: Object.fromEntries(gem.map((k) => [k.key, k.punkte])), note: note(Math.round(gesamt)), plusminus, gekappt,
+    gesamt: Math.round(gesamt), gesamt_roh: gesamt, raum_roh: z.raum, teile_roh: Object.fromEntries(gem.map((k) => [k.key, k.punkte])), note: note(Math.round(gesamt)), plusminus, gekappt,
     teile: Object.fromEntries(gem.map((k) => [k.key, Math.round(k.punkte)])),
     werte: Object.fromEntries(Object.values(z).filter((k) => k.wert !== null).map((k) => [k.key, rund(k.wert, 3)])),
     kennzahlen: Object.fromEntries(Object.values(z).map((k) => [k.key, { name: KENNZAHLEN[k.key][0], punkte: k.punkte === null ? null : Math.round(k.punkte),
@@ -3821,10 +3826,10 @@ const mitteMinimax = (w) => 0.5 * (Math.max(...w) + Math.min(...w));
 // schrittweise zurücknehmen (leiser, nie lauter), die Filter bleiben
 function breitWaechter(punkte, cals, modus, raumM3) {
   const gmin = Math.min(cals.FL.gain_db, cals.FR.gain_db);
-  const vorher = punkte.map((p) => score([{ FL: p.messungen.FL, FR: p.messungen.FR, C: p.messungen.C || mitte(p.messungen) }], modus, raumM3, null, true, false, null).gesamt);
+  const vorher = punkte.map((p) => score([{ FL: p.messungen.FL, FR: p.messungen.FR, C: p.messungen.C || mitte(p.messungen) }], modus, raumM3, null, true, false, null));
   for (const t of [1, 0.75, 0.5, 0.25, 0]) {
     const c = {}; for (const ch of ["FL", "FR"]) c[ch] = { ...cals[ch], gain_db: gmin + t * (cals[ch].gain_db - gmin), delay_ms: t * cals[ch].delay_ms };
-    if (punkte.every((p, i) => score(nachherAus([p], c), modus, raumM3, null, true, true, null).gesamt >= vorher[i] - TEIL_UNSICHERHEIT))
+    if (punkte.every((p, i) => score(nachherAus([p], c), modus, raumM3, null, true, true, null, false, vorher[i]).gesamt >= vorher[i].gesamt - TEIL_UNSICHERHEIT))
       return { cals: { ...cals, ...c }, hinweise: t === 1 ? [] : [`Für alle Plätze: Laufzeit und Pegel links/rechts nur zu ${Math.round(t * 100)} % ausgeglichen, sonst wäre ein Platz schlechter geworden.`] };
   }
   return { cals, hinweise: [] };
@@ -3921,10 +3926,11 @@ function abwaegung(heute, ausgewogen, mehr) {
   return { kachel: k, titel, gewinn: d[k], aenderung: Object.fromEntries(teile.map((x) => [x, d[x]])), akzeptiert: akz, verloren, frage };
 }
 // Wie teilwerte_schuetzen in raumcheck.py: solange eine Kachel fällt, einen Filter halbieren (ab 1 dB) oder
-// entfernen, oder Pegel und Laufzeit neutral (Bühne und Phantom-Mitte); der Schritt mit dem kleinsten Verlust gewinnt
-function teilwerteSchuetzen(punkte, sitze, cals, modus, raumM3, buehneMit, heute, pegelSitze = null, pegelArt = "minimax") {
+// entfernen, oder Pegel und Laufzeit neutral (Bühne und Phantom-Mitte); der Schritt mit dem kleinsten Verlust gewinnt.
+// raumVon: Score der Messung, ihr Raum gilt auch nachher (wie raum_von)
+function teilwerteSchuetzen(punkte, sitze, cals, modus, raumM3, buehneMit, heute, pegelSitze = null, pegelArt = "minimax", raumVon = null) {
   const bewerte = (c) => {
-    const s = score(nachherAus(punkte, c), modus, raumM3, null, false, true, buehneMit, true), v = kachelVerluste(heute, s.kacheln);
+    const s = score(nachherAus(punkte, c), modus, raumM3, null, false, true, buehneMit, true, raumVon), v = kachelVerluste(heute, s.kacheln);
     return { wert: [Object.values(v).reduce((t, [a, b]) => t + a - b - TEIL_UNSICHERHEIT, 0), -s.gesamt_roh], v };
   };
   const kleiner = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
@@ -4041,7 +4047,7 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
   const sh = score(vorher, modus, raumM3, null, true, false, buehneMit);
   const ohneTw = { FL: ein.cals.FL, FR: ein.cals.FR };  // Extrem: die Variante ohne Teilwert-Wächter
   // Teilwert-Wächter: keine Kachel schlechter als ihre Unsicherheit (sonst Filter verringern oder entfernen)
-  const tw = teilwerteSchuetzen(punkte, ausgleich, ein.cals, modus, raumM3, buehneMit, sh.kacheln, pegelSitze, pegelArt);
+  const tw = teilwerteSchuetzen(punkte, ausgleich, ein.cals, modus, raumM3, buehneMit, sh.kacheln, pegelSitze, pegelArt, sh);
   ein.cals = tw.cals; ein.zeilen = ein.zeilen.concat(tw.hinweise);
   if (breit) { const bw = breitWaechter(ausgleich, ein.cals, modus, raumM3); ein.cals = bw.cals; ein.zeilen = ein.zeilen.concat(bw.hinweise); }
   if (breit) ein.zeilen.push(`Für alle Plätze: Laufzeit und Pegel für die Mitte des ganzen Bereichs (${ausgleich.length} Messpunkte), Bass-Filter vorsichtiger. Gut für alle Plätze, der Mittelplatz verliert etwas gegenüber „allein“.`);
@@ -4064,13 +4070,13 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
     vollEq[ch] = tk.voll[ch].filter((v) => jetzt.get(v.freq) === teilStand[ch].get(v.freq));
     teilEq[ch] = teilEqRoh[ch].filter((v) => jetzt.get(v.freq) === teilStand[ch].get(v.freq)); }
   const nachher = nachherAus(punkte, ein.cals);
-  const sn = score(nachher, modus, raumM3, null, true, true, buehneMit);
+  const sn = score(nachher, modus, raumM3, null, true, true, buehneMit, false, sh);  // Raum: der der Messung (raumVon)
   // Korrekturbereich (Seite: bis 90 / bis 150 Hz / voll): dieselbe Einmessung ohne die Filter darüber, Prognose je Stufe.
   // Nur fürs Anzeigen und die Wahl des Nutzers; geladen wird immer aus erg.einstellungen (die Seite lässt Filter weg).
   const varianten = {};
   for (const grenze of [90, 150]) {
     const c = {}; for (const ch of ["FL", "FR"]) c[ch] = { ...ein.cals[ch], eq: ein.cals[ch].eq.filter((q) => q.freq <= grenze) };
-    varianten[grenze] = score(nachherAus(punkte, c), modus, raumM3, null, true, true, buehneMit).gesamt;
+    varianten[grenze] = score(nachherAus(punkte, c), modus, raumM3, null, true, true, buehneMit, false, sh).gesamt;
   }
   const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C), vh = kurveVoll(vorher[0].C), vn = kurveVoll(nachher[0].C);
   Object.assign(erg, { hauptplatz: punkte[0].name, score_heute: sh, score_prognose: sn, varianten, bericht: ein.zeilen, tipps: ein.tipps,
@@ -4127,7 +4133,7 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
   // Extrem: dieselbe Rechnung ohne Teilwert-Wächter (alle anderen Wächter bleiben); zur Wahl nur mit Mindestgewinn und
   // 2 Punkten mehr auf einer Kachel als die ausgewogene (wie raumcheck.py)
   if (ziel === "extrem" && punkte.length >= ABWAEGUNG_PLAETZE) {
-    const nM = nachherAus(punkte, ohneTw), sM = score(nM, modus, raumM3, null, true, true, buehneMit);
+    const nM = nachherAus(punkte, ohneTw), sM = score(nM, modus, raumM3, null, true, true, buehneMit, false, sh);
     const a = abwaegung(sh.kacheln, erg.score_prognose.kacheln, sM.kacheln);
     if (a && sM.gesamt >= sh.gesamt + 1) {
       const eM = { FL: { ...ohneTw.FL }, FR: { ...ohneTw.FR } };
@@ -4461,9 +4467,9 @@ function kanalWerte(m) {
   const tm = Math.min(t.FL, t.FR), pm = Math.max(p.FL, p.FR);
   return { FL: { laufzeit_ms: t.FL - tm, pegel_db: p.FL - pm }, FR: { laufzeit_ms: t.FR - tm, pegel_db: p.FR - pm } };
 }
-function vergleichRechnen(vh, gemessen, namen, modus, raumM3, sn, ungefaehr, buehneMit = null) {
-  const sp = score(vh, modus, raumM3, null, true, true, buehneMit);
-  sn = sn || score(gemessen, modus, raumM3, null, true, true, buehneMit);
+function vergleichRechnen(vh, gemessen, namen, modus, raumM3, sn, ungefaehr, buehneMit = null, raumVon = null) {
+  const sp = score(vh, modus, raumM3, null, true, true, buehneMit, false, raumVon);
+  sn = sn || score(gemessen, modus, raumM3, null, true, true, buehneMit, false, raumVon);
   const kz = Object.fromEntries(Object.entries(sp.kennzahlen).map(([k, v]) => [k, { name: v.name, vorhergesagt: v.punkte, gemessen: sn.kennzahlen[k].punkte }]));
   const kv = kurve(vh[0].C), kn = kurve(gemessen[0].C), d = [];
   kv.f.forEach((f, i) => { if (f >= 40 && f <= 300) d.push(Math.abs(kv.v[i] - kn.v[i])); });
@@ -4547,8 +4553,9 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
   if (Object.keys(af).length) { absenkung = absenkungPruefen(v, nRk, af); if (!absenkung.ok) gruende.push("Präsenz-Absenkung: " + absenkung.gruende.join("; ")); }
   // Sitzmodus zu zweit: Bühne an allen nachgemessenen Plätzen (der schlechteste zählt), wie nachpruefung.py
   const buehneMit = (sitzmodus === "zwei" || sitzmodus === "breit") && plaetze.length >= 2 ? plaetze.map(() => true) : null, wo = buehneMit ? "an den Sitzplätzen" : "am Hauptplatz";
-  const sv = score(v, modus, raumM3, null, true, false, buehneMit), sn = score(nRk, modus, raumM3, null, true, true, buehneMit);
-  const spA = akzeptiert.length ? score(vh, modus, raumM3, null, true, true, buehneMit) : null;  // Prognose der gewählten Abwägung
+  // Raum nachgemessen = Raum vorher: die Box ändert ihn nicht, ein anderer Wert wäre Messstreuung (score, raumVon)
+  const sv = score(v, modus, raumM3, null, true, false, buehneMit), sn = score(nRk, modus, raumM3, null, true, true, buehneMit, false, sv);
+  const spA = akzeptiert.length ? score(vh, modus, raumM3, null, true, true, buehneMit, false, sv) : null;  // Prognose der gewählten Abwägung
   const teile = {}, teilSchlecht = [];
   for (const [key, name] of [["pegel", "Kanäle gleich laut"], ["laufzeit", "Kanäle gleichzeitig"]]) {
     const a = (akzeptiert.includes("buehne") ? spA : sv).teile_roh[key], b = sn.teile_roh[key];
@@ -4604,7 +4611,7 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     }
   }
   // Theorie gegen Praxis
-  const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr, buehneMit);
+  const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr, buehneMit, sv);
   if (vgl.ueber_toleranz) hinweise.push(`Prognose und Messung weichen ab (Score ${z(vgl.score.vorhergesagt, 0)} vorhergesagt, ${z(vgl.score.gemessen, 0)} gemessen; Bass im Mittel ${z(vgl.bass_kurve.mittel_abweichung_db)} dB). Mögliche Ursachen: ${vgl.ursachen.join(" ")} Danach am besten neu einmessen.`);
   return { ok: !zurueck, empfehlung: zurueck ? "zuruecknehmen" : "behalten", satz, status: zurueck ? "zurueckgenommen" : "bestaetigt", gruende, je_platz: jePlatz, hauptplatz: haupt,
     score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, kacheln, sitzmodus: buehneMit ? (sitzmodus === "breit" ? "breit" : "zwei") : "allein", akzeptiert, regler_zurueck: schuld.map((r) => r.id), hinweise, profil_pruefung: profilPruefung, vergleich: vgl, praesenz, absenkung };
@@ -4771,15 +4778,15 @@ function reglerKandidaten(p, alt, ids) {
   return out;
 }
 // Kacheln der Vorhersage für den Zustand neu (wie _kacheln in regler.py)
-const reglerKacheln = (p, teile, alt, neu, modus, raumM3, buehneMit) => score(reglerVorhersage(p, teile, alt, neu).map(mitMitte), modus, raumM3, null, false, false, buehneMit, true).kacheln;
+const reglerKacheln = (p, teile, alt, neu, modus, raumM3, buehneMit, raumVon = null) => score(reglerVorhersage(p, teile, alt, neu).map(mitMitte), modus, raumM3, null, false, false, buehneMit, true, raumVon).kacheln;
 const reglerWechsel = (r, alt, neu) => `${r.name} ${reglerText(r, neu)} (statt ${reglerText(r, alt)})`;
 // Die Suche (wie _suche in regler.py): Bass-Regler Schritt für Schritt, dann die Klang-Regler; schuetzen: Teilwert-Wächter an
-function reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, schuetzen) {
+function reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, schuetzen, raumVon = null) {
   const nachId = Object.fromEntries(p.regler.map((r) => [r.id, r])), hinweise = [], gemeldet = new Set();
   let zustand = { ...alt };
   const kachelOk = (neu) => {
     if (!schuetzen) return true;
-    const v = kachelVerluste(heuteK, reglerKacheln(p, teile, alt, neu, modus, raumM3, buehneMit));
+    const v = kachelVerluste(heuteK, reglerKacheln(p, teile, alt, neu, modus, raumM3, buehneMit, raumVon));
     if (Object.keys(v).length) {
       const id = Object.keys(neu).find((k) => neu[k] !== zustand[k]);
       if (!gemeldet.has(id)) { gemeldet.add(id);
@@ -4854,9 +4861,9 @@ function reglerOptimieren(punkteListe, p, aktuell, modus = "kino", raumM3 = null
   const bassIds = new Set(p.regler.filter((r) => reglerErlaubt(r, sub, zerlegt) && (r.wirkt_auf || "bass") === "bass").map((r) => r.id));
   const klang = p.regler.filter((r) => reglerErlaubt(r, sub, zerlegt) && r.wirkt_auf === "klang");
   const heute = reglerBassWerte(p, teile, alt, alt), vor = reglerVorhersage(p, teile, alt, alt);
-  const bewerten = (z) => score(reglerVorhersage(p, teile, alt, z).map(mitMitte), modus, raumM3, null, true, false, buehneMit);
+  const bewerten = (z) => score(reglerVorhersage(p, teile, alt, z).map(mitMitte), modus, raumM3, null, true, false, buehneMit, false, sh);  // Raum wie heute
   const sh = score(vor.map(mitMitte), modus, raumM3, null, true, false, buehneMit), heuteK = sh.kacheln;
-  const su = reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, true);
+  const su = reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, true, sh);
   let zustand = su.zustand; hinweise.push(...su.hinweise);
   // Wächter: insgesamt nie schlechter als heute, und keine Kachel schlechter als ihre Unsicherheit (letzter Ausweg)
   let sg = bewerten(zustand);
@@ -4870,7 +4877,7 @@ function reglerOptimieren(punkteListe, p, aktuell, modus = "kino", raumM3 = null
   Object.assign(out, { hinweise, sub_zerlegt: zerlegt, sitzmodus: zwei ? sitzmodus : "allein", sitzmodus_gewaehlt: sitzmodus, sitzplaetze: zwei ? sitze : sitze.slice(0, 1), ziel, abwaegung: null });
   // Extrem: dieselbe Suche ohne Teilwert-Wächter; zur Wahl, wenn sie auf einer Kachel 2 Punkte mehr bringt (voreingestellt: ausgewogen)
   if (ziel === "extrem" && teile.length >= ABWAEGUNG_PLAETZE) {
-    const zM = reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, false).zustand;
+    const zM = reglerSuche(p, teile, alt, bassIds, klang, heuteK, modus, raumM3, buehneMit, false, sh).zustand;
     if (p.regler.some((r) => zM[r.id] !== zustand[r.id])) {
       const sM = bewerten(zM);
       if (sM.gesamt_roh >= sh.gesamt_roh) {
@@ -12101,7 +12108,10 @@ function zhEinmessenBlick(id, profile, weiter) {
   const ku = u && r.urteil.kacheln && typeof r.urteil.kacheln === "object" ? r.urteil.kacheln : null;
   const teilwerte = u && !ku ? [] : Object.keys(kh).map((k) => {
     const paar = ku ? (Array.isArray(ku[k]) ? ku[k] : []) : [kh[k] && kh[k].punkte, kp[k] && kp[k].punkte];
-    const a = Number.isFinite(+paar[0]) && paar[0] !== null ? Math.round(+paar[0]) : null, b = Number.isFinite(+paar[1]) && paar[1] !== null ? Math.round(+paar[1]) : null;
+    const a = Number.isFinite(+paar[0]) && paar[0] !== null ? Math.round(+paar[0]) : null;
+    // Raum: nachher immer wie vorher (Nutzer 14.11.2026: „Raum auch 2 Werte, nur immer gleich!“). Die Box ändert den Raum
+    // nicht; Prognose und Nachmessung rechnen ihn schon so (score, raumVon), hier auch für ältere gespeicherte Runden
+    const b = k === "raum" ? a : Number.isFinite(+paar[1]) && paar[1] !== null ? Math.round(+paar[1]) : null;
     if (a == null || b == null) return "";
     const n = esc((kh[k] && kh[k].titel) || k);
     // eine Aussage, keine Frage: für Vorleser ein Satz (versteckt), die Zahlen sichtbar (keine Gruppe: die wäre eine Auswahl)
@@ -12204,6 +12214,9 @@ document.addEventListener("click", async (ev) => {
 const taktFest = (f) => `<span class="seg" role="group" aria-label="Röhre fest" style="margin-top:6px"><button type="button" data-takt="fest" data-an="0" aria-pressed="${!f.an}">Aus</button><button type="button" data-takt="fest" data-an="1" aria-pressed="${!!f.an}">An</button></span>`
   + (f.aus_grund ? `<br><span class="klein warn">Die Box hat es ausgeschaltet: ${esc(f.aus_grund)}.</span>` : "")
   + (f.an && f.stufe != null ? `<br><span class="klein">Reserve jetzt ${zk(f.stufe / 48, 1)} ms</span>` : "");
+// Stille nach Takt (Test): eigener Schalter (ab Werk aus, POST /api/takt_labor {aktion: "stille_takt", an}); wirkt nur mit Röhre
+const taktStille = (f) => `<div class="reihe"><span><b>Stille nach Takt (Test)</b><br><span class="klein">nur mit Röhre: ohne Signal am Fernseher füllt die Box die Stille nach ihrem gemessenen Takt nach und baut den Überschuss ab, sobald wieder Ton kommt. Aus: wie bisher.</span>
+  <span class="seg" role="group" aria-label="Stille nach Takt" style="margin-top:6px"><button type="button" data-takt="stille_takt" data-an="0" aria-pressed="${!f.an}">Aus</button><button type="button" data-takt="stille_takt" data-an="1" aria-pressed="${!!f.an}">An</button></span></span></div>`;
 // Steht im Testlabor (nicht mehr als Fenster unter Box); neu gezeichnet nur, wenn sich etwas ändert (Status alle 5 s)
 const taktSetzen = (id, html) => { const e = $(id); if (e.dataset.html !== html) { e.innerHTML = html; e.dataset.html = html; } };
 function taktZeigen() {
@@ -12214,7 +12227,8 @@ function taktZeigen() {
     <button type="button" class="zweit klein" data-takt="stopp">Test abbrechen</button></div>` : "");
   taktSetzen("zh-takt-varianten", lab ? "" : Object.entries(TAKT).filter(([k]) => !TAKT_GESPERRT.has(k) && !(k.startsWith("roehre") && Array.isArray(zh.st && zh.st.satelliten) && zh.st.satelliten.length) && (k !== "roehre_fest" || t.fest)).map(([k, [name, text]]) => `<div class="reihe"><span><b>${name}</b>${t.wirkt === k ? " · <span class=\"ok\">spielt</span>" : ""}<br><span class="klein">${text}</span>${k === "roehre_fest" ? taktFest(t.fest) : ""}</span>
     ${k !== "roehre_fest" || t.fest.an ? `<button type="button" class="zweit klein" data-takt="start" data-variante="${k}">Testen (5 min)</button>` : ""}</div>`).join("")
-    + (t.variante ? `<button type="button" class="zweit" data-takt="standard">Zurück auf den bisherigen Weg</button>` : ""));
+    + (t.variante ? `<button type="button" class="zweit" data-takt="standard">Zurück auf den bisherigen Weg</button>` : "")
+    + (t.stille_takt ? taktStille(t.stille_takt) : ""));
   const erg = (t.ergebnisse || []).slice().reverse();
   taktSetzen("zh-takt-ergebnisse", erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
     <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.boden != null ? ` · Reserve im Ausgang ${zk(e.boden / 48, 1)} ms${e.stufen_hoch ? ` (${e.stufen_hoch}× nachgegeben)` : ""}` : ""}${e.fest != null ? ` · Reserve in der Röhre ${zk(e.fest / 48, 1)} ms${e.stufen_hoch ? ` (${e.stufen_hoch}× erhöht)` : ""}` : ""}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
@@ -16285,7 +16299,10 @@ const REGAL = (() => {
 // nur etwa 5 Minuten (Mikrofon, liegt flach). Beim nächsten Öffnen geht es dort weiter, wo die Box steht. Am Ende ein
 // großer Knopf „Bericht senden“ (GET /api/bericht: teilen, sonst kopieren).
 // Markup in der Vorlage: #gt-einstieg (Testlabor) und #gt-schritt (eigene Vollbild-Ansicht). Eigene Regeln mit Präfix gt-.
-// Nutzt von der Seite: nativ, boxBereit, esc, warte, wach, mikrofonOeffnen, audioKontext, mdB64.
+// Nutzt von der Seite: nativ, boxBereit, esc, warte, wach, mikrofonOeffnen, audioKontext, mdB64, ladeSkript und die
+// Pegelautomatik der Einmessung (pegelautomatik.js): Vor der Aufnahme pegelt die Box ein (Schritt „Einpegeln“, siehe
+// klangbox/dienst/grosser_test.py): die Box spielt Rauschen im Band der Kennungen, die App misst es am Mikrofon gegen
+// die Ruhe davor, die Box hebt in Stufen bis 30 dB Abstand (nie über die Lautstärke des Nutzers).
 const GROSSER_TEST = (() => {
   const $ = (id) => document.getElementById(id);
   const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -16317,6 +16334,7 @@ const GROSSER_TEST = (() => {
 .gt-uhr { font: var(--kb-t-anzeige); text-align: center; font-variant-numeric: tabular-nums; }
 .gt-balken { height: 6px; border-radius: 3px; background: var(--kb-skala-leer); overflow: hidden; }
 .gt-balken > i { display: block; height: 100%; background: var(--kb-signal); width: 0; }
+.gt-balken.gt-pegel { height: 12px; border-radius: 6px; }
 .gt-unten { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; }
 .gt-ablage { width: 100%; min-height: 160px; font: var(--kb-t-klein); }
 body.gt-offen { overflow: hidden; }
@@ -16382,6 +16400,11 @@ body.gt-offen { overflow: hidden; }
     const dran = naechster(), m = schritt("mikro");
     if (dran === "mikro") {
       if (aufn) {
+        if (aufn.art === "pegel") return `<div class="gt-karte" aria-live="polite"><p class="gt-satz">Einpegeln</p>
+          <p class="klein">Die Box stellt die Lautstärke für den Test selbst ein. Das dauert ein paar Sekunden.</p>
+          <div class="gt-balken gt-pegel" role="meter" aria-label="Pegel am Mikrofon" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(aufn.anteil * 100)}"><i id="gt-pegel" style="width:${Math.round(aufn.anteil * 100)}%"></i></div>
+          <p class="klein" id="gt-pegel-text">${h(aufn.text || "")}</p>
+          <button type="button" class="zweit" id="gt-mikro-stopp">Abbrechen</button></div>`;
         if (aufn.art === "hoch") return `<div class="gt-karte" aria-live="polite"><p class="gt-satz">Ich lade die Aufnahme auf die Box …</p>
           <div class="gt-balken"><i id="gt-fortschritt" style="width:${Math.round(aufn.anteil * 100)}%"></i></div></div>`;
         return `<div class="gt-karte"><p class="gt-satz">Handy liegen lassen. Nicht sprechen.</p>
@@ -16390,8 +16413,8 @@ body.gt-offen { overflow: hidden; }
       }
       if (m.rechnet) return `<div class="gt-karte" aria-live="polite"><p class="gt-satz">Die Box wertet die Aufnahme aus …</p><p class="klein">Das dauert ein bis zwei Minuten. Du kannst das Handy schon nehmen.</p></div>`;
       return `<div class="gt-karte"><p class="gt-satz">Leg das Handy flach in die Mitte des Sofas. Dauert etwa 5 Minuten.</p>
-        <p class="klein">Die Box spielt kurz laute Töne aus allen Lautsprechern, die Lautstärke regelt die Box dafür selbst. Bitte währenddessen leise sein.${m.text && m.zustand !== "fertig" ? ` ${h(m.text)}` : ""}</p>
-        <button type="button" class="gt-gross" id="gt-mikro">${m.zustand === "laeuft" || (m.text && /noch einmal/i.test(m.text)) ? "Noch einmal aufnehmen" : "Mikrofon starten"}</button>
+        <p class="klein">Erst stellt die Box die Lautstärke für den Test selbst ein, dann spielt sie Prüftöne aus allen Lautsprechern. Bitte währenddessen leise sein.${m.text && m.zustand !== "fertig" ? ` ${h(m.text)}` : ""}</p>
+        <button type="button" class="gt-gross" id="gt-mikro">${m.zustand === "laeuft" || (m.text && /noch einmal/i.test(m.text)) || (m.einpegeln && m.einpegeln.zustand === "zu_leise") ? "Noch einmal aufnehmen" : "Mikrofon starten"}</button>
         <button type="button" class="kb-link" data-gt-ueber="mikro">Überspringen</button></div>`;
     }
     if (dran === "usb") {
@@ -16410,7 +16433,7 @@ body.gt-offen { overflow: hidden; }
       ${f.zustand === "laeuft" ? `<p class="klein"><b>Filme:</b> über den Fernseher, noch ${dauer(f.rest_min)} Filmzeit. Pausen zählen nicht.</p>` : ""}
       ${mu.zustand === "laeuft" ? `<p class="klein"><b>Musik:</b> über AirPlay oder das Netz, noch ${dauer(mu.rest_min)} Spielzeit. Zur Halbzeit schaltet die Box selbst um.</p>` : ""}
       <p class="klein">Die App muss dafür nicht offen sein. Schau einfach ab und zu hier vorbei.</p>
-      <div class="gt-unten">${f.zustand === "laeuft" ? `<button type="button" class="kb-link" data-gt-ueber="film">Filme überspringen</button>` : ""}
+      <div class="gt-unten">${m.zustand !== "offen" && m.zustand !== "laeuft" ? `<button type="button" class="kb-link" id="gt-mikro-nochmal">Mikrofon noch einmal</button>` : ""}${f.zustand === "laeuft" ? `<button type="button" class="kb-link" data-gt-ueber="film">Filme überspringen</button>` : ""}
       ${mu.zustand === "laeuft" ? `<button type="button" class="kb-link" data-gt-ueber="musik">Musik überspringen</button>` : ""}</div></div>`;
   }
   function berichtKarte(fertig) {
@@ -16441,9 +16464,11 @@ body.gt-offen { overflow: hidden; }
     if (aufn) return;
     try { if (window.isSecureContext && navigator.mediaDevices && typeof audioKontext === "function") audioKontext().resume(); } catch (e) { /* ohne Audio */ }
     wach.an();  // noch im Tippen (Safari)
-    aufn = { art: "auf", rest: 0, anteil: 0, abbruch: false }; setze("Mikrofon wird geöffnet …");
+    aufn = { art: "pegel", rest: 0, anteil: 0, abbruch: false, text: "Mikrofon wird geöffnet …" }; setze("");
     let mic = null;
     try {
+      await einpegeln();
+      aufn = { art: "auf", rest: 0, anteil: 0, abbruch: false }; setze("Mikrofon wird geöffnet …");
       mic = await mikrofonOeffnen({});
       if (mic.fehler) throw new Error(String(mic.fehler).replace(/<[^>]+>/g, ""));
       let a = await aufruf({ aktion: "start", schritt: "mikro" }, 20000);
@@ -16478,6 +16503,98 @@ body.gt-offen { overflow: hidden; }
       aufn = null; setze(e && e.message ? e.message : "Das ging nicht.", true);
       laden();
     } finally { wach.aus(); }
+  }
+  // --- Einpegeln: Logik der Einmessung (pegelautomatik.js), Signal und Mikrofonweg des Tests -------------------------
+  async function pegelLogik() {
+    if (window.PegelAutomatik) return window.PegelAutomatik;
+    try { if (typeof pegelSkript !== "undefined" && pegelSkript) await pegelSkript; } catch (e) { /* unten nachladen */ }
+    if (!window.PegelAutomatik && typeof ladeSkript === "function") { try { await ladeSkript("pegelautomatik.js", () => window.PegelAutomatik); } catch (e) { /* fehlt */ } }
+    return window.PegelAutomatik || null;
+  }
+  // Eine kurze Aufnahme (gleicher Mikrofonweg wie die Aufnahme der Reihe), 48 kHz, ohne den Anfang (Öffnen)
+  async function probe(sek) {
+    const mic = await mikrofonOeffnen({});
+    if (mic.fehler) throw new Error(String(mic.fehler).replace(/<[^>]+>/g, ""));
+    await warte(sek * 1000 + 150);
+    const r = await mic.stopp();
+    if (r.fehler) throw new Error(String(r.fehler).replace(/<[^>]+>/g, ""));
+    const x = auf48k(r.daten, r.rate);
+    return x.subarray(Math.min(x.length, 7200));
+  }
+  // Pegel im Band der Kennungen (400–5000 Hz, je zwei Biquads Hoch- und Tiefpass), dazu Spitze und Effektivwert gesamt.
+  // Gleiche Werte wie pruefsignal.einpegel_bewerten (Box) bis auf die Filterflanken.
+  function biquad(x, art, f0) {
+    const w = 2 * Math.PI * f0 / 48000, c = Math.cos(w), al = Math.sin(w) / (2 * Math.SQRT1_2);
+    const b = art === "hoch" ? [(1 + c) / 2, -(1 + c), (1 + c) / 2] : [(1 - c) / 2, 1 - c, (1 - c) / 2], a0 = 1 + al, a1 = -2 * c, a2 = 1 - al;
+    const y = new Float32Array(x.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < x.length; i++) { const v = (b[0] * x[i] + b[1] * x1 + b[2] * x2 - a1 * y1 - a2 * y2) / a0; x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v; }
+    return y;
+  }
+  function bandPegel(x) {
+    let y = x; for (const [art, f] of [["hoch", 400], ["hoch", 400], ["tief", 5000], ["tief", 5000]]) y = biquad(y, art, f);
+    let s = 0, n = 0, g = 0, sp = 0;
+    for (let i = 0; i < x.length; i++) { g += x[i] * x[i]; sp = Math.max(sp, Math.abs(x[i])); if (i >= 2400) { s += y[i] * y[i]; n++; } }
+    const db = (e) => 10 * Math.log10(e + 1e-20);
+    return { pegel: db(s / Math.max(1, n)), voll_db: db(g / Math.max(1, x.length)), spitze_db: 20 * Math.log10(sp + 1e-10) };
+  }
+  const ZU_LEISE = "Zu leise für den Test, obwohl die Box schon so laut spielt, wie du sonst hörst. Leg das Handy näher an die Boxen oder dreh den Verstärker lauter. Dann noch einmal.";
+  function zeigePegel(text, anteil) {
+    if (!aufn || aufn.art !== "pegel") return;
+    aufn.text = text; if (anteil !== undefined) aufn.anteil = Math.max(0, Math.min(1, anteil));
+    const b = $("gt-pegel"), t = $("gt-pegel-text");
+    if (b && t) { b.style.width = `${Math.round(aufn.anteil * 100)}%`; b.parentNode.setAttribute("aria-valuenow", Math.round(aufn.anteil * 100)); t.textContent = text; } else zeigen();
+  }
+  // Wirft mit einer klaren Meldung, wenn es nicht geht; die Box stellt dann sofort zurück (abbruch).
+  async function einpegeln() {
+    const PA = await pegelLogik();
+    if (!PA) throw new Error("Die Pegelautomatik ließ sich nicht laden. Bitte die Seite neu laden.");
+    const ep = () => schritt("mikro").einpegeln || {};
+    const stufe = (db) => Math.round(80 + db);
+    let a = await aufruf({ aktion: "einpegeln", was: "start" }, 20000);
+    if (!a.ok) throw new Error(a.fehler || "Die Box spielt das Signal nicht.");
+    let ruhe = null, ende = null;
+    try {
+      zeigePegel("Ruhe messen …", 0);
+      await warte(500);  // die Box blendet auf stumm (CamillaDSP rampt)
+      ruhe = bandPegel(await probe(1.0));
+      const e0 = ep(), ziel = PA.ZIEL.abstand_db + PA.ZIEL.reserve_db;
+      ende = await PA.einpegeln({
+        ursprung: stufe(e0.start_db), start: stufe(e0.start_db), max: Math.max(0, Math.floor(80 + e0.grenze_db + 1e-6)),
+        steigungBekannt: 1, schrittDbMax: 6, schrittMax: 6, blindSchritt: 6, blindGesamt: 30, maxVersuche: 10, zeitSetzenMs: 10000, zeitMessenMs: 15000,
+        abbruch: () => !aufn || aufn.abbruch,
+        setzeLautstaerke: async (v) => {
+          const r = await aufruf({ aktion: "einpegeln", was: "stufe", db: v - 80 });
+          if (!r.ok) throw new Error(r.fehler || r.grund);
+          await warte(450);  // Rampe abwarten
+          return { wert: stufe(+ep().db) };
+        },
+        messe: async () => {
+          const p = bandPegel(await probe(1.0)), abstand = p.pegel - ruhe.pegel;
+          zeigePegel(abstand >= ziel ? "passt" : "lauter …", abstand / ziel);
+          return { pegel_db: p.pegel, stoer_db: ruhe.pegel, spitze_db: p.spitze_db, clip: p.spitze_db > -3 || p.voll_db > -30 };
+        },
+        zurueckstellen: () => aufruf({ aktion: "einpegeln", was: "abbruch" }).then((r) => !!r.ok),
+        texte: {
+          zu_leise_bei_max: () => ZU_LEISE,
+          raum_zu_laut: () => "Im Raum ist es zu laut für den Test. Bitte leise sein und Geräte ausschalten. Dann noch einmal.",
+          uebersteuert: () => "Zu laut fürs Mikrofon. Leg das Handy etwas weiter weg. Dann noch einmal.",
+          kein_signal: () => "Am Mikrofon kommt nichts an. Sind Verstärker und Boxen an? Dann noch einmal.",
+          lautstaerke_wirkt_nicht: () => "Die Box wird lauter, am Mikrofon aber nicht. Sind Verstärker und Boxen an? Dann noch einmal.",
+          abgebrochen: () => "Abgebrochen. Du kannst es jederzeit noch einmal versuchen.",
+        },
+      });
+    } catch (e) { ende = { ok: false, grund: "fehler", text: e && e.message ? e.message : "Das ging nicht." }; }
+    const werte = ende && Number.isFinite(ende.abstand_db) ? { abstand_db: +ende.abstand_db.toFixed(1), rausch_db: +ruhe.pegel.toFixed(1), pegel_db: +ende.pegel_db.toFixed(1) } : {};
+    if (ende && ende.ok) {
+      zeigePegel("passt", 1);
+      a = await aufruf({ aktion: "einpegeln", was: "passt", ...werte });
+      if (!a.ok) throw new Error(a.fehler || "Die Box hat die Lautstärke nicht übernommen.");
+      await warte(600);
+      return;
+    }
+    // zurück auf die Lautstärke des Nutzers (die Pegelautomatik hat das schon getan, wenn sie etwas verstellt hatte)
+    await aufruf({ aktion: "einpegeln", was: "abbruch", ...(ende && (ende.grund === "zu_leise_bei_max") ? { grund: "zu_leise" } : {}), ...werte });
+    throw new Error((ende && ende.text) || "Das ging nicht.");
   }
   // Die Box wertet 48 kHz aus; nimmt das Handy anders auf, linear umrechnen (für Kennungen und Pegel genau genug)
   function auf48k(x, rate) {
@@ -16544,7 +16661,7 @@ body.gt-offen { overflow: hidden; }
     if (!t.closest("#gt-schritt")) { if (t.id !== "gt-abbrechen") fragAb = false; return; }
     if (t.id !== "gt-abbrechen") fragAb = false;
     if (t.id === "gt-zurueck") { schliessen(); return; }
-    if (t.id === "gt-mikro") { mikro(); return; }
+    if (t.id === "gt-mikro" || t.id === "gt-mikro-nochmal") { mikro(); return; }
     if (t.id === "gt-mikro-stopp") { if (aufn) aufn.abbruch = true; return; }
     if (t.id === "gt-bericht") { berichtSenden(); return; }
     t.disabled = true;

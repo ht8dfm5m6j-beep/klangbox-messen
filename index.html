@@ -1047,6 +1047,8 @@ button.zh-karte-name:active:not(:disabled) { background: none; }
 .zh-ic svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .zh-box-liste { display: grid; gap: 24px; }
 .zh-box-liste:empty { display: none; }
+#zh-box-mehr-liste { gap: 0; }   /* „Mehr“ von Box: Zeilen ohne Lücken wie die Hauptseite, nur vor der Gruppe App Abstand */
+#zh-box-mehr-liste > .zh-gruppe { margin-top: 24px; }
 .zh-gruppe { display: grid; }
 .zh-gruppe > .kb-label { margin: 0 0 4px; }
 .zh-gruppe > .kb-zeile:first-of-type { border-top: 1px solid var(--kb-linie); }
@@ -1187,6 +1189,7 @@ body.tippsperre { pointer-events: none; }
 .schritt[data-s="18"][data-tab="einmessen"][data-box="1"] #zh-tipps { display: none !important; }  /* R20: Geräte-Tipps nur ohne Box */
 .schritt[data-s="18"][data-tab="box"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-gehoer, #zh-sub, #zh-tipps) { display: none !important; }
 .schritt[data-s="18"]:not([data-tab="hoeren"]) :is(#zh-regal, #zh-raum-waehler) { display: none !important; }
+.schritt[data-s="18"]:not([data-tab="hoeren"]) :is(#zh-film, #zh-lippen-h) { display: none !important; }   /* Fernseher nur auf Hören (auch nicht im Testlabor; Prüfer) */
 .schritt[data-s="18"][data-tab="labor"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-box, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-gehoer, #zh-sub, #zh-tipps, #zh-zustand, #zh-box-liste, #zh-diag) { display: none !important; }
 .schritt[data-s="18"]:not([data-tab="labor"]) #zh-labor { display: none !important; }
 
@@ -1418,8 +1421,18 @@ body.rg-offen { overflow: hidden; }
 .em-an .zh-karten { border-top: 0; }
 .em-an .zh-karten-hinweis { display: none; }
 .em-blick { display: grid; gap: 18px; }
-.em-kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.em-kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; }   /* Box-Kopf */
 .em-kopf .kb-link { min-height: 44px; }
+/* schmaler Umschalter ohne Fläche (Nutzer 14.11.2026: „ein schwarzer Balken reicht“, der gehört dem Bereich 90 · 150 · Voll) */
+.em-profile { display: flex; gap: 4px; flex-wrap: wrap; }
+.em-profile > button { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--kb-r); background: transparent; color: var(--kb-text-leise);
+  box-shadow: none; font-weight: 500; white-space: nowrap; }
+.em-profile > button[aria-pressed="true"] { color: var(--kb-text); font-weight: 600; box-shadow: inset 0 0 0 1.5px var(--kb-text); }
+.em-profile > button:active:not(:disabled) { background: var(--kb-flaeche); color: var(--kb-text); }   /* nicht die dunkle Fläche der Knöpfe (Prüfer) */
+.em-spielt { font-weight: 400; opacity: .75; }
+.em-titel { font: var(--kb-t-titel3); }
+.em-unten { display: flex; gap: 8px; }
+.em-unten > button { flex: 1 1 0; min-width: 0; }
 .em-wert { display: flex; align-items: center; gap: 18px; }
 .em-wert > div { display: grid; gap: 2px; min-width: 0; }
 .em-satz { font: var(--kb-t-titel3); }
@@ -1429,15 +1442,16 @@ body.rg-offen { overflow: hidden; }
 .em-ring-grund { stroke: var(--kb-linie); }
 .em-ring-wert { stroke: var(--kb-signal); }
 .em-ring span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 500; color: var(--kb-text); }
-.em-saeulen { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: end; }
-.em-saeule { display: grid; justify-items: center; gap: 6px; }
-.em-plus { font: var(--kb-t-klein); color: var(--kb-text); }
-.em-paar { display: flex; gap: 3px; align-items: flex-end; height: 62px; }
-.em-paar i { width: 10px; border-radius: var(--kb-r); background: var(--kb-linie); }
-.em-paar i.b { background: var(--kb-text); }
+.em-bereiche { display: grid; gap: 6px; }
+.em-bereich { display: grid; justify-items: center; gap: 2px; min-width: 0; }
+.em-zahlen { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.em-zahlen b { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.em-vor { font: var(--kb-t-klein); color: var(--kb-text-leise); font-variant-numeric: tabular-nums; }
+@media (max-width: 360px) { .em-zahlen { display: grid; justify-items: center; gap: 0; } .em-zahlen b { grid-row: 1; } .em-vor { grid-row: 2; } .em-pfeil { display: none; } .em-vor::before { content: "von "; } }   /* 320 px: vorher unter den Wert statt daneben (Prüfer) */
 .em-funde { display: grid; }
 .em-fund { display: flex; align-items: center; gap: 12px; }
 .em-fund > span:first-child { flex: 1; min-width: 0; }
+.em-fund .wert { white-space: nowrap; }
 .em-schwere { display: inline-flex; align-items: flex-end; gap: 3px; margin-right: 22px; flex: none; }
 .em-schwere i { width: 5px; border-radius: var(--kb-r); background: var(--kb-linie); }
 .em-schwere i:nth-child(1) { height: 6px; } .em-schwere i:nth-child(2) { height: 10px; } .em-schwere i:nth-child(3) { height: 14px; }
@@ -1460,6 +1474,13 @@ body.rg-offen { overflow: hidden; }
 .box-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; }
 .box-kachel { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--kb-r); background: var(--kb-flaeche); min-width: 0; }
 .box-kachel b { font-size: 20px; font-weight: 600; }
+.box-update { width: 100%; margin: 4px 0 8px; }
+.zh-bitte { display: grid; gap: 12px; margin: 0 0 16px; }
+.zh-bitte p { margin: 0; }
+.schritt[data-s="18"]:not([data-tab="hoeren"]) #zh-bitte { display: none !important; }   /* Bitte um Bericht nur auf Hören (Box zeigt die Zahl in der Kachel) */
+.em-fund-inhalt { display: grid; gap: 12px; }
+.em-fund-inhalt p { margin: 0; }
+.em-fund-inhalt .leise { justify-self: start; }
 /* Hören bei Film: Fernseher und Format über dem Bereich */
 .zh-film { display: grid; gap: 2px; margin: 4px 0 2px; }
 .zh-film-titel { font: var(--kb-t-titel3); }
@@ -1664,7 +1685,7 @@ body.rg-offen { overflow: hidden; }
       <div class="reihe"><div><h3>Ich höre</h3><span class="klein" id="hoere-text"></span></div>
         <div class="seg" role="group" aria-label="Ich höre"><button type="button" data-hoere="stereo" aria-pressed="false">Stereo</button><button type="button" data-hoere="kino" aria-pressed="false">Kino</button><button type="button" data-hoere="auto" aria-pressed="false">Auto</button></div></div>
     </div>
-    <div class="aktion"><button type="button" class="leise" data-zu="18" id="zh-hin" hidden>Zu Hören</button><button type="button" class="weiter" id="m-weiter">Weiter</button></div>
+    <div class="aktion"><button type="button" class="leise" data-zu="18" data-zh-nach="hoeren" id="zh-hin" hidden>Zu Hören</button><button type="button" class="weiter" id="m-weiter">Weiter</button></div>
   </section>
 
   <!-- Schritt 2: Meine Anlage (einmal einrichten, später „ändern“). Eine Frage pro Bildschirm, seitlich wischend.
@@ -2167,6 +2188,7 @@ body.rg-offen { overflow: hidden; }
     <details class="mehr" id="zh-zustand" hidden><summary><i class="ampel" id="zh-ampel"></i>Zustand <span class="wert" id="zh-zustand-kurz"></span></summary><div class="zeilen" id="zh-zustand-zeilen"></div></details>
     <div class="zh-box-liste" id="zh-box-liste"></div>
     <div class="sheet-block" hidden data-block="zh-box-mehr" id="zh-box-mehr-block"><div class="zh-box-liste" id="zh-box-mehr-liste"></div></div>
+    <div class="sheet-block" hidden data-block="em-fund" id="em-fund-block"><div class="em-fund-inhalt" id="em-fund-inhalt"></div></div>
     <div class="sheet-block" hidden data-block="zh-mehr" id="zh-mehr-block"><div class="zh-aktionen" id="zh-mehr-liste"></div></div>
     <div class="sheet-block" hidden data-block="zh-standby" id="zh-standby-block">
       <p class="klein" id="zh-standby-text"></p>
@@ -8867,7 +8889,8 @@ function zeigeSchritt(n) {
   if (n !== 18) startBereit();
   window.scrollTo(0, 0);
 }
-document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zu]"); if (b) zeigeSchritt(+b.dataset.zu); });
+document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zu]"); if (!b) return; zeigeSchritt(+b.dataset.zu);
+  if (b.dataset.zhNach && typeof zhTab === "function") zhTab(b.dataset.zhNach); });  // „Zu Hören“ landete sonst auf dem gemerkten Reiter (Einmessen)
 // Sub-Abgleich vor der Einmessung: nur mit Sub, und nur wenn er es nötig hat (Anschluss unbekannt oder der größte Hebel
 // der letzten Einmessung ist der Sub). Danach geht es hierher zurück (zurueck: 3), die Einmessung kommt danach.
 function subVorherZeigen() {
@@ -10603,7 +10626,7 @@ function wieWeiterZeigen() {
     ["einmessen", `${modus === "kino" ? "Kino" : "Stereo"} jetzt einmessen`, !r ? `data-zu="3"` : null],
     ["klang", "Klang nach Geschmack anpassen (freiwillig)", box && r && r.status === "bestaetigt" ? `data-zu="9"` : null],
     ["geraete", "Ohne Klång-Box: die Regler deiner Geräte", r ? `data-zu="11"` : null],
-    ["zuhause", "Zu Hören", zh ? `data-zu="18"` : null],
+    ["zuhause", "Zu Hören", zh ? `data-zu="18" data-zh-nach="hoeren"` : null],
     ["aufstellung", "Aufstellung verbessern", `data-zu="8"`],
     ["andere", "Andere Anlage messen und vergleichen", `data-ww="andere"`],
     ["neu", "Diese Anlage noch einmal messen", r ? `data-ww="neu"` : null],
@@ -12331,24 +12354,23 @@ function boxStatusHtml(st) {
   const kein = !streamer && e.signal === false;
   const satz = st.zustand === "fehler" ? "Die Box braucht Hilfe." : warn.length || sats.length || stickProblem ? "Etwas stimmt nicht, siehe oben." : aus ? "Die Box ist aus."
     : kein ? "Bereit. Gerade kommt kein Ton." : st.zustand === "neutral" ? "Spielt ohne Einmessung." : st.aus ? "Spielt gerade ohne Korrektur (Vorher)." : "Ton kommt sauber an.";
-  const h = st.rahmen_sanft && st.rahmen_sanft.herkunft, fehler = h ? (+h.fehler || 0) + (+h.raster || 0) + (+h.haenger || 0) : null;
+  // Fehler im Ton: kaputte Rahmen, verlorene Rahmen, Hänger. Die Sprünge des Knacks-Detektors (0.3.29) zählen hier noch
+  // nicht mit: Bericht 14.11.2026 (Kinderhörspiel, 5 min AirPlay) 23 Sprünge ohne bestätigtes Knacken, der Detektor ist
+  // für Sprache und Musik noch nicht geprüft. Sie stehen im Bericht.
+  const h = st.rahmen_sanft && st.rahmen_sanft.herkunft;
+  const fehler = h ? (+h.fehler || 0) + (+h.raster || 0) + (+h.haenger || 0) : null;
+  // Update nicht verstecken (Nutzer 14.11.2026): ein neues steht als Knopf direkt unter dem Zustand
+  const upd = st.update || {}, updKnopf = upd.neuer && upd.verfuegbar && !upd.laeuft
+    ? `<button type="button" class="zh-haupt box-update" id="zh-upd-kopf" data-sheet-block="zh-upd" data-sheet-titel="Updates">Update ${esc(upd.verfuegbar.version)} ansehen</button>` : "";
   const vz = st.verzoegerung && Number.isFinite(+st.verzoegerung.gesamt_ms) ? Math.round(+st.verzoegerung.gesamt_ms) : null;
   const kachel = (titel, wert, klein) => `<div class="box-kachel"><span class="klein">${titel}</span><b>${wert}</b><span class="klein">${klein}</span></div>`;
-  return `<div class="em-kopf"><span class="zh-raum-waehler"><span>Klång-Box&nbsp;· ${esc(MA.name || st.name || "")}</span></span>${st.update && st.update.neuer && st.update.verfuegbar ? `<button type="button" class="kb-link" id="zh-upd-kopf" data-sheet-block="zh-upd" data-sheet-titel="Updates">Update ${esc(st.update.verfuegbar.version)}</button>` : `<span class="klein">Version ${esc(st.version || "")}</span>`}</div>
+  return `<div class="em-kopf"><span class="zh-raum-waehler"><span>Klång-Box&nbsp;· ${esc(MA.name || st.name || "")}</span></span><span class="klein">Version ${esc(st.version || "")}</span></div>
     <div class="box-zustand"><span class="klein box-laeuft"><i class="${aus || st.zustand === "fehler" ? "" : "an"}"></i>${aus ? "Aus" : `Läuft seit ${seit}`}</span><b class="box-satz">${satz}</b>${kein || aus ? "" : `<span class="klein">${weg}</span>`}</div>
-    <div class="box-kacheln">${kachel("Fehler im Ton", fehler == null ? "–" : fehler, "seit dem Start")}${kachel("Verzögerung", vz == null ? "–" : `${vz} ms`, `Lippen-Sync ${zk(lippenMs(st), 0)}`)}${kachel("Temperatur", st.temperatur_c != null ? `${Math.round(+st.temperatur_c)} °C` : "–", "gesund bis 80")}</div>`;
+    <div class="box-kacheln">${kachel("Fehler im Ton", fehler == null ? "–" : fehler, "seit dem Start")}${kachel("Verzögerung", vz == null ? "–" : `${vz} ms`, `Lippen-Sync ${zk(lippenMs(st), 0)}`)}${kachel("Temperatur", st.temperatur_c != null ? `${Math.round(+st.temperatur_c)} °C` : "–", "gesund bis 80")}</div>${updKnopf}`;
 }
 // Einmessen auf einen Blick (Nutzer 13.11.2026: „zu lang, zu viel scrollen, auf einen Blick“; Entwurf A in der Sprache von Hören):
 // Kopf wie Hören, oranger Ring mit dem Raumklang, fünf Bereiche als Säulen, die drei stärksten Funde mit Stärke, Bereich
 // 90 Hz · 150 Hz · Voll mit Empfehlung (kleiner Ring), eine Zeile „Mehr“. Alles aus der Einmessung auf dem iPhone (r.e).
-const EM_BEREICHE = [["Tiefbass", 20, 60], ["Bass", 60, 150], ["Grundton", 150, 500], ["Stimme", 500, 4000], ["Höhen", 4000, 16000]];
-function emBereichWert(kurve, y, lo, hi) {
-  // Ebenheit im Bereich: Streuung um den eigenen Mittelwert (dB) → 0…100 (0 dB = 100, 8 dB und mehr = 0)
-  const w = []; for (let i = 0; i < kurve.f.length; i++) if (kurve.f[i] >= lo && kurve.f[i] < hi && Number.isFinite(+y[i])) w.push(+y[i]);
-  if (w.length < 3) return null;
-  const m = w.reduce((a, b) => a + b, 0) / w.length, sd = Math.sqrt(w.reduce((a, b) => a + (b - m) ** 2, 0) / w.length);
-  return Math.max(0, Math.min(100, Math.round(100 - sd * 12.5)));
-}
 function emTiefe(kurve, f0) {
   // wie tief ein Loch bzw. wie hoch ein Berg vor der Korrektur war: Abstand zum Mittel eine Oktave um f0 (dB)
   if (!kurve || !Array.isArray(kurve.f) || !Array.isArray(kurve.heute) || !(f0 > 0)) return 0;
@@ -12375,12 +12397,14 @@ function emFunde(e) {
     const tief = g.g > 0 ? Math.max(Math.abs(g.g), emTiefe(e.kurve, g.f)) : Math.abs(g.g), [n, wort] = EM_STAERKE(tief);
     // Seite nur, wenn genau einer der beiden Fronten betroffen ist (Kino: C, SL, SR, SUB zählen nicht; Prüfer)
     const lr = ["FL", "FR"].filter((k) => g.seiten.has(k)), seite = lrDa && lr.length === 1 ? (lr[0] === "FR" ? "rechts" : "links") : "";
-    const name = g.g < 0 ? (g.f < 120 ? "Dröhnen" : g.f < 300 ? "Oberbass zu viel" : g.f < 2000 ? "Mitten zu viel" : "Höhen zu viel")
-      : (g.f < 60 ? "Tiefer Bass fehlte" : g.f < 150 ? "Bass fehlte" : g.f < 400 ? "Oberbass fehlte" : g.f < 2000 ? "Mitten fehlten" : "Höhen fehlten");
+    // kurz, damit jede Zeile einzeilig bleibt (Nutzer 14.11.2026: „Einmessen aufräumen“); Berg = Buckel, Senke = Loch
+    const name = g.g < 0 ? (g.f < 120 ? "Dröhnen" : g.f < 300 ? "Oberbass-Buckel" : g.f < 2000 ? "Mitten-Buckel" : "Höhen-Buckel")
+      : (g.f < 60 ? "Tiefbass-Loch" : g.f < 150 ? "Bassloch" : g.f < 400 ? "Oberbass-Loch" : g.f < 2000 ? "Mitten-Loch" : "Höhen-Loch");
     const tat = g.g < 0 ? (g.f < 120 ? "gezähmt" : "beruhigt") : "wieder da";
     const hz = (f) => (f >= 1000 ? `${zk(f / 1000, 1)} kHz` : `${Math.round(f)} Hz`), zahl = (f) => (f >= 1000 ? zk(f / 1000, 1) : `${Math.round(f)}`);
     const bereich = Math.round(g.lo) === Math.round(g.hi) ? hz(g.f) : (g.lo >= 1000) === (g.hi >= 1000) ? `${zahl(g.lo)}–${hz(g.hi)}` : `${hz(g.lo)}–${hz(g.hi)}`;
-    return { name: seite ? `${name} ${seite}` : name, bereich, db: g.g, f: g.f, hi: g.hi, tief, n, wort, tat };
+    const mitte = Math.sqrt(g.lo * g.hi);  // eine Frequenz statt Spanne: die Mitte der zusammengefassten Filter
+    return { name: seite ? `${name} ${seite}` : name, bereich, lo: g.lo, hz: hz(mitte >= 1000 ? Math.round(mitte / 100) * 100 : Math.round(mitte)), db: g.g, f: g.f, hi: g.hi, tief, n, wort, tat };
   }).sort((a, b) => b.tief - a.tief);
 }
 function emEmpfehlung(funde) {
@@ -12390,17 +12414,17 @@ function emEmpfehlung(funde) {
 }
 function emEmpfText(empf, funde) {
   const drueber = (lo) => funde.some((x) => (x.hi || x.f) >= lo);
-  if (empf === 90) return `Alles Deutliche liegt unter 90 Hz. ${drueber(90) ? "Darüber gibt es nur Kleinigkeiten" : "Darüber klingen deine Boxen, wie sie sind"}.`;
-  if (empf === 150) return `Die deutlichen Fehler liegen unter 150 Hz. ${drueber(150) ? "Darüber gibt es nur Kleinigkeiten, Voll ändert kaum etwas" : "Darüber war dein Raum sauber, Voll ändert nichts mehr"}.`;
-  return "Auch über 150 Hz gibt es Deutliches zu korrigieren. Voll nimmt alles mit.";
+  if (empf === 90) return drueber(90) ? "Darüber gibt es nur Kleinigkeiten." : "Darüber klingen deine Boxen, wie sie sind.";
+  if (empf === 150) return drueber(150) ? "Darüber gibt es nur Kleinigkeiten." : "Darüber war dein Raum sauber.";
+  return "Auch darüber gibt es Deutliches.";
 }
 const emRing = (wert) => { const r = 42, u = 2 * Math.PI * r, a = Math.max(0, Math.min(100, +wert || 0)) / 100;
   return `<div class="em-ring" aria-hidden="true"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="${r}" class="em-ring-grund"/><circle cx="48" cy="48" r="${r}" class="em-ring-wert" stroke-dasharray="${(u * a).toFixed(1)} ${u.toFixed(1)}" transform="rotate(-90 48 48)"/></svg><span>${esc(wert)}</span></div>`; };
 const EM_MINI = '<svg class="em-mini" viewBox="0 0 32 32" aria-hidden="true"><path fill-rule="evenodd" d="M2 16a14 14 0 1 0 28 0a14 14 0 1 0 -28 0ZM8 16a8 8 0 1 0 16 0a8 8 0 1 0 -16 0Z"/></svg>';
 function emSatz(funde) {
   const f = funde[0]; if (!f) return "Dein Raum war schon ausgewogen.";
-  if (f.name.startsWith("Dröhnen")) return funde.some((x) => x.name.startsWith("Tiefer Bass")) ? "Bass ruhig, trotzdem tief." : "Das Dröhnen ist gezähmt.";
-  if (f.name.startsWith("Tiefer Bass")) return "Der tiefe Bass ist wieder da.";
+  if (f.name.startsWith("Dröhnen")) return funde.some((x) => x.name.startsWith("Tiefbass-Loch")) ? "Bass ruhig, trotzdem tief." : "Das Dröhnen ist gezähmt.";
+  if (f.name.startsWith("Tiefbass-Loch")) return "Der tiefe Bass ist wieder da.";
   return "Dein Raum klingt jetzt ausgewogener.";
 }
 function zhEinmessenBlick(id, profile, weiter) {
@@ -12408,27 +12432,40 @@ function zhEinmessenBlick(id, profile, weiter) {
   const lz = zhLayout(), p = profilInfo(id, lz), st = zh.st, e = r.e;
   const u = r.urteil && Number.isFinite(+r.urteil.score_nachher) && Number.isFinite(+r.urteil.score_vorher) && (r.status === "bestaetigt" || r.status === "zurueckgenommen") ? r.urteil : null;
   const vor = u ? Math.round(+u.score_vorher) : e.score_heute.gesamt, nach = u ? Math.round(+u.score_nachher) : e.score_prognose.gesamt;
-  const tag = String(r.zeit || "").split(",")[0], ok = r.status === "bestaetigt";
+  const tag = String(r.zeit || "").split(",")[0].replace(/^(\d{1,2}\.\d{1,2}\.)\d{4}$/, "$1"), ok = r.status === "bestaetigt";
   const funde = emFunde(e), empf = emEmpfehlung(funde);
-  const saeulenL = e.kurve && Array.isArray(e.kurve.f) && Array.isArray(e.kurve.heute) && Array.isArray(e.kurve.prognose) ? EM_BEREICHE.map(([n, lo, hi]) => {
-    const a = emBereichWert(e.kurve, e.kurve.heute, lo, hi), b = emBereichWert(e.kurve, e.kurve.prognose, lo, hi);
+  // Teilwerte auf der Skala des Raumklangs (Nutzer 14.11.2026, Weg 2): Bass, Bühne/Kanäle, Klang/Dialog, Raum. Der Raumklang
+  // mittelt die Kennzahlen dahinter (gewichtet, mit Konfidenz; bei einem schwachen Kernwert höchstens 74), daher grob, nicht genau
+  // ihr Mittel. Nachgemessen: nur die gemessenen Werte des Urteils (ältere Urteile ohne Teilwerte: keine Zeile, kein Mischen
+  // von Messung und Prognose; Prüfer), sonst heute → Prognose.
+  const kh = (e.score_heute && e.score_heute.kacheln) || {}, kp = (e.score_prognose && e.score_prognose.kacheln) || {};
+  const ku = u && r.urteil.kacheln && typeof r.urteil.kacheln === "object" ? r.urteil.kacheln : null;
+  const saeulenL = u && !ku ? [] : Object.keys(kh).map((k) => {
+    const paar = ku ? (Array.isArray(ku[k]) ? ku[k] : []) : [kh[k] && kh[k].punkte, kp[k] && kp[k].punkte];
+    const a = Number.isFinite(+paar[0]) && paar[0] !== null ? Math.round(+paar[0]) : null, b = Number.isFinite(+paar[1]) && paar[1] !== null ? Math.round(+paar[1]) : null;
     if (a == null || b == null) return "";
-    const plus = b - a >= 3 ? `+${b - a}` : a - b >= 3 ? `−${a - b}` : b >= 70 ? "gut" : "±0";
-    return `<div class="em-saeule"><span class="em-plus">${plus}</span><span class="em-paar"><i style="height:${Math.max(6, a * 0.6)}px"></i><i class="b" style="height:${Math.max(6, b * 0.6)}px"></i></span><span class="klein">${n}</span></div>`;
-  }).filter(Boolean) : [];
-  const naechste = profile.length > 1 ? profile[(profile.indexOf(id) + 1) % profile.length] : null;  // reihum durch alle
+    const n = esc((kh[k] && kh[k].titel) || k);
+    return `<div class="em-bereich" role="group" aria-label="${n}: vorher ${a}, ${ok ? "nachgemessen" : u ? "gemessen, zurückgenommen" : "Prognose"} ${b}"><span class="klein">${n}</span><span class="em-zahlen">${a === b ? "" : `<span class="em-vor">${a}<span class="em-pfeil">&nbsp;→</span></span>`}<b>${b}</b></span></div>`;
+  }).filter(Boolean);
+  // Schalter oben (Nutzer 14.11.2026, Entwurf „Stereo · spielt | Kino“): zeigt die Einmessung, schaltet den Ton nicht um.
+  // „spielt“ markiert, was die Box gerade nutzt; im Blindtest nicht (verriete die Seite)
+  const laeuft = boxBereit() && st && !zh.blind ? st.profil_aktiv || profilJetzt : null;
+  const kopf = profile.length > 1
+    ? `<div class="em-profile" role="group" aria-label="Einmessung">${profile.map((pid) => { const pi = profilInfo(pid, lz);
+        return `<button type="button" data-em-weiter="${esc(pid)}" aria-pressed="${pid === id}">${esc(pi ? pi.kurz || pi.name : pid)}${pid === laeuft ? '<span class="em-spielt">&nbsp;· spielt</span>' : ""}</button>`; }).join("")}</div>`
+    : `<span class="em-titel" id="em-profil">${esc(MA.name || "Meine Anlage")}&nbsp;· ${esc(p ? p.kurz || p.name : id)}</span>`;
   const spieltHier = boxBereit() && st && st.hoerschalter && (st.profil_aktiv || profilJetzt) === id && !zh.blind;  // im Blindtest nicht (verriete die Seite)
   const aktiv = spieltHier ? hsStand().bereich ?? null : undefined;
   const seg = [90, 150, null].map((w) => `<button type="button"${spieltHier ? ` data-hs="bereich" data-hs-wert="${w ?? ""}"` : " disabled"} aria-pressed="${spieltHier && aktiv === w}">${w === empf ? EM_MINI : ""}${w ? `${w} Hz` : "Voll"}</button>`).join("");
   return `<div class="em-blick" data-em-profil="${esc(id)}">
-    <div class="em-kopf">${naechste ? `<button type="button" class="zh-raum-waehler" id="em-profil" data-em-weiter="${esc(naechste)}" aria-label="Andere Einmessung zeigen">` : `<span class="zh-raum-waehler" id="em-profil">`}<span>${esc(MA.name || "Meine Anlage")}&nbsp;· ${esc(p ? p.kurz || p.name : id)}</span>${naechste ? '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4"></path></svg></button>' : "</span>"}
-      ${weiter ? "" : `<button type="button" class="kb-link" id="zh-nachmessen" data-em-neu="${esc(id)}">${nachmessenArt(r) ? "Nachmessen" : "Neu einmessen"}</button>`}</div>
-    <div class="em-wert">${emRing(nach)}<div><b class="em-satz">${esc(emSatz(funde))}</b><span class="klein">Raumklang ${vor} → ${nach} · ${ok ? "nachgemessen" : "Prognose"} ${esc(tag)}</span></div></div>
-    ${saeulenL.length ? `<div class="em-saeulen" style="grid-template-columns: repeat(${saeulenL.length}, minmax(0, 1fr))">${saeulenL.join("")}</div>` : ""}
-    ${funde.length ? `<div class="em-funde">${funde.slice(0, 3).map((f) => `<button type="button" class="kb-zeile em-fund" data-zh-karte="${esc(id)}"><span>${esc(f.name)} <span class="wert">· ${f.bereich} · ${f.db > 0 ? "+" : "−"}${zk(Math.abs(f.db), 0)} dB</span></span><span class="em-schwere" aria-label="${f.wort}">${[0, 1, 2].map((i) => `<i class="${i < f.n ? "an" : ""}"></i>`).join("")}<span class="klein">${f.wort}</span></span></button>`).join("")}</div>` : ""}
+    ${kopf}
+    <div class="em-wert">${emRing(nach)}<div><b class="em-satz">${esc(emSatz(funde))}</b><span class="klein">Raumklang ${vor} → ${nach} · ${ok ? "nachgemessen" : u ? "zurückgenommen" : "Prognose"} ${esc(tag)}</span></div></div>
+    ${saeulenL.length ? `<div class="em-bereiche" style="grid-template-columns: repeat(${saeulenL.length}, minmax(0, 1fr))">${saeulenL.join("")}</div>` : ""}
+    ${funde.length ? `<div class="em-funde">${funde.slice(0, 3).map((f) => `<button type="button" class="kb-zeile em-fund" data-em-fund="${esc(id)}" data-em-nr="${funde.indexOf(f)}" aria-haspopup="dialog" aria-label="${esc(f.name)}, ${f.hz}, ${f.db > 0 ? "plus" : "minus"} ${zk(Math.abs(f.db), 0)} dB, ${f.wort}"><span>${esc(f.name)} <span class="wert">· ${f.hz}</span></span><span class="em-schwere" aria-label="${f.wort}">${[0, 1, 2].map((i) => `<i class="${i < f.n ? "an" : ""}"></i>`).join("")}<span class="klein">${f.wort}</span></span></button>`).join("")}</div>` : ""}
     <div class="seg zh-bereich-seg em-seg" role="group" aria-label="Bereich">${seg}</div>
     ${zhStreamerZeile(r, id) || ""}${(() => { const x = zhKinoAusStereo(id, st && st.profile ? st.profile[id] : null); return x ? `<div class="zh-kas-block">${x}</div>` : ""; })()}
-    <p class="klein em-empf">${EM_MINI}<b>Empfohlen für deinen Raum: ${empf ? `${empf} Hz` : "Voll"}.</b> ${emEmpfText(empf, funde)}${spieltHier ? "" : " Gilt, sobald diese Einmessung spielt."}</p>
+    <p class="klein em-empf">${EM_MINI}<b>Empfohlen: ${empf ? `${empf} Hz` : "Voll"}.</b> ${emEmpfText(empf, funde)}${spieltHier ? "" : " Gilt, sobald diese Einmessung spielt."}</p>
+    ${weiter ? "" : `<div class="em-unten"><button type="button" class="zweit" id="zh-nachmessen" data-em-neu="${esc(id)}">${nachmessenArt(r) ? "Nachmessen" : "Neu einmessen"}</button><button type="button" class="zweit" id="zh-em-mehr" data-sheet-block="zh-mehr" data-sheet-titel="Mehr">Mehr</button></div>`}
   </div>`;
 }
 // Bereiche auf Zuhause (Hören, Einmessen, Box; das Testlabor ist eine Unterseite von Box ohne eigenen Reiter): welche Teile
@@ -12443,7 +12480,7 @@ function zhTab(name, merken = true) {
   document.querySelectorAll("#zh-tabs [data-zh-tab]").forEach((b) => { if (b.dataset.zhTab === reiter) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
   $("h-zuhause").textContent = ZH_TAB_TITEL[name];
   // Fenster schließen beim Wechsel; auf Hören bleiben nur dessen eigene Fenster offen (nicht „Mehr“ von Einmessen/Box)
-  if (sheet.offen() && (name !== "hoeren" || $("sheet-inhalt").querySelector("#zh-box-mehr-block, #zh-mehr-block"))) sheet.zu();
+  if (sheet.offen() && (name !== "hoeren" || $("sheet-inhalt").querySelector("#zh-box-mehr-block, #zh-mehr-block, #em-fund-block"))) sheet.zu();
   if (merken) schreiben("klangbox-tab", reiter);  // nie mit der Unterseite starten
   if (name === "labor") { $("zh-takt-status").textContent = ""; taktZeigen(); kernelLaden(); }
   if (typeof JETZT !== "undefined" && JETZT.raumPruefen) JETZT.raumPruefen();  // Raumansicht: Pegel nur auf Hören abfragen
@@ -12947,7 +12984,7 @@ const DARSTELLUNG = [["auto", "Automatisch"], ["hell", "Hell"], ["dunkel", "Dunk
 const zhDarstellung = () => { const w = window.klangboxDarstellung ? klangboxDarstellung.wert() : "auto";
   return `<div class="zh-darstellung"><span id="zh-darstellung-label">Darstellung</span><div class="seg" role="group" aria-labelledby="zh-darstellung-label">${DARSTELLUNG.map(([k, t]) =>
     `<button type="button" data-darstellung="${k}" aria-pressed="${w === k}">${t}</button>`).join("")}</div></div>`; };
-const zhAppGruppe = () => zhGruppe("App", zhAktion("zh-app", ZH_IC.app, "Einstellungen der App<small>AirPlay, Raumscan, Freigaben</small>", !!nativ && !window.klangboxBedienseite) + zhDarstellung());
+const zhAppGruppe = (ohneIc) => zhGruppe("App", zhAktion("zh-app", ohneIc ? "" : ZH_IC.app, "Einstellungen der App<small>AirPlay, Raumscan, Freigaben</small>", !!nativ && !window.klangboxBedienseite) + zhDarstellung());
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-darstellung]"); if (!b || !window.klangboxDarstellung) return;
   const w = klangboxDarstellung.setzen(b.dataset.darstellung);
@@ -13009,7 +13046,7 @@ function zuhauseZeigen(laden = true) {
   // Mit dem Blick bleiben die anderen Karten: nur auf der Box eingemessen, noch offen, anderes Layout (Prüfer)
   const nurBox = profileFuer(lz).filter((p) => !emIds.includes(p.id)).map((p) => zhKarte(p.id)).filter((h) => !h.includes("zh-karte leer"));
   const kartenHtml = emBlick ? emBlick + nurBox.join("") + leer.join("") : voll.join("") + leer.join("");
-  const kEl = $("zh-karten"), fokus = kEl.contains(document.activeElement) ? (document.activeElement.id ? `#${document.activeElement.id}` : document.activeElement.dataset.hsWert != null ? `[data-hs-wert="${document.activeElement.dataset.hsWert}"]` : null) : null;
+  const kEl = $("zh-karten"), fokus = kEl.contains(document.activeElement) ? (document.activeElement.id ? `#${document.activeElement.id}` : document.activeElement.dataset.hsWert != null ? `[data-hs-wert="${document.activeElement.dataset.hsWert}"]` : document.activeElement.dataset.emWeiter != null ? `[data-em-weiter="${CSS.escape(document.activeElement.dataset.emWeiter)}"]` : null) : null;  // Umschalter Stereo | Kino: Fokus bleibt (Prüfer)
   if (kEl.dataset.html !== kartenHtml + (fremd.length ? "f" : "")) {  // nur neu bauen, wenn sich etwas ändert (Fokus bleibt)
   kEl.dataset.html = kartenHtml + (fremd.length ? "f" : "");
   kEl.innerHTML = kartenHtml
@@ -13041,7 +13078,8 @@ function zuhauseZeigen(laden = true) {
   const hauptKnopf = `<button type="button" class="zh-haupt${kasOffen ? " zweit" : ""}" id="zh-nachmessen">${haupt}</button>`;
   if (emBlick) {
     $("zh-mehr-liste").innerHTML = emZeilen;
-    $("zh-aktionen").innerHTML = (weiter ? hauptKnopf : "") + `<button type="button" class="kb-zeile" id="zh-em-mehr" data-sheet-block="zh-mehr" data-sheet-titel="Mehr"><span>Mehr <span class="wert">· Hör den Unterschied · Aufstellung · Anlage</span></span></button>`;
+    // Ohne wartenden Schritt stehen „Neu einmessen“ und „Mehr“ als zwei Knöpfe im Blick selbst; wartet ein Schritt, führt er
+    $("zh-aktionen").innerHTML = weiter ? hauptKnopf + `<button type="button" class="kb-zeile" id="zh-em-mehr" data-sheet-block="zh-mehr" data-sheet-titel="Mehr"><span>Mehr <span class="wert">· Hör den Unterschied · Aufstellung · Anlage · Hörprobe</span></span></button>` : "";
   } else { $("zh-mehr-liste").innerHTML = ""; $("zh-aktionen").innerHTML = hauptKnopf + emZeilen; }
   // Box: gruppierte Liste (Zustand steht darüber als aufklappbare Zeile, Hilfe darunter)
   const sb = st && st.standby, lr = st && st.lautstaerke;
@@ -13054,19 +13092,21 @@ function zuhauseZeigen(laden = true) {
     const rear = window.klangboxBedienseite ? "" : zhAktion("zh-rear", "", "Rear-Box hinzufügen<small>zweite Box hinten, über Funk</small>", !!(nativ && nativ.boxen) && !((st.satelliten || []).length));
     const rearVorn = rear && !["2.0", "2.1"].includes(st.layout || "2.0");
     const mehr = (rearVorn ? "" : rear)
-      + (typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa) : "")
-      + zhAktion("zh-startklang", ZH_IC.start, `Startklang<small>${esc(startklangKurz(st))}</small>`, !!st.startklang, ` data-sheet-block="zh-startklang" data-sheet-titel="Startklang"`)
-      + zhAktion("zh-dosis-k", ZH_IC.dosis, `Hördosis<small>${esc(dosisKurz(st))}</small>`, !!st.pegel, ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`)
-      + zhAppGruppe();
+      // Nutzer 14.11.2026: Schlafen ist unwichtig (unter „Mehr“); ein neues Update steht als Knopf oben, die Zeile Updates darum
+      // unter „Mehr“; „Mehr“ ohne Symbole wie die Hauptseite
+      + (typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa, undefined, true) : "")
+      + zhAktion("zh-standby", "", `Schlafen<small>${esc(standbyKurz(sb2))}</small>`, !!sb2 && "minuten" in sb2, ` data-sheet-block="zh-standby" data-sheet-titel="Standby"`)
+      + zhAktion("zh-startklang", "", `Startklang<small>${esc(startklangKurz(st))}</small>`, !!st.startklang, ` data-sheet-block="zh-startklang" data-sheet-titel="Startklang"`)
+      + zhAktion("zh-dosis-k", "", `Hördosis<small>${esc(dosisKurz(st))}</small>`, !!st.pegel, ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`)
+      + zhAppGruppe(true);
     listeMitFokus($("zh-box-mehr-liste"), mehr);
     boxBlick = boxStatusHtml(st)
       + `<div class="em-funde">`
       + zhAktion("zh-quellen-k", "", `Quellen<small>${esc(quellenKurz(st))}</small>`, !!st.streamer, ` data-sheet-block="zh-quellen" data-sheet-titel="Quellen und Dienste"`)
       + zhAktion("zh-laut-k", "", `Lautstärke<small>regelt ${lr2 && lr2.fuehren ? "die Klång-Box" : "der Verstärker"}</small>`, !!lr2, ` data-sheet-block="zh-lautstaerke" data-sheet-titel="Lautstärke &amp; Verstärker"`)
       + zhAktion("zh-lippen", "", `Lippen-Sync<small>${zk(lippenMs(st), 0)} ms</small>`, true, ` data-sheet-block="zh-lippen" data-sheet-titel="Lippen-Sync"`)
-      + zhAktion("zh-standby", "", `Schlafen<small>${esc(standbyKurz(sb2))}</small>`, !!sb2 && "minuten" in sb2, ` data-sheet-block="zh-standby" data-sheet-titel="Standby"`)
       + (rearVorn ? rear : "")
-      + `<button type="button" class="kb-zeile" id="zh-box-mehr" data-sheet-block="zh-box-mehr" data-sheet-titel="Mehr"><span>Mehr <span class="wert">· Updates · WLAN · Startklang · Hördosis · App</span></span></button></div>`;
+      + `<button type="button" class="kb-zeile" id="zh-box-mehr" data-sheet-block="zh-box-mehr" data-sheet-titel="Mehr"><span>Mehr <span class="wert">· Updates · WLAN · Schlafen · Startklang · Hördosis · App</span></span></button></div>`;
   } catch (err) { boxBlick = ""; } }
   if (!boxBlick) listeMitFokus($("zh-box-mehr-liste"), "");  // keine doppelten Knöpfe neben der alten Liste (Prüfer)
   document.querySelector('.schritt[data-s="18"]').classList.toggle("box-an", !!boxBlick);
@@ -13111,7 +13151,10 @@ function zuhauseZeigen(laden = true) {
   taktZeigen();
   // Gehör-Check (hoerprobe.js): Karte des aktiven Modus im Platz unter den Karten
   const gc = window.klangboxGehoerCheck && letzteRunde(modus) ? window.klangboxGehoerCheck.karte(modus) : "";
-  $("zh-gehoer").hidden = !gc; $("zh-gehoer").innerHTML = gc;
+  // Mit dem Blick liegt die Hörprobe unter „Mehr“ (sonst verschwand sie unter der Leiste)
+  const gcMehr = !!gc && !!document.querySelector("#zh-karten .em-blick") && !!$("zh-mehr-liste").innerHTML;
+  if (gcMehr) $("zh-mehr-liste").insertAdjacentHTML("beforeend", gc);
+  $("zh-gehoer").hidden = !gc || gcMehr; $("zh-gehoer").innerHTML = gcMehr ? "" : gc;
   const sk = typeof SA !== "undefined" && SA.zuhauseKarte ? SA.zuhauseKarte() : "";
   $("zh-sub").hidden = !sk; $("zh-sub").innerHTML = sk;
   // Ohne Box: die Tipps für die Regler der eigenen Geräte
@@ -13241,8 +13284,24 @@ $("zh-karten").addEventListener("click", (ev) => {
   const pw = ev.target.closest("[data-em-weiter]"); if (pw) { zh.emProfil = pw.dataset.emWeiter; zuhauseZeigen(false); return; }
   const kas = ev.target.closest("[data-zh-kas]"); if (kas) { kinoAusStereo(kas.dataset.zhKas); return; }
   const e = ev.target.closest("[data-zh-einmessen]"); if (e) { setzeProfil(e.dataset.zhEinmessen); zeigeSchritt(3); return; }
+  const fd = ev.target.closest("[data-em-fund]"); if (fd) { emFundZeigen(fd.dataset.emFund, +fd.dataset.emNr); return; }
   const k = ev.target.closest("[data-zh-karte]"); if (k) { setzeProfil(k.dataset.zhKarte); zeigeAlles(); zeigeSchritt(7); }
 });
+// Ein Fund (Nutzer 14.11.2026: „Dröhnen“ führte auf die alte Ergebnisseite): ein kleines Fenster, was der Raum tat, was die
+// Box dagegen tut und ab welcher Stufe es wirkt. Kein Weg mehr auf die alte Ergebnisseite (Nutzer: „genau die Leichen“).
+function emFundZeigen(id, nr) {
+  const r = letzteRundeP(id), f = r && r.e ? emFunde(r.e)[nr] : null; if (!f) return;
+  const db = (x) => `${x > 0 ? "+" : "−"}${zk(Math.abs(x), 1)} dB`, loch = f.db > 0;
+  const was = f.name.startsWith("Dröhnen") ? `Bei ${f.hz} schaukelt sich ein tiefer Ton im Raum auf. Er klingt lauter und länger als der Rest, der Bass wird dumpf.`
+    : loch ? `Um ${f.hz} kam am Platz ${zk(f.tief, 0)} dB zu wenig an: Der Raum löscht den Ton dort teilweise aus.`
+    : `Um ${f.hz} war der Raum zu laut.`;
+  const tut = loch ? `Die Box hebt behutsam an (${db(f.db)}). Mehr wäre Arbeit für deine Boxen, ohne dass es viel bringt.` : `Die Box senkt dort ab (${db(f.db)}).`;
+  // wie die Box filtert (imBereich: Mittenfrequenz ≤ Bereich); eine Gruppe über eine Grenze wirkt dort schon teilweise (Prüfer)
+  const stufe = f.hi <= 90 ? "in allen Stufen (90 Hz, 150 Hz, Voll)" : f.hi <= 150 ? (f.lo <= 90 ? "teilweise schon in der Stufe 90 Hz, ganz ab der Stufe 150 Hz" : "ab der Stufe 150 Hz (150 Hz und Voll)")
+    : f.lo <= 150 ? "teilweise ab der Stufe 150 Hz, ganz nur in Voll" : "nur in der Stufe Voll";
+  $("em-fund-inhalt").innerHTML = `<p>${was}</p><p>${tut}</p><p class="klein">Gemessen: ${esc(f.bereich)}&nbsp;· Stärke ${esc(f.wort)}. Wirkt ${stufe}.</p>`;
+  sheet.auf(f.name, $("em-fund-block"));
+}
 document.addEventListener("click", (ev) => { if (ev.target.closest("#zh-neu-verbinden")) { $("zh-status").innerHTML = `<span class="laeuft">Verbinde…</span>`; zhLaden(); } });
 // Standby (POST /api/standby): nach wie vielen Minuten Stille die Box schläft; jetzt schlafen bzw. aufwecken
 const STANDBY_STUFEN = [[0, "Nie"], [10, "10 min"], [20, "20 min"], [60, "1 h"]];
@@ -13271,7 +13330,7 @@ document.addEventListener("click", (ev) => {
 window.addEventListener("sheetauf", (ev) => { if (ev.detail && ev.detail.id === "zh-standby-block") { $("zh-standby-status").textContent = ""; standbyZeigen(); } });
 // auch im Fenster „Mehr“ (Einmessen auf einen Blick) und oben „Neu einmessen“ (das Fenster liegt außerhalb von Zuhause)
 document.addEventListener("click", async (ev) => {
-  const b = ev.target.closest("#zh-aktionen button, #zh-box-liste button, #zh-ab-ohne button, #zh-mehr-liste button, #zh-box-mehr-liste button, .em-kopf #zh-nachmessen"); if (!b) return;
+  const b = ev.target.closest("#zh-aktionen button, #zh-box-liste button, #zh-ab-ohne button, #zh-mehr-liste button, #zh-box-mehr-liste button, .em-unten #zh-nachmessen"); if (!b) return;
   if (b.closest("#zh-mehr-liste, #zh-box-mehr-liste") && !b.dataset.sheetBlock && !b.dataset.darstellung) sheet.zu();  // Darstellung wählt im Fenster
   const st = zh.st || {}, inh = st.inhalt || {};
   if (b.id === "zh-wiim") { const r = letzteRunde(b.dataset.zhWiim || modus); if (r) { anwendenArt = "wiim"; zeigeSchritt(10); } return; }
@@ -15620,13 +15679,15 @@ const JETZT = (() => {
   }
 
   // --- Kacheln und Sheets: Bibliothek, Updates; unten „Diagnose kopieren“ ----------------------------------------------
-  function kacheln(st, boxDa) {
+  // nur: "upd" oder "wlan" für eine einzelne Zeile (Box auf einen Blick: Updates vorn, WLAN unter „Mehr“); ohneIc: ohne Symbol
+  function kacheln(st, boxDa, nur, ohneIc) {
     if (!boxDa || !st || typeof zhAktion !== "function") return "";
     const u = st.update || {}, b = st.bibliothek;
     const updText = u.laeuft ? `läuft${u.fortschritt ? `&nbsp;· ${u.fortschritt.nr}/${u.fortschritt.von}` : ""}` : u.neuer && u.verfuegbar ? `verfügbar&nbsp;· ${h(u.verfuegbar.version)}` : `alles aktuell${u.version ? `&nbsp;· ${h(u.version)}` : ""}`;
     // Die Bibliothek steht im CD-Regal (Nutzer 08.11.2026), siehe bibZeile()
-    return zhAktion("zh-upd-k", ZH_IC.upd, `Updates<small>${updText}</small>`, !!st.update, ` data-sheet-block="zh-upd" data-sheet-titel="Updates"`)
-      + zhAktion("zh-wlan-k", ZH_IC.wlan, `WLAN<small>${wlKurz()}</small>`, !!st.netz, ` data-sheet-block="zh-wlan" data-sheet-titel="WLAN"`);
+    const updZ = nur === "wlan" ? "" : zhAktion("zh-upd-k", ohneIc ? "" : ZH_IC.upd, `Updates<small>${updText}</small>`, !!st.update, ` data-sheet-block="zh-upd" data-sheet-titel="Updates"`);
+    const wlanZ = nur === "upd" ? "" : zhAktion("zh-wlan-k", ohneIc ? "" : ZH_IC.wlan, `WLAN<small>${wlKurz()}</small>`, !!st.netz, ` data-sheet-block="zh-wlan" data-sheet-titel="WLAN"`);
+    return updZ + wlanZ;
   }
   // Zeile „Bibliothek der Box“ im CD-Regal (regal.js): Interpreten, Ordner, Titel; Freigabe
   function bibZeile() {
@@ -15882,8 +15943,40 @@ const JETZT = (() => {
   }
   // Hinweise der Box (nach Update, Film als Stereo, zurückgesetzt). Die Lautstärke selbst zeigt nur noch das eine Element
   // unter „Jetzt läuft“ (lautstaerke.js); hier bleibt allein die Warnung „Box leiser als 0 dB“ mit „zurück auf 0 dB“.
+  // Bitte um einen Bericht (Nutzer 14.11.2026): erkennt die Box seit ihrem Start Fehler im Ton (kaputte oder verlorene Rahmen,
+  // Hänger), steht auf Hören ein Hinweis mit „Bericht senden“. Ab BITTE_AB Fehlern, danach erst
+  // wieder nach BITTE_AB weiteren; nach einem Neustart der Box zählt es neu. Gemerkt nur in diesem Browser (Komfort).
+  const BITTE_AB = 3, BITTE_KEY_BASIS = "klangbox-bericht-bitte";
+  const BITTE_KEY = () => `${BITTE_KEY_BASIS}:${(zh && zh.st && (zh.st.name || zh.st.id)) || ""}`;  // je Box (Prüfer)
+  function bitteLesen() { try { return JSON.parse(localStorage.getItem(BITTE_KEY()) || "null"); } catch (e) { return null; } }
+  function bitteMerken(s) { try { localStorage.setItem(BITTE_KEY(), JSON.stringify({ n: s.n, start: s.start })); } catch (e) {} }
+  function bitteStand(st) {
+    const hk = st && st.rahmen_sanft && st.rahmen_sanft.herkunft; if (!hk || !da() || st.rolle === "satellit" || (zh && zh.blind)) return null;
+    // sichere Fehler: kaputte und verlorene Rahmen, Hänger. Die Sprünge des Knacks-Detektors erst, wenn er für Sprache und
+    // Musik geprüft ist (Bericht 14.11.2026: 23 im Kinderhörspiel ohne bestätigtes Knacken)
+    const knacks = 0, n = (+hk.fehler || 0) + (+hk.raster || 0) + (+hk.haenger || 0);
+    const start = Math.round((Date.now() / 1000 - (+st.laufzeit_s || 0)) / 300);  // Startzeit der Box, auf 5 min genau
+    // dieselbe Laufzeit der Box: Startzeit passt und die Zähler sind nicht kleiner (sie wachsen nur; ein schneller Neustart
+    // fängt bei 0 an und gilt dann als neu, Prüfer)
+    const g = bitteLesen(), schon = g && Math.abs((+g.start || 0) - start) <= 1 && n >= (+g.n || 0) ? +g.n || 0 : 0;
+    return n >= schon + BITTE_AB ? { n, knacks, start } : null;
+  }
+  function bitteZeigen(st, held) {
+    let b = $("zh-bitte");
+    if (!b) { b = document.createElement("div"); b.id = "zh-bitte"; b.className = "kasten zh-bitte"; b.hidden = true; held.before(b); }
+    const s = bitteStand(st), key = s ? `${s.n}/${s.knacks}` : "";
+    if (b.dataset.key === key) return;
+    b.dataset.key = key; b.hidden = !s; if (!s) { b.innerHTML = ""; return; }
+    const satz = `Die Box hat ${s.n} Fehler im Ton erkannt${s.knacks ? `, davon ${s.knacks} Knackser` : ""}.`;
+    // steht der Hinweis schon: nur die Zahl, Knopf und Statuszeile bleiben (Zwei-Tipp-Teilen läuft weiter; Prüfer)
+    if ($("zh-bitte-satz")) { $("zh-bitte-satz").textContent = satz; return; }
+    b.innerHTML = `<p role="status"><b id="zh-bitte-satz">${satz}</b> Bitte schick einen Bericht, damit wir die Ursache finden.</p>`
+      + `<div class="em-unten"><button type="button" class="zweit" id="zh-bitte-senden" data-name="Bericht senden">Bericht senden</button><button type="button" class="zweit" id="zh-bitte-spaeter">Später</button></div>`
+      + `<p class="klein" id="zh-bitte-status" aria-live="polite"></p>`;
+  }
   function hinweiseZeigen() {
     const st = zh && zh.st, held = $("zh-held"); if (!held) return;
+    bitteZeigen(st, held);
     let z = $("zh-hinweise");
     if (!z) { z = document.createElement("div"); z.id = "zh-hinweise"; z.className = "zh-hinweise"; held.after(z); }
     const anz = st && st.lautstaerke && st.lautstaerke.anzeige, hw = st && Array.isArray(st.hinweise) ? st.hinweise : [];
@@ -15959,6 +16052,11 @@ const JETZT = (() => {
     if (t.closest("#zh-diag-bericht")) { berichtTeilen(t.closest("button")); return; }
     if (t.closest("#zh-diag-funk")) { berichtTeilen(t.closest("button"), $("zh-fehler-status"), "funk"); return; }
     // „Bericht für Claude“ auch im Fenster Klang (neben „Knacken gehört“): ein Tipp holt, der zweite teilt
+    if (t.closest("#zh-bitte-senden")) { const s = bitteStand(zh && zh.st), stEl = $("zh-bitte-status");
+      await berichtTeilen(t.closest("button"), stEl);
+      // geteilt, kopiert oder zum Kopieren gezeigt (ohne Teilen/Zwischenablage, Bedienseite über http): gilt als gesendet
+      if (s && (/^✓/.test(stEl.textContent) || stEl.querySelector("#zh-kopiertext"))) { bitteMerken(s); if (/^✓/.test(stEl.textContent)) setTimeout(hinweiseZeigen, 2500); } return; }
+    if (t.closest("#zh-bitte-spaeter")) { const s = bitteStand(zh && zh.st); if (s) bitteMerken(s); hinweiseZeigen(); return; }
     if (t.closest("#zh-hs-bericht")) { berichtTeilen(t.closest("button"), $("zh-schalter-status")); return; }
     if (t.closest("[data-ausgang]")) { const k = t.closest("[data-ausgang]"), z = $("zh-ausgang-text"); z.textContent = "Schaltet um …";
       const a = await nativ.box("ausgang", { ausgang: k.dataset.ausgang }, { zeitMs: 8000 });

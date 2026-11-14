@@ -2227,6 +2227,18 @@ body.rg-offen { overflow: hidden; }
         <p class="klein">Die Box nimmt den Fernseher mit mehr Puffer auf (21 statt 5 ms). Stockt sie kurz, gehen keine Werte verloren, die sonst einen Mehrkanal-Rahmen zerstören. Hängt die Box zweimal in 10 Minuten, schaltet sie das selbst wieder aus.</p>
         <div class="seg" role="group" aria-label="Aufnahme mit Reserve" id="zh-reserve-seg"><button type="button" data-reserve="0" aria-pressed="true">Aus</button><button type="button" data-reserve="1" aria-pressed="false">An</button></div>
         <p class="klein" id="zh-reserve-status" aria-live="polite"></p></section>
+      <!-- Stereo bitgenau (Nutzer 14.11.2026): Streamer ohne Umrechnung, ab Werk an, Rückschaltung nach Aussetzern -->
+      <section class="zh-gruppe" id="zh-bitgenau-block" aria-label="Stereo bitgenau" hidden><h2 class="kb-label">Stereo bitgenau</h2>
+        <p class="klein">Musik aus dem Netz läuft ohne Umrechnung durch die Box, nur die Raumkorrektur rechnet. Hat die Box dabei Aussetzer, schaltet sie das selbst ab.</p>
+        <div class="seg" role="group" aria-label="Stereo bitgenau" id="zh-bitgenau-seg"><button type="button" data-bitgenau="0" aria-pressed="false">Aus</button><button type="button" data-bitgenau="1" aria-pressed="true">An</button></div>
+        <p class="klein" id="zh-bitgenau-wirkt" hidden></p>
+        <p class="klein" id="zh-bitgenau-status" aria-live="polite"></p></section>
+      <!-- Streamer-Takt folgen (Prüfer 14.11.2026): die Quellen folgen dem Takt der Ausgabe, ab Werk aus, Rückschaltung -->
+      <section class="zh-gruppe" id="zh-stf-block" aria-label="Streamer-Takt folgen" hidden><h2 class="kb-label">Streamer-Takt folgen</h2>
+        <p class="klein">Musik aus dem Netz läuft im selben Takt wie die Ausgabe der Box. Ohne das kann der Puffer der Box langsam wandern und ab und zu einen kurzen Aussetzer geben. Hilft es nicht oder hat die Box dabei Aussetzer, schaltet sie das selbst ab.</p>
+        <div class="seg" role="group" aria-label="Streamer-Takt folgen" id="zh-stf-seg"><button type="button" data-stf="0" aria-pressed="true">Aus</button><button type="button" data-stf="1" aria-pressed="false">An</button></div>
+        <p class="klein" id="zh-stf-wirkt" hidden></p>
+        <p class="klein" id="zh-stf-status" aria-live="polite"></p></section>
       <section class="zh-gruppe" id="zh-kernel-block" aria-label="Kernel-Test" hidden><h2 class="kb-label">Kernel-Test</h2>
         <p class="klein">Ein neuerer Systemkern, in dem der Fehler der hakenden Tonschnittstelle behoben ist. Er wird neben den bisherigen gelegt; die Box startet ihn genau einmal und prüft sich 10 Minuten lang selbst. Klappt etwas nicht, startet sie von selbst wieder mit dem bisherigen. Hängt sie: Strom kurz aus und wieder an, dann kommt ebenfalls der bisherige.</p>
         <div id="zh-kernel-inhalt" style="display: grid; gap: 8px"></div>
@@ -12979,6 +12991,46 @@ document.addEventListener("click", async (ev) => {
   if (a.ok && a.aufnahme_reserve) { zh.st = { ...(zh.st || {}), aufnahme_reserve: a.aufnahme_reserve }; $("zh-reserve-status").textContent = ""; reserveZeigen(); }
   else $("zh-reserve-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
+// Testlabor: warum ein Schalter gerade nicht wirkt (Status „grund“), kurz und ohne Markennamen
+const SCHALTER_GRUND = { kino: "Kino-Modus", funk: "Funk zum Satelliten", umrechnung: "Umrechnung nötig", takt_labor: "Takt-Labor-Test läuft",
+  usb: "USB-Wandler", satellit: "Satellit", kein_regler: "Quelle ohne eigenen Takt-Regler" };
+function schalterGrund(r) {
+  if (!r || !r.an || r.wirkt) return "";
+  const g = r.grund === "kein_streamer" ? (zh.st && zh.st.quelle === "spdif" ? "Fernseher spielt" : "keine Musik aus dem Netz") : (SCHALTER_GRUND[r.grund] || r.grund || "");
+  return g ? `Wirkt gerade nicht: ${g}.` : "";
+}
+function wirktZeigen(id, r) { const t = schalterGrund(r); $(id).textContent = t; $(id).hidden = !t; }
+// Testlabor › Stereo bitgenau (POST /api/stereo_bitgenau)
+function bitgenauZeigen() {
+  const r = boxBereit() && zh.st ? zh.st.stereo_bitgenau : null;
+  $("zh-bitgenau-block").hidden = !r; if (!r) return;
+  document.querySelectorAll("[data-bitgenau]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.bitgenau === "1") === !!r.an)));
+  wirktZeigen("zh-bitgenau-wirkt", r);
+  if (r.aus_grund && !$("zh-bitgenau-status").textContent) $("zh-bitgenau-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(r.aus_grund)}.</span>`;
+}
+// Testlabor › Streamer-Takt folgen (POST /api/streamer_takt_folgen): ohne Umbau, kein „kurz still“
+function stfZeigen() {
+  const r = boxBereit() && zh.st ? zh.st.streamer_takt_folgen : null;
+  $("zh-stf-block").hidden = !r; if (!r) return;
+  document.querySelectorAll("[data-stf]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.stf === "1") === !!r.an)));
+  wirktZeigen("zh-stf-wirkt", r);
+  if (r.aus_grund && !$("zh-stf-status").textContent) $("zh-stf-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(r.aus_grund)}.</span>`;
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-stf]"); if (!b || !nativ || !boxBereit()) return;
+  const an = b.dataset.stf === "1"; if (zh.st && zh.st.streamer_takt_folgen && zh.st.streamer_takt_folgen.an === an) return;
+  const a = await nativ.box("streamer_takt_folgen", { an }, { zeitMs: 8000 });
+  if (a.ok && a.streamer_takt_folgen) { zh.st = { ...(zh.st || {}), streamer_takt_folgen: a.streamer_takt_folgen }; $("zh-stf-status").textContent = ""; stfZeigen(); }
+  else $("zh-stf-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+});
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-bitgenau]"); if (!b || !nativ || !boxBereit()) return;
+  const an = b.dataset.bitgenau === "1"; if (zh.st && zh.st.stereo_bitgenau && zh.st.stereo_bitgenau.an === an) return;
+  $("zh-bitgenau-status").innerHTML = `<span class="laeuft">Die Box stellt um, kurz still…</span>`;
+  const a = await nativ.box("stereo_bitgenau", { an }, { zeitMs: 8000 });
+  if (a.ok && a.stereo_bitgenau) { zh.st = { ...(zh.st || {}), stereo_bitgenau: a.stereo_bitgenau }; $("zh-bitgenau-status").textContent = ""; bitgenauZeigen(); }
+  else $("zh-bitgenau-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+});
 // Box › App: Einstellungen der App (nur in der App) und die Darstellung (überall; Vorspann ganz oben setzt data-thema)
 const DARSTELLUNG = [["auto", "Automatisch"], ["hell", "Hell"], ["dunkel", "Dunkel"]];
 const zhDarstellung = () => { const w = window.klangboxDarstellung ? klangboxDarstellung.wert() : "auto";
@@ -13148,6 +13200,8 @@ function zuhauseZeigen(laden = true) {
   }
   if (boxDa && st) zhBoxBloecke(st);
   reserveZeigen();
+  bitgenauZeigen();
+  stfZeigen();
   taktZeigen();
   // Gehör-Check (hoerprobe.js): Karte des aktiven Modus im Platz unter den Karten
   const gc = window.klangboxGehoerCheck && letzteRunde(modus) ? window.klangboxGehoerCheck.karte(modus) : "";

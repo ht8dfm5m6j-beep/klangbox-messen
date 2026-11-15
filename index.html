@@ -1388,6 +1388,12 @@ body.rg-offen { overflow: hidden; }
 .box-kachel { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--kb-r); background: var(--kb-flaeche); min-width: 0; }
 .box-kachel b { font-size: 20px; font-weight: 600; }
 .box-update { width: 100%; margin: 4px 0 8px; }
+/* Leitung vom Zuspieler mit Aussetzern (status.eingang.leitung): ruhig, kein Alarm; Punkt in Signalfarbe, schließbar */
+.box-leitung { display: grid; gap: 0; margin: 10px 0 0; padding: 10px 12px 2px; border-radius: var(--kb-r); background: var(--kb-flaeche); }
+.box-leitung p { margin: 0; color: var(--kb-text); }
+.box-leitung i, .zh-leitung-punkt i { width: 8px; height: 8px; border-radius: 50%; background: var(--kb-signal); display: inline-block; margin-right: 8px; vertical-align: 1px; flex: none; }
+.box-leitung .kb-link { justify-self: start; }
+.zh-leitung-punkt { justify-self: start; color: var(--kb-text-leise); }
 .zh-bitte { display: grid; gap: 12px; margin: 0 0 16px; }
 .zh-bitte p { margin: 0; }
 .schritt[data-s="18"]:not([data-tab="hoeren"]) #zh-bitte { display: none !important; }   /* Bitte um Bericht nur auf Hören (Box zeigt die Zahl in der Kachel) */
@@ -1884,7 +1890,7 @@ body.rg-offen { overflow: hidden; }
   <section class="schritt" data-s="10" hidden style="display: grid; gap: 16px;" aria-labelledby="h-anwenden">
     <h1 id="h-anwenden">Einmessung laden</h1>
     <!-- „Fertig“-Moment: geladen heißt, die Box spielt es schon (Analyse 06.11.2026: der Abschluss fehlte) -->
-    <div class="card ok" id="a-fertig" hidden role="status"><b>✓ Eingemessen.</b> Die Klång-Box spielt deine neuen Einstellungen schon. Hör kurz rein. Die Nachprüfung (etwa 1 Minute) macht sie fest und nimmt sie zurück, falls es doch schlechter wäre.</div>
+    <div class="card ok" id="a-fertig" hidden role="status"><b>✓ Eingemessen.</b> Die Klång-Box spielt deine neuen Einstellungen schon. Hör kurz rein. Die Nachmessung prüft, ob sie wirken, macht sie fest und nimmt sie zurück, falls es doch schlechter wäre.</div>
     <div class="card" id="a-zusammen"></div>
     <div class="card" id="a-box" hidden>
       <button type="button" id="a-box-senden">Einmessung in die Klång-Box laden</button>
@@ -1896,12 +1902,16 @@ body.rg-offen { overflow: hidden; }
       <!-- Platz für die Hörprobe „Wo ist die Kuh?“ vor der Nachmessung (Zweig hoerprobe) -->
       <div class="zh-platz" id="a-hoerprobe" hidden></div>
       <p id="a-text"></p>
-      <p class="klein">Gleicher Platz, gleiche Haltung wie vorhin.</p>
+      <p class="klein" id="a-gleich">Gleicher Platz, gleiche Haltung wie vorhin.</p>
+      <!-- Nachmessung = Prüfung (Nutzer 14.11.2026): dieselben festen Plätze wie beim Einmessen, gleiche Reihenfolge -->
+      <p class="kb-mess-satz" id="a-platz-satz" hidden></p>
+      <div class="kb-mess-bild" id="a-platz-bild" hidden></div>
       <div id="a-vorher-zeile" class="kasten" hidden>
         <span class="klein" id="a-vorher-text"></span>
         <button type="button" class="zweit" id="a-vorher-messen">Vorher messen</button>
       </div>
       <button type="button" id="a-messen">Am Hörplatz nachmessen</button>
+      <div class="knoepfe" id="a-plan-knoepfe" hidden><button type="button" class="zweit" id="a-mit-diesen" hidden>Mit diesen Plätzen prüfen</button><button type="button" class="zweit" id="a-neu-nachmessen" hidden>Ganz neu nachmessen</button></div>
       <button type="button" id="a-abbrechen" class="zweit" hidden>Abbrechen</button>
       <div class="balken" aria-hidden="true"><div id="a-pegel"></div></div>
       <div id="a-status" class="klein" aria-live="polite"></div>
@@ -2236,7 +2246,7 @@ body.rg-offen { overflow: hidden; }
       <p class="klein" id="zh-auf-status" aria-live="polite"></p>
     </div>
     <!-- Fenster Klang (Hören › „Klang · …“): Vergleich (Nachher | Vorher, Blind), Hör-Schalter (klangbox/feinabstimmung.py) Mitte, Stimme, Bass, Anpassung (Bereich steht auf Hören);
-         im Kino Räumlichkeit, dazu Nachtmodus, Hintergrund (nur Musik) und Vorne ↔ Hinten. Fuß: Klangprofil, Mehr zum Album, Knacken gehört. -->
+         im Kino Räumlichkeit und Couch, dazu Nachtmodus, Hintergrund (nur Musik) und Vorne ↔ Hinten. Fuß: Klangprofil, Mehr zum Album, Knacken gehört. -->
     <div class="sheet-block" hidden data-block="zh-schalter" id="zh-schalter-block">
       <!-- Vergleich: ein Segment „Nachher | Vorher“ und daneben „Blind“ (R6); im Blindtest heißen die Seiten A und B -->
       <div class="kb-gruppe zh-ab" id="zh-ab"><span class="kb-label">Vergleich</span>
@@ -2959,24 +2969,42 @@ function peqDbAuf(f0, q, gain, f) {
   }
   return out;
 }
+// Filterentwurf (wie FILTER_ENTWURF in klangbox/einmessung.py): „robust“ bewertet jeden Filter auch mit den Raummoden um
+// ±versatzHz verschoben; keiner dieser Fälle darf schlechter werden. Standard bleibt „alt“: Im Nachmess-Prüfstand bringt
+// robust weniger als 0,1 Punkte, der Bass wird etwas unruhiger (docs/nachmess_pruefstand.md).
+const FILTER_ENTWURF = { wahl: "alt", versatzHz: 1.5 };
+function verschoben(r, dHz) {  // r(F − dHz) linear auf dem Raster F (wie np.interp, an den Rändern fest)
+  const o = new Float64Array(NF); let j = 0;
+  for (let i = 0; i < NF; i++) {
+    const x = F[i] - dHz;
+    if (x <= F[0]) { o[i] = r[0]; continue; }
+    if (x >= F[NF - 1]) { o[i] = r[NF - 1]; continue; }
+    while (j < NF - 2 && F[j + 1] <= x) j++;
+    while (j > 0 && F[j] > x) j--;
+    o[i] = r[j] + (r[j + 1] - r[j]) * (x - F[j]) / (F[j + 1] - F[j]);
+  }
+  return o;
+}
+function modenVersetzt(posDb, dHz = FILTER_ENTWURF.versatzHz) { const o = []; for (const r of posDb) o.push(r, verschoben(r, dHz), verschoben(r, -dHz)); return o; }
 function fitEq(posDb, ziel, sel) {
   const idx = []; for (let i = 0; i < NF; i++) if (sel[i]) idx.push(i);
   if (idx.length < 8) return [];
-  const f = idx.map((i) => F[i]), N = f.length, P = posDb.length;
-  const E = posDb.map((r) => idx.map((i) => r[i] - ziel[i]));
+  const f = idx.map((i) => F[i]), N = f.length;
+  const Emess = posDb.map((r) => idx.map((i) => r[i] - ziel[i]));
+  const E = FILTER_ENTWURF.wahl === "robust" ? modenVersetzt(posDb).map((r) => idx.map((i) => r[i] - ziel[i])) : Emess, P = E.length;
   const kand = [];
   for (let j = 0; j < N; j += 5) for (const q of EQ_QS) for (const g of EQ_GAINS) {
     if (g > 0 && (q > 3 || f[j] < 35)) continue;
     kand.push({ f0: f[j], q, g, i0: j, D: peqDbAuf(f[j], q, g, f) });
   }
-  const loch = Array.from({ length: N }, (_, i) => E.some((e) => e[i] < -6));
+  const loch = Array.from({ length: N }, (_, i) => Emess.some((e) => e[i] < -6));
   const rmsVon = (e, c, D) => { let s = 0; for (let i = 0; i < N; i++) { const v = e[i] + c[i] + (D ? D[i] : 0); s += v * v; } return Math.sqrt(s / N); };
   const corr = new Float64Array(N), rms0 = E.map((e) => rmsVon(e, corr, null)), filter = [];
   let jetzt = rms0.reduce((a, b) => a + b) / P;
   for (let it = 0; it < 8; it++) {
     let best = null;
     for (const k of kand) {
-      if (k.g > 0 && !E.every((e) => e[k.i0] + corr[k.i0] < -2)) continue;
+      if (k.g > 0 && !Emess.every((e) => e[k.i0] + corr[k.i0] < -2)) continue;
       let zuviel = false, zuTief = false;
       for (let i = 0; i < N; i++) { const v = corr[i] + k.D[i]; if (v > 3 + 1e-9) { zuviel = true; break; } if (loch[i] && v < -2) { zuTief = true; break; } }
       if (zuviel || zuTief) continue;
@@ -3989,7 +4017,7 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
   if (!ZIELE.includes(ziel)) throw new Error(`Unbekanntes Ziel ${ziel}`);
   const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null, folge = folgeFuer(kanaele);
   const modusRunde = modus; modus = kinoLinie ? modus : rechenModus(modus, kanaele);  // ab hier: das Ziel, mit dem gerechnet wird
-  const erg = { aufnahmen: [], fehler: null, modus: modusRunde, rechen_modus: modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score" };
+  const erg = { aufnahmen: [], fehler: null, modus: modusRunde, rechen_modus: modus, score_name: modus === "kino" ? "Kino-Score" : "Stereo-Score", filter_entwurf: FILTER_ENTWURF.wahl };
   const punkte = [];
   for (const { name, daten } of aufnahmen) {
     let a;
@@ -4518,6 +4546,110 @@ function reglerSchuld(geaendert, alt, neu, nachher, modus, raumM3, buehneMit, ka
 // vorher: {Platzname: messungen}, nachher: [{name, messungen}] (der erste gemeinsame Platz ist der Hauptplatz).
 // akzeptiert: im Ziel „extrem“ bewusst gewählte Kachel-Verluste (gegen die eigene Prognose geprüft); geraet: {profil, alt, neu}
 // der Geräteregler (nennt beim Zurücknehmen den Regler), wie nachpruefung.py
+// Prüfung: wirkt die Einmessung wie geplant? (wie pruefung in klangbox/nachpruefung.py) Die Nachmessung misst dieselben
+// festen Plätze; Prognose gegen Messung über alle Plätze gemittelt, je Kachel, gesamt und je Band (1/3 Oktave bis 500 Hz,
+// darüber Oktaven, auf 500 Hz – 2 kHz bezogen). Innerhalb der Wiederholstreuung der Einmessung: „wie geplant“. Raum zählt nicht.
+const PR = { terzen: [20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500], oktaven: [1000, 2000, 4000, 8000], bezug: [500, 2000],
+  abHz: F_LO, bandTol: [[200, 2.0], [1e9, 1.5]], geplant: 1.0, kachelTol: [2, 5], gesamtTol: [2, 4], nicht: 0.3, breit: 0.6, schmalQ: 4.5,
+  wiederhol: "Mitte noch einmal",
+  ortHinweis: "Bühne oder Gesamtwert liegen etwas anders als vorher, die Einstellungen wirken aber genau wie geplant: Das macht der Messort (Handy ein paar Zentimeter anders), nicht die Box.",
+  gruende: { nicht: "Die Einstellungen spielen wohl nicht (Klång-Box auf „Alles aus“, nicht geladen oder ein anderer Eingang).",
+    breit: "Lautstärke, Klangregler oder Quelle anders als beim Einmessen.",
+    schmal: "Die schmale Absenkung bei {f} Hz trifft das Dröhnen nicht ganz: Es liegt beim Hören etwas anders als beim Messen.",
+    platz: "Handy nicht ganz an denselben Plätzen, oder im Raum hat sich etwas verändert (Möbel, Tür, Vorhang)." } };
+function pruefBaender() { return PR.terzen.map((f) => [f, f * Math.pow(2, -1 / 6), f * Math.pow(2, 1 / 6)]).concat(PR.oktaven.map((f) => [f, f * Math.pow(2, -1 / 2), f * Math.pow(2, 1 / 2)])); }
+function bandName(f) {
+  const b = f < 60 ? "Tiefbass" : f < 150 ? "Bass" : f < 300 ? "Grundton" : f < 1000 ? "untere Mitten" : f < 4000 ? "Mitten" : "Höhen";
+  return `${b} um ${f < 1000 ? zahlText(f, 0) + " Hz" : zahlText(f / 1000, 0) + " kHz"}`;
+}
+function baenderDb(ms, ch) {  // Pegel je Prüfband (dB), Leistungsmittel über die Plätze, auf 500 Hz – 2 kHz bezogen
+  const p = new Float64Array(NF);
+  for (const m of ms) { const l = leistung(antwort(m[ch])); for (let i = 0; i < NF; i++) p[i] += l[i] / ms.length; }
+  const bm = (lo, hi, oben) => { let s = 0, c = 0; for (let i = 0; i < NF; i++) if (F[i] >= lo && (oben ? F[i] <= hi : F[i] < hi)) { s += p[i]; c++; } return s / c; };
+  const bezug = bm(PR.bezug[0], PR.bezug[1], true);
+  return pruefBaender().map(([, lo, hi]) => 10 * Math.log10(bm(lo, hi, false) / bezug + 1e-30));
+}
+function wiederholStreuung(vorher, haupt, modus, raumM3) {
+  if (!(PR.wiederhol in vorher) || !(haupt in vorher) || haupt === PR.wiederhol) return null;
+  const a = mitMitte(vorher[haupt]), b = mitMitte(vorher[PR.wiederhol]);
+  const fl = baenderDb([a], "FL").map((x, i) => Math.abs(x - baenderDb([b], "FL")[i])), fr = baenderDb([a], "FR").map((x, i) => Math.abs(x - baenderDb([b], "FR")[i]));
+  const sa = score([a], modus, raumM3, null, false, false, null, true), sb = score([b], modus, raumM3, null, false, false, null, true, sa);
+  const kach = {}; for (const k of Object.keys(sa.kacheln)) if (sa.kacheln[k].punkte != null && sb.kacheln[k] && sb.kacheln[k].punkte != null) kach[k] = Math.abs(sa.kacheln[k].punkte - sb.kacheln[k].punkte);
+  const teile = {}; for (const k of ["pegel", "laufzeit"]) if (sa.teile_roh[k] != null && sb.teile_roh[k] != null) teile[k] = Math.abs(sa.teile_roh[k] - sb.teile_roh[k]);
+  return { baender: fl.map((x, i) => Math.max(x, fr[i])), kacheln: kach, gesamt: Math.abs(sa.gesamt_roh - sb.gesamt_roh), teile };
+}
+// Bühne je Platz (wie buehne_je_platz): Median der Änderung über die Plätze, dazu die Ortsempfindlichkeit (30 cm → 10 cm)
+const FEST = { minPlaetze: 3, ortAnteil: 10 / 30 };
+function buehneJePlatz(v, n, modus, raumM3) {
+  const s = (m) => score([m], modus, raumM3, null, false, false, null, true);
+  const a = v.map(s), b = n.map(s), out = { ort: {} };
+  for (const key of ["pegel", "laufzeit"]) {
+    const d = []; a.forEach((x, i) => { if (x.teile_roh[key] != null && b[i].teile_roh[key] != null) d.push(b[i].teile_roh[key] - x.teile_roh[key]); });
+    out[key] = d.length ? median(d) : null;
+    const o = a.slice(1).filter((x) => x.teile_roh[key] != null && a[0].teile_roh[key] != null).map((x) => Math.abs(x.teile_roh[key] - a[0].teile_roh[key]));
+    out.ort[key] = o.length ? median(o) * FEST.ortAnteil : 0;
+  }
+  const d = []; a.forEach((x, i) => { if (x.kacheln.buehne && x.kacheln.buehne.punkte != null && b[i].kacheln.buehne.punkte != null) d.push(b[i].kacheln.buehne.punkte - x.kacheln.buehne.punkte); });
+  out.buehne = d.length ? median(d) : null;
+  return out;
+}
+function pruefungRechnen(v, vh, ist, sp, sn, einstellungen, streuung) {
+  const bd = pruefBaender(), rep = streuung ? streuung.baender : bd.map(() => 0), r2 = (x) => Math.round(x * 100) / 100;
+  const baender = [], geplantAlle = [];
+  for (const ch of ["FL", "FR"]) {
+    const dv = baenderDb(v, ch), dp = baenderDb(vh, ch), di = baenderDb(ist, ch);
+    bd.forEach(([fc], k) => {
+      const tol = Math.max(PR.bandTol.find(([bis]) => fc < bis)[1], rep[k]), d = di[k] - dp[k], g = dp[k] - dv[k], info = fc < PR.abHz;
+      const daneben = !info && Math.abs(d) > tol && (Math.abs(g) >= PR.geplant || Math.abs(d) > 2 * tol);
+      baender.push({ band: fc, ch, vorher: r2(dv[k]), prognose: r2(dp[k]), ist: r2(di[k]), abweichung: r2(d), geplant: r2(g), gemessen: r2(di[k] - dv[k]), toleranz: r2(tol), ok: !daneben, info });
+      if (!info) geplantAlle.push([Math.abs(g), Math.abs(di[k] - dv[k])]);
+    });
+  }
+  const kacheln = {}, kachelFehlt = [];
+  for (const k of Object.keys(sp.kacheln)) {
+    const a = sp.kacheln[k].punkte, b = sn.kacheln[k] ? sn.kacheln[k].punkte : null;
+    if (k === "raum" || a == null || b == null) continue;
+    const rk = (streuung && streuung.kacheln[k]) || 0, tol = Math.min(PR.kachelTol[1], Math.max(PR.kachelTol[0], rk));
+    kacheln[k] = { titel: sp.kacheln[k].titel, prognose: a, ist: b, abweichung: b - a, toleranz: tol };
+    if (b < a - tol) kachelFehlt.push(k);
+  }
+  const tolG = Math.min(PR.gesamtTol[1], Math.max(PR.gesamtTol[0], streuung ? streuung.gesamt : 0)), r1 = (x) => Math.round(x * 10) / 10;
+  const gesamt = { prognose: r1(sp.gesamt_roh), ist: r1(sn.gesamt_roh), abweichung: r1(sn.gesamt_roh - sp.gesamt_roh), toleranz: r1(tolG) };
+  const gesamtFehlt = sn.gesamt_roh < sp.gesamt_roh - tolG;
+  const daneben = baender.filter((b) => !b.ok).sort((a, b) => Math.abs(b.abweichung) - Math.abs(a.abweichung));
+  const groesste = {}; for (const ch of ["FL", "FR"]) groesste[ch] = baender.filter((b) => b.ch === ch && !b.info).sort((a, b) => Math.abs(b.abweichung) - Math.abs(a.abweichung)).slice(0, 3).map((b) => ({ band: b.band, abweichung: b.abweichung, toleranz: b.toleranz, ok: b.ok }));
+  // Wirkt es überhaupt? Nicht, wenn sich gegen vorher fast nichts geändert hat: wo geplant, kommt weniger als 30 % an, und
+  // auch sonst ändert sich nichts (sonst ist es ein verstellter Regler, „breit“)
+  const geplant = geplantAlle.filter(([g]) => g >= PR.geplant), sonst = geplantAlle.filter(([g]) => g < PR.geplant).map(([, e]) => e);
+  const nicht = geplant.length > 0 && mean(geplant.map(([, e]) => e)) < PR.nicht * mean(geplant.map(([g]) => g)) && (!sonst.length || mean(sonst) < PR.geplant);
+  const urteil = nicht ? "nicht" : daneben.length || kachelFehlt.length || gesamtFehlt ? "teilweise" : "wie_geplant";
+  let grund = null;
+  if (urteil === "nicht") grund = PR.gruende.nicht;
+  else if (urteil === "teilweise") {
+    const bewertet = baender.filter((b) => !b.info).length, plus = daneben.filter((b) => b.abweichung > 0).length;
+    if (daneben.length >= PR.breit * bewertet && Math.max(plus, daneben.length - plus) >= PR.breit * daneben.length) grund = PR.gruende.breit;
+    else {
+      let schmal = null;
+      if (daneben.length && daneben[0].abweichung > 0) {
+        const fc = daneben[0].band, eq = ((einstellungen || {})[daneben[0].ch] || {}).eq || [];
+        schmal = eq.find((q) => q.gain < 0 && q.q >= PR.schmalQ && fc * Math.pow(2, -1 / 3) <= q.freq && q.freq <= fc * Math.pow(2, 1 / 3)) || null;
+      }
+      grund = schmal ? PR.gruende.schmal.replace("{f}", zahlText(schmal.freq, 0)) : PR.gruende.platz;
+    }
+  }
+  const n = ist.length, wo = n === 1 ? "am gemessenen Platz" : `an allen ${n} Plätzen`;
+  let satz;
+  if (urteil === "wie_geplant") satz = `Wirkt wie geplant: ${wo} innerhalb der Messstreuung (Prognose ${zahlText(sp.gesamt_roh, 0)}, gemessen ${zahlText(sn.gesamt_roh, 0)}).`;
+  else if (urteil === "nicht") satz = "Wirkt nicht: Die Messung sieht aus wie vorher. Grund wahrscheinlich: " + grund;
+  else {
+    let was;
+    if (daneben.length) { const b = daneben[0]; was = `${bandName(b.band)} (${b.ch === "FL" ? "links" : "rechts"}) ${zahlText(Math.abs(b.abweichung))} dB ${b.abweichung > 0 ? "lauter" : "leiser"} als geplant`; }
+    else if (kachelFehlt.length) { const k = kachelFehlt[0]; was = `„${kacheln[k].titel}“ ${kacheln[k].prognose - kacheln[k].ist} Punkte unter der Prognose`; }
+    else was = `insgesamt ${zahlText(sp.gesamt_roh - sn.gesamt_roh, 0)} Punkte unter der Prognose`;
+    satz = `Wirkt teilweise: ${was}. Grund wahrscheinlich: ${grund}`;
+  }
+  return { urteil, satz, grund, plaetze: n, gesamt, kacheln, baender, groesste, toleranz: { quelle: streuung ? "wiederholung" : "standard", gesamt: r1(tolG) } };
+}
 function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", raumM3 = null, toleranz = NP.rausch, vorhersageKette = null, vorhersageUngefaehr = false, sitzmodus = "allein", akzeptiert = null, geraet = null) {
   const plaetze = nachher.filter((p) => p.name in vorher);
   if (!plaetze.length) return { ok: false, empfehlung: "zuruecknehmen", satz: "Ich kann nichts vergleichen: Zur Nachmessung fehlt die Messung vorher am selben Platz. Sicherheitshalber bleibt der alte Stand.",
@@ -4557,17 +4689,25 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
   const sv = score(v, modus, raumM3, null, true, false, buehneMit), sn = score(nRk, modus, raumM3, null, true, true, buehneMit, false, sv);
   const spA = akzeptiert.length ? score(vh, modus, raumM3, null, true, true, buehneMit, false, sv) : null;  // Prognose der gewählten Abwägung
   const teile = {}, teilSchlecht = [];
+  // feste Plätze: Bühne als Median der Änderung je Platz, Toleranz mit der Wiederholstreuung gekoppelt (wie nachpruefung.py)
+  const streuung = wiederholStreuung(vorher, haupt, modus, raumM3);
+  const fest = !!streuung && !buehneMit && plaetze.length >= FEST.minPlaetze && !akzeptiert.includes("buehne");
+  const je = fest ? buehneJePlatz(v, nRk, modus, raumM3) : null;
   for (const [key, name] of [["pegel", "Kanäle gleich laut"], ["laufzeit", "Kanäle gleichzeitig"]]) {
     const a = (akzeptiert.includes("buehne") ? spA : sv).teile_roh[key], b = sn.teile_roh[key];
     teile[key] = [a == null ? null : Math.round(a), b == null ? null : Math.round(b)];
-    if (a != null && b != null && b < a - NP.teil) { teilSchlecht.push(name); gruende.push(`${name} ${wo}: ${z(a, 0)} → ${z(b, 0)} Punkte`); }
+    if (je) {
+      const tol = Math.max(NP.teil, 2 * (streuung.teile[key] || 0), je.ort[key]);
+      if (je[key] != null && je[key] < -tol) { teilSchlecht.push(name); gruende.push(`${name} an den ${plaetze.length} Plätzen: im Mittel ${z(je[key], 0)} Punkte (Toleranz ${z(tol, 0)})`); }
+    } else if (a != null && b != null && b < a - NP.teil) { teilSchlecht.push(name); gruende.push(`${name} ${wo}: ${z(a, 0)} → ${z(b, 0)} Punkte`); }
   }
   const kb = Object.fromEntries(Object.keys(sv.kacheln).map((k) => [k, akzeptiert.includes(k) ? spA.kacheln[k] : sv.kacheln[k]]));
   const kachelSchlecht = kachelVerluste(kb, sn.kacheln, NP.kachel), kacheln = {};
+  if (je && kachelSchlecht.buehne) { const tolK = Math.max(NP.kachel, 2 * (streuung.kacheln.buehne || 0)); if (je.buehne == null || je.buehne >= -tolK) delete kachelSchlecht.buehne; }
   for (const k of Object.keys(sv.kacheln)) kacheln[k] = [sv.kacheln[k].punkte, sn.kacheln[k].punkte];
   for (const [k, [a, b]] of Object.entries(kachelSchlecht)) gruende.push(`Teilwert „${sv.kacheln[k].titel}“: ${a} → ${b} Punkte${akzeptiert.includes(k) ? " (gegen die Prognose der gewählten Abwägung)" : ""} (Toleranz ${NP.kachel})`);
   for (const k of akzeptiert) if (k in sv.kacheln) hinweise.push(`„${sv.kacheln[k].titel}“ hast du bewusst in Kauf genommen (Ziel Extrem): geprüft gegen die Prognose dieser Variante (${spA.kacheln[k].punkte} Punkte), nicht gegen vorher (${sv.kacheln[k].punkte}).`);
-  const scoreSchlecht = sn.gesamt_roh < sv.gesamt_roh - NP.score;
+  let scoreSchlecht = sn.gesamt_roh < sv.gesamt_roh - (fest ? Math.max(NP.score, 2 * streuung.gesamt) : NP.score);
   if (scoreSchlecht) gruende.push(`Gesamtscore ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}`);
   const absenkungSchlecht = !!(absenkung && !absenkung.ok);
   // Geräteregler: welcher muss zurück, damit die Kachel wiederkommt? (wie nachpruefung.py)
@@ -4577,6 +4717,14 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     schuld = reglerSchuld(reglerGeaendert, gAlt, gNeu, nRk, modus, raumM3, buehneMit, k0);
     reglerRueck = "Stell " + schuld.map((r) => `„${r.name}“ wieder auf ${reglerText(r, gAlt[r.id])} (eben ${reglerText(r, gNeu[r.id])})`).join(" und ") + `, sonst bleibt „${sv.kacheln[k0].titel}“ schlechter.`;
   }
+  // Prüfung: wirkt die Einmessung wie geplant? Prognose gegen Messung über alle nachgemessenen Plätze
+  const spP = spA || score(vh, modus, raumM3, null, false, true, buehneMit, true, sv);
+  const pruefung = pruefungRechnen(v, vh.map(mitMitte), nRk, spP, sn, einstellungen, streuung);
+  // wirkt genau wie geplant, nur Bühne/Gesamtwert anders als vorher: der Messort, nicht die Box (wie nachpruefung.py)
+  if (pruefung.urteil === "wie_geplant" && (teilSchlecht.length || scoreSchlecht || Object.keys(kachelSchlecht).length)
+      && Object.keys(kachelSchlecht).every((k) => k === "buehne") && !reglerGeaendert.length) {
+    teilSchlecht.length = 0; scoreSchlecht = false; delete kachelSchlecht.buehne; hinweise.push(PR.ortHinweis);
+  }
   const kachelErste = Object.keys(kachelSchlecht)[0], zurueck = !!(schlechter.length || teilSchlecht.length || kachelErste || scoreSchlecht || praesenzSchlecht || absenkungSchlecht);
   let satz;
   if (zurueck) {
@@ -4584,7 +4732,7 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
       if (plaetze.length < PW.plaetzeSicher) hinweise.push(PW.wenigPlaetze); }
     else if (absenkungSchlecht) satz = "Ich nehme es zurück – die Präsenz-Absenkung hat nicht wie gedacht gewirkt.";
     else if (schlechter.length) satz = `Ich nehme es zurück – es wurde an Platz „${schlechter[0]}“ schlechter` + (schlechter.length > 1 ? ` (und an ${schlechter.length - 1} weiteren)` : "") + ".";
-    else if (teilSchlecht.length) satz = `Ich nehme es zurück – ${buehneMit ? wo : `am Hauptplatz „${haupt}“`} wurde die Bühne schlechter (${teilSchlecht[0]}).`;
+    else if (teilSchlecht.length) satz = `Ich nehme es zurück – ${buehneMit ? wo : je ? `an den ${plaetze.length} Plätzen` : `am Hauptplatz „${haupt}“`} wurde die Bühne schlechter (${teilSchlecht[0]}).`;
     else if (kachelErste) satz = `Ich nehme es zurück – „${sv.kacheln[kachelErste].titel}“ wurde schlechter (${kachelSchlecht[kachelErste][0]} → ${kachelSchlecht[kachelErste][1]} Punkte).` + (reglerRueck ? " " + reglerRueck : "");
     else satz = `Ich nehme es zurück – insgesamt wurde es schlechter (Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}).`;
     if (reglerRueck && !satz.includes(reglerRueck)) hinweise.push(reglerRueck);
@@ -4610,11 +4758,12 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
       hinweise.push(`Profilprüfung (Methode B): weicht ab – ${teil}. ` + profilPruefung.hinweis);
     }
   }
+  // Prüfung: wirkt die Einmessung wie geplant? Prognose gegen Messung über alle nachgemessenen Plätze
   // Theorie gegen Praxis
   const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr, buehneMit, sv);
   if (vgl.ueber_toleranz) hinweise.push(`Prognose und Messung weichen ab (Score ${z(vgl.score.vorhergesagt, 0)} vorhergesagt, ${z(vgl.score.gemessen, 0)} gemessen; Bass im Mittel ${z(vgl.bass_kurve.mittel_abweichung_db)} dB). Mögliche Ursachen: ${vgl.ursachen.join(" ")} Danach am besten neu einmessen.`);
   return { ok: !zurueck, empfehlung: zurueck ? "zuruecknehmen" : "behalten", satz, status: zurueck ? "zurueckgenommen" : "bestaetigt", gruende, je_platz: jePlatz, hauptplatz: haupt,
-    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, kacheln, sitzmodus: buehneMit ? (sitzmodus === "breit" ? "breit" : "zwei") : "allein", akzeptiert, regler_zurueck: schuld.map((r) => r.id), hinweise, profil_pruefung: profilPruefung, vergleich: vgl, praesenz, absenkung };
+    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, kacheln, sitzmodus: buehneMit ? (sitzmodus === "breit" ? "breit" : "zwei") : "allein", akzeptiert, regler_zurueck: schuld.map((r) => r.id), hinweise, profil_pruefung: profilPruefung, vergleich: vgl, praesenz, absenkung, pruefung };
 }
 
 // --- Modus „Ohne Box“: Regler der Lautsprecher selbst (klangbox/regler.py) ----------------------------------
@@ -5216,7 +5365,7 @@ function kanalCheckAufnahme(daten, kanaele, layout, opt = {}, mikrofon = null, b
 }
 
 if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, lrPegelVorsichtig, messampel, kalibrierdateiLesen, mikroKalibrierung, messgenauigkeit, MESSGENAUIGKEIT, geraetVonKennung, geraetVonUa, androidModellAusUa, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, profilFilterDb, zahlText, zahlKurz,
-  nachpruefen, praesenzAusLeistung, praesenzAnhebung, raumUeberhoehung, direktschall, direktFenster, absenkungPruefen, reflexion, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
+  FILTER_ENTWURF, modenVersetzt, fitEqFuerTest: fitEq, nachpruefen, pruefungRechnen, wiederholStreuung, bandName, PR, praesenzAusLeistung, praesenzAnhebung, raumUeberhoehung, direktschall, direktFenster, absenkungPruefen, reflexion, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
   baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort, kanalCheck, kanalCheckAufnahme, bewegtProben, KC,
   rueckPruefen, rueckUrteil, direktDb, gleichmaessigkeit, gleichmaessigWaehlen, hoerVariante, gleichName, GLEICH_VARIANTEN, RUECK_ECHO_MS, RUECK_VERDECKT_DB, RUECK_VERDECKT_GEGEN_VORNE_DB, RUECK_WEG_MAX_MS, FUNK_MS, GLEICH_SPANNE_DB, GLEICH_STREUUNG_DB };
 </script>
@@ -10574,8 +10723,8 @@ function anwendenZeigen() {
     // Technik (Pegel, Laufzeit, Filter) nur auf Wunsch: „Was geladen wird“ ist zu (Ablaufprüfung P1-6)
     $("a-zusammen").innerHTML = `<details><summary>Was geladen wird</summary>${zusammenfassung(r)}<div id="a-export"></div></details>`;
     exportAnbieten(exportObjekt(r, "neu", r.e.einstellungen, r.profil), "a-export", "Für die Klång-Box speichern");
-    $("a-text").textContent = r.box_geladen === r.id ? "Die Klång-Box spielt jetzt die neuen Einstellungen (vorhergesagt). Miss einmal am Hörplatz wie vorhin. Erst danach gelten sie als bestätigt."
-      : "Erst die Einstellungen an die Klång-Box senden. Danach misst du einmal am Hörplatz wie vorhin; erst dann gelten sie als bestätigt.";
+    $("a-text").textContent = r.box_geladen === r.id ? `Die Klång-Box spielt jetzt die neuen Einstellungen (vorhergesagt). ${nachWegText()} Erst danach gelten sie als bestätigt.`
+      : `Erst die Einstellungen an die Klång-Box senden. Danach: ${nachWegText()} Erst dann gelten sie als bestätigt.`;
     $("a-weitere-text").textContent = "Für einen weiteren Platz misst du dort zweimal; die Klång-Box spielt den Messton einmal neutral und einmal mit den neuen Einstellungen.";
     $("a-extra-vorher").textContent = "1 · Ohne Klång-Box messen"; $("a-extra-nachher").textContent = "2 · Mit Klång-Box messen";
   } else {
@@ -10583,7 +10732,7 @@ function anwendenZeigen() {
       // Browser ohne App, aber mit der Bedienseite der Box (klangbox.local): dort übernommen, also hier nachmessen
       $("a-zusammen").innerHTML = zusammenfassung(r) + `<details><summary>Noch einmal kopieren</summary><div id="a-export"></div></details>`;
       exportAnbieten(exportObjekt(r, "neu", r.e.einstellungen, r.profil), "a-export", "Für die Klång-Box speichern");
-      $("a-text").textContent = "Die Klång-Box spielt die neuen Einstellungen (über ihre Bedienseite übernommen). Miss einmal am Hörplatz wie vorhin. Erst danach gelten sie als bestätigt.";
+      $("a-text").textContent = `Die Klång-Box spielt die neuen Einstellungen (über ihre Bedienseite übernommen). ${nachWegText()} Erst danach gelten sie als bestätigt.`;
       $("a-weitere-text").textContent = "Dafür misst du am selben Platz zweimal: erst mit „Vorher“ auf der Bedienseite der Box, dann wieder mit „Nachher“.";
       $("a-extra-vorher").textContent = "1 · „Vorher“ messen"; $("a-extra-nachher").textContent = "2 · „Nachher“ messen";
     } else {
@@ -10606,16 +10755,18 @@ function anwendenZeigen() {
   if (!$("a-box").hidden) $("a-box-antwort").innerHTML = r.box_geladen === r.id ? `<span class="ok">✓ Die Klång-Box spielt diese Einstellungen (vorhergesagt).</span>` : "";
   // Messung von vorher am Hauptplatz: aus dieser Runde (im Speicher)
   if (!nach.rundeId || nach.rundeId !== r.id || nach.art !== anwendenArt) {
-    nach = { rundeId: r.id, art: anwendenArt, vorher: {}, nachher: {}, extraName: null };
+    nach = { rundeId: r.id, art: anwendenArt, vorher: {}, nachher: {}, extraName: null, plan: [] };
     if (messdaten && messdaten.id === r.id) for (const d of messdaten.dateien) nach.vorher[d.name] = d.daten;
+    if (messdaten && messdaten.id === r.id && messdaten.umgebung) nach.plan = messdaten.dateien.map((d) => d.name);
   }
   nach.haupt = (messdaten && messdaten.id === r.id && messdaten.dateien[0]) ? messdaten.dateien[0].name : (r.e.hauptplatz || "Hörplatz");
   const fehlt = !nach.vorher[nach.haupt];
+  if (fehlt && !ohneBox) nachVorherVonDerBox(r);  // Seite neu geladen: die Aufnahmen der Einmessung liegen auf der Box
   $("a-vorher-zeile").hidden = !fehlt || ohneBox;
   $("a-vorher-text").textContent = wiimWeg(r) ? `Die Messung von vorhin ist nicht mehr im Speicher (Seite neu geladen). Stell den EQ im ${streamerName()} kurz aus und miss einmal vorher.`
     : "Die Messung von vorhin ist nicht mehr im Speicher (Seite neu geladen). Stell die Klång-Box auf „Alles aus“ und miss einmal vorher.";
   if (fehlt && ohneBox) $("a-status").innerHTML = `<span class="warn">Die Messung von vorhin ist nicht mehr im Speicher. Stell die alten Werte ein und miss neu (Schritt 4).</span>`;
-  $("a-messen").disabled = fehlt || (!ohneBox && boxModus(r) && r.box_geladen !== r.id);
+  nach.gesperrt = fehlt || (!ohneBox && boxModus(r) && r.box_geladen !== r.id);
   plaetzeZeigen();
   urteilZeigen(r);
   if (typeof hoerprobeKarte === "function") hoerprobeKarte(r, ohneBox);  // Hörprobe „Wo ist die Kuh?“ (hoerprobe.js)
@@ -10629,7 +10780,8 @@ const ABLAUF_JETZT = {
   laden: ["Ein Tipp lädt deine Einmessung in die Klång-Box.", "ca. 10 Sekunden"],
   hoerprobe: ["Kurze Hörprobe direkt nach dem Laden: Passt die Mitte, passen die Seiten?", "ca. 2 Minuten"],
   loesung: ["Die Antworten der Hörprobe streuen. Erst Platz und Lautsprecher prüfen, dann weiter.", "ca. 1 Minute"],
-  nachmessen: ["Die Beweiskette: Wir messen, ob es im Raum wirklich so ankommt. Gleicher Platz, gleiche Haltung.", "ca. 30 Sekunden"],
+  nachmessen: ["Die Prüfung: Wir messen dieselben Plätze wie beim Einmessen und sehen, ob die Einstellungen so wirken wie geplant.", "ca. 3 Minuten"],
+  nachmessen_ein: ["Die Prüfung: Wir messen am Hörplatz wie vorhin und sehen, ob die Einstellungen so wirken wie geplant.", "ca. 30 Sekunden"],
   vergleich: ["Hör selbst: dein Lieblingsstück, live zwischen ohne und mit umschalten, am besten blind.", "ca. 3 Minuten"],
   fertig: ["Gemessen und gehört: vorher → nachher. Klang nach Geschmack ist freiwillig.", ""],
 };
@@ -10667,7 +10819,7 @@ function ablaufZeigen(n) {
   const i = ABLAUF.findIndex(([k]) => k === punkt);
   $("ablauf-liste").innerHTML = ABLAUF.map(([k, t], j) => `<li class="${j < i ? "erledigt" : j === i ? "jetzt" : ""}"${j === i ? ' aria-current="step"' : ""}>${t}</li>`).join("");
   const [was, dauer] = ph === "laden" && anwendenArt === "wiim" ? [`Die Filter in die App deines ${streamerName()} eintragen, dann „Übernommen“.`, "ca. 5 Minuten"]
-    : ph === "hoerprobe" && anwendenArt === "wiim" ? ["Kurze Hörprobe mit dem neuen EQ: Passt die Mitte, passen die Seiten?", "ca. 2 Minuten"] : ABLAUF_JETZT[ph] || ["", ""];
+    : ph === "hoerprobe" && anwendenArt === "wiim" ? ["Kurze Hörprobe mit dem neuen EQ: Passt die Mitte, passen die Seiten?", "ca. 2 Minuten"] : ph === "nachmessen" && !nachMehrPlaetze() ? ABLAUF_JETZT.nachmessen_ein : ABLAUF_JETZT[ph] || ["", ""];
   $("ablauf-jetzt").innerHTML = `${esc(was)}${dauer ? `<span class="ablauf-dauer">${esc(dauer)}</span>` : ""}`;
 }
 function phaseZeigen(r, ohneBox) {
@@ -10682,7 +10834,7 @@ function phaseZeigen(r, ohneBox) {
   if (box && k) k.hidden = k.hidden || !["hoerprobe", "loesung"].includes(ph);
   $("a-nach").classList.toggle("phase-warten", !!box && ["laden", "hoerprobe", "loesung", "vergleich", "fertig"].includes(ph));
   $("a-hp-weiter").hidden = !(box && ph === "hoerprobe");
-  if (box) $("h-nach").textContent = "Nachmessen: die Beweiskette";
+  if (box) $("h-nach").textContent = "Nachmessen: wirkt es wie geplant?";
   const u = r.urteil, fertigTitel = u && Number.isFinite(+u.score_nachher) ? `Fertig: ${Math.round(+u.score_vorher)} → ${Math.round(+u.score_nachher)}` : "Fertig";
   if (box) $("h-anwenden").textContent = { vergleich: "Hör selbst: Ist es besser?", laden: wiimWeg(r) ? `In deinen ${streamerName()} übernehmen` : "In die Klång-Box laden", hoerprobe: "Hörprobe: Passt das?", loesung: "Hörprobe: Passt das?", nachmessen: "Nachmessen", fertig: fertigTitel }[ph] || $("h-anwenden").textContent;
   if (box) $("a-text").textContent = wiimWeg(r) ? `Wir messen, ob es im Raum wirklich so ankommt: mit dem EQ im ${streamerName()}, über denselben Weg wie vorhin (AirPlay oder Datei), gleicher Platz und gleiche Haltung.`
@@ -10836,7 +10988,33 @@ $("a-box-senden").addEventListener("click", async () => {
 });
 // Neue oder gelöschte Messung: das alte Urteil gilt nicht mehr
 function urteilVerwerfen() { const r = aktuelleRunde(); if (r && r.urteil && r.urteil.art === anwendenArt) { r.urteil = null; rundeSpeichern(); } $("a-urteil").innerHTML = ""; }
+// Nachmessung = Prüfung (Nutzer 14.11.2026: „Die Nachmessung war die Prüfung der ersten Messung inkl. aller Anpassungen,
+// ob sie richtig wirkt.“): dieselben festen Plätze wie beim Einmessen, in derselben Reihenfolge (docs/MESSPLAN.md). Ohne
+// die Aufnahmen der Einmessung (ältere Wege, Seite neu geladen und nichts auf der Box) wie bisher nur der Hörplatz.
+// Weg der Nachmessung schon vor dem Aufbau von „nach“: feste Plätze, wenn die Messdaten dieser Runde sie haben
+function nachMehrPlaetze() { const r = aktuelleRunde(); return !!r && (nach.rundeId === r.id ? nachPlan().length > 1 : !!(messdaten && messdaten.id === r.id && messdaten.umgebung && messdaten.dateien.length > 1)); }
+function nachWegText() { return nachMehrPlaetze() ? "Miss dieselben Plätze wie beim Einmessen." : "Miss einmal am Hörplatz wie vorhin."; }
+function nachPlan() { const p = (nach.plan || []).filter((n) => nach.vorher[n]); return p.length > 1 ? p : [nach.haupt]; }
+function nachNaechster() { return nachPlan().find((n) => !nach.nachher[n]) || null; }
+function nachPlatzText(n) { return n === nachPlan()[0] ? "Handy in der Mitte, wie beim Einmessen." : n === "Mitte noch einmal" ? "Zurück in die Mitte, wie beim Einmessen."
+  : `Handy ${n} vom Kopf, gleicher Platz wie beim Einmessen.`; }
+function nachPlatzZeigen() {
+  const plan = nachPlan(), n = nachNaechster(), k = n ? plan.indexOf(n) : plan.length, mehr = plan.length > 1;
+  $("a-platz-satz").hidden = $("a-platz-bild").hidden = !mehr || !n;
+  $("a-weitere").hidden = mehr;
+  $("a-gleich").textContent = mehr ? `Dieselben ${plan.length} Plätze wie beim Einmessen, in derselben Reihenfolge. So prüfen wir, ob die Einmessung wirkt.` : "Gleicher Platz, gleiche Haltung wie vorhin.";
+  if (mehr && n) { $("a-platz-satz").textContent = `Platz ${k + 1} von ${plan.length}: ${nachPlatzText(n)}`; $("a-platz-bild").innerHTML = plaetzeBild(k - 1); }
+  $("a-messen").textContent = !mehr ? "Am Hörplatz nachmessen" : n ? `Platz ${k + 1} von ${plan.length} messen` : "Alle Plätze gemessen";
+  $("a-messen").disabled = !!nach.gesperrt || (mehr && !n);
+  // ab 3 Plätzen schon prüfen; nach allen Plätzen alles noch einmal von vorn
+  const gemessen = plan.filter((x) => nach.nachher[x]).length;
+  $("a-mit-diesen").hidden = !(mehr && n && gemessen >= 3); $("a-neu-nachmessen").hidden = !(mehr && !n);
+  $("a-plan-knoepfe").hidden = $("a-mit-diesen").hidden && $("a-neu-nachmessen").hidden;
+}
+$("a-mit-diesen").addEventListener("click", () => { if (!nach.misst) pruefen(); });
+$("a-neu-nachmessen").addEventListener("click", () => { if (nach.misst) return; nach.nachher = {}; urteilVerwerfen(); $("a-status").textContent = ""; plaetzeZeigen(); });
 function plaetzeZeigen() {
+  nachPlatzZeigen();
   const namen = Object.keys(nach.nachher);
   $("a-plaetze").innerHTML = namen.map((n) => `<li><span><b>${esc(n)}</b> · vorher ✓ · nachher ✓</span><button class="klein zweit" type="button" data-nach-weg="${esc(n)}" aria-label="${esc(n)} entfernen">✕</button></li>`).join("")
     + (nach.extraName && !nach.nachher[nach.extraName] ? `<li><span><b>${esc(nach.extraName)}</b> · vorher ✓ · nachher fehlt</span></li>` : "");
@@ -10868,10 +11046,10 @@ function boxSofortLaden() {
   anwendenArt = "box"; setzeQuelle("box"); zeigeSchritt(10);
   if (boxModus(r) && r.box_geladen !== r.id) $("a-box-senden").click();
 }
-async function nachAufnahme(ui, mitEinstellungen = true) {
+async function nachAufnahme(ui, mitEinstellungen = true, titel = null) {
   const r = aktuelleRunde(), kanaele = (r && r.kanaele) || K2;
   if (kanaele.length === 4 && quelle !== "box") { $("a-status").innerHTML = `<span class="warn">Diese Runde wurde über die Klång-Box mit vier Kanälen gemessen. Bitte in Schritt 3 „Über die Klång-Box“ wählen.</span>`; return null; }
-  const d = await aufnehmen({ status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen", kanaele, mitEinstellungen, lage: { titel: "Nachmessen · Hörplatz", art: "platz" } }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
+  const d = await aufnehmen({ status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen", kanaele, mitEinstellungen, lage: { titel: titel || "Nachmessen · Hörplatz", art: "platz" } }, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
   if (!d) return null;
   $("a-status").innerHTML = `<span class="laeuft">Prüfe die Aufnahme…</span>`;
   const p = await imWorker({ art: "pruefen", daten: d, kanaele });
@@ -10881,9 +11059,16 @@ async function nachAufnahme(ui, mitEinstellungen = true) {
 }
 $("a-vorher-messen").addEventListener("click", async () => {
   const d = await nachAufnahme("a-vorher-messen", false); if (!d) return;
-  nach.vorher[nach.haupt] = d; urteilVerwerfen(); $("a-vorher-zeile").hidden = true; $("a-messen").disabled = false; plaetzeZeigen();
+  nach.vorher[nach.haupt] = d; nach.plan = []; urteilVerwerfen(); $("a-vorher-zeile").hidden = true; nach.gesperrt = false; plaetzeZeigen();
 });
-$("a-messen").addEventListener("click", async () => { const d = await nachAufnahme("a-messen"); if (!d) return; nach.nachher[nach.haupt] = d; urteilVerwerfen(); plaetzeZeigen();
+$("a-messen").addEventListener("click", async () => {
+  if (nach.misst) return;  // Aufnahme wird noch geprüft: nie zwei Plätze zugleich
+  const plan = nachPlan(), name = nachNaechster() || nach.haupt, k = plan.indexOf(name);
+  nach.misst = true; let d;
+  try { d = await nachAufnahme("a-messen", true, plan.length > 1 ? `Nachmessen · Platz ${k + 1} von ${plan.length} · ${name}` : null); } finally { nach.misst = false; }
+  if (!d) { plaetzeZeigen(); return; }
+  nach.nachher[name] = d; urteilVerwerfen(); plaetzeZeigen();
+  if (nachNaechster()) { $("a-status").innerHTML += ` Weiter mit Platz ${k + 2}.`; return; }  // derselbe Messplan wie beim Einmessen
   if (!nach.extraName) await pruefen();  // von selbst prüfen: kein zweiter Tipp (Ablaufprüfung P2-13)
 });
 $("a-extra-vorher").addEventListener("click", async () => {
@@ -10906,11 +11091,13 @@ function rundeRechenModus(r, geraet = false) { const e = geraet ? r.geraet : r.e
 async function pruefen() {
   const r = aktuelleRunde(); if (!r) return;
   const ohneBox = anwendenArt === "geraet", sq = anwendenArt === "wiim" && typeof SEQ !== "undefined" ? SEQ.einstellungenFuer(r) : null, namen = [nach.haupt, ...Object.keys(nach.nachher).filter((n) => n !== nach.haupt)].filter((n) => nach.vorher[n] && nach.nachher[n]);
+  // vorher auch die zweite Messung der Mitte: ihre Streuung ist die Toleranz der Prüfung (analyse.js wiederholStreuung)
+  const vorherNamen = namen.concat(nach.vorher["Mitte noch einmal"] && !namen.includes("Mitte noch einmal") ? ["Mitte noch einmal"] : []);
   $("a-pruefen").disabled = true; $("a-urteil").innerHTML = "";
   $("a-status").innerHTML = `<span class="laeuft">Vergleiche vorher und nachher…</span>`;
   // mit dem Ziel, mit dem die Runde gerechnet ist (Kino an 2.0 seit 09.11.2026: Stereo; ältere Runden: Kino)
   const res = await imWorker({ art: "nachpruefen", modus: rundeRechenModus(r, ohneBox), raumM3: +$("raum").value || null, kanaele: r.kanaele || K2, mikrofon: mikroProfil(),
-    vorher: namen.map((n) => ({ name: n, daten: nach.vorher[n] })), nachher: namen.map((n) => ({ name: n, daten: nach.nachher[n] })),
+    vorher: vorherNamen.map((n) => ({ name: n, daten: nach.vorher[n] })), nachher: namen.map((n) => ({ name: n, daten: nach.nachher[n] })),
     einstellungen: ohneBox ? {} : sq ? { FL: sq.FL, FR: sq.FR } : r.e.einstellungen, profil: ohneBox ? null : sq ? sq.profil : (r.profil || null), sitzmodus: (ohneBox ? r.geraet.sitzmodus : r.e.sitzmodus) || "allein",
     akzeptiert: abwaegungAkzeptiert(r, ohneBox ? "geraet" : "box"),
     geraet: ohneBox ? r.geraet_profil : null, geraetAlt: ohneBox ? r.geraet.aktuell.werte : null, geraetNeu: ohneBox ? r.geraet.geraet_einstellungen.werte : null });
@@ -10929,6 +11116,7 @@ async function pruefen() {
   }
   if (r.urteil.empfehlung === "behalten" && anwendenArt === "box") { schreiben(bKey(r.modus), JSON.stringify(exportObjekt(r, "bestaetigt", r.e.einstellungen, r.profil))); }
   rundeSpeichern(); anwendenZeigen();  // Fertig: Titel, Leiste und Urteil oben (Ablaufprüfung P1-1)
+  if (anwendenArt === "box") pruefungHochladen(r, { ...nach.nachher });  // im Hintergrund: die Nachmessung als Prüfung der Runde auf die Box
   // Hörprobe hat angepasst und es wurde schlechter: erst nur ihre Anpassung zurücknehmen, dann neu prüfen (hoerprobe.js)
   if (!ohneBox && typeof hoerprobeNachUrteil === "function" && await hoerprobeNachUrteil(r)) return;
   // Pflicht-Nachmessung fertig: die Klång-Box bestätigen oder zurücknehmen lassen
@@ -10982,6 +11170,19 @@ document.addEventListener("click", (ev) => {
   herunterladen({ art: "klangbox-nachpruefung", version: 1, anlage: r.anlage, modus: r.modus, zeit: new Date().toISOString(), empfehlung: r.urteil.empfehlung,
     nachpruefung: { vergleich: r.urteil.vergleich } }, "klangbox-vergleich.json");
 });
+// Prüfung: wirkt die Einmessung wie geplant? (analyse.js pruefungRechnen) Das Urteil oben, Zahlen zum Aufklappen
+function pruefungHtml(u) {
+  const p = u.pruefung; if (!p) return "";
+  const kach = Object.values(p.kacheln).map((k) => `<tr><td>${esc(k.titel)}</td><td class="n" style="color: var(--kb-signal-text)">${k.prognose}</td><td class="n">${k.ist}</td></tr>`).join("");
+  const ab = ["FL", "FR"].map((ch) => `<p class="klein">${ch === "FL" ? "Links" : "Rechts"}: ${(p.groesste[ch] || []).map((b) => `${zk(b.band)} Hz ${zt(b.abweichung, 1, true)} dB${b.ok ? "" : " (zu viel)"}`).join(", ") || "–"}</p>`).join("");
+  // „wie geplant“ und trotzdem zurück (Bass, Raummode oder Präsenz an einem Platz): nicht grün, mit Erklärung
+  const widerspruch = p.urteil === "wie_geplant" && u.empfehlung === "zuruecknehmen";
+  return `<div class="kasten" id="a-pruefung"><b class="${p.urteil === "wie_geplant" && !widerspruch ? "ok" : "warn"}">${esc(p.satz)}</b>${widerspruch
+    ? `<p class="klein" id="a-pruefung-trotzdem">Im Mittel wirkt es wie geplant, an einer Stelle ist es aber schlechter als vorher (siehe oben). Darum bleibt der alte Stand.</p>` : ""}
+    <details><summary>Geplant und gemessen ${p.plaetze === 1 ? "am Hörplatz" : `an ${p.plaetze} Plätzen`}</summary>
+    <div class="tabelle"><table><thead><tr><th>Wert</th><th class="n">geplant</th><th class="n">gemessen</th></tr></thead><tbody><tr><td>Gesamt</td><td class="n" style="color: var(--kb-signal-text)">${zt(p.gesamt.prognose, 0)}</td><td class="n">${zt(p.gesamt.ist, 0)}</td></tr>${kach}</tbody></table></div>
+    <p class="klein">Größte Unterschiede je Tonhöhe, gemessen minus geplant. Kleine Unterschiede sind normal: So viel streut schon deine zweite Messung in der Mitte.</p>${ab}</details></div>`;
+}
 function urteilZeigen(r) {
   const u = r.urteil;
   if (!u || u.art !== anwendenArt) { $("a-urteil").innerHTML = ""; return; }
@@ -10992,7 +11193,7 @@ function urteilZeigen(r) {
     u.profil_pruefung.baender.map((b) => `<tr><td>${esc(b.band)}${b.nur_info ? " (Info)" : ""}</td><td class="n ${b.ok ? "ok" : "warn"}">${zt(b.abweichung_db, 1, true)} dB</td><td class="n">±${zt(b.toleranz_db)}</td></tr>`).join("")}</tbody></table></div>
     <p class="klein">Neigung 300 Hz – 10 kHz: ${zt(u.profil_pruefung.neigung.ist_db_okt, 1, true)} dB/Oktave, Ziel mit Profil ${zt(u.profil_pruefung.neigung.soll_db_okt, 1, true)}. ${esc(u.profil_pruefung.hinweis)}</p></details>` : "";
   const boxZeile = u.box ? `<p class="${u.box.ok ? "ok" : "warn"}" id="a-box-urteil" style="font-size:15px">${esc(u.box.text)}</p>` : "";
-  const hinweise = u.hinweise.filter((h) => !/^Profilprüfung|^Prognose und Messung/.test(h)).map((h) => `<p class="klein warn">${esc(h)}</p>`).join("") + vergleichHtml(u);
+  const hinweise = pruefungHtml(u) + u.hinweise.filter((h) => !/^Profilprüfung|^Prognose und Messung/.test(h)).map((h) => `<p class="klein warn">${esc(h)}</p>`).join("") + vergleichHtml(u);
   if (u.empfehlung === "behalten") {
     // Ohne App (Browser): die Box erfährt das Ergebnis über die Bedienseite („Ergebnis übernehmen“)
     // Ohne App: die Box erfährt das Ergebnis über das Box-Symbol – ein geführter Schritt wie beim Laden (Ablaufprüfung P2-17)
@@ -11001,7 +11202,7 @@ function urteilZeigen(r) {
       <li><b>Box-Symbol öffnen und Einfügen</b><span class="klein">„Ergebnis übernehmen“ tippen, ins Feld tippen, „Einfügen“. Dann bleibt die Einmessung in der Box.</span></li></ol>
       <button type="button" class="weiter" id="a-best-kopieren">Kopieren: in der Box bestätigen</button><div id="a-best-export"></div></div>` : "";
     $("a-urteil").innerHTML = `<section class="card urteil gut"><span class="marke" style="color: var(--kb-text)">Nachgemessen</span><h2>✓ ${esc(u.satz)}</h2>
-      <div class="wirkung"><span class="gross zahl">${zt(u.score_nachher, 0)}</span><span class="klein">${esc(r.e.score_name)} gemessen ${u.je_platz && u.je_platz.length > 1 ? `an ${u.je_platz.length} Plätzen` : "am Hörplatz"}: vorher ${zt(u.score_vorher, 0)}, jetzt ${zt(u.score_nachher, 0)}. Die Prognose war ${u.art === "wiim" && u.vergleich && u.vergleich.score ? Math.round(u.vergleich.score.vorhergesagt) : r.e.score_prognose.gesamt}${r.e.score_heute.gesamt !== Math.round(u.score_vorher) ? `, heute ${r.e.score_heute.gesamt} (mit allen Plätzen der Einmessung)` : ""}.</span></div>
+      <div class="wirkung"><span class="gross zahl">${zt(u.score_nachher, 0)}</span><span class="klein">${esc(r.e.score_name)} gemessen ${u.je_platz && u.je_platz.length > 1 ? `an ${u.je_platz.length} Plätzen` : "am Hörplatz"}: vorher ${zt(u.score_vorher, 0)}, jetzt ${zt(u.score_nachher, 0)}. Die Prognose war ${u.pruefung ? Math.round(u.pruefung.gesamt.prognose) : u.art === "wiim" && u.vergleich && u.vergleich.score ? Math.round(u.vergleich.score.vorhergesagt) : r.e.score_prognose.gesamt}${r.e.score_heute.gesamt !== Math.round(u.score_vorher) ? `, heute ${r.e.score_heute.gesamt} (mit allen Plätzen der Einmessung)` : ""}.</span></div>
       ${avGehoert(r) ? `<p class="${avSchlecht(r) ? "warn" : "ok"}" id="a-gehoert" style="font-size:15px">${esc(avGehoert(r))}</p>` : ""}${boxZeile}${fuerBox}
       <button type="button" class="${fuerBox ? "zweit" : "weiter"}" data-zu="18" data-zh-nach="${boxBereit() ? "hoeren" : "einmessen"}" id="a-fertig-zuhause">Fertig – zu ${boxBereit() ? "Hören" : "Einmessen"}</button>
       <div class="zeilen a-freiwillig">${u.art === "wiim" ? `<p class="klein ok">✓ Im ${esc(streamerName())} übernommen${r.wiim_datum ? ` am ${esc(new Date(r.wiim_datum).toLocaleDateString("de-DE"))}` : ""}.</p>` : ""}${u.art === "box" && !boxBereit() ? `<button type="button" class="leise" data-sheet-block="ab-hilfe" data-sheet-titel="Blindtest über das Box-Symbol">Hör den Unterschied (Blindtest über das Box-Symbol)</button>` : ""}${u.art === "box" && boxBereit() && !avGehoert(r) ? `<button type="button" class="leise" data-sheet-block="ab-kuh" data-sheet-titel="Hör den Unterschied">Hör den Unterschied (Blindtest, freiwillig)</button>` : ""}${u.art === "box" && boxBereit() ? `<button type="button" class="leise" data-zu="9">Klang nach Geschmack anpassen (freiwillig)</button>` : ""}</div>
@@ -11959,6 +12160,33 @@ function zhKarteInhalt(id) {
     <span class="zh-score"><span class="h">${links}</span> <em>→</em> <span class="b">${rechts}</span></span>
     <span class="klein ${ok ? "ok" : "warn"}">${ok ? "nachgemessen ✓" : r.status === "zurueckgenommen" ? "nachgemessen · zurückgenommen" : "Prognose · Nachmessung steht aus"} · ${esc(tag)}${box && box.eingemessen ? " · auf der Box" : ""}</span>${zhStreamerZeile(r, m)}</div>`;
 }
+// Leitung vom Zuspieler (status.eingang.leitung, Box: leitung.py; Nutzer 14.11.2026: Audio-Cinchkabel statt 75 Ohm, Knackser
+// im Film): ein ruhiger Hinweis unter Box, auf Hören nur ein kleiner Verweis. Reine Anzeige. Schließbar für die Sitzung; ein
+// neuer Hinweis (anderes „seit“) zeigt sich wieder.
+let leitungZuMerk = null;
+const leitungZuKey = (l) => `leitung:${(l && l.seit) || "?"}`;
+function leitungHinweis(st) {
+  const l = st && st.eingang && st.eingang.leitung;
+  if (!l || l.hinweis !== true || zh.blind) return null;
+  let zu = leitungZuMerk;
+  try { zu = sessionStorage.getItem("klangbox-leitung-zu") || zu; } catch (e) { /* ohne Sitzungsspeicher: nur im Speicher */ }
+  return zu === leitungZuKey(l) ? null : l;
+}
+function leitungText(art) {
+  const tipp = art === "optisch" ? "Meist hilft: das optische Kabel nicht knicken und die Stecker ganz einrasten (Schutzkappen ab)."
+    : art === "koaxial" ? "Meist hilft ein Digitalkabel mit 75 Ohm statt eines normalen Audio-Cinchkabels und fest sitzende Stecker."
+    : "Meist hilft ein Digitalkabel mit 75 Ohm (koaxial) und fest sitzende Stecker; optisch: Kabel nicht knicken, Stecker ganz einrasten.";
+  return `Die Leitung vom Zuspieler hat Aussetzer – das kann kurz knacken. ${tipp} Am Ton der Box ändert das nichts.`;
+}
+function leitungHtml(st) {
+  const l = leitungHinweis(st); if (!l) return "";
+  return `<div class="box-leitung" id="zh-leitung" role="note"><p class="klein"><i aria-hidden="true"></i>${esc(leitungText(l.art))}</p><button type="button" class="kb-link klein" data-leitung-zu="${esc(leitungZuKey(l))}" aria-label="Hinweis zur Leitung ausblenden">Ausblenden</button></div>`;
+}
+document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-leitung-zu]"); if (!b) return;
+  leitungZuMerk = b.dataset.leitungZu;
+  try { sessionStorage.setItem("klangbox-leitung-zu", leitungZuMerk); } catch (e) { /* nur im Speicher */ }
+  document.querySelectorAll("#zh-leitung, .zh-leitung-punkt").forEach((x) => x.remove());
+  if (typeof zuhauseZeigen === "function") try { zuhauseZeigen(false); } catch (e) { /* nächster Status zeichnet neu */ } });
 // Hören bei Film: Fernseher am Eingang mit Format und Weg auf die Anlage, Empfehlung am Bereich (kleiner Ring), Lippen-Sync
 function hoerenFilm(boxDa, st) {
   const e = (st && st.eingang) || {}, film = !!(boxDa && st && st.quelle === "spdif" && e.signal !== false && !(st.streamer && st.streamer.spielt));
@@ -11967,7 +12195,9 @@ function hoerenFilm(boxDa, st) {
     const fmt = e.format && e.format !== "pcm2" ? `${FORMATE[e.format] || esc(e.format)}${e.kanaele ? ` ${esc(e.kanaele)}` : ""}` : "Stereo (PCM)";
     const p = st.profil_aktiv ? profilInfo(st.profil_aktiv, zhLayout()) : null;
     const zeile = [st.layout && e.kanaele && e.kanaele !== st.layout ? `auf deine ${esc(st.layout)}` : "", p ? `${esc(p.name)} spielt${boxHatEinmessung(st, st.profil_aktiv) ? "" : " ohne Einmessung"}` : ""].filter(Boolean).join("&nbsp;· ");
-    const html = `<b class="zh-film-titel">Fernseher&nbsp;· ${fmt}</b>${zeile ? `<span class="klein">${zeile}</span>` : ""}`;
+    // Leitung mit Aussetzern: nur ein kleiner Punkt mit Verweis auf Box (dort steht der Hinweis)
+    const leitung = leitungHinweis(st) ? `<button type="button" class="kb-link klein zh-leitung-punkt" data-zh-tab="box"><i aria-hidden="true"></i>Leitung prüfen, siehe Box</button>` : "";
+    const html = `<b class="zh-film-titel">Fernseher&nbsp;· ${fmt}</b>${zeile ? `<span class="klein">${zeile}</span>` : ""}${leitung}`;
     if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
     $("zh-lippen-h-wert").textContent = `· ${zk(lippenMs(st), 0)} ms`;
   }
@@ -12006,11 +12236,11 @@ function boxStatusHtml(st) {
   const kein = !streamer && e.signal === false;
   const satz = st.zustand === "fehler" ? "Die Box braucht Hilfe." : warn.length || sats.length || stickProblem ? "Etwas stimmt nicht, siehe oben." : aus ? "Die Box ist aus."
     : kein ? "Bereit. Gerade kommt kein Ton." : st.zustand === "neutral" ? "Spielt ohne Einmessung." : vorher ? "Spielt gerade ohne Korrektur (Vorher)." : "Ton kommt sauber an.";
-  // Fehler im Ton: kaputte Rahmen, verlorene Rahmen, Hänger. Die Sprünge des Knacks-Detektors (0.3.29) zählen hier noch
-  // nicht mit: Bericht 14.11.2026 (Kinderhörspiel, 5 min AirPlay) 23 Sprünge ohne bestätigtes Knacken, der Detektor ist
-  // für Sprache und Musik noch nicht geprüft. Sie stehen im Bericht.
-  const h = st.rahmen_sanft && st.rahmen_sanft.herkunft;
-  const fehler = h ? (+h.fehler || 0) + (+h.raster || 0) + (+h.haenger || 0) : null;
+  // Fehler im Ton: nur was die Box selbst verursacht hat (Dienst: ursache.py; Leitung, Umschalten und Kernel ausgeblendet,
+  // die Leitung meldet der Kabel-Hinweis darüber). Ältere Box ohne Zuordnung: wie bisher kaputte und verlorene Rahmen und
+  // Hänger (die Sprünge des Knacks-Detektors zählten dort nicht mit, Bericht 14.11.2026).
+  const h = st.rahmen_sanft && st.rahmen_sanft.herkunft, ur = st.rahmen_sanft && st.rahmen_sanft.ursache;
+  const fehler = ur && Number.isFinite(+ur.box) ? +ur.box : h ? (+h.fehler || 0) + (+h.raster || 0) + (+h.haenger || 0) : null;
   // Update nicht verstecken (Nutzer 14.11.2026): ein neues steht als Knopf direkt unter dem Zustand
   const upd = st.update || {}, updKnopf = upd.neuer && upd.verfuegbar && !upd.laeuft
     ? `<button type="button" class="zh-haupt box-update" id="zh-upd-kopf" data-sheet-block="zh-upd" data-sheet-titel="Updates">Update ${esc(upd.verfuegbar.version)} ansehen</button>` : "";
@@ -12018,7 +12248,7 @@ function boxStatusHtml(st) {
   const kachel = (titel, wert, klein) => `<div class="box-kachel"><span class="klein">${titel}</span><b>${wert}</b><span class="klein">${klein}</span></div>`;
   return `<div class="em-kopf"><span class="zh-raum-waehler"><span>Klång-Box&nbsp;· ${esc(MA.name || st.name || "")}</span></span><span class="klein">Version ${esc(st.version || "")}</span></div>
     <div class="box-zustand"><span class="klein box-laeuft"><i class="${aus || st.zustand === "fehler" ? "" : "an"}"></i>${aus ? "Aus" : `Läuft seit ${seit}`}</span><b class="box-satz">${satz}</b>${kein || aus ? "" : `<span class="klein">${weg}</span>`}</div>
-    <div class="box-kacheln">${kachel("Fehler im Ton", fehler == null ? "–" : fehler, "seit dem Start")}${kachel("Verzögerung", vz == null ? "–" : `${vz} ms`, "vom Eingang bis zum Ton")}${kachel("Temperatur", st.temperatur_c != null ? `${Math.round(+st.temperatur_c)} °C` : "–", "gesund bis 80")}</div>${updKnopf}`;
+    ${leitungHtml(st)}<div class="box-kacheln">${kachel("Fehler im Ton", fehler == null ? "–" : fehler, "seit dem Start")}${kachel("Verzögerung", vz == null ? "–" : `${vz} ms`, "vom Eingang bis zum Ton")}${kachel("Temperatur", st.temperatur_c != null ? `${Math.round(+st.temperatur_c)} °C` : "–", "gesund bis 80")}</div>${updKnopf}`;
 }
 // Einmessen auf einen Blick (Nutzer 13.11.2026: „zu lang, zu viel scrollen, auf einen Blick“; Entwurf A in der Sprache von Hören):
 // Kopf wie Hören, oranger Ring mit dem Raumklang, die Teilwerte (Bass, Bühne, Klang, Raum) in einer Reihe, die drei stärksten Funde mit Stärke, Bereich
@@ -12321,7 +12551,68 @@ async function mdDatei(runde, datei, u8) {
     if (!a.ok) throw new Error(a.fehler || a.grund || "Hochladen fehlgeschlagen");
   }
 }
-async function messdatenHochladen(r) {
+// voll ausgesteuert speichern (leise Aufnahmen verlieren sonst Auflösung), faktor stellt den Pegel wieder her
+function mdPcm(x) {
+  const pcm = new Int16Array(x.length); let spitze = 0;
+  for (let k = 0; k < x.length; k++) { const v = Math.abs(x[k]); if (v > spitze) spitze = v; }
+  const faktor = spitze > 0 && spitze <= 1 ? spitze / 32767 : 1 / 32767;
+  for (let k = 0; k < x.length; k++) pcm[k] = Math.max(-32767, Math.min(32767, Math.round((x[k] || 0) / faktor)));
+  return { u8: new Uint8Array(pcm.buffer), faktor };
+}
+async function mdHolen(runde, datei) {
+  const teile = []; let gesamt = 1;
+  for (let i = 0; i < gesamt; i++) { const h = await nativ.box("messdaten", { aktion: "holen", runde, datei, stueck: i }, { zeitMs: 15000 });
+    if (!h.ok) throw new Error(h.fehler || h.grund); gesamt = h.gesamt; teile.push(Uint8Array.from(atob(h.b64), (c) => c.charCodeAt(0))); }
+  const u8 = new Uint8Array(teile.reduce((n, t) => n + t.length, 0)); let o = 0; for (const t of teile) { u8.set(t, o); o += t.length; }
+  return u8;
+}
+// Die Nachmessung ist die Prüfung der Runde (Nutzer 14.11.2026): ihre Aufnahmen (n0.pcm …) und ihr Ergebnis (pruefung.json)
+// kommen zur Runde auf die Box; der Startbericht zeigt Prognose und Nachmessung. Je Runde gilt die letzte Prüfung.
+// Uploads einer Runde nie gleichzeitig (Runde und Prüfung teilen den Ordner auf der Box): eine Kette je Runde
+const mdKetten = {};
+function mdKette(id, fn) { const k = (mdKetten[id] || Promise.resolve()).then(fn, fn); mdKetten[id] = k.catch(() => {}); return k; }
+function pruefungHochladen(r, nachher) { return mdKette(r.id, () => pruefungHochladenJetzt(r, nachher)); }
+async function pruefungHochladenJetzt(r, nachher) {
+  if (!nativ || !boxBereit() || !r.urteil) return;
+  const namen = Object.keys(nachher).filter((n) => nachher[n]).slice(0, 12); if (!namen.length) return;
+  if (r.messdaten_box !== r.id) await messdatenHochladenJetzt(r);
+  if (r.messdaten_box !== r.id) { meldeBox("fehler", { bereich: "Messdaten", text: "Prüfung nicht auf die Box geladen: Die Messdaten der Runde fehlen dort." }); return; }
+  try {
+    const plaetze = [];
+    for (let i = 0; i < namen.length; i++) { const { u8, faktor } = mdPcm(nachher[namen[i]]); await mdDatei(r.id, `n${i}.pcm`, u8); plaetze.push({ name: namen[i], datei: `n${i}.pcm`, rate: 48000, faktor }); }
+    const u = r.urteil;
+    await mdDatei(r.id, "pruefung.json", new TextEncoder().encode(JSON.stringify({ runde: r.id, zeit: new Date().toISOString(), art: u.art, empfehlung: u.empfehlung, satz: u.satz,
+      score_vorher: u.score_vorher, score_nachher: u.score_nachher, kacheln: u.kacheln, pruefung: u.pruefung || null, plaetze: namen })));
+    const a = await nativ.box("messdaten", { aktion: "pruefung", runde: r.id, meta: { plaetze, datum: new Date().toISOString(), urteil: u.pruefung ? u.pruefung.urteil : null, empfehlung: u.empfehlung } }, { zeitMs: 15000 });
+    if (!a.ok) throw new Error(a.fehler || a.grund);
+    r.pruefung_box = r.id; rundeSpeichern();
+  } catch (e) { meldeBox("fehler", { bereich: "Messdaten", text: "Prüfung: " + String(e && e.message || e).slice(0, 200) }); }
+}
+// Seite neu geladen (oder später nachgemessen): die Aufnahmen der Einmessung von der Box zurückholen, dann gilt wieder
+// derselbe Messplan wie beim Einmessen
+let nachVonBox = null;
+const nachVonBoxGescheitert = {};  // je Runde nur ein Versuch (5 Aufnahmen sind etwa 18 MB), bis die Seite neu lädt
+async function nachVorherVonDerBox(r) {
+  if (!nativ || !boxBereit() || r.messdaten_box !== r.id || nachVonBox === r.id || nachVonBoxGescheitert[r.id]) return;
+  nachVonBox = r.id;
+  try {
+    const m = await nativ.box("messdaten", { aktion: "meta", runde: r.id }, { zeitMs: 8000 });
+    if (!m.ok || !m.meta || !Array.isArray(m.meta.plaetze) || m.meta.plaetze.some((p) => p.rate !== 48000)) { nachVonBoxGescheitert[r.id] = true; return; }
+    const vorher = {};
+    for (const p of m.meta.plaetze) {
+      const u8 = await mdHolen(r.id, p.datei), pcm = new Int16Array(u8.buffer, 0, u8.length >> 1), x = new Float32Array(pcm.length);
+      for (let k = 0; k < pcm.length; k++) x[k] = pcm[k] * p.faktor;
+      vorher[p.name] = x;
+    }
+    if (nach.rundeId !== r.id || nach.vorher[nach.haupt] || !vorher[nach.haupt]) return;
+    nach.vorher = vorher; nach.plan = m.meta.umgebung ? m.meta.plaetze.map((p) => p.name) : [];
+    $("a-vorher-zeile").hidden = true; nach.gesperrt = boxModus(r) && r.box_geladen !== r.id; plaetzeZeigen();
+    $("a-status").innerHTML = `<span class="ok">✓ Die Messung vom Einmessen kam von der Klång-Box zurück.</span>`;
+  } catch (e) { nachVonBoxGescheitert[r.id] = true; meldeBox("fehler", { bereich: "Messdaten", text: "Zurückholen: " + String(e && e.message || e).slice(0, 150) }); }
+  finally { nachVonBox = null; }
+}
+function messdatenHochladen(r) { return mdKette(r.id, () => messdatenHochladenJetzt(r)); }
+async function messdatenHochladenJetzt(r) {
   const m = messdaten;
   if (r.messdaten_box === r.id) return;
   // Bericht 07.11.2026: die Runde kam nie auf die Box, ohne Meldung. Jetzt steht der Grund im Bericht.
@@ -12331,12 +12622,8 @@ async function messdatenHochladen(r) {
   try {
     const plaetze = [];
     for (let i = 0; i < m.dateien.length; i++) {
-      // voll ausgesteuert speichern (leise Aufnahmen verlieren sonst Auflösung), faktor stellt den Pegel wieder her
-      const x = m.dateien[i].daten, pcm = new Int16Array(x.length); let spitze = 0;
-      for (let k = 0; k < x.length; k++) { const v = Math.abs(x[k]); if (v > spitze) spitze = v; }
-      const faktor = spitze > 0 && spitze <= 1 ? spitze / 32767 : 1 / 32767;
-      for (let k = 0; k < x.length; k++) pcm[k] = Math.max(-32767, Math.min(32767, Math.round((x[k] || 0) / faktor)));
-      await mdDatei(r.id, `p${i}.pcm`, new Uint8Array(pcm.buffer));
+      const { u8, faktor } = mdPcm(m.dateien[i].daten);
+      await mdDatei(r.id, `p${i}.pcm`, u8);
       plaetze.push({ name: m.dateien[i].name, datei: `p${i}.pcm`, rate: 48000, faktor });
     }
     await mdDatei(r.id, "runde.json", new TextEncoder().encode(JSON.stringify(r)));
@@ -12367,6 +12654,10 @@ async function rundenVonDerBox() {
   if (neu) { runden.sort((a, b) => String(b.id).localeCompare(String(a.id))); runden = rundenBehalten(); schreiben("raumcheck-runden", JSON.stringify(runden)); zuhauseZeigen(false); }
 }
 // Hör-Schalter: je Gruppe ein Segment; die Box lädt die Variante, die Wächter prüfen sie (klangbox/feinabstimmung.py)
+// Hilfe zum Hör-Schalter „Musik ↔ Film“ (musikAusgleichHtml, Fenster Klang)
+const MA_HILFE = "Musik so laut wie Filme beim selben Regler. Lauter? Einfach hochdrehen.";
+// Führt der Verstärker (Vorstufe, Box fest), gilt immer der volle Versatz (box._ma_kurve; Prüfer 15.11.2026, gewollt)
+const MA_HILFE_VORSTUFE = "Regelt der Verstärker die Lautstärke, ist Musik immer gleich viel leiser, lauter geht es am Verstärker. Aus: Musik wieder unverändert (bitgenau).";
 const HS_STANDARD = { stimme: "gemessen", bereich: null, bass: "voll", mitte: "ausgerichtet", anpassung: "geladen", ziel: "stereo" };
 const HS_GRUPPEN = [
   ["bereich", "Bereich", [[90, "90 Hz"], [150, "150 Hz"], [null, "Voll"]], "Bereich: bis zu welcher Tonhöhe die Einmessung den Raum ausgleicht. 90 und 150 Hz lassen Stimmen ganz unberührt, Voll gleicht bis 300 Hz aus."],
@@ -12389,7 +12680,9 @@ function hsZeigen() {
     <div class="seg" role="group" aria-label="${titel}">${werte.filter(([w]) => (w !== "je_seite" || (zh.st && zh.st.hoerschalter_voll) || s[k] === w)
       && (w !== "teil" || (zh.st && zh.st.hoerschalter_teil) || s[k] === w)).map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="${s[k] === w}">${t}</button>`).join("")}</div></div>`).join("");
   $("zh-schalter-hilfe").innerHTML = gruppen.concat(hsDa && kinoLinieDa() ? [HS_ZIEL] : []).map(([, , , hilfe]) => `<p class="klein">${hilfe}</p>`).join("") + `<p class="klein">Nachtmodus: leise Stellen lauter, laute leiser.</p>`
+    + (zh.st && zh.st.modus === "kino" ? `<p class="klein">Couch: Stimme vorne, große Szenen nicht mehr so viel lauter. Gleich laut wie ohne. Nur im Kino.</p>` : "")
     + (zh.st && zh.st.vorne_hinten && (zh.st.vorne_hinten.moeglich || zh.st.vorne_hinten.an) ? `<p class="klein">Vorne ↔ Hinten: Sitzt du andersherum (Bild an der Rückwand), spielen die Rear-Boxen vorne und die Fronts hinten. Nur mit Rear-Boxen.</p>` : "")
+    + `<p class="klein">Musik ↔ Film: ${MA_HILFE} ${MA_HILFE_VORSTUFE}</p>`
     + `<p class="klein">Hintergrund: Musik nebenbei, etwa am Esstisch. Leiser, Gespräche fallen leichter. Bass bleibt, nur das Dröhnen geht. Nur bei Musik.</p>`;
   $("zh-schalter-zurueck").hidden = !hsDa;
   $("zh-schalter-zurueck").disabled = HS_GRUPPEN.concat([HS_ANPASSUNG, HS_ZIEL]).every(([k]) => s[k] === HS_STANDARD[k]);
@@ -12398,6 +12691,7 @@ function hsZeigen() {
 }
 // Im Fenster Klang: Räumlichkeit (nur Kino) und Nachtmodus (POST /api/inhalt); früher Kacheln im Box-Reiter
 const RAEUMLICH = ["aus", "wenig", "mittel", "viel"];
+const COUCH = ["Aus", "Leicht", "Mittel", "Stark"];
 // „Vorne ↔ Hinten“ (status.vorne_hinten, POST /api/inhalt {vorne_hinten}; plan.vorne_hinten_tausch): Bild an der Rückwand,
 // man dreht sich um. Nur mit Rears im Layout, sonst ausgegraut mit Grund; kostet der Tausch Lippen-Sync (neue Fronts über Funk), steht es darunter.
 function vorneHintenHtml(st, boxDa) {
@@ -12426,30 +12720,52 @@ function hintergrundHtml(st, boxDa) {
     <div class="seg" role="group" aria-labelledby="zh-hg-label"><button type="button" data-zh-inhalt="hintergrund" data-wert="0" aria-pressed="${!an}">Aus</button><button type="button" data-zh-inhalt="hintergrund" data-wert="1" aria-pressed="${an}">An</button></div>
     <p class="klein" id="zh-hg-text">${esc(text)}</p></div>`;
 }
+// „Musik ↔ Film“ (status.musik_ausgleich, POST /api/musik_ausgleich {an}; Besitzer 14.11.2026, ab Werk an): Musik der
+// eigenen Streamer so laut wie Filme beim selben Regler (Versatz am Hauptregler, der Regler bleibt stehen).
+function musikAusgleichHtml(st, boxDa) {
+  const ma = st.musik_ausgleich; if (!boxDa || !ma || ma.grund === "satellit") return "";  // Satellit: regelt die Hauptbox
+  const db = Math.round(Math.abs(+ma.db || 0));
+  const text = ma.wirkt && db ? `${MA_HILFE} Gerade ${db} dB leiser.` : MA_HILFE;
+  return `<div class="kb-gruppe" id="zh-ma"><span class="kb-label" id="zh-ma-label">Musik ↔ Film</span>
+    <div class="seg" role="group" aria-labelledby="zh-ma-label"><button type="button" data-zh-ma="0" aria-pressed="${!ma.an}">Aus</button><button type="button" data-zh-ma="1" aria-pressed="${!!ma.an}">Gleich laut</button></div>
+    <p class="klein" id="zh-ma-text">${esc(text)}</p></div>`;
+}
 function inhaltZeigen() {
   const st = zh.st || {}, inh = st.inhalt || {}, boxDa = boxBereit(), kino = st.modus === "kino";
   const raum = boxDa && kino ? `<div class="kb-gruppe zeile" id="zh-raum"><span class="kb-label">Räumlich</span>
     <div class="seg" role="group" aria-label="Räumlichkeit">${RAEUMLICH.map((t, i) => `<button type="button" data-zh-inhalt="raeumlichkeit" data-wert="${i}" aria-pressed="${(inh.raeumlichkeit ?? 1) === i}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div></div>` : "";
   const nacht = boxDa ? `<div class="kb-gruppe zeile" id="zh-nacht"><span class="kb-label">Nacht</span>
     <div class="seg" role="group" aria-label="Nachtmodus"><button type="button" data-zh-inhalt="nachtmodus" data-wert="0" aria-pressed="${!inh.nachtmodus}">Aus</button><button type="button" data-zh-inhalt="nachtmodus" data-wert="1" aria-pressed="${!!inh.nachtmodus}">An</button></div></div>` : "";
+  // „Couch“ (status.couch, POST /api/inhalt {couch: 0..3}; settings.COUCH_STUFEN): Stimme vorne, große Szenen enger. Nur im Kino
+  const co = inh.couch || 0;
+  const couch = boxDa && kino ? `<div class="kb-gruppe zeile" id="zh-couch"><span class="kb-label">Couch</span>
+    <div class="seg" role="group" aria-label="Couch">${COUCH.map((t, i) => `<button type="button" data-zh-inhalt="couch" data-wert="${i}" aria-pressed="${co === i}">${t}</button>`).join("")}</div></div>` : "";
   // Kaputte Mehrkanal-Rahmen vom Fernseher: hart stumm (Knack) oder sanft überbrücken (Nutzer 13.11.2026), ab Werk sanft
   const rs = st.rahmen_sanft;
   const sanft = boxDa && rs ? `<div class="kb-gruppe zeile" id="zh-sanft"><span class="kb-label">Fehler im Film-Ton</span>
     <div class="seg" role="group" aria-label="Kaputte Rahmen"><button type="button" data-zh-sanft="0" aria-pressed="${!rs.an}">Hart</button><button type="button" data-zh-sanft="1" aria-pressed="${!!rs.an}">Sanft</button></div>
     ${rs.aus_grund ? `<span class="klein warn">Die Box hat „Sanft“ ausgeschaltet: ${esc(rs.aus_grund)}.</span>` : ""}</div>` : "";
-  $("zh-inhalt-gruppen").innerHTML = raum + nacht + sanft + hintergrundHtml(st, boxDa) + vorneHintenHtml(st, boxDa);
+  $("zh-inhalt-gruppen").innerHTML = raum + nacht + couch + sanft + musikAusgleichHtml(st, boxDa) + hintergrundHtml(st, boxDa) + vorneHintenHtml(st, boxDa);
   const r = letzteRunde(modus), ok = !!(r && r.status === "bestaetigt"), k = $("zh-klang");
   k.disabled = !boxDa || !ok; k.textContent = ok ? `Klangprofil · ${(r.profil && r.profil.name) || "Neutral"}` : "Klangprofil · nach der Nachmessung";
 }
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-zh-inhalt]"); if (!b || b.getAttribute("aria-pressed") === "true") return;
   const st = zh.st || {}, inh = st.inhalt || {}, w = +b.dataset.wert;
-  const art = b.dataset.zhInhalt, neu = art === "nachtmodus" || art === "vorne_hinten" || art === "hintergrund" ? { [art]: !!w } : { raeumlichkeit: w };
+  const art = b.dataset.zhInhalt, neu = art === "nachtmodus" || art === "vorne_hinten" || art === "hintergrund" ? { [art]: !!w } : art === "couch" ? { couch: w } : { raeumlichkeit: w };
   const a = await nativ.box("inhalt", { profil: inh.profil || "Film", raeumlichkeit: inh.raeumlichkeit ?? 1, ...neu }, { zeitMs: 6000 });
-  if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt, ...(a.vorne_hinten ? { vorne_hinten: a.vorne_hinten } : {}), ...(a.hintergrund ? { hintergrund: a.hintergrund } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); klangZeileZeigen(); }
+  if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt, ...(a.vorne_hinten ? { vorne_hinten: a.vorne_hinten } : {}), ...(a.hintergrund ? { hintergrund: a.hintergrund } : {}), ...(a.couch ? { couch: a.couch } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); klangZeileZeigen(); }
   else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
 $("zh-klang").addEventListener("click", () => { const r = letzteRunde(modus); if (r && r.status === "bestaetigt") { anwendenArt = "box"; zeigeSchritt(9); } });
+$("zh-inhalt-gruppen").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-zh-ma]"); if (!b || !nativ || !boxBereit()) return;
+  const an = b.dataset.zhMa === "1";
+  if (zh.st && zh.st.musik_ausgleich && zh.st.musik_ausgleich.an === an) return;
+  const a = await nativ.box("musik_ausgleich", { an }, { zeitMs: 6000 });
+  if (a.ok && a.musik_ausgleich) { zh.st = { ...(zh.st || {}), musik_ausgleich: a.musik_ausgleich }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); }
+  else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+});
 $("zh-inhalt-gruppen").addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-zh-sanft]"); if (!b || !nativ || !boxBereit()) return;
   const an = b.dataset.zhSanft === "1";
@@ -12526,7 +12842,8 @@ function klangZeileZeigen() {
   const rest = HS_GRUPPEN.slice(2).concat([HS_ANPASSUNG, HS_ZIEL]).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name).filter(Boolean);
   const teile = [name(HS_GRUPPEN[1])].concat(rest.length ? rest : ["Wie gemessen"]).filter(Boolean);
   const vh = (st.vorne_hinten && st.vorne_hinten.an ? " · Vorne ↔ Hinten" : "")  // auch auf Hören sichtbar, solange getauscht
-    + (st.inhalt && st.inhalt.hintergrund ? " · Hintergrund" : "");
+    + (st.inhalt && st.inhalt.hintergrund ? " · Hintergrund" : "")
+    + (st.modus === "kino" && st.inhalt && st.inhalt.couch ? ` · Couch ${["", "leicht", "mittel", "stark"][st.inhalt.couch] || ""}` : "");
   $("zh-klang-wert").textContent = st.hoerschalter ? `· ${teile.join(" · ")}${vh}` : vh;
 }
 // Hören: Bereich als Hauptsegment (Hör-Schalter „bereich“, gleiche Logik wie im Fenster), darunter leise „Vorher“ und „Blind“.

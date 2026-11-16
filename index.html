@@ -2152,6 +2152,8 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
       <div class="seg" role="group" aria-label="Kino folgt Stereo" id="zh-kf-seg"><button type="button" data-kf-an="0" aria-pressed="false">Aus</button><button type="button" data-kf-an="1" aria-pressed="true">An</button></div>
       <p class="klein" id="zh-kf-status" aria-live="polite"></p>
     </div>
+    <!-- Einmessungen vergleichen (Box 0.3.39): ein Satz Begründung, „Ausprobieren“, danach Behalten oder Zurück -->
+    <div class="sheet-block" hidden data-block="em-vgl"><p id="emv-satz"></p><div class="knoepfe" id="emv-knoepfe"></div><p class="klein" id="emv-status" aria-live="polite"></p></div>
     <div class="sheet-block" hidden data-block="zh-standby" id="zh-standby-block">
       <p class="klein" id="zh-standby-text"></p>
       <div class="kb-gruppe"><span class="kb-label">Schlafen nach</span><div class="seg" role="group" aria-label="Schlafen nach" id="zh-standby-wahl"></div></div>
@@ -10105,10 +10107,12 @@ function empfehlungKarte(r, i) {
       ${aktion}<span class="klein" id="nur-vorne-antwort-${i}" data-nur-vorne-antwort aria-live="polite">${nurVorneAntwort[r.id] || ""}</span></div>`;
   }).join("");
 }
+// Keine Verbindung zur Box: Bedienseite „netz“, App-Brücke „zeitueberschreitung“ und „keine_app“, App „keine_antwort“
+const BOX_WEG = ["netz", "zeitueberschreitung", "keine_app", "keine_antwort"];
 // Fehler der Box in Worten (offline, nicht gekoppelt, andere Aufstellung, zu alt)
 function nurVorneFehler(a) {
   const g = a && a.grund;
-  if (["netz", "zeitueberschreitung", "keine_app"].includes(g)) return "Die Klång-Box ist gerade nicht erreichbar. Ist sie an und im selben WLAN? Dann noch einmal tippen.";
+  if (BOX_WEG.includes(g)) return "Die Klång-Box ist gerade nicht erreichbar. Ist sie an und im selben WLAN? Dann noch einmal tippen.";
   if (["kein_token", "kopplung_zu", "koppeln", "fremde_herkunft"].includes(g)) return "Dieses Gerät darf die Box noch nicht steuern. Koppel es in der App unter „Klång-Box“ (oder auf der Bedienseite) und tipp dann noch einmal.";
   if (g === "andere_aufstellung") return (a.fehler || "Diese Messung gehört zu einer anderen Aufstellung.") + " Nichts geändert.";
   if (g === "falsche_eingabe") return "Diese Box kennt „Kino nur vorne“ noch nicht. Bitte erst die Box aktualisieren.";
@@ -11267,7 +11271,7 @@ function urteilZeigen(r) {
     u.profil_pruefung.baender.map((b) => `<tr><td>${esc(b.band)}${b.nur_info ? " (Info)" : ""}</td><td class="n ${b.ok ? "ok" : "warn"}">${zt(b.abweichung_db, 1, true)} dB</td><td class="n">±${zt(b.toleranz_db)}</td></tr>`).join("")}</tbody></table></div>
     <p class="klein">Neigung 300 Hz – 10 kHz: ${zt(u.profil_pruefung.neigung.ist_db_okt, 1, true)} dB/Oktave, Ziel mit Profil ${zt(u.profil_pruefung.neigung.soll_db_okt, 1, true)}. ${esc(u.profil_pruefung.hinweis)}</p></details>` : "";
   const boxZeile = u.box ? `<p class="${u.box.ok ? "ok" : "warn"}" id="a-box-urteil" style="font-size:15px">${esc(u.box.text)}</p>` : "";
-  const hinweise = pruefungHtml(u) + u.hinweise.filter((h) => !/^Profilprüfung|^Prognose und Messung/.test(h)).map((h) => `<p class="klein warn">${esc(h)}</p>`).join("") + vergleichHtml(u);
+  const hinweise = pruefungHtml(u) + u.hinweise.filter((h) => !/^Profilprüfung|^Prognose und Messung/.test(h)).map((h) => `<p class="klein warn">${esc(h)}</p>`).join("") + vergleichHtml(u) + emvPlatz(r);
   if (u.empfehlung === "behalten") {
     // Ohne App (Browser): die Box erfährt das Ergebnis über die Bedienseite („Ergebnis übernehmen“)
     // Ohne App: die Box erfährt das Ergebnis über das Box-Symbol – ein geführter Schritt wie beim Laden (Ablaufprüfung P2-17)
@@ -11310,6 +11314,67 @@ function urteilZeigen(r) {
     ${hinweise}${plaetze}${pp}</section>`;
   const zb = $("a-geraet-zurueck"); if (zb) zb.addEventListener("click", () => geraetSendenZeigen(r.geraet_profil, r.geraet.aktuell.werte, "a-geraet-antwort"));
 }
+
+// --- Einmessungen vergleichen (Box 0.3.39, Status einmessung_vergleich, Schalter ab Werk aus; SCHNITTSTELLE „Messdaten“) ---
+// Nach der Nachmessung rechnet die Box im Hintergrund (1–5 Minuten), ob eine gespeicherte Einmessung heute besser passt.
+// Nur dann eine ruhige Zeile im Ergebnis; das Fenster hat einen Satz Begründung und „Ausprobieren“ (lädt an der nächsten
+// Pause), danach Behalten oder Zurück wie nach jeder Einmessung.
+const emv = { uhr: 0, runde: null };
+const emvTag = (iso) => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(String(iso || "")); return m ? `${+m[3]}.${+m[2]}.` : ""; };
+const emvStand = () => (zh.st && zh.st.einmessung_vergleich) || null;
+function emvZeileHtml() {
+  const v = emvStand(); if (!v || !v.an) return "";
+  const zeile = (t, w) => `<button type="button" class="kb-zeile" id="a-emv-zeile" data-sheet-block="em-vgl" data-sheet-titel="Einmessungen vergleichen"><span>${t}${w ? ` <span class="wert">· ${w}</span>` : ""}</span></button>`;
+  if (v.probe) return zeile(`Einmessung vom ${esc(emvTag(v.probe.datum))} zum Ausprobieren geladen`, "behalten oder zurück");
+  if (v.ausprobieren) return zeile("Andere Einmessung wartet", "lädt in der nächsten Pause");
+  const g = v.ergebnis && v.ergebnis.vergleich;
+  if (!g || !g.sicher || !g.beste) return "";
+  return zeile(`Einmessung vom ${esc(emvTag(g.datum))} passt heute besser`, `${zt(g.score_heute, 0)} statt ${zt(g.score_laufend, 0)}`);
+}
+function emvZeigen() {
+  const ort = $("a-emv"); if (ort) ort.innerHTML = emvZeileHtml();
+  const v = emvStand() || {}, g = v.ergebnis && v.ergebnis.vergleich;
+  $("emv-satz").textContent = v.probe ? "Hör rein: Klingt es so besser, behalte sie. Sonst zurück zur vorigen."
+    : v.ausprobieren ? v.ausprobieren.text : (v.ergebnis && v.ergebnis.satz) || "";
+  $("emv-knoepfe").innerHTML = v.probe ? `<button type="button" class="weiter" id="emv-behalten">Behalten</button><button type="button" class="zweit" id="emv-zurueck">Zurück</button>`
+    : g && g.sicher && g.beste && !v.ausprobieren ? `<button type="button" class="weiter" id="emv-ausprobieren">Ausprobieren</button>` : "";
+}
+function emvPlatz(r) { if (emv.runde !== r.id) { emv.runde = r.id; setTimeout(() => emvHolen(r.id, 45), 0); } return `<div id="a-emv">${emvZeileHtml()}</div>`; }
+async function emvHolen(runde, versuche) {  // bis das Ergebnis zu dieser Runde da ist (oder nichts mehr rechnet)
+  clearTimeout(emv.uhr); if (!nativ || !boxBereit() || versuche <= 0) return;
+  const st = await nativ.box("status", {}, { zeitMs: 6000 });
+  const v = st && st.ok ? st.einmessung_vergleich : null;
+  if (st && st.ok) { zh.st = { ...(zh.st || {}), einmessung_vergleich: v }; emvZeigen(); }
+  const fertig = !v || !v.an || (v.ergebnis && v.ergebnis.runde === runde && !v.ausprobieren) || (!v.rechnet && !v.ausprobieren);
+  if (!fertig) emv.uhr = setTimeout(() => emvHolen(runde, versuche - 1), 20000);
+}
+function emvSchalterZeile(boxDa, st) {
+  const v = st && st.einmessung_vergleich; if (!boxDa || !v) return "";  // ältere Box kennt den Schalter nicht
+  return zhAktion("zh-emv", "", `Einmessungen vergleichen<small>${v.an ? "an" : "aus"} · bei der Nachmessung${v.aus_grund ? " · zuletzt ausgeschaltet" : ""}</small>`, true, ` aria-pressed="${v.an ? "true" : "false"}"`);
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("#zh-emv, #emv-ausprobieren, #emv-behalten, #emv-zurueck"); if (!b || !nativ) return;
+  const v = emvStand() || {}, melden = (t) => { $("emv-status").innerHTML = t; };
+  b.disabled = true;
+  try {
+    if (b.id === "zh-emv") {
+      const a = await nativ.box("messdaten", { aktion: "vergleich", an: !v.an }, { zeitMs: 6000 });
+      if (a.ok) { zh.st = { ...(zh.st || {}), einmessung_vergleich: a.einmessung_vergleich }; zuhauseZeigen(false); }
+      return;
+    }
+    if (b.id === "emv-ausprobieren") {
+      const a = await nativ.box("messdaten", { aktion: "ausprobieren", runde: v.ergebnis.vergleich.beste }, { zeitMs: 10000 });
+      if (!a.ok) { melden(`<span class="warn">${esc(a.fehler || "Die Box hat nicht geantwortet.")}</span>`); return; }
+      zh.st = { ...(zh.st || {}), einmessung_vergleich: a.einmessung_vergleich }; emvZeigen(); melden("");
+      if (a.einmessung_vergleich.ausprobieren) emvHolen(emv.runde, 60);
+      return;
+    }
+    const p = v.probe; if (!p) return;
+    const a = await nativ.box(b.id === "emv-behalten" ? "bestaetigen" : "zuruecknehmen", { profil: p.profil }, { zeitMs: 10000 });
+    if (!a.ok) { melden(`<span class="warn">${esc(a.fehler || "Die Box hat nicht geantwortet.")}</span>`); return; }
+    melden(b.id === "emv-behalten" ? "Behalten." : "Zurück zur vorigen Einmessung."); emvHolen(emv.runde, 1);
+  } finally { b.disabled = false; }
+});
 
 // --- Schritt 11: Ohne Klång-Box: Regler der Lautsprecher (Geräteprofile aus daten/geraete) ------------------
 let GERAETE = [];
@@ -12218,11 +12283,20 @@ function kinoFolgtZeigen() {
   document.querySelectorAll("[data-kf-an]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.kfAn === "1") === !!f.an)));
   if (f.aus_grund && !$("zh-kf-status").textContent) $("zh-kf-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(String(f.aus_grund).replace(/\.$/, ""))}.</span>`;
 }
+// Die Box lehnt ab (409 kein_rueckweg: inzwischen anders eingemessen, schon behalten, auf einem anderen Gerät entschieden):
+// Die Ansicht ist veraltet. Die Box hat nichts geändert; den Status neu holen und das ehrlich sagen. Auch sonst neu holen,
+// nur nicht ohne Verbindung (BOX_WEG): dann fragt der Takt von Zuhause ohnehin weiter.
+function kinoAbgelehnt(a) {
+  const grund = a && a.grund;
+  if (!BOX_WEG.includes(grund)) zhLaden();
+  if (grund === "kein_rueckweg") return `<span class="warn">Inzwischen hat sich etwas geändert, die Box hat nichts gemacht. Hier steht jetzt der neue Stand.</span>`;
+  return `<span class="warn">${esc((a && (a.fehler || a.grund)) || "Das ging nicht.")}</span>`;
+}
 async function kinoFolgtAufruf(daten) {
   const zeig = (t) => { $("zh-status").innerHTML = t; };
   if (!nativ || !boxBereit()) { zeig(`<span class="warn">Die Klång-Box ist nicht verbunden.</span>`); return; }
   const a = await nativ.box("kino_folgt", daten, { zeitMs: 10000 });
-  if (!a || a.ok === false) { zeig(`<span class="warn">${esc((a && (a.fehler || a.grund)) || "Das ging nicht.")}</span>`); return; }
+  if (!a || a.ok === false) { zeig(kinoAbgelehnt(a)); return; }
   const st = zh.st || {};
   if (a.kino_folgt && st.kino_aus_stereo) zh.st = { ...st, kino_aus_stereo: { ...st.kino_aus_stereo, folgt: a.kino_folgt } };
   if ("an" in daten) $("zh-kf-status").textContent = a.kino_folgt && a.kino_folgt.an ? "An: ab der nächsten Stereo-Einmessung." : "Aus: Kino behält seine Einmessung.";
@@ -12256,7 +12330,7 @@ async function kinoAusStereo(aktion) {
   if (!nativ || !boxBereit()) { zeig(`<span class="warn">Die Klång-Box ist nicht verbunden.</span>`); return; }
   const a = aktion === "rechnen" ? await nativ.box("messdaten", { aktion: "rechnen", profil: "stereo_kino", aus_profil: "stereo", ...(auf ? { aufstellung: auf } : {}) }, { zeitMs: 10000 })
     : await nativ.box(aktion, { profil: "stereo_kino", ...(box && box.runde != null ? { runde: box.runde } : {}), ...(auf ? { aufstellung: auf } : {}) }, { zeitMs: 10000 });
-  if (!a.ok) { zeig(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return; }
+  if (!a.ok) { zeig(kinoAbgelehnt(a)); return; }
   zeig(aktion === "rechnen" ? "" : `<span class="ok">✓ ${aktion === "bestaetigen" ? "Kino behalten." : "Zurückgenommen: Kino spielt wieder wie vorher."}</span>`);
   if (aktion === "rechnen") zh.st = { ...st, kino_aus_stereo: { ...(st.kino_aus_stereo || {}), rechnet: true, moeglich: false, fehler: null } };
   zuhauseZeigen(false); zhLaden();
@@ -13298,13 +13372,14 @@ $("zh-blind-zeile").addEventListener("click", () => { const st = zh.st || {};
 // die Frist (verlaengern: nur bei laufendem Vergleich, schaltet nie wieder ein). Unsichtbar oder geschlossen: zurück auf
 // die Einmessung. Wieder sichtbar: ein offener Blindtest bzw. A/B-Vergleich stellt die gezeigte Seite wieder her, Hören
 // zeigt „Nachher“.
-var VGL_FRIST_S = 600, vgl = { an: false, zuletzt: 0, warAn: false };
-function vglAus(x, opt) { vgl.an = !!x; vgl.zuletzt = Date.now(); return nativ.box("aus", x ? { aus: true, fuer_s: VGL_FRIST_S, vergleich: true } : { aus: false }, opt); }
+// vgl.gen zählt jedes Ein- und Ausschalten: eine späte Antwort auf „verlaengern“ ändert einen neueren Stand nicht.
+var VGL_FRIST_S = 600, vgl = { an: false, zuletzt: 0, warAn: false, gen: 0 };
+function vglAus(x, opt) { vgl.an = !!x; vgl.gen++; vgl.zuletzt = Date.now(); return nativ.box("aus", x ? { aus: true, fuer_s: VGL_FRIST_S, vergleich: true } : { aus: false }, opt); }
 function vglTakt() {
   if (!vgl.an || document.visibilityState !== "visible" || !boxBereit()) return;
   if (Date.now() - vgl.zuletzt < VGL_FRIST_S * 1000 / 3) return;
-  vgl.zuletzt = Date.now();
-  nativ.box("aus", { aus: true, fuer_s: VGL_FRIST_S, vergleich: true, verlaengern: true }, { zeitMs: 6000 }).then((a) => { if (a && a.ok && a.aus === false) vgl.an = false; });
+  vgl.zuletzt = Date.now(); const gen = vgl.gen;
+  nativ.box("aus", { aus: true, fuer_s: VGL_FRIST_S, vergleich: true, verlaengern: true }, { zeitMs: 6000 }).then((a) => { if (gen === vgl.gen && a && a.ok && a.aus === false) vgl.an = false; });
 }
 setInterval(vglTakt, 30000);
 function vglZurueck() {
@@ -13312,7 +13387,7 @@ function vglZurueck() {
   const an = vgl.an || zhVorherAn(); vgl.warAn = vgl.warAn || an;
   if (!an) return;
   if (zhVorherAn()) zhVorher(false); else vglAus(false, { zeitMs: 6000 });
-  vgl.an = false; if (zh.st) zh.st.aus = false;
+  vgl.an = false; vgl.gen++; if (zh.st) zh.st.aus = false;
 }
 function vglWieder() {
   const war = vgl.warAn; vgl.warAn = false; if (!war || !boxBereit()) return;
@@ -13588,6 +13663,7 @@ function zuhauseZeigen(laden = true) {
     + zhAktion("zh-uebernehmen", "", "Ergebnis übernehmen<small>von der Mess-Seite</small>", !!(window.klangboxBedienseite && !window.klangboxBedienseite.direkt))
     + sk  // Sub abgleichen (subabgleich.js), nur mit Sub
     + zhAktion("zh-anlage-zeile", "", `Meine Anlage<small>${esc(MA.layout || "")}</small>`, true, ` data-zu="2"`)
+    + emvSchalterZeile(boxDa, st)
     // Ohne Box: die beste Stellung der Regler an den eigenen Geräten rechnen (Regler deiner Geräte)
     + zhAktion("zh-regler", "", "Regler deiner Geräte<small>ohne Klång-Box</small>", !boxDa && !!rl && !rl.e.fehler, ` data-zu="11"`);
   // „Prüfen“ (Entwurf 13.11.2026): Musik-Analyse, „Wo kommt der Ton her?“ und die Hörprobe
@@ -15296,9 +15372,11 @@ function saOberflaeche(K) {
   async function signalAn(st) {
     st.quelle = quelleJetzt();
     if (st.quelle === "box") {
-      if (!st.mitEinstellungen) {  // Regler am Sub einstellen: ohne Einmessung (neutral), die Profile gleichen danach fein nach
+      // Regler am Sub einstellen: ohne Einmessung (neutral), die Profile gleichen danach fein nach. Mit Frist wie überall:
+      // bricht die App ab, schaltet die Box nach dem Signal (600 s) selbst zurück auf die Einmessung
+      if (!st.mitEinstellungen) {
         const s = await nativ.box("status", {}, { zeitMs: 8000 });
-        if (s.ok && !s.aus) { const x = await nativ.box("aus", { aus: true }, { zeitMs: 6000 }); st.ausGesetzt = !!x.ok; }
+        if (s.ok && !s.aus) { const x = await nativ.box("aus", { aus: true, fuer_s: 660 }, { zeitMs: 6000 }); st.ausGesetzt = !!x.ok; }
       }
       const a = await nativ.box("messsignal", { folge: "sub_abgleich", dauer_s: 600, start_in_ms: 300, modus: st.modus }, { zeitMs: 20000 });
       if (!a.ok) return `Die Klång-Box spielt das Signal nicht (${a.fehler || a.grund}).`;

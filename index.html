@@ -870,10 +870,13 @@ th, td { border-bottom: 1px solid var(--kb-linie); }
 /* --- Zuhause (Schritt 18): Hören · Einmessen · Box. Nur Form; Aufbau der Bildschirme folgt in Phase 4. ----------- */
 body[data-schritt="18"] main > header { display: none !important; }
 body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, var(--kb-sicher-oben-ist)); padding-bottom: calc(84px + var(--kb-sicher-unten-ist)); }
-/* Kopf (Mockup „Hören aufgeräumt“): Raum-Wähler links, „CD-Regal“ als Textlink rechts; die Überschrift trägt den Reiter */
+/* Kopf (Mockup „Hören aufgeräumt“): Raum-Wähler links, „CD-Regal“ als Textlink rechts; die Überschrift trägt den Reiter.
+   Einmessen hat denselben Kopf (Besitzer 15.11.2026): rechts statt „CD-Regal“ die Wahl „Stereo“ bzw. „Kino“ (#em-kopf-wahl) */
 .zh-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
 .zh-kopf h1 { font: var(--kb-t-titel2); margin: 0; }
 .schritt[data-s="18"][data-tab="hoeren"] .zh-kopf h1 { display: none; }   /* Name für Vorleser bleibt (aria-labelledby liest auch Verborgenes) */
+/* Einmessen: die Überschrift bleibt für Vorleser und Überschriften-Navigation (Prüfer), sichtbar ist der Kopf wie auf Hören */
+.schritt[data-s="18"][data-tab="einmessen"] .zh-kopf h1 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 /* Kopf auf Hören (Entwurf 15.11.2026, HoerenStereoA/HoerenKinoA): ruhig, leise, wie die Zeile des Lieds; Musik und Bild führen */
 .zh-raum-waehler { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; min-width: 0; padding: 0; background: none; box-shadow: none; border: 0;
   color: var(--kb-text-leise); font: var(--kb-t-lied); text-align: left; }
@@ -883,7 +886,13 @@ body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, var(--kb-
 .zh-regal-knopf, .kb-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0; background: none; box-shadow: none; border: 0; border-radius: 0;
   color: var(--kb-text); font: var(--kb-t-meta); text-decoration: underline 1px; text-decoration-color: var(--kb-linie); text-underline-offset: 4px; white-space: nowrap; }
 .zh-regal-knopf:active:not(:disabled), .kb-link:active:not(:disabled) { background: none; text-decoration-color: var(--kb-text); }
-.kb-link:disabled { box-shadow: none; text-decoration: none; color: var(--kb-text-leise); }
+/* Wahl der Einmessung: nur der Name unterstrichen (wie „CD-Regal“), die laufende trägt ein leises „· spielt“ ohne Strich */
+#em-kopf-wahl:not(:disabled) { text-decoration: none; }
+#em-kopf-wahl:not(:disabled) > span:first-child { text-decoration: underline 1px; text-decoration-color: var(--kb-linie); text-underline-offset: 4px; }
+#em-kopf-wahl:active:not(:disabled) > span:first-child { text-decoration-color: var(--kb-text); }
+@media (hover: hover) { #em-kopf-wahl:hover > span:first-child { text-decoration-color: var(--kb-text); } }
+#em-kopf-wahl .em-spielt { color: var(--kb-text-leise); white-space: nowrap; }
+.zh-regal-knopf:disabled, .kb-link:disabled { box-shadow: none; text-decoration: none; color: var(--kb-text-leise); }
 @media (hover: hover) { .zh-regal-knopf:hover, .kb-link:hover { text-decoration-color: var(--kb-text); } }
 /* Gruppen in Fenstern (§3.5): Label + 8 px + Segment; Fuß als Linkzeile */
 .kb-gruppen { display: grid; gap: 16px; }
@@ -961,8 +970,6 @@ body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, var(--kb-
 .rg-bib { margin-top: 8px; }
 .rg-bib + .rg-fuellen { border-top: 0; }   /* keine doppelte Haarlinie */
 body.rg-offen .sheet-lage { z-index: 80; }
-#zh-zustand summary .wert { font-weight: 400; color: var(--kb-text-leise); }
-#zh-zustand summary { gap: 12px; } #zh-zustand summary .ampel { margin: 0; }
 .zh-platz { display: grid; padding: 16px 0 0; border-top: 1px solid var(--kb-linie); }
 .zh-karten + .zh-platz { grid-column: 1 / -1; }
 /* Jetzt läuft (jetzt.js): Cover ohne Schatten, Schimmer und 3D-Drehung */
@@ -982,7 +989,16 @@ body.rg-offen .sheet-lage { z-index: 80; }
 .zh-jetzt-karte:not(.still) { gap: 20px; }
 .schritt[data-s="18"][data-tab="hoeren"] > #zh-held { margin-top: 16px; }
 .schritt[data-s="18"][data-tab="hoeren"]:has(#zh-jetzt[hidden]) > #zh-held { margin-top: 0; }   /* ohne Jetzt-läuft kein Absatz unter dem Kopf */
-.schritt[data-s="18"][data-tab="hoeren"] #zh-klang-zeile { margin-top: 12px; }
+.schritt[data-s="18"][data-tab="hoeren"] :is(#zh-klang-zeile, #zh-blind-zeile) { margin-top: 12px; }
+.schritt[data-s="18"][data-tab="hoeren"] #zh-blind-zeile:not([hidden]) ~ #zh-klang-zeile { margin-top: 0; }   /* Blind ›, Klang › untereinander */
+@media (max-width: 380px) { .zh-hz { display: none; } }   /* „Vorher | 90 | 150 | Voll“: auf dem kleinsten iPhone ohne „Hz“ */
+/* Hören ohne Scrollen (Besitzer 15.11.2026, mit „Blind vergleichen ›“): das Cover gibt nach, wenn die Höhe nicht reicht.
+   --zh-rest ist alles außer dem Cover (Kopf, Lied auf zwei Zeilen, Format, Lautstärke, Segment, Blind ›, Klang ›, Abstände);
+   jede weitere Zeile (Lippen-Sync) kommt dazu. Nie größer als die Spaltenbreite. */
+.schritt[data-s="18"][data-tab="hoeren"] { --zh-rest: 444px; }
+.schritt[data-s="18"][data-tab="hoeren"]:has(#zh-lippen-h:not([hidden])) { --zh-rest: 508px; }
+.schritt[data-s="18"][data-tab="hoeren"] .zh-jetzt-karte:not(.still) > .lp:not(.gross) {
+  width: min(100%, calc(100dvh - max(16px, var(--kb-sicher-oben-ist)) - 84px - var(--kb-sicher-unten-ist) - var(--zh-rest))); }
 .zh-jetzt-quelle { color: var(--kb-text-leise) !important; }
 .lp { width: 100%; aspect-ratio: 1; justify-self: center; perspective: none; cursor: pointer; border-radius: var(--kb-r); -webkit-tap-highlight-color: transparent; }
 .lp.gross { width: min(100%, 56dvh, 560px); }
@@ -1044,26 +1060,20 @@ body.rg-offen .sheet-lage { z-index: 80; }
 .lp-mit li { display: grid; gap: 0; } .lp-mit li span { color: var(--kb-text-leise); }
 .zh-hinweise { display: grid; gap: 4px; }
 .zh-upd-hinweis { display: grid; gap: 8px; margin: 0 0 8px; }
-/* Werkstatt › Fehlersuche: je Werkzeug eine Zeile, darunter ein Satz, wozu */
-.zh-fehler-liste { display: grid; }
-.zh-fehler { display: grid; padding-bottom: 12px; border-bottom: 1px solid var(--kb-linie); }
-.zh-fehler:first-child > .kb-zeile { border-top: 1px solid var(--kb-linie); }
-.zh-fehler > .kb-zeile { border-bottom: 0; }
-.zh-fehler > .klein { margin: -8px 0 0; }
-/* Werkstatt: Bericht, Ton, Messvarianten, Fehlersuche, Takt-Labor als ruhige Gruppen wie unter Box */
+/* Testlabor (Entwurf 15.11.2026): Kopf wie Box, „Bericht senden“, Satz und sechs Kacheln, dann Gruppen aus Listenzeilen
+   (kb-label + kb-zeile, der Wert leise im Text). Jede Zeile trägt oben und unten eine Haarlinie, überlappend: so bleibt die
+   Liste geschlossen, auch wenn eine Zeile fehlt */
 .zh-werkstatt { display: grid; gap: 24px; }
-.zh-werkstatt > .zh-zurueck { justify-self: start; margin-top: -8px; }
-.zh-werkstatt .zh-gruppe { gap: 8px; }
-.zh-werkstatt .zh-gruppe > .kb-label { margin: 0; }
+.zh-werkstatt .zh-gruppe > .kb-zeile { border-top: 1px solid var(--kb-linie); margin-top: -1px; }
+.zh-werkstatt .zh-gruppe > .zh-haupt { margin: 0; }
 .zh-werkstatt p { margin: 0; }
-.zh-werkstatt .zh-gruppe > .zh-fehler:nth-child(2) > .kb-zeile { border-top: 1px solid var(--kb-linie); }
+.zh-werkstatt .zh-gruppe > p.klein:not(:empty) { margin-top: 8px; }
+.zh-ws-blick { display: grid; gap: 12px; }
+.zh-ws-blick .box-kacheln { margin: 0; }
 .zh-ws-zeilen { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .zh-ws-zeilen li { display: flex; justify-content: space-between; gap: 12px; }
 .zh-ws-zeilen b { font-variant-numeric: tabular-nums; }
-/* Versteckter Weg in die Werkstatt: lange auf die Version tippen (ohne Textauswahl und Menü), für Vorleser eine unsichtbare Taste */
-.em-version { display: inline-flex; align-items: center; }
-#zh-version { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; min-height: 44px; display: inline-flex; align-items: center; }
-.zh-ws-zugang { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; white-space: nowrap; min-height: 0; }
+.zh-ws-zeilen:empty { display: none; }
 .zh-takt .reihe { gap: 12px; }
 .zh-takt .reihe > button { flex: none; white-space: nowrap; }
 .zh-bib-liste { max-height: 52vh; overflow-y: auto; }
@@ -1081,13 +1091,16 @@ body.rg-offen .sheet-lage { z-index: 80; }
 /* Tippsperre nach Bildschirmwechsel (Vorlage: tippSperre) */
 body.tippsperre { pointer-events: none; }
 /* Zuordnung der Teile zu den Reitern (bleibt CSS bis Phase 4) */
-.schritt[data-s="18"][data-tab="hoeren"] :is(#zh-karten, #zh-karten-hinweis, #zh-aktionen, #bs-box, #bs-oben, #zh-zustand, #zh-box-liste, #zh-tipps) { display: none !important; }
-.schritt[data-s="18"][data-tab="einmessen"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-box, #zh-zustand, #zh-box-liste) { display: none !important; }
+.schritt[data-s="18"][data-tab="hoeren"] :is(#zh-karten, #zh-karten-hinweis, #zh-aktionen, #bs-box, #bs-oben, #zh-box-liste, #zh-tipps) { display: none !important; }
+.schritt[data-s="18"][data-tab="einmessen"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-box, #zh-box-liste) { display: none !important; }
 .schritt[data-s="18"][data-tab="einmessen"][data-box="1"] #zh-tipps { display: none !important; }  /* R20: Geräte-Tipps nur ohne Box */
 .schritt[data-s="18"][data-tab="box"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-tipps) { display: none !important; }
-.schritt[data-s="18"]:not([data-tab="hoeren"]) :is(#zh-regal, #zh-raum-waehler) { display: none !important; }
-.schritt[data-s="18"]:not([data-tab="hoeren"]) :is(#zh-film, #zh-lippen-h) { display: none !important; }   /* Fernseher nur auf Hören (auch nicht in der Werkstatt; Prüfer) */
-.schritt[data-s="18"][data-tab="werkstatt"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-box, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-tipps, #zh-zustand, #zh-box-liste) { display: none !important; }
+.schritt[data-s="18"]:not([data-tab="hoeren"]) #zh-regal, .schritt[data-s="18"]:not([data-tab="hoeren"], [data-tab="einmessen"]) #zh-raum-waehler { display: none !important; }
+.schritt[data-s="18"]:not([data-tab="einmessen"]) :is(#em-kopf-wahl, #em-anlage), .schritt[data-s="18"][data-tab="einmessen"] #zh-anlage { display: none !important; }
+.schritt[data-s="18"]:not([data-tab="hoeren"]) :is(#zh-film, #zh-lippen-h) { display: none !important; }   /* Fernseher nur auf Hören (auch nicht im Testlabor; Prüfer) */
+.schritt[data-s="18"][data-tab="werkstatt"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-box, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-tipps, #zh-box-liste) { display: none !important; }
+/* Box und Testlabor: ohne Meldung keine Lücke über dem Kopf, damit er genau dort steht, wo er auf Hören steht */
+.schritt[data-s="18"]:is([data-tab="box"], [data-tab="werkstatt"]) #zh-status:empty { display: none; }
 .schritt[data-s="18"]:not([data-tab="werkstatt"]) #zh-werkstatt { display: none !important; }
 
 /* --- Hörprobe „Wo ist die Kuh?“ (hoerprobe.js) ----------------------------------------------------------------- */
@@ -1276,7 +1289,7 @@ body.rg-offen { overflow: hidden; }
   .rg-raster { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
   .rg-inhalt { max-width: 1180px; }
   .rg-inhalt:has(.rg-titelblock) { max-width: 640px; }   /* Booklet: Lesebreite */
-  .zh-box-liste, #zh-zustand, .zh-werkstatt { max-width: 640px; }
+  .zh-box-liste, .zh-werkstatt { max-width: 640px; }
 }
 /* zweispaltig nur im Querformat (breiter als hoch), sonst eine Spalte */
 @media (min-width: 960px) and (min-height: 600px) and (orientation: landscape) {
@@ -1290,6 +1303,7 @@ body.rg-offen { overflow: hidden; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) > .zh-kopf { grid-column: 1 / -1; grid-row: 1; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) :is(#zh-jetzt, .zh-jetzt-karte) { display: contents; }
   .schritt[data-s="18"][data-tab="hoeren"] .zh-jetzt-karte > .lp { grid-column: 1; grid-row: 2 / 7; align-self: center; }
+  .schritt[data-s="18"][data-tab="hoeren"] .zh-jetzt-karte:not(.still) > .lp:not(.gross) { width: 100%; }   /* zweispaltig: das Cover füllt seine Spalte (die Höhe begrenzt --kb-spalte-links), es gibt nicht nach wie auf dem Handy */
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) .zh-jetzt-text { grid-column: 2; grid-row: 3; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) .zh-vol-leiste { grid-column: 2; grid-row: 4; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) > #zh-held { grid-column: 2; grid-row: 5; }
@@ -1315,24 +1329,21 @@ body.rg-offen { overflow: hidden; }
 /* === Einmessen auf einen Blick (Nutzer 13.11.2026, Entwurf A in der Sprache von Hören) ============================= */
 .em-an .zh-karten { border-top: 0; }
 .em-an .zh-karten-hinweis { display: none; }
-.em-blick { display: grid; gap: 18px; font-variant-numeric: tabular-nums; }
+/* ohne Scrollen (Besitzer 15.11.2026): auf dem kleinsten iPhone passt die ganze Seite über die Tab-Leiste, darum straffe
+   Abstände, Funde in 44 px, eine flache Kurve; auf kleinen Höhen ein kleinerer Ring (unten) */
+.em-blick { display: grid; gap: 12px; font-variant-numeric: tabular-nums; }
 /* Handy und iPad hoch: eine Spalte in der Reihenfolge des Entwurfs (15.11.2026): Kopf, Ring, Teilwerte, Kurve, Auswahl, Funde, Knöpfe */
 .em-links, .em-rechts { display: contents; }
-.em-blick > .em-rechts > .em-funde { margin-top: 6px; }   /* etwas mehr Abstand unter der Auswahl (~24 px) */
-.em-kopfzeile { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.em-kopfzeile .em-titel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .em-kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; }   /* Box-Kopf */
 .em-kopf .kb-link { min-height: 44px; }
-/* schmaler Umschalter ohne Fläche (Nutzer 14.11.2026: „ein schwarzer Balken reicht“, der gehört dem Bereich 90 · 150 · Voll) */
-.em-profile { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-.em-profile > button { min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--kb-r); background: transparent; color: var(--kb-text-leise);
-  box-shadow: none; font-weight: 500; white-space: nowrap; }
-.em-profile > button[aria-pressed="true"] { color: var(--kb-text); font-weight: 600; box-shadow: inset 0 0 0 1.5px var(--kb-text); }
-.em-profile > button:active:not(:disabled) { background: var(--kb-flaeche); color: var(--kb-text); }   /* nicht die dunkle Fläche der Knöpfe (Prüfer) */
-.em-spielt { font-weight: 400; opacity: .75; }
-.em-titel { font: var(--kb-t-titel3); }
 .em-unten { display: flex; gap: 8px; }
-.em-unten > button { flex: 1 1 0; min-width: 0; }
+.em-unten > button, .em-blick .em-unten > button { flex: 1 1 0; min-width: 0; min-height: 44px; }
+.em-unten > .zh-haupt, .em-blick .em-unten > .zh-haupt { flex: 2 1 0; min-height: 44px; margin: 0; padding: 0 12px; }   /* „Weiter: …“ neben „Mehr“, einzeilig */
+/* Kino ist Stereo gefolgt: eine Zeile, Satz links, „Behalten | Zurück“ rechts (Baustein der Update-Frage) */
+.em-blick .zh-upd-hinweis { display: flex; align-items: center; gap: 12px; margin: 0; padding: 0; border-top: 0; }
+.em-blick .zh-upd-hinweis > p { flex: 1 1 auto; min-width: 0; margin: 0; }
+.em-blick .zh-upd-hinweis > .em-unten { flex: none; }
+.em-blick .zh-upd-hinweis > .em-unten > button { flex: none; padding: 0 16px; }
 .em-wert { display: flex; align-items: center; gap: 20px; }   /* Ring und Headline auf einer Mittellinie */
 .em-wert > .em-satz { font: var(--kb-t-titel2); hyphens: manual; -webkit-hyphens: manual; overflow-wrap: normal; word-break: normal; min-width: 0; }
 .em-ring-knopf { flex: none; padding: 0; border: 0; border-radius: 50%; background: transparent; box-shadow: none; min-height: 0; }
@@ -1346,6 +1357,11 @@ body.rg-offen { overflow: hidden; }
 .em-k-jetzt { stroke: var(--kb-text); stroke-width: 2; }
 .em-k-ziel { stroke: var(--kb-linie); stroke-width: 1; stroke-dasharray: 2 4; }
 .em-k-achse text { font: var(--kb-t-skala); fill: var(--kb-text-leise); }
+/* Bereich umgeschaltet: die vorige Linie blendet aus, die neue ein (ruhig, ohne Hüpfen der Achsen) */
+.em-k-weg { animation: em-k-weg var(--kb-zeit-lang) var(--kb-kurve) forwards; }
+.em-k-rein { animation: em-k-rein var(--kb-zeit-lang) var(--kb-kurve); }
+@keyframes em-k-weg { to { opacity: 0; } }
+@keyframes em-k-rein { from { opacity: 0; } }
 /* Funde in der Kurve: Kreise in Tinte wie die Linien (der orange Kreis gehört nur „Empfohlen“ und dem Logo) */
 .em-kringel { fill: transparent; stroke: var(--kb-text-leise); stroke-width: 1.5; cursor: pointer; vector-effect: non-scaling-stroke; }
 .em-kringel:hover, .em-kringel:focus-visible { stroke: var(--kb-text); stroke-width: 2; }
@@ -1364,7 +1380,7 @@ div.em-kanal { border-bottom: 1px solid var(--kb-linie); }
 .em-ring span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 500; color: var(--kb-text); }
 .em-teilwerte { display: grid; gap: 6px; }
 .em-teilwert { display: grid; justify-items: center; gap: 2px; min-width: 0; position: relative; }
-button.em-teilwert { min-height: 56px; padding: 0; border: 0; border-radius: var(--kb-r); background: transparent; color: var(--kb-text); box-shadow: none; font: var(--kb-t-text); }
+button.em-teilwert { min-height: 48px; padding: 0; border: 0; border-radius: var(--kb-r); background: transparent; color: var(--kb-text); box-shadow: none; font: var(--kb-t-text); }
 button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
 .em-hilfe { display: grid; gap: 6px; }
 .em-hilfe ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
@@ -1374,7 +1390,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
 .em-vor { font: var(--kb-t-klein); color: var(--kb-text-leise); font-variant-numeric: tabular-nums; }
 @media (max-width: 360px) { .em-zahlen { display: grid; justify-items: center; gap: 0; } .em-zahlen b { grid-row: 1; } .em-vor { grid-row: 2; } .em-pfeil { display: none; } .em-vor::before { content: "von "; } }   /* 320 px: vorher unter den Wert statt daneben (Prüfer) */
 .em-funde { display: grid; }
-.em-fund { display: grid; grid-template-columns: minmax(0, 1fr) 22px 3.6em 12px; align-items: center; gap: 8px; min-height: 54px; padding-block: 8px; }   /* Balken, Wort und › je in einer Spalte */
+.em-fund { display: grid; grid-template-columns: minmax(0, 1fr) 22px 3.6em 12px; align-items: center; gap: 8px; min-height: 44px; padding-block: 4px; }   /* Balken, Wort und › je in einer Spalte */
 .em-fund > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .em-fund .wert { white-space: nowrap; }
 .em-schwere { display: inline-flex; align-items: flex-end; gap: 3px; }
@@ -1385,9 +1401,19 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
 .em-mini { width: 12px; height: 12px; fill: var(--kb-signal); margin-right: 6px; vertical-align: -1px; flex: none; }
 .em-seg button { display: inline-flex; align-items: center; justify-content: center; }
 .em-seg button:disabled { opacity: 1; }
+/* kleine Höhe (iPhone SE und kleiner, iPad quer mit Tastatur): kleinerer Ring, engere Abstände */
+@media (max-height: 700px) {
+  .em-blick { gap: 8px; }
+  .schritt[data-s="18"][data-tab="einmessen"] > .zh-kopf { margin-bottom: -16px; }   /* der Kopf hat in seinen 44 px schon Luft */
+  .em-ring, .em-ring svg { width: 56px; height: 56px; }
+  button.em-teilwert { min-height: 44px; gap: 0; }
+  .em-ring span { font-size: 22px; }
+}
 /* iPad hochkant: dieselbe Spalte, höchstens 640 px, mittig (nur CSS, Entwurf 15.11.2026; Größen aus den Tokens) */
 @media (min-width: 600px) {
   body[data-schritt="18"] main:has(> .schritt[data-s="18"][data-tab="einmessen"].em-an) { max-width: calc(640px + var(--kb-rand-links) + var(--kb-rand-rechts)); }
+  /* der Kopf steht wie auf Hören (gleiche Breite, gleiche Ränder): er springt beim Reiterwechsel nicht */
+  .schritt[data-s="18"][data-tab="einmessen"].em-an > .zh-kopf { width: 100%; max-width: calc(var(--kb-inhalt) - var(--kb-rand-links) - var(--kb-rand-rechts)); margin-inline: auto; }
 }
 /* iPad quer (ab etwa 1000 px, breiter als hoch): zwei Spalten. Links 1–4 (Kopf, Ring, Teilwerte, Kurve), rechts 5–7
    (Auswahl, Funde bzw. Kanäle, „Neu einmessen | Mehr“) */
@@ -1397,29 +1423,33 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
   .em-links, .em-rechts { display: flex; flex-direction: column; gap: 22px; }
   .em-rechts { align-self: stretch; }
   .em-rechts > .em-unten { margin-top: auto; }
+  .schritt[data-s="18"][data-tab="einmessen"].em-an > .zh-kopf { max-width: none; }   /* quer: der Kopf über beiden Spalten */
 }
-/* wie Hören: der Kopf der Einmessung trägt den Raum; die Überschrift bleibt für Vorleser und Überschriften-Navigation (Prüfer) */
-.schritt[data-s="18"][data-tab="einmessen"].em-an .zh-kopf { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; min-height: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-/* === Box auf einen Blick (Nutzer 13.11.2026, ohne Ring) =========================================================== */
-.schritt[data-s="18"][data-tab="box"].box-an .zh-kopf { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; min-height: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.box-zustand { display: grid; gap: 4px; margin-top: 8px; }
+/* === Box (Entwurf 15.11.2026 „Box · neu“) und Testlabor: Kopf wie Hören, die Überschrift nur für Vorleser =========== */
+.schritt[data-s="18"]:is([data-tab="box"].box-an, [data-tab="werkstatt"]) .zh-kopf { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; min-height: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.schritt[data-s="18"].box-an #zh-box-liste { gap: 16px; }
+.box-zustand { display: grid; gap: 4px; }
+.box-zustand .kb-link { min-height: 0; margin-left: 4px; }
 .box-laeuft { display: flex; align-items: center; gap: 8px; color: var(--kb-text); }
 .box-laeuft i { width: 8px; height: 8px; border-radius: 50%; background: var(--kb-text-leise); display: inline-block; }
 .box-laeuft i.an { background: var(--kb-signal); }
 .box-satz { font: var(--kb-t-titel2); }
-.box-kacheln { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0 4px; }
-.box-kachel { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--kb-r); background: var(--kb-flaeche); min-width: 0; }
+.box-kacheln { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.box-kachel { display: grid; gap: 2px; align-content: start; padding: 10px 12px; border-radius: var(--kb-r); background: var(--kb-flaeche); min-width: 0; }
+.box-kachel[role="button"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.box-kachel[role="button"]:active { background: var(--kb-linie); }
 .box-kachel b { font-size: 20px; font-weight: 600; }
-.box-update { width: 100%; margin: 4px 0 8px; }
-/* Leitung vom Zuspieler mit Aussetzern (status.eingang.leitung): ruhig, kein Alarm; Punkt in Signalfarbe, schließbar */
-.box-leitung { display: grid; gap: 0; margin: 10px 0 0; padding: 10px 12px 2px; border-radius: var(--kb-r); background: var(--kb-flaeche); }
+.box-update { width: 100%; margin: 0; }
+/* Leitung vom Zuspieler mit Aussetzern (status.eingang.leitung): ruhig, kein Alarm; Punkt in Tinte, schließbar */
+.box-leitung { display: grid; gap: 0; margin: 0; padding: 10px 12px 2px; border-radius: var(--kb-r); background: var(--kb-flaeche); }
 .box-leitung p { margin: 0; color: var(--kb-text); }
-.box-leitung i, .zh-leitung-punkt i { width: 8px; height: 8px; border-radius: 50%; background: var(--kb-signal); display: inline-block; margin-right: 8px; vertical-align: 1px; flex: none; }
+/* Punkt in Tinte: Orange nur für Empfohlen, Logo und den „läuft“-Punkt (D+) */
+.box-leitung i, .zh-leitung-punkt i { width: 8px; height: 8px; border-radius: 50%; background: var(--kb-text); display: inline-block; margin-right: 8px; vertical-align: 1px; flex: none; }
 .box-leitung .kb-link { justify-self: start; }
 .zh-leitung-punkt { justify-self: start; color: var(--kb-text-leise); }
 .zh-bitte { display: grid; gap: 12px; margin: 0 0 16px; }
 .zh-bitte p { margin: 0; }
-.schritt[data-s="18"]:not([data-tab="hoeren"]) #zh-bitte { display: none !important; }   /* Bitte um Bericht nur auf Hören (die Zahl steht in der Werkstatt) */
+.schritt[data-s="18"]:not([data-tab="hoeren"]) #zh-bitte { display: none !important; }   /* Bitte um Bericht nur auf Hören (die Zahl steht im Testlabor) */
 .em-fund-inhalt { display: grid; gap: 12px; }
 .em-fund-inhalt p { margin: 0; }
 /* Hören bei Film: Fernseher und Format über dem Bereich */
@@ -2069,22 +2099,31 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
        Modus (Stereo/Kino/Auto) und Quelle, beide Einmessungen vorher → nachher, Vorher/Nachher-Schalter (POST /api/aus,
        gleicher Pegel), schnelle Wege und Box-Zustand. Ohne Klång-Box: Scores und Tipps für die Regler der Geräte. -->
   <section class="card schritt" data-s="18" hidden aria-labelledby="h-zuhause">
-    <!-- Kopf (Mockup „Hören aufgeräumt“): links der Raum-Wähler „Wohnzimmer · Sofa“ mit Pfeil (öffnet das Fenster Raum), rechts „CD-Regal“.
-         Die Überschrift trägt den Reiter (auf Hören nur für Vorleser, auf Einmessen und Box klein sichtbar). -->
+    <!-- Kopf (Mockup „Hören aufgeräumt“), auf Hören und Einmessen derselbe (Besitzer 15.11.2026, kopfAnlage): links der
+         Raum-Wähler „Wohnzimmer · 2.0“ mit Pfeil (öffnet das Fenster Raum; das Layout der Einmessung, die der Reiter zeigt),
+         rechts auf Hören „CD-Regal“, auf Einmessen an derselben Stelle die Wahl der Einmessung „Stereo“ bzw. „Kino“.
+         Die Überschrift trägt den Reiter (auf Hören und Einmessen nur für Vorleser, auf Box klein sichtbar). -->
     <div class="zh-kopf"><h1 id="h-zuhause">Hören</h1>
-      <button type="button" class="zh-raum-waehler" id="zh-raum-waehler" data-sheet-block="zh-raum" data-sheet-titel="Raum" aria-haspopup="dialog"><span id="zh-anlage"></span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg></button>
+      <button type="button" class="zh-raum-waehler" id="zh-raum-waehler" data-sheet-block="zh-raum" data-sheet-titel="Raum" aria-haspopup="dialog"><span id="zh-anlage"></span><span id="em-anlage"></span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4"/></svg></button>
       <!-- CD-Regal (regal.js): fester Knopf auf Hören, öffnet Regal und Booklets -->
-      <button type="button" class="zh-regal-knopf" id="zh-regal" hidden>CD-Regal</button></div>
+      <button type="button" class="zh-regal-knopf" id="zh-regal" hidden>CD-Regal</button>
+      <!-- Einmessen: welche Einmessung die Seite zeigt; Antippen zeigt die nächste (schaltet nicht den Ton um) -->
+      <button type="button" class="zh-regal-knopf" id="em-kopf-wahl" hidden></button></div>
     <div id="zh-jetzt" hidden></div><!-- Jetzt läuft (jetzt.js): Cover (Antippen dreht es), Titel, Interpret · Zeit, Lautstärke-Leiste (nur wenn die Box regelt) -->
     <!-- Fernseher am Eingang: was ankommt, steht unter dem Raumbild (jetzt.js); hier nur der kleine Verweis auf den Kabel-Hinweis -->
     <div class="zh-film" id="zh-film" hidden></div>
     <div class="zh-held" id="zh-held">
-      <!-- Bereich „90 Hz · 150 Hz · Voll“ ist das Hauptelement (Nutzer 09.11.2026: „nicht Vorher/Nachher ist der Fokus“).
-           Vorher/Nachher und Blindtest gibt es nur noch beim Einmessen („Hör den Unterschied“, Entwurf 13.11.2026). -->
+      <!-- Bereich „Vorher | 90 Hz · 150 Hz · Voll“ ist das Hauptelement (Nutzer 09.11.2026: „nicht Vorher/Nachher ist der Fokus“).
+           Vorher ist wieder da (Besitzer 15.11.2026: „Wo ist Vorher und Blind bei Hören?“): erste Option im Segment, ohne
+           Einmessung (POST /api/aus, die Box gleicht den Pegel ab); ein Bereich schaltet zurück. Darunter „Blind vergleichen ›“
+           (derselbe Blindtest wie „Hör den Unterschied“ unter Einmessen › Mehr, das bleibt). -->
       <div class="seg zh-bereich-seg" id="zh-bereich" role="group" aria-label="Bereich" hidden></div>
-      <!-- Kino an 2.0/2.1 (Entwurf 15.11.2026): statt des Bereichs die Ziel-Wahl „Voll | Stereo“ (Kino-Linie | Wie Stereo), Kreis bei Voll -->
+      <!-- Kino an 2.0/2.1 (Entwurf 15.11.2026): statt des Bereichs die Ziel-Wahl „Vorher | Voll | Stereo“ (Kino-Linie | Wie Stereo), Kreis bei Voll -->
       <div class="seg zh-bereich-seg" id="zh-ziel" role="group" aria-label="Kino" hidden></div>
+      <!-- Kino ohne Ziel-Wahl (mehr als vorne): nur „Vorher | Nachher“ -->
+      <div class="seg zh-bereich-seg" id="zh-vn" role="group" aria-label="Vergleich" hidden><button type="button" data-zh-vorher="1" aria-pressed="false">Vorher</button><button type="button" data-zh-vorher="0" aria-pressed="true">Nachher</button></div>
       <p class="klein zh-bereich-status" id="zh-bereich-status" aria-live="polite"></p>
+      <button type="button" class="kb-zeile zh-klang-zeile" id="zh-blind-zeile" data-sheet-block="ab-kuh" data-sheet-titel="Blind vergleichen" hidden><span>Blind vergleichen</span></button>
       <!-- Eine Zeile „Klang · ‹Schalter›“ mit Pfeil öffnet das Fenster Klang (Stimme, Bass, Nacht, Couch, Musik ↔ Film …; R5) -->
       <button type="button" class="kb-zeile zh-klang-zeile" id="zh-klang-zeile" data-sheet-block="zh-schalter" data-sheet-titel="Klang" hidden><span>Klang <span class="wert" id="zh-klang-wert"></span></span></button>
       <!-- Lippen-Sync bei Film (Nutzer 15.11.2026): bedienbar wie „Klang ›“, dasselbe Fenster wie unter Box -->
@@ -2098,8 +2137,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
     <div class="zh-karten" id="zh-karten"></div>
     <div class="zh-aktionen" id="zh-aktionen"></div>
     <div id="zh-status" class="klein" aria-live="polite"></div>
-    <!-- Box: Zustand, dann Gruppen (Quellen, Bild und Ton, Box, Hördosis, App), unten Hilfe (jetzt.js) -->
-    <details class="mehr" id="zh-zustand" hidden><summary><i class="ampel" id="zh-ampel"></i>Zustand <span class="wert" id="zh-zustand-kurz"></span></summary><div class="zeilen" id="zh-zustand-zeilen"></div></details>
+    <!-- Box (Entwurf 15.11.2026 „Box · neu“): Kopf, Zustand, Kacheln, Update, Zeilen, Darstellung, Mehr (boxStatusHtml, zuhauseZeigen) -->
     <div class="zh-box-liste" id="zh-box-liste"></div>
     <div class="sheet-block" hidden data-block="zh-box-mehr" id="zh-box-mehr-block"><div class="zh-box-liste" id="zh-box-mehr-liste"></div></div>
     <!-- Ohne Box: Vorher/Nachher als Musikstück (vgKarte), gefüllt beim Öffnen aus der letzten Runde -->
@@ -2120,79 +2158,83 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
       <p class="klein" id="zh-standby-status" aria-live="polite"></p>
     </div>
     <details class="mehr" id="zh-tipps" hidden><summary>Einstellungen an deinen Geräten</summary><div id="zh-tipps-inhalt"></div></details>
-    <!-- Werkstatt (Entwurf 13.11.2026, „Aufbau“): alles, was nur zum Testen da ist, an einem Ort und versteckt. Kein Reiter:
-         lange auf die Versionsnummer im Box-Kopf tippen (mit VoiceOver: die Taste „Werkstatt“ gleich daneben), zurück mit
-         „‹ Box“; unten bleibt Box markiert. Bericht senden (einziger Weg außer der Bitte auf Hören und dem Großen Test),
-         Großer Test, Ton (Fehler im Ton, Herkunft, Knacken gehört, Fehler im Film-Ton), Messvarianten (Mitte, Rechnung,
-         Kino-Ziel), Ausgangsrate, Fehlersuche (jetzt.js) und Takt-Labor (klangbox/dienst/klangkette.py TAKT_VARIANTEN). -->
+    <!-- Testlabor (Entwurf 15.11.2026 „Testlabor“): alles zum Prüfen der Box an einem Ort. Kein Reiter: Box › Kopf ›
+         „Testlabor“, zurück mit „Fertig“; unten bleibt Box markiert. Oben „Bericht senden“ (einziger Weg außer der Bitte auf
+         Hören und dem Großen Test), ein Satz und sechs Kacheln aus dem Status (werkstattBlick; antippen: Einzelheiten),
+         darunter Tests, Ton, Anschluss und „Diagnose kopieren“. Die Einzelheiten sind Fenster (sheet-block). -->
     <div class="zh-werkstatt" id="zh-werkstatt">
-      <button type="button" class="kb-link zh-zurueck" id="zh-ws-zurueck" data-zh-tab="box" aria-label="Zurück zu Box">‹ Box</button>
+      <div class="em-kopf"><span class="zh-raum-waehler"><span>Klång-Box&nbsp;· Testlabor</span></span><button type="button" class="kb-link" id="zh-ws-zurueck" data-zh-tab="box">Fertig</button></div>
       <p class="klein" id="zh-ws-ohne">Die Werkzeuge hier prüfen die Klång-Box. Sie erscheinen, sobald sie verbunden ist.</p>
-      <section class="zh-gruppe" id="zh-ws-bericht" aria-label="Bericht" hidden><h2 class="kb-label">Bericht</h2>
-        <div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-bericht" data-name="Bericht senden">Bericht senden</button><p class="klein">Der ganze Stand der Box als Text, zum Teilen. Dauert bis zu einer Minute.</p></div>
+      <section class="zh-gruppe" id="zh-ws-bericht" aria-label="Bericht" hidden>
+        <button type="button" class="zh-haupt" id="zh-diag-bericht" data-name="Bericht senden">Bericht senden</button>
         <p class="klein" id="zh-diag-status" aria-live="polite"></p></section>
-      <!-- Großer Test (grosser_test.js): ein Einstieg, die geführte Ansicht ist #gt-schritt -->
-      <section class="zh-gruppe" id="gt-einstieg" aria-label="Großer Test" hidden><button type="button" class="kb-zeile" id="gt-oeffnen">Großer Test</button><p class="klein" id="gt-einstieg-text"></p></section>
-      <!-- Ton: Fehler im Ton (früher Kachel unter Box), Herkunft (status.rahmen_sanft.herkunft/ursache), Knacken gehört,
-           Fehler im Film-Ton Hart | Sanft (früher Fenster Klang) -->
-      <section class="zh-gruppe" id="zh-ws-ton" aria-label="Ton" hidden><h2 class="kb-label">Ton</h2>
-        <div id="zh-ws-ton-inhalt" style="display: grid; gap: 8px"></div>
-        <div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-knacken">Knacken gehört</button><p class="klein">Gleich nach dem Knacken tippen: Die Box sieht nach, ob sie in den 20 Sekunden davor einen Aussetzer hatte.</p></div>
+      <div class="zh-ws-blick" id="zh-ws-blick" hidden></div>
+      <section class="zh-gruppe" id="zh-ws-tests" aria-label="Tests" hidden><h2 class="kb-label">Tests</h2>
+        <!-- Großer Test (grosser_test.js): die Zeile ist der Einstieg, die geführte Ansicht ist #gt-schritt -->
+        <button type="button" class="kb-zeile" id="gt-oeffnen" hidden><span>Großer Test <span class="wert" id="gt-einstieg-text"></span></span></button>
+        <button type="button" class="kb-zeile" id="zh-knacken"><span>Knacken gehört <span class="wert">· gleich danach tippen</span></span></button>
+        <button type="button" class="kb-zeile" id="zh-diag-direkt"><span>Ton direkt testen <span class="wert">· drei leise Töne</span></span></button>
+        <button type="button" class="kb-zeile" id="zh-takt-k" data-sheet-block="zh-takt" data-sheet-titel="Takt-Labor" hidden><span>Takt-Labor <span class="wert" id="zh-takt-wert"></span></span></button>
+        <button type="button" class="kb-zeile" id="zh-kernel-k" data-sheet-block="zh-kernel" data-sheet-titel="Kernel-Test" hidden><span>Kernel-Test <span class="wert" id="zh-kernel-wert"></span></span></button>
         <p class="klein" id="zh-ws-ton-status" aria-live="polite"></p></section>
-      <!-- Messvarianten (Hör-Schalter, klangbox/feinabstimmung.py): Mitte, Rechnung, Kino-Ziel; früher Fenster Klang und Hören -->
-      <section class="zh-gruppe" id="zh-ws-varianten" aria-label="Messvarianten" hidden><h2 class="kb-label">Messvarianten</h2>
-        <div class="kb-gruppen eng" id="zh-ws-schalter"></div>
-        <div id="zh-schalter-md" class="kb-gruppen"></div>
-        <p class="klein" id="zh-ws-schalter-status" aria-live="polite"></p></section>
-      <!-- Ausgangsrate (früher Box › Quellen) -->
-      <section class="zh-gruppe" id="zh-ws-rate" aria-label="Ausgangsrate" hidden><h2 class="kb-label">Ausgangsrate</h2><span class="klein" id="zh-rate-text"></span>
-        <div class="chips" id="zh-rate" role="group" aria-label="Ausgangsrate"></div><span class="klein" id="zh-rate-tipp"></span>
-        <p class="klein" id="zh-rate-status" aria-live="polite"></p></section>
-      <section class="zh-gruppe" id="zh-fehlersuche" aria-label="Fehlersuche" hidden><h2 class="kb-label">Fehlersuche</h2>
-        <div class="zh-fehler-liste">
-          <div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-kopieren">Diagnose kopieren</button><p class="klein">Kurzer Stand der Box als Text, sofort. Für den Fall, dass der Bericht nicht kommt.</p></div>
-          <div class="zh-fehler" id="zh-diag-bitstream-zeile"><button type="button" class="kb-zeile" id="zh-diag-bitstream">Mehrkanal prüfen</button><p class="klein">Prüft, ob Mehrkanal-Ton (Bitstream) sauber ankommt. Die Box ist dafür etwa 15 Sekunden still.</p></div>
-          <div class="zh-fehler" id="zh-diag-eingang-zeile"><button type="button" class="kb-zeile" id="zh-diag-eingang">Eingang prüfen</button><p class="klein">Schaut, ob am optischen Eingang ein Signal ankommt. Dafür öffnet die Box ihn etwa 6 Sekunden.</p></div>
-          <div class="zh-fehler" id="zh-ausgang-zeile" hidden><p class="kb-label">Ausgang</p><div class="zh-ausgang-wahl" role="radiogroup" aria-label="Ausgang"><button type="button" class="kb-zeile" role="radio" data-ausgang="spdif">Optisch</button><button type="button" class="kb-zeile" role="radio" data-ausgang="usb">USB</button></div><p class="klein" id="zh-ausgang-text"></p></div>
-          <div class="zh-fehler" id="zh-diag-funk-zeile"><button type="button" class="kb-zeile" id="zh-diag-funk" data-name="Funk-Protokoll">Funk-Protokoll</button><p class="klein">Prüft den Funk zu den Rears Punkt für Punkt (Stick, Land, Kanal, hostapd, Satelliten) und misst 20 Sekunden. Zum Teilen.</p></div>
-          <div class="zh-fehler"><button type="button" class="kb-zeile" id="zh-diag-direkt">Ton direkt testen</button><p class="klein">Drei leise Töne direkt auf die Ausgänge, an allem vorbei. Klingt das, sind Karte und Kabel in Ordnung.</p></div>
-        </div>
+      <section class="zh-gruppe" id="zh-ws-tonzeilen" aria-label="Ton" hidden><h2 class="kb-label">Ton</h2>
+        <button type="button" class="kb-zeile" id="zh-bitgenau-k" data-sheet-block="zh-bitgenau" data-sheet-titel="Stereo bitgenau" hidden><span>Stereo bitgenau <span class="wert" id="zh-bitgenau-wert"></span></span></button>
+        <button type="button" class="kb-zeile" id="zh-stf-k" data-sheet-block="zh-stf" data-sheet-titel="Streamer-Takt folgen" hidden><span>Takt folgen <span class="wert" id="zh-stf-wert"></span></span></button>
+        <button type="button" class="kb-zeile" id="zh-sanft-k" data-sheet-block="zh-sanft" data-sheet-titel="Fehler im Film-Ton" hidden><span>Fehler im Film-Ton <span class="wert" id="zh-sanft-wert"></span></span></button>
+        <button type="button" class="kb-zeile" id="zh-varianten-k" data-sheet-block="zh-ws-varianten" data-sheet-titel="Messvarianten" hidden><span>Messvarianten <span class="wert" id="zh-varianten-wert"></span></span></button></section>
+      <section class="zh-gruppe" id="zh-ws-anschluss" aria-label="Anschluss" hidden><h2 class="kb-label">Anschluss</h2>
+        <button type="button" class="kb-zeile" id="zh-diag-eingang"><span>Eingang prüfen <span class="wert">· optisch, 6 s</span></span></button>
+        <button type="button" class="kb-zeile" id="zh-diag-bitstream"><span>Mehrkanal prüfen <span class="wert">· etwa 15 s still</span></span></button>
+        <button type="button" class="kb-zeile" id="zh-diag-funk" data-name="Funk-Protokoll"><span>Funk-Protokoll <span class="wert">· Funk zu den Rears</span></span></button>
+        <p class="klein" id="zh-anschluss-status" aria-live="polite"></p></section>
+      <section class="zh-gruppe" id="zh-fehlersuche" aria-label="Diagnose" hidden>
+        <button type="button" class="kb-zeile" id="zh-diag-kopieren"><span>Diagnose kopieren <span class="wert">· kurzer Stand, sofort</span></span></button>
         <p class="klein" id="zh-fehler-status" aria-live="polite"></p></section>
-      <section class="zh-gruppe zh-takt" id="zh-takt-block" aria-label="Takt-Labor" hidden><h2 class="kb-label">Takt-Labor</h2>
-        <p class="klein">Die Box probiert einen anderen Weg durch die Klangkette und misst dabei Verzögerung und Aussetzer. Bei jedem Problem schaltet sie sofort selbst zurück. Bitte dabei Ton laufen lassen: Fernseher (optisch) oder Spotify/AirPlay.</p>
+      <!-- Einzelheiten als Fenster: Fehler im Ton (Kacheln Aussetzer, Knacken, Hänger), Wächter, Ton und Takt -->
+      <div class="sheet-block" hidden data-block="zh-ws-ton" id="zh-ws-ton"><div id="zh-ws-ton-inhalt" class="kb-gruppen"></div></div>
+      <div class="sheet-block" hidden data-block="zh-ws-waechter" id="zh-ws-waechter"><div class="zeilen" id="zh-ws-waechter-zeilen"></div>
+        <p class="klein">Die Wächter prüfen die Klangkette jede Sekunde. Kein Signal am Eingang ist kein Fehler: die Box wartet nur.</p></div>
+      <!-- Fehler im Film-Ton Hart | Sanft (POST /api/rahmen_sanft, ab Werk sanft) -->
+      <div class="sheet-block" hidden data-block="zh-sanft"><div class="kb-gruppen" id="zh-sanft-inhalt"></div>
+        <p class="klein" id="zh-sanft-status" aria-live="polite"></p></div>
+      <!-- Messvarianten (Hör-Schalter, klangbox/feinabstimmung.py): Mitte und Rechnung; Kino-Ziel steht auf Einmessen -->
+      <div class="sheet-block" hidden data-block="zh-ws-varianten" id="zh-ws-varianten">
+        <div class="kb-gruppen" id="zh-ws-schalter"></div>
+        <div id="zh-schalter-md" class="kb-gruppen"></div>
+        <p class="klein" id="zh-ws-schalter-status" aria-live="polite"></p></div>
+      <div class="sheet-block zh-takt" hidden data-block="zh-takt" id="zh-takt-block">
+        <p class="klein">Die Box probiert einen anderen Weg durch die Klangkette und misst dabei Verzögerung und Aussetzer. Bei jedem Problem schaltet sie sofort selbst zurück. Bitte dabei Ton laufen lassen: Fernseher (optisch) oder Musik aus dem Netz.</p>
         <div id="zh-takt-laeuft" style="display: grid; gap: 8px"></div>
         <div id="zh-takt-varianten" style="display: grid; gap: 8px"></div>
         <div id="zh-takt-ergebnisse" style="display: grid; gap: 8px"></div>
-        <p class="klein" id="zh-takt-status" aria-live="polite"></p></section>
-      <!-- Kernel-Test mit automatischem Rückfall (klangbox/dienst/kernelprobe.py, Nutzer 13.11.2026) -->
-      <!-- Aufnahme mit Reserve (Recherche Knacken 13.11.2026): mehr Puffer am optischen Eingang, Rückschaltung nach Hängern -->
-      <section class="zh-gruppe" id="zh-reserve-block" aria-label="Aufnahme mit Reserve" hidden><h2 class="kb-label">Aufnahme mit Reserve</h2>
-        <p class="klein">Die Box nimmt den Fernseher mit mehr Puffer auf (21 statt 5 ms). Stockt sie kurz, gehen keine Werte verloren, die sonst einen Mehrkanal-Rahmen zerstören. Hängt die Box zweimal in 10 Minuten, schaltet sie das selbst wieder aus.</p>
-        <div class="seg" role="group" aria-label="Aufnahme mit Reserve" id="zh-reserve-seg"><button type="button" data-reserve="0" aria-pressed="true">Aus</button><button type="button" data-reserve="1" aria-pressed="false">An</button></div>
-        <p class="klein" id="zh-reserve-status" aria-live="polite"></p></section>
+        <p class="klein" id="zh-takt-status" aria-live="polite"></p></div>
       <!-- Stereo bitgenau (Nutzer 14.11.2026): Streamer ohne Umrechnung, ab Werk an, Rückschaltung nach Aussetzern -->
-      <section class="zh-gruppe" id="zh-bitgenau-block" aria-label="Stereo bitgenau" hidden><h2 class="kb-label">Stereo bitgenau</h2>
+      <div class="sheet-block" hidden data-block="zh-bitgenau" id="zh-bitgenau-block">
         <p class="klein">Musik aus dem Netz läuft ohne Umrechnung durch die Box, nur die Raumkorrektur rechnet. Hat die Box dabei Aussetzer, schaltet sie das selbst ab.</p>
-        <div class="seg" role="group" aria-label="Stereo bitgenau" id="zh-bitgenau-seg"><button type="button" data-bitgenau="0" aria-pressed="false">Aus</button><button type="button" data-bitgenau="1" aria-pressed="true">An</button></div>
+        <div class="seg" role="group" aria-label="Stereo bitgenau"><button type="button" data-bitgenau="0" aria-pressed="false">Aus</button><button type="button" data-bitgenau="1" aria-pressed="true">An</button></div>
         <p class="klein" id="zh-bitgenau-wirkt" hidden></p>
-        <p class="klein" id="zh-bitgenau-status" aria-live="polite"></p></section>
+        <p class="klein" id="zh-bitgenau-status" aria-live="polite"></p></div>
       <!-- Streamer-Takt folgen: die Quellen folgen dem Takt der Ausgabe, geregelt auf den Füllstand, ab Werk an (0.3.35), Rückschaltung -->
-      <section class="zh-gruppe" id="zh-stf-block" aria-label="Streamer-Takt folgen" hidden><h2 class="kb-label">Streamer-Takt folgen</h2>
+      <div class="sheet-block" hidden data-block="zh-stf" id="zh-stf-block">
         <p class="klein">Musik aus dem Netz läuft im selben Takt wie die Ausgabe der Box. Ohne das kann der Puffer der Box langsam wandern und ab und zu einen kurzen Aussetzer geben. Hilft es nicht oder hat die Box dabei Aussetzer, schaltet sie das selbst ab.</p>
-        <div class="seg" role="group" aria-label="Streamer-Takt folgen" id="zh-stf-seg"><button type="button" data-stf="0" aria-pressed="false">Aus</button><button type="button" data-stf="1" aria-pressed="true">An</button></div>
+        <div class="seg" role="group" aria-label="Streamer-Takt folgen"><button type="button" data-stf="0" aria-pressed="false">Aus</button><button type="button" data-stf="1" aria-pressed="true">An</button></div>
         <p class="klein" id="zh-stf-wirkt" hidden></p>
-        <p class="klein" id="zh-stf-status" aria-live="polite"></p></section>
-      <section class="zh-gruppe" id="zh-kernel-block" aria-label="Kernel-Test" hidden><h2 class="kb-label">Kernel-Test</h2>
+        <ul class="zh-ws-zeilen klein" id="zh-stf-werte"></ul>
+        <p class="klein" id="zh-stf-status" aria-live="polite"></p></div>
+      <!-- Kernel-Test mit automatischem Rückfall (klangbox/dienst/kernelprobe.py, Nutzer 13.11.2026) -->
+      <div class="sheet-block" hidden data-block="zh-kernel" id="zh-kernel-block">
         <p class="klein">Ein neuerer Systemkern, in dem der Fehler der hakenden Tonschnittstelle behoben ist. Er wird neben den bisherigen gelegt; die Box startet ihn genau einmal und prüft sich 10 Minuten lang selbst. Klappt etwas nicht, startet sie von selbst wieder mit dem bisherigen. Hängt sie: Strom kurz aus und wieder an, dann kommt ebenfalls der bisherige.</p>
         <div id="zh-kernel-inhalt" style="display: grid; gap: 8px"></div>
-        <p class="klein" id="zh-kernel-status" aria-live="polite"></p></section>
-      <!-- Gastro (Test, Nutzer 12.11.2026): Hintergrund für ein Lokal auf der vorhandenen Einmessung (klangbox/dienst/gastro.py).
-           Nur zwei Wahlreihen (Tageszeit, Laden), dazu an/aus und eine Höchstgrenze; die Technik steht in der Tabelle im Code. -->
-      <section class="zh-gruppe" id="zh-gastro-block" aria-label="Gastro (Test)" hidden><h2 class="kb-label">Gastro (Test)</h2>
-        <p class="klein">Musik für ein Lokal, auf der vorhandenen Einmessung. Café/Restaurant: leiser, Gespräche fallen leichter. Bar: laut, aber angenehm. Die Box folgt Tageszeit und Laden. Nur bei Musik.</p>
-        <div id="zh-gastro-wahl" style="display: grid; gap: 8px"></div>
-        <p class="klein" id="zh-gastro-text"></p>
-        <p class="klein" id="zh-gastro-status" aria-live="polite"></p></section>
+        <p class="klein" id="zh-kernel-status" aria-live="polite"></p></div>
+    </div>
+    <!-- Box › Ausgang (früher im Testlabor): Ausgang Optisch | USB (nur mit USB-Wandler) und Ausgangsrate (nur mit Streamer) -->
+    <div class="sheet-block" hidden data-block="zh-ausgang" id="zh-ausgang-block">
+      <div class="kb-gruppe" id="zh-ausgang-zeile" hidden><span class="kb-label" id="zh-ausgang-label">Ausgang</span>
+        <div class="seg" role="group" aria-labelledby="zh-ausgang-label"><button type="button" data-ausgang="spdif" aria-pressed="true">Optisch</button><button type="button" data-ausgang="usb" aria-pressed="false">USB</button></div>
+        <p class="klein" id="zh-ausgang-text"></p></div>
+      <div class="kb-gruppe" id="zh-ws-rate" hidden><span class="kb-label" id="zh-rate-label">Ausgangsrate</span><span class="klein" id="zh-rate-text"></span>
+        <div class="chips" id="zh-rate" role="group" aria-labelledby="zh-rate-label"></div><span class="klein" id="zh-rate-tipp"></span>
+        <p class="klein" id="zh-rate-status" aria-live="polite"></p></div>
     </div>
     <!-- Box-Funktionen als Sheets (B4): Quellen (Dienste, Radio, Fernseh-Ton), Hördosis, Lippen-Sync -->
     <div class="sheet-block" hidden data-block="zh-quellen" id="zh-quellen">
@@ -2278,7 +2320,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
       <p class="klein" id="zh-auf-status" aria-live="polite"></p>
     </div>
     <!-- Fenster Klang (Hören › „Klang · …“): Hör-Schalter (klangbox/feinabstimmung.py) Stimme und Bass (Bereich steht auf Hören,
-         Mitte und Rechnung sind Messvarianten in der Werkstatt); im Kino Räumlichkeit und Couch, dazu Nachtmodus, Musik ↔ Film,
+         Mitte und Rechnung sind Messvarianten im Testlabor); im Kino Räumlichkeit und Couch, dazu Nachtmodus, Musik ↔ Film,
          Hintergrund (nur Musik) und Vorne ↔ Hinten. Fuß: Zurücksetzen. Kein Vorher/Blind, kein Klangprofil (gibt es beim Einmessen). -->
     <div class="sheet-block" hidden data-block="zh-schalter" id="zh-schalter-block">
       <div class="kb-gruppen eng" id="zh-schalter-gruppen"></div>
@@ -2306,7 +2348,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
       <div class="sheet-fuss" id="rt-fuss" hidden><button type="button" class="kb-link" id="rt-stopp">Stoppen</button></div>
       <p class="klein" id="rt-lizenz"></p>
     </div>
-    <!-- Bereiche wie eine App (Entwurf vom 06.11.2026, vom Nutzer bestätigt): Hören, Einmessen, Box; dazu die Werkstatt (versteckt, Entwurf 13.11.2026) -->
+    <!-- Bereiche wie eine App (Entwurf vom 06.11.2026, vom Nutzer bestätigt): Hören, Einmessen, Box; dazu das Testlabor (Unterseite von Box, Entwurf 15.11.2026) -->
     <nav class="zh-tabs" id="zh-tabs" aria-label="Bereiche">
       <button type="button" data-zh-tab="hoeren" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Hören</button>
       <button type="button" data-zh-tab="einmessen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>Einmessen</button>
@@ -10588,7 +10630,7 @@ window.addEventListener("klangboxraum", (ev) => {
 })();
 // --- Ab dem Ergebnis: Klangprofil, Einstellungen anwenden, Nachmessung mit Rücknahme, „Ohne Box“ ---------
 // Rechnungen wie die Box (analyse.js, im Hauptfaden für die schnellen Dinge, sonst im Worker)
-const AJ = new Function($("analyse-src").textContent + "\nreturn { profilAnwenden, profilDbAn, zahlText, zahlKurz, reglerText, reglerWerte, reglerZusammensetzen, biquad, PROFIL_ARTEN, FS,\n"
+const AJ = new Function($("analyse-src").textContent + "\nreturn { profilAnwenden, profilDbAn, zahlText, zahlKurz, reglerText, reglerWerte, reglerZusammensetzen, biquad, peqDbAuf, PROFIL_ARTEN, FS,\n"
   // Ziel der Kurve auf Einmessen (Raster der Kurve): zielkurve wie die Bewertung, Stereo bzw. Kino (Kino-Linie)
   + "  zielAn: (fs, m) => { const z = zielkurve(HAUSKURVE[m] ?? HAUSKURVE.stereo); return fs.map((f) => { let b = 0; for (let i = 1; i < F.length; i++) if (Math.abs(F[i] - f) < Math.abs(F[b] - f)) b = i; return z[b]; }); } };")();
 // Vorher/Nachher anhören (weiter unten): früh angelegt, weil das Fenster unter Einmessen › Mehr sie braucht
@@ -10927,7 +10969,7 @@ async function avJetzt() {
 async function avSetzen(seite) {
   const knoepfe = [...document.querySelectorAll("[data-av-seite]")];
   av.seite = seite; knoepfe.forEach((b) => { b.setAttribute("aria-pressed", String(+b.dataset.avSeite === seite)); b.disabled = true; });
-  const a = await nativ.box("aus", { aus: seite === 0 }, { zeitMs: 6000 });
+  const a = await vglAus(seite === 0, { zeitMs: 6000 });
   knoepfe.forEach((b) => { b.disabled = false; });
   if (!a.ok) { $("a-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; return; }
   // A gerade nach dem Start: noch kein Spektrum der Musik, A ist dann weniger genau gleich laut
@@ -11842,10 +11884,10 @@ $("e-funk-einrichten").addEventListener("click", async () => {
   b.disabled = false; b.textContent = "Noch einmal einrichten";
   funkZeigen(a.ok ? a.funk : null, a.ok ? null : a.fehler || a.grund);
 });
-// Box › Zustand: „Funk einrichten“ beim Hinweis zum Funk-Stick (status.funk.stick). Mit den Satelliten der Einrichtung;
-// ohne sie nimmt die Hauptbox die schon bekannten. Die Zeile wird mit jedem Status neu gezeichnet: zhFunkLaeuft hält den Knopf aus.
+// Box › Zustand: „Funk einrichten“ beim Hinweis zum Funk-Stick (status.funk.stick, boxProbleme). Mit den Satelliten der
+// Einrichtung; ohne sie nimmt die Hauptbox die schon bekannten. Die Zeile wird mit jedem Status neu gezeichnet: zhFunkLaeuft hält den Knopf aus.
 let zhFunkLaeuft = false;
-$("zh-zustand-zeilen").addEventListener("click", async (ev) => {
+$("zh-box-liste").addEventListener("click", async (ev) => {
   const b = ev.target.closest("#zh-funk-einrichten"); if (!b || !nativ || zhFunkLaeuft) return;
   const sat = einSatelliten(); zhFunkLaeuft = true; b.disabled = true; b.textContent = "Richtet ein … (bis zu einer Minute)";
   const daten = sat.length ? { aktion: "einrichten", partner: sat.length === 1 ? { id: sat[0] } : sat.map((id) => ({ id })) } : { aktion: "einrichten" };
@@ -12159,9 +12201,9 @@ function zhKinoFolgtZeile() {
 function zhKinoFolgtHinweis() {
   const k = zh.st && zh.st.kino_aus_stereo, f = k && k.folgt, h = f && f.hinweis;
   if (!boxBereit() || !h) return "";
-  if (f.zurueck_wartet) return `<div class="kasten zh-upd-hinweis" id="zh-kf-hinweis"><p class="klein"><b>Zurück zum vorigen Kino</b>&nbsp;– geladen wird in der nächsten Pause.</p>`
+  if (f.zurueck_wartet) return `<div class="kasten zh-upd-hinweis" id="zh-kf-hinweis"><p class="klein"><b>Zurück zum vorigen Kino</b> in der nächsten Pause.</p>`
     + `<div class="em-unten"><button type="button" class="zweit" data-kf="behalten">Doch behalten</button></div></div>`;
-  return `<div class="kasten zh-upd-hinweis" id="zh-kf-hinweis"><p class="klein"><b>Kino ist deiner Stereo-Einmessung gefolgt</b>&nbsp;– behalten oder zurück zum vorigen Kino?</p>`
+  return `<div class="kasten zh-upd-hinweis" id="zh-kf-hinweis"><p class="klein"><b>Kino ist Stereo gefolgt.</b></p>`
     + `<div class="em-unten"><button type="button" data-kf="behalten">Behalten</button><button type="button" class="zweit" data-kf="zurueck">Zurück</button></div></div>`;
 }
 // Zeile „Kino folgt Stereo · an|aus“ unter Einmessen › Mehr (nur 2.0/2.1); sie öffnet das Fenster mit „Aus | An“
@@ -12271,14 +12313,16 @@ document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-
   document.querySelectorAll("#zh-leitung, .zh-leitung-punkt").forEach((x) => x.remove());
   if (typeof zuhauseZeigen === "function") try { zuhauseZeigen(false); } catch (e) { /* nächster Status zeichnet neu */ } });
 // Hören bei Film: Fernseher am Eingang mit Format und Weg auf die Anlage, Empfehlung am Bereich (kleiner Ring), Lippen-Sync
-// als bedienbare Zeile (Nutzer 15.11.2026: bei Film gehört er auf Hören; unter Box steht er zusätzlich)
+// als bedienbare Zeile (Nutzer 15.11.2026: bei Film gehört er auf Hören; unter Box steht er nicht mehr)
 function hoerenFilm(boxDa, st) {
   const e = (st && st.eingang) || {}, film = !!(boxDa && st && st.quelle === "spdif" && e.signal !== false && !(st.streamer && st.streamer.spielt));
   // Format und Weg stehen unter dem Raumbild (jetzt.js); hier nur bei einer Leitung mit Aussetzern der kleine Verweis auf Box
   const leitung = film && leitungHinweis(st) ? `<button type="button" class="kb-link klein zh-leitung-punkt" data-zh-tab="box"><i aria-hidden="true"></i>Leitung prüfen, siehe Box</button>` : "";
-  const el = $("zh-film"); el.hidden = !leitung; $("zh-lippen-h").hidden = !film;
+  // Lippen-Sync (steht seit dem Entwurf 15.11.2026 nur noch hier): bei Film und im Kino, auch bevor der Fernseher Ton schickt
+  const lippen = film || !!(boxDa && st && st.modus === "kino" && !(st.streamer && st.streamer.spielt));
+  const el = $("zh-film"); el.hidden = !leitung; $("zh-lippen-h").hidden = !lippen;
   if (el.dataset.html !== leitung) { el.dataset.html = leitung; el.innerHTML = leitung; }
-  if (film) {
+  if (lippen) {
     $("zh-lippen-h-wert").textContent = `· ${zk(lippenMs(st), 0)} ms`;
   }
   // Empfehlung am Bereich: aus der Einmessung, die spielt
@@ -12298,9 +12342,6 @@ function listeMitFokus(el, html) {
   el.dataset.html = html; el.innerHTML = html;
   if (sel) { const f = el.querySelector(sel); if (f) try { f.focus({ preventScroll: true }); } catch (err) { /* ohne Fokus */ } }
 }
-// Box auf einen Blick: Name und Version (lange tippen: Werkstatt), darunter der Zustand (Satz, was ankommt, zwei Kacheln
-// Verzögerung und Temperatur) nur bei einem Problem (Entwurf 13.11.2026; Fehler im Ton steht in der Werkstatt). Kabel-Hinweis
-// und ein neues Update stehen immer da
 // Update-Knopf oben auf Hören (jetzt.js) und im Box-Reiter (Prüfung 0.3.35 S2): nicht für die Version, die gerade mit
 // „Zurück“ verlassen wurde (letztes.ergebnis „zurueckgerollt“, letztes.version = verfuegbar.version). Sonst stand der Knopf
 // dauerhaft da, und ein Tipp installierte sie ohne Rückfrage. Im Update-Fenster bleibt sie erreichbar; eine neuere zeigt ihn wieder.
@@ -12309,13 +12350,32 @@ function updKnopfOben(u) {
   const l = u.letztes;
   return !(l && typeof l === "object" && l.ergebnis === "zurueckgerollt" && l.version === u.verfuegbar.version);
 }
+// Wächter mit Befund: „eingang“ (kein Signal) ist kein Fehler, die Box ist nur bereit (Besitzer 15.11.2026); nur wenn ein
+// Streamer spielt und in der Kette nichts ankommt (streamer_ohne_ton), stimmt etwas nicht. Eine ältere Box kennt das Feld
+// nicht: dann aus dem Status (ein Streamer spielt), sonst verschluckte die App dort genau diesen Fehler
+const waechterWarn = (st) => ((st && st.waechter) || []).filter((w) => w && w.ok === false && (w.regel !== "eingang"
+  || ("streamer_ohne_ton" in w ? w.streamer_ohne_ton : !!(st.streamer && st.streamer.spielt))));
+// Was an der Box gerade wirklich nicht stimmt, je ein Satz: Kette, Rear-Box weg, Funk-Stick, Wächter, Hitze
+function boxProbleme(st) {
+  const z = [], stick = st.funk && st.funk.stick, sats = st.satelliten || [];
+  if (st.zustand === "fehler") z.push(esc(st.grund ? `Die Klangkette läuft nicht (${st.grund}).` : "Die Klangkette läuft nicht."));
+  for (const s of sats) if (s.erreichbar === false) z.push(esc(s.name ? `Die Rear-Box ${s.name} antwortet nicht.` : "Eine Rear-Box antwortet nicht."));
+  // Funk-Stick (status.funk.stick): abgezogen, hostapd nicht gestartet, oder neu und Rears geplant (dann „Funk einrichten“)
+  if (stick && (stick.zustand !== "neu" || einSatelliten().length || sats.length) && !window.klangboxBedienseite)
+    z.push(esc(`Funk-Stick: ${stick.text || ""}`) + (stick.zustand !== "fehlt" ? ` <button type="button" class="kb-link" id="zh-funk-einrichten"${zhFunkLaeuft ? " disabled" : ""}>${zhFunkLaeuft ? "Richtet ein …" : "Funk einrichten"}</button>` : ""));
+  for (const w of waechterWarn(st)) z.push(esc(w.text || w.regel));
+  if (st.temperatur_c != null && +st.temperatur_c >= 80) z.push(`Die Box ist sehr warm (${Math.round(+st.temperatur_c)} °C). Braucht sie mehr Luft?`);
+  return z;
+}
+// Box (Entwurf 15.11.2026 „Box · neu“): Kopf wie Hören (leise „Klång-Box · Version“, rechts „Testlabor“ wie „CD-Regal“),
+// darunter immer der Zustand: Läuft seit …, ein Satz, leise was läuft; bei einem echten Fehler „Etwas stimmt nicht.“ und
+// direkt darunter die konkrete Zeile. Kein Signal, keine Musik: „Bereit.“ Dann die drei Kacheln (Fehler im Ton, Verzögerung,
+// Temperatur), ein Update als Knopf nur, wenn eins da ist. Feste Reihenfolge in allen Zuständen.
 function boxStatusHtml(st) {
   // Aus heißt nur: die Box schläft (Standby). zustand "aus" bzw. st.aus ist „Vorher“ (spielt ohne Einmessung, etwa während
   // „Hör den Unterschied“)
-  const e = st.eingang || {}, warn = (st.waechter || []).filter((w) => w && w.ok === false), aus = !!(st.standby && st.standby.schlaeft);
-  const vorher = st.zustand === "aus" || st.aus === true;
-  const sats = (st.satelliten || []).filter((x) => x.erreichbar === false), lauf = +st.laufzeit_s || 0;
-  const stick = st.funk && st.funk.stick, stickProblem = !!stick && stick.zustand !== "neu" && !window.klangboxBedienseite;
+  const e = st.eingang || {}, aus = !!(st.standby && st.standby.schlaeft);
+  const vorher = st.zustand === "aus" || st.aus === true, lauf = +st.laufzeit_s || 0;
   const seit = lauf >= 3600 ? `${Math.floor(lauf / 3600)} h ${Math.round((lauf % 3600) / 60)} min` : `${Math.max(1, Math.round(lauf / 60))} min`;
   // Quelle aus st.quelle (streamer.name ist der Name der Box; Prüfer)
   const QN = { airplay: "AirPlay", spotify: "Spotify", upnp: "Streaming (UPnP)", bibliothek: "Bibliothek der Box", radio: "Radio", mpd: "Bibliothek der Box", analog: "Analog-Eingang" };
@@ -12323,20 +12383,58 @@ function boxStatusHtml(st) {
   const quelle = st.quelle === "spdif" ? `Fernseher ${e.art === "optisch" ? "optisch" : ""}`.trim() : esc(QN[st.quelle] || st.quelle || "");
   const fmt = !streamer && e.format ? `${FORMATE[e.format] || esc(e.format)}${e.kanaele && e.format !== "pcm2" ? ` ${esc(e.kanaele)}` : ""}` : "";
   const weg = [quelle, fmt && st.layout && e.kanaele !== st.layout ? `${fmt} → deine ${esc(st.layout)}` : fmt, e.rate ? `${zk(e.rate / 1000, e.rate % 1000 ? 1 : 0)} kHz` : ""].filter(Boolean).join("&nbsp;· ");
-  const kein = !streamer && e.signal === false;
-  const heiss = st.temperatur_c != null && +st.temperatur_c >= 80, problem = st.zustand === "fehler" || !!warn.length || !!sats.length || stickProblem || heiss;
-  const satz = st.zustand === "fehler" ? "Die Box braucht Hilfe." : warn.length || sats.length || stickProblem ? "Etwas stimmt nicht, siehe oben." : heiss ? "Die Box ist sehr warm." : aus ? "Die Box ist aus."
-    : kein ? "Bereit. Gerade kommt kein Ton." : st.zustand === "neutral" ? "Spielt ohne Einmessung." : vorher ? "Spielt gerade ohne Korrektur (Vorher)." : "Ton kommt sauber an.";
-  // Update nicht verstecken (Nutzer 14.11.2026): ein neues steht als Knopf direkt unter dem Zustand; er installiert gleich
+  const kein = !streamer && e.signal === false, probleme = boxProbleme(st);
+  const satz = probleme.length ? "Etwas stimmt nicht." : aus ? "Die Box ist aus." : kein ? "Bereit." : st.zustand === "neutral" ? "Spielt ohne Einmessung."
+    : vorher ? "Spielt gerade ohne Korrektur (Vorher)." : "Ton kommt sauber an.";
+  const unter = probleme.length ? probleme : aus ? [] : kein ? ["Gerade kommt kein Ton."] : weg ? [weg] : [];
+  // Update nicht verstecken (Nutzer 14.11.2026): ein neues steht als Knopf direkt unter den Kacheln; er installiert gleich
   // und öffnet dann das Fenster mit dem Fortschritt (Nutzer 15.11.2026, jetzt.js: data-upd-installieren)
   const upd = st.update || {}, updKnopf = updKnopfOben(upd)
     ? `<button type="button" class="zh-haupt box-update" id="zh-upd-kopf" data-upd-installieren="${esc(upd.verfuegbar.version)}">Update auf ${esc(upd.verfuegbar.version)} installieren</button>` : "";
-  const vz = st.verzoegerung && Number.isFinite(+st.verzoegerung.gesamt_ms) ? Math.round(+st.verzoegerung.gesamt_ms) : null;
+  const vz = st.verzoegerung && Number.isFinite(+st.verzoegerung.gesamt_ms) ? Math.round(+st.verzoegerung.gesamt_ms) : null, fit = fehlerImTon(st);
   const kachel = (titel, wert, klein) => `<div class="box-kachel"><span class="klein">${titel}</span><b>${wert}</b><span class="klein">${klein}</span></div>`;
-  return `<div class="em-kopf"><span class="zh-raum-waehler"><span>Klång-Box&nbsp;· ${esc(MA.name || st.name || "")}</span></span><span class="em-version"><span class="klein" id="zh-version">Version ${esc(st.version || "")}</span><button type="button" class="zh-ws-zugang" id="zh-ws-oeffnen">Werkstatt</button></span></div>
-    ${problem ? `<div class="box-zustand"><span class="klein box-laeuft"><i class="${aus || st.zustand === "fehler" ? "" : "an"}"></i>${aus ? "Aus" : `Läuft seit ${seit}`}</span><b class="box-satz">${satz}</b>${kein || aus ? "" : `<span class="klein">${weg}</span>`}</div>` : ""}
-    ${leitungHtml(st)}${problem ? `<div class="box-kacheln">${kachel("Verzögerung", vz == null ? "–" : `${vz} ms`, "vom Eingang bis zum Ton")}${kachel("Temperatur", st.temperatur_c != null ? `${Math.round(+st.temperatur_c)} °C` : "–", "gesund bis 80")}</div>` : ""}${updKnopf}`;
+  return `<div class="em-kopf"><span class="zh-raum-waehler"><span id="zh-version">Klång-Box&nbsp;· ${esc(st.version || "")}</span></span><button type="button" class="kb-link" id="zh-ws-oeffnen">Testlabor</button></div>
+    <div class="box-zustand" id="zh-box-zustand"><span class="klein box-laeuft"><i class="${aus || st.zustand === "fehler" ? "" : "an"}"></i>${aus ? "Aus" : `Läuft seit ${seit}`}</span><b class="box-satz">${satz}</b>${unter.map((z) => `<span class="klein">${z}</span>`).join("")}</div>
+    ${leitungHtml(st)}<div class="box-kacheln">${kachel("Fehler im Ton", fit == null ? "–" : zk(fit, 0), "seit dem Start")}${kachel("Verzögerung", vz == null ? "–" : `${vz} ms`, "bis zum Ton")}${kachel("Temperatur", st.temperatur_c != null ? `${Math.round(+st.temperatur_c)} °C` : "–", "gesund bis 80")}</div>${updKnopf}`;
 }
+// Testlabor auf einen Blick (Entwurf 15.11.2026 „Testlabor“): ein Satz und sechs Kacheln, nur aus dem Status der Box.
+// Aussetzer, Knacken, Hänger: rahmen_sanft.ursache.heute (Ursachenbuch, nur was die Box selbst verursacht hat, seit
+// Mitternacht), Takt: Korrektur der Taktfolge (streamer_takt_folgen.korrektur_ppm), Puffer: Füllstand der Weiche
+// (streamer_takt.fuell / puffer), Wächter: waechter. Antippen öffnet die Einzelheiten (nur, wenn die Box dazu etwas meldet:
+// ein Satellit hat weder Ursachenbuch noch Taktfolge). Startete der Dienst heute (heute.seit_start), heißt es „seit dem Start“.
+const UHRZEIT = (iso) => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : ""; };
+function werkstattKacheln(st) {
+  const ur = (st.rahmen_sanft && st.rahmen_sanft.ursache) || {}, heute = ur.heute || null, ab = heute && heute.seit_start ? "seit Start" : "heute";
+  const zaehler = (k, keins) => { const g = heute && heute[k]; if (!g) return ["–", "nicht gemeldet"];
+    return [zk(+g.n || 0, 0), g.zuletzt ? `${UHRZEIT(g.zuletzt)}${g.art ? ` · ${g.art}` : ""}` : g.unbestaetigt ? `${zk(g.unbestaetigt, 0)} ohne Beleg` : keins]; };
+  const stfDa = !!st.streamer_takt_folgen, stf = st.streamer_takt_folgen || {}, mt = st.streamer_takt || null, p = stf.korrektur_ppm;
+  const takt = p == null ? ["–", !stfDa ? "nur an der Hauptbox" : stf.an || stf.wegen_bitgenau ? schalterGrund({ ...stf, an: true }).replace(/^Wirkt gerade nicht: |\.$/g, "") || "wirkt gerade nicht" : "Takt folgen ist aus"]
+    : [`${p > 0 ? "+" : p < 0 ? "−" : ""}${zk(Math.abs(p), 0)} ppm`, Math.abs(p) >= 400 ? "folgt, am Rand" : "folgt der Quelle"];
+  const frisch = mt && mt.fuell != null && +mt.puffer > 0 && !(+mt.alter_s > 30);
+  const puffer = frisch ? [`${zk(100 * mt.fuell / mt.puffer, 0)} %`, mt.anschlag === "voll" ? "fast voll" : mt.anschlag === "leer" ? "fast leer" : "Füllstand der Weiche"] : ["–", "nur bei Musik aus dem Netz"];
+  const w = (st.waechter || []).filter(Boolean), warn = waechterWarn(st), wok = w.length - warn.length;
+  const ton = st.rahmen_sanft ? "zh-ws-ton" : "", tk = stfDa ? "zh-stf" : "";
+  return [["aussetzer", "Aussetzer", ...zaehler("aussetzer", `${ab} keiner`), ton, "Fehler im Ton"],
+    ["knacken", "Knacken", ...zaehler("knacken", `${ab} keins`), ton, "Fehler im Ton"],
+    ["takt", "Takt", ...takt, tk, "Streamer-Takt folgen"], ["puffer", "Puffer", ...puffer, tk, "Streamer-Takt folgen"],
+    ["haenger", "Hänger", ...zaehler("haenger", `${ab} keiner`), ton, "Fehler im Ton"],
+    ["waechter", "Wächter", warn.length ? `${warn.length} ${warn.length === 1 ? "Befund" : "Befunde"}` : w.length ? "alle ok" : "–", w.length ? `${wok} von ${w.length} ok` : "nicht gemeldet", w.length ? "zh-ws-waechter" : "", "Wächter"]];
+}
+function werkstattBlick() {
+  const st = zh.st, da = boxBereit() && !!st, el = $("zh-ws-blick");
+  el.hidden = !da; if (!da) { listeMitFokus(el, ""); return; }
+  const k = werkstattKacheln(st), heute = ((st.rahmen_sanft && st.rahmen_sanft.ursache) || {}).heute;
+  const angefallen = waechterWarn(st).length || (heute && ["aussetzer", "knacken", "haenger"].some((g) => heute[g] && +heute[g].n > 0));
+  const wann = heute && heute.seit_start ? "Seit dem Start" : "Heute";
+  listeMitFokus(el, `<b class="box-satz" id="zh-ws-satz">${angefallen ? `${wann} ist etwas angefallen.` : `${wann} nichts angefallen.`}</b>
+    <div class="box-kacheln">${k.map(([id, titel, wert, klein, blk, bt]) => `<div class="box-kachel"${blk ? ` role="button" tabindex="0" data-sheet-block="${blk}" data-sheet-titel="${bt}"` : ""} id="zh-ws-k-${id}" data-kachel="${id}"><span class="klein">${titel}</span><b>${wert}</b><span class="klein">${klein}</span></div>`).join("")}</div>`);
+  // Wächter im Fenster: jede Regel mit Ampel, eingang ohne Streamer ist kein Befund
+  const warn = new Set(waechterWarn(st));
+  listeMitFokus($("zh-ws-waechter-zeilen"), (st.waechter || []).filter(Boolean).map((w) => `<div class="zeile"><i class="ampel ${warn.has(w) ? "gelb" : "gruen"}"></i><span>${esc(w.text || w.regel)}</span></div>`).join(""));
+}
+// Kacheln sind Knöpfe (role="button"): Enter und Leertaste öffnen die Einzelheiten wie ein Tipp
+document.addEventListener("keydown", (ev) => { const k = (ev.key === "Enter" || ev.key === " ") && ev.target.closest && ev.target.closest('.box-kachel[role="button"]');
+  if (k) { ev.preventDefault(); k.click(); } });
 // Einmessen auf einen Blick (Nutzer 13.11.2026: „zu lang, zu viel scrollen, auf einen Blick“; Entwurf A in der Sprache von Hören):
 // Kopf wie Hören, oranger Ring mit dem Raumklang, die Teilwerte (Bass, Bühne, Klang, Raum) in einer Reihe, die drei stärksten Funde mit Stärke, Bereich
 // 90 Hz · 150 Hz · Voll mit Empfehlung (kleiner Ring), eine Zeile „Mehr“. Alles aus der Einmessung auf dem iPhone (r.e).
@@ -12495,10 +12593,13 @@ function emSicht(id) {
 }
 // Kurve: x logarithmisch, y in dB um die Mitte; Ziel aus analyse.js (zielkurve), Kino mit der Kino-Linie
 const EM_KW = 342;
+// Höhe der kleinen Kurve: flach, auf kleinen Höhen (iPhone SE, wie ci.css) noch flacher, damit Einmessen ohne Scrollen passt
+const EM_KH = () => (window.matchMedia && matchMedia("(max-height: 700px)").matches ? 40 : 56);
 function emKurveSvg(k, von, bis, h, ziel, funde, gross) {
   if (!k || !Array.isArray(k.f) || !Array.isArray(k.heute)) return "";
-  // Maßstab nach den Werten im Bereich (mindestens ±10 dB), damit nichts abgeschnitten wird
-  const werte = [...k.heute, ...(Array.isArray(k.jetzt) ? k.jetzt : [])].filter((v, i) => Number.isFinite(+v) && (k.f[i % k.f.length] || 0) >= von), m = Math.max(10, ...werte.map((v) => Math.abs(+v)));
+  // Maßstab nach den Werten im Bereich (mindestens ±6 dB, damit die flache Kurve Unterschiede zeigt), damit nichts abgeschnitten wird
+  // k.skala: die Kurven aller Bereiche (90 | 150 | Voll), damit die Achsen beim Umschalten stehen bleiben
+  const werte = [k.heute, ...(Array.isArray(k.jetzt) ? [k.jetzt] : []), ...(k.skala || [])].flatMap((a) => a.filter((v, i) => Number.isFinite(+v) && (k.f[i] || 0) >= von)), m = Math.max(6, ...werte.map((v) => Math.abs(+v)));
   const x = (f) => 4 + (Math.log10(f / von) / Math.log10(bis / von)) * (EM_KW - 8), y = (db) => h / 2 - db * (h / 2 - 4) / m;
   const pfad = (fs, vs) => fs.map((f, i) => [f, vs[i]]).filter(([f, v]) => f >= von && f <= bis && Number.isFinite(+v)).map(([f, v], i) => `${i ? "L" : "M"}${x(f).toFixed(1)} ${y(+v).toFixed(1)}`).join(" ");
   let zv = null; try { zv = AJ.zielAn(k.f, ziel); } catch (err) { zv = null; }
@@ -12506,8 +12607,11 @@ function emKurveSvg(k, von, bis, h, ziel, funde, gross) {
     .map(([f, t]) => `<text x="${x(f).toFixed(1)}" y="${h + 14}" text-anchor="middle">${t}</text>`).join("");
   const nahe = (f) => { let b = 0; k.f.forEach((g, i) => { if (Math.abs(Math.log(g / f)) < Math.abs(Math.log(k.f[b] / f))) b = i; }); return +k.heute[b] || 0; };
   const kringel = gross ? (funde || []).map((fd, i) => `<circle class="em-kringel" cx="${x(fd.f).toFixed(1)}" cy="${y(nahe(fd.f)).toFixed(1)}" r="11" data-em-fund="${esc(fd.id)}" data-em-nr="${i}" role="button" tabindex="0" aria-label="${esc(fd.name)}, ${fd.hz}"/>`).join("") : "";
-  return `<svg class="em-kurve-svg" viewBox="0 0 ${EM_KW} ${h + 18}" preserveAspectRatio="none" role="img" aria-label="${gross ? "Frequenzgang 20 Hz bis 20 kHz" : "Bass am Platz"}: vorher grau, jetzt schwarz, Ziel gepunktet">
-    ${zv ? `<path class="em-k-ziel" d="${pfad(k.f, zv)}"/>` : ""}<path class="em-k-vor" d="${pfad(k.f, k.heute)}"/>${Array.isArray(k.jetzt) ? `<path class="em-k-jetzt" d="${pfad(k.jetztF || k.f, k.jetzt)}"/>` : ""}${kringel}<g class="em-k-achse">${achse}</g></svg>`;
+  // Bereich gewechselt (k.alt): die vorige Linie blendet aus, die neue ein (250 ms); die Vorher-Linie bleibt
+  const jetzt = Array.isArray(k.jetzt) ? (k.alt ? `<path class="em-k-jetzt em-k-weg" d="${pfad(k.f, k.alt)}"/>` : "") + `<path class="em-k-jetzt${k.alt ? " em-k-rein" : ""}" d="${pfad(k.jetztF || k.f, k.jetzt)}"/>` : "";
+  const vh = k.vorhergesagt && !gross ? `<text x="${EM_KW - 4}" y="10" text-anchor="end">vorhergesagt</text>` : "";
+  return `<svg class="em-kurve-svg" viewBox="0 0 ${EM_KW} ${h + 18}" preserveAspectRatio="none" role="img" aria-label="${gross ? "Frequenzgang 20 Hz bis 20 kHz" : "Bass am Platz"}: vorher grau, ${k.vorhergesagt ? "vorhergesagt" : "jetzt"} schwarz, Ziel gepunktet">
+    ${zv ? `<path class="em-k-ziel" d="${pfad(k.f, zv)}"/>` : ""}<path class="em-k-vor" d="${pfad(k.f, k.heute)}"/>${jetzt}${kringel}<g class="em-k-achse">${achse}${vh}</g></svg>`;
 }
 // Headline aus emSatz gezielt auf zwei Zeilen: am Komma, sonst etwa in der Mitte
 function emZweiZeilen(s) {
@@ -12519,21 +12623,56 @@ function emZweiZeilen(s) {
   for (let i = 1; i < w.length; i++) { const m = Math.max(w.slice(0, i).join(" ").length, w.slice(i).join(" ").length); if (m < best) { best = m; k = i; } }
   return `${esc(w.slice(0, k).join(" "))} <br>${esc(w.slice(k).join(" "))}`;
 }
+// Kurve und Ring je Bereich (Besitzer 15.11.2026: „dass sich die Kurve bei Einmessen sichtlich verändert je nach Modus“):
+// Die Box filtert im Bereich 90 bzw. 150 Hz nur bis zur Grenze (imBereich). Es gibt keine Kurve je Bereich in den Daten, darum
+// ehrlich gerechnet: die Prognose (voll) ohne die Filter über der Grenze (Biquads wie analyse.js, je Seite, gemittelt als
+// Amplitude wie die Summe am Platz); der Ring aus e.varianten (die Auswertung rechnet den Raumklang je Stufe). Gemessen ist
+// nur die Nachmessung (geladen ist immer voll); alles andere ist vorhergesagt und so beschriftet. Kino: nur voll.
+function emBereich(s, b) {
+  const voll = { kurve: s.kurve ? { ...s.kurve, vorhergesagt: !s.kurve.jetztF } : null, nach: s.nach };
+  const e = s.r && s.r.e, k = e && e.kurve;
+  if (s.kino || b == null || !k || !Array.isArray(k.f) || !Array.isArray(k.prognose)) return voll;
+  const ein = e.einstellungen || {}, seiten = ["FL", "FR"].filter((c) => ein[c]);
+  if (!seiten.length) return voll;
+  const weg = seiten.map((c) => { const d = new Array(k.f.length).fill(0);
+    for (const q of ein[c].eq || []) if (!imBereich({ bereich: b }, q)) { const x = AJ.peqDbAuf(+q.freq, +q.q, +q.gain, k.f); for (let i = 0; i < d.length; i++) d[i] += x[i]; }
+    return d; });
+  const jetzt = k.prognose.map((v, i) => Math.round((v - 20 * Math.log10(weg.reduce((a, d) => a + Math.pow(10, d[i] / 20), 0) / weg.length)) * 100) / 100);
+  const vz = e.varianten && Number.isFinite(+e.varianten[b]) ? Math.round(+e.varianten[b]) : null;
+  return { kurve: { f: k.f, heute: k.heute, jetzt, vorhergesagt: true }, nach: vz ?? s.nach };
+}
 const emPlus = (d) => (d > 0 ? `+${d}` : d < 0 ? `−${-d}` : "±0");
+// Kopf auf Einmessen (Besitzer 15.11.2026: „So wie CD-Regal steht da Stereo oder Kino, das ist der Auswahlbereich!“):
+// links „Raum · Layout“ der gezeigten Einmessung (kopfAnlage wie Hören), rechts an der Stelle von „CD-Regal“ ihr Name;
+// Antippen zeigt die nächste Einmessung (schaltet nicht den Ton um). Nur eine Einmessung: der Name steht ruhig, ohne Wahl
+function emKopfZeigen(id, profile) {
+  const w = $("em-kopf-wahl"), lz = zhLayout(), kurz = (pid) => { const pi = profilInfo(pid, lz); return pi ? pi.kurz || pi.name : pid; };
+  $("em-anlage").textContent = id ? kopfAnlage(id) : $("zh-anlage").textContent;
+  w.hidden = !id;
+  if (!id) return;
+  const n = profile.length > 1 ? profile[(profile.indexOf(id) + 1) % profile.length] : null;
+  // die Einmessung, die gerade spielt, trägt ein leises „· spielt“ (Besitzer 15.11.2026), nicht unterstrichen
+  const spielt = boxSpieltEinmessung(zh.st, id) ? ", spielt" : "";
+  w.innerHTML = `<span>${esc(kurz(id))}</span>` + (spielt ? '<span class="em-spielt">&nbsp;· spielt</span>' : ""); w.disabled = !n;
+  w.dataset.emWeiter = n || "";
+  w.setAttribute("aria-label", n ? `Einmessung ${kurz(id)}${spielt}. Zeigt ${kurz(n)}` : `Einmessung ${kurz(id)}${spielt}`);
+}
 function zhEinmessenBlick(id, profile, weiter) {
   const s = emSicht(id); if (!s) return "";
-  const lz = zhLayout(), p = profilInfo(id, lz), st = zh.st, { g } = s, ok = g.ok;
+  const lz = zhLayout(), st = zh.st, { g } = s, ok = g.ok;
   const funde = s.funde, empf = emEmpfehlung(funde), fundId = id;
   funde.forEach((f) => { f.id = fundId; });
-  // 1 Kopf: links der Raum, rechts ruhig als Text „Stereo · spielt“ und „Kino“ (wie CD-Regal; gewählt fett und unterstrichen).
-  // Mit einer Kino-Einmessung (auch einer, die Stereo folgt) immer da; er zeigt die Einmessung und schaltet den Ton nicht um
-  const name = esc(MA.name || "Meine Anlage");
-  const kopf = `<div class="em-kopfzeile"><span class="em-titel" id="em-profil">${name}${profile.length > 1 ? "" : `&nbsp;· ${esc(p ? p.kurz || p.name : id)}`}</span>${profile.length > 1
-    ? `<div class="em-profile" role="group" aria-label="Einmessung">${profile.map((pid) => { const pi = profilInfo(pid, lz);
-        return `<button type="button" data-em-weiter="${esc(pid)}" aria-pressed="${pid === id}">${esc(pi ? pi.kurz || pi.name : pid)}${boxSpieltEinmessung(st, pid) ? '<span class="em-spielt">&nbsp;· spielt</span>' : ""}</button>`; }).join("")}</div>` : ""}</div>`;
+  // 1 Kopf: der Kopf von Hören (zh-kopf, emKopfZeigen): links „Raum · Layout“, rechts die Wahl Stereo | Kino
+  // Bereich, der spielt (90 | 150 | Voll): Kurve und Ring folgen ihm (emBereich); ohne Wiedergabe voll
+  const spieltHier = s.spielt, aktiv = spieltHier ? s.hs.bereich ?? null : undefined, bs = emBereich(s, aktiv ?? null);
+  // gerade umgeschaltet: die vorige Kurve blendet aus (solange das Überblenden läuft, bleibt das HTML gleich)
+  const kv = zh.emKurve || {}, jetztT = Date.now();
+  if (kv.id !== id || kv.b !== (aktiv ?? null)) zh.emKurve = { id, b: aktiv ?? null, alt: kv.id === id && kv.jetzt ? kv.jetzt : null, t: jetztT, jetzt: bs.kurve && bs.kurve.jetzt };
+  else zh.emKurve.jetzt = bs.kurve && bs.kurve.jetzt;
+  const alt = zh.emKurve.alt && jetztT - zh.emKurve.t < 400 ? zh.emKurve.alt : null;
   // 2 Ring: gefüllt bis zum Raumklang nachher, in der Mitte nur der Zuwachs; rechts die Headline auf zwei Zeilen
-  const d = s.vor != null && s.nach != null ? s.nach - s.vor : null;
-  const ring = s.nach != null ? `<button type="button" class="em-ring-knopf" data-em-ring="${esc(id)}" aria-haspopup="dialog" aria-label="Raumklang ${d != null ? `${d >= 0 ? "plus" : "minus"} ${Math.abs(d)}: von ${s.vor} auf ${s.nach}` : s.nach} von 100">${emRing(s.nach, d != null ? emPlus(d) : s.nach)}</button>` : "";
+  const nach = bs.nach, d = s.vor != null && nach != null ? nach - s.vor : null;
+  const ring = nach != null ? `<button type="button" class="em-ring-knopf" data-em-ring="${esc(id)}" aria-haspopup="dialog" aria-label="Raumklang ${d != null ? `${d >= 0 ? "plus" : "minus"} ${Math.abs(d)}: von ${s.vor} auf ${nach}` : nach} von 100">${emRing(nach, d != null ? emPlus(d) : nach)}</button>` : "";
   // Kino der Box ohne ihre Auswertung (ältere Box): nichts behaupten, was nicht gemessen ist
   const ohneDaten = s.quelle === "box" && !(st.profile[id] && st.profile[id].einmessung);
   const satz = ohneDaten ? "Kino folgt deiner Stereo-Einmessung." : emSatz(funde, { ...(s.r || {}), status: ok ? "bestaetigt" : g.zurueck ? "zurueckgenommen" : "vorhergesagt" });
@@ -12545,10 +12684,10 @@ function zhEinmessenBlick(id, profile, weiter) {
     return `<button type="button" class="em-teilwert em-tippbar" ${k === "raum" && s.raum ? `data-em-raum="${esc(id)}"` : `data-em-teil="${esc(id)}" data-em-k="${esc(k)}"`} aria-haspopup="dialog" aria-label="${n}: vorher ${a}, ${ok ? "nachgemessen" : g.u ? "gemessen, zurückgenommen" : "Prognose"} ${b0}"><span class="klein" aria-hidden="true">${n}</span><span class="em-zahlen" aria-hidden="true"><span class="em-vor">${a}<span class="em-pfeil">&nbsp;→</span></span><b>${b0}</b></span></button>`;
   }).filter(Boolean);
   // 4 Kurve am Platz, nur der Bass (20–400 Hz), antippbar: groß 20 Hz bis 20 kHz mit den Funden
-  const kurve = s.kurve ? `<button type="button" class="em-kurve" data-em-kurve="${esc(id)}" aria-haspopup="dialog" aria-label="Kurve groß zeigen">${emKurveSvg(s.kurve, 20, 400, 96, s.kino && s.ziel === "kino" ? "kino" : "stereo")}</button>` : "";
+  const skala = s.kino ? [] : [90, 150, null].map((b) => emBereich(s, b).kurve).filter((k) => k && Array.isArray(k.jetzt) && !k.jetztF).map((k) => k.jetzt);
+  const kurve = bs.kurve ? `<button type="button" class="em-kurve" data-em-kurve="${esc(id)}" aria-haspopup="dialog" aria-label="Kurve groß zeigen">${emKurveSvg({ ...bs.kurve, skala, alt }, 20, 400, EM_KH(), s.kino && s.ziel === "kino" ? "kino" : "stereo")}</button>` : "";
   // 5 Auswahl: Stereo 90 | 150 | Voll mit dem orangen Kreis im Segment (keine Zeile darunter); Kino an 2.0/2.1 „Voll | Stereo“
   // (Ziel Kino-Linie | Wie Stereo, Bereich voll), Kreis bei der Kino-Linie (Standard an 2.0/2.1)
-  const spieltHier = s.spielt, aktiv = spieltHier ? s.hs.bereich ?? null : undefined;
   let auswahl = "";
   if (!s.kino && s.boxDa) auswahl = `<div class="seg zh-bereich-seg em-seg" role="group" aria-label="Bereich">${[90, 150, null].map((w) => { const t = w ? `${w} Hz` : "Voll";
     return `<button type="button"${spieltHier ? ` data-hs="bereich" data-hs-wert="${w ?? ""}"` : " disabled"} aria-pressed="${spieltHier && aktiv === w}"${w === empf ? ` aria-label="${t}, empfohlen"` : ""}>${w === empf ? EM_MINI : ""}${t}</button>`; }).join("")}</div>`;
@@ -12568,13 +12707,14 @@ function zhEinmessenBlick(id, profile, weiter) {
     const rear = !rearDa && String(lz || "2.0").startsWith("2.") && !window.klangboxBedienseite && nativ && nativ.boxen ? `<button type="button" class="kb-zeile em-fund em-kanal" data-em-rear="1"><span>Rear-Boxen <span class="wert">· über Funk</span></span><span class="em-kanal-wert">hinzufügen</span></button>` : "";
     zeilen = kan.length || rear ? `<div class="em-funde">${kan.join("")}${rear}</div>` : "";
   }
-  const kas = id === "stereo" ? (profile.some((x) => x !== "stereo" && emKinoBox(x)) ? "" : zhKinoFolgtZeile()) : s.quelle === "box" ? zhKinoFolgtZeile() : zhKinoAusStereo(id, st && st.profile ? st.profile[id] : null);
+  // Kino ist Stereo gefolgt: „Behalten | Zurück“ oben sagt schon, dass Kino Stereo folgt (die Zeile darunter entfällt dann)
+  const kfHinweis = s.kino && id === "stereo_kino" ? zhKinoFolgtHinweis() : "";
+  const kas = kfHinweis ? "" : id === "stereo" ? (profile.some((x) => x !== "stereo" && emKinoBox(x)) ? "" : zhKinoFolgtZeile()) : s.quelle === "box" ? zhKinoFolgtZeile() : zhKinoAusStereo(id, st && st.profile ? st.profile[id] : null);
   const messampel = s.r && s.r.e.messampel && s.r.e.messampel.farbe !== "gruen" && s.r.e.messampel.text && s.r.status === "vorhergesagt" ? `<p class="klein em-ampel${ampelRot(s.r) ? " warn" : ""}">${esc(s.r.e.messampel.text)}</p>` : "";
   // iPad quer (ci.css): links 1–4, rechts 5–7
   return `<div class="em-blick" data-em-profil="${esc(id)}">
     <div class="em-links">
-    ${kopf}
-    ${s.kino && id === "stereo_kino" ? zhKinoFolgtHinweis() : ""}
+    ${kfHinweis}
     <div class="em-wert">${ring}<b class="em-satz">${emZweiZeilen(satz)}</b></div>
     ${teilwerte.length ? `<div class="em-teilwerte" style="grid-template-columns: repeat(${teilwerte.length}, minmax(0, 1fr))">${teilwerte.join("")}</div>` : ""}
     ${kurve}
@@ -12591,8 +12731,9 @@ function zhEinmessenBlick(id, profile, weiter) {
 function emBlatt(titel, html) { $("em-fund-inhalt").innerHTML = html; sheet.auf(titel, $("em-fund-block")); }
 function emRingZeigen(id) {
   const s = emSicht(id); if (!s || s.nach == null) return;
-  const n = s.kino ? "Bass, Kanäle, Dialog und Raum" : "Bass, Bühne, Klang und Raum", d = s.vor != null ? s.nach - s.vor : null;
-  emBlatt("Raumklang", `<p>${s.vor != null ? `${s.vor} → ${s.nach}: ` : `${s.nach}: `}${d == null ? "" : s.g.ok ? `Die Box hat ${emPlus(d)} Punkte geholt, nachgemessen.` : `Die Box holt voraussichtlich ${emPlus(d)} Punkte (Prognose).`}</p>
+  const b = s.spielt ? s.hs.bereich ?? null : null, bs = emBereich(s, b), nach = bs.nach, teil = b != null && !s.kino;  // wie der Ring im Blick
+  const n = s.kino ? "Bass, Kanäle, Dialog und Raum" : "Bass, Bühne, Klang und Raum", d = s.vor != null ? nach - s.vor : null;
+  emBlatt("Raumklang", `<p>${s.vor != null ? `${s.vor} → ${nach}: ` : `${nach}: `}${d == null ? "" : teil ? `Bis ${b} Hz holt die Box voraussichtlich ${emPlus(d)} Punkte (Prognose).` : s.g.ok ? `Die Box hat ${emPlus(d)} Punkte geholt, nachgemessen.` : `Die Box holt voraussichtlich ${emPlus(d)} Punkte (Prognose).`}</p>
     <p class="klein">Raumklang fasst ${n} zusammen, von 100. Was bleibt, liegt vor allem am Raum.${s.g.tag ? ` ${s.g.ok ? "Nachgemessen" : "Eingemessen"}, Einmessung vom ${esc(s.g.tag)}` : ""}</p>`);
 }
 function emTeilZeigen(id, k) { const s = emSicht(id), v = s && s.kacheln[k]; if (!v) return; emBlatt(v.titel, `<p>${esc(v.satz || "")}</p>`); }
@@ -12601,15 +12742,16 @@ function emKurveZeigen(id) {
   emBlatt("Kurve am Platz", `<div class="em-kurve gross">${emKurveSvg(k, 20, s.kurveVoll ? 20000 : 400, 150, s.kino && s.ziel === "kino" ? "kino" : "stereo", s.funde.slice(0, 3).map((f) => ({ ...f, id })), true)}</div>
     <p class="klein">Grau vorher, schwarz jetzt, gepunktet das Ziel. Die Kreise sind die Funde: antippen für mehr.</p>`);
 }
-// Bereiche auf Zuhause (Hören, Einmessen, Box; die Werkstatt ist eine versteckte Unterseite von Box ohne Reiter): welche Teile
+// Bereiche auf Zuhause (Hören, Einmessen, Box; das Testlabor ist eine Unterseite von Box ohne Reiter, Kennung „werkstatt“): welche Teile
 // wohin gehören, steht in ci.css (.zh-tabs). Ohne Einmessung
 // beginnt die App bei „Einmessen“, danach bei „Hören“; die Wahl des Nutzers merkt sich die Seite.
-const ZH_TAB_TITEL = { hoeren: "Hören", einmessen: "Einmessen", box: "Box", werkstatt: "Werkstatt" };
+const ZH_TAB_TITEL = { hoeren: "Hören", einmessen: "Einmessen", box: "Box", werkstatt: "Testlabor" };
 function zhTab(name, merken = true) {
   if (!ZH_TAB_TITEL[name]) name = "hoeren";
   const sec = document.querySelector('.schritt[data-s="18"]'); if (!sec) return;
+  if (name !== "hoeren" && sec.dataset.tab === "hoeren" && zhVorherAn() && !(sheet.offen() && $("sheet-inhalt").querySelector("#ab-kuh"))) zhVorher(false);  // Vorher nur auf Hören
   sec.dataset.tab = name; delete sec.dataset.tabAuto;
-  const reiter = name === "werkstatt" ? "box" : name;  // Werkstatt gehört zu Box: unten bleibt Box markiert
+  const reiter = name === "werkstatt" ? "box" : name;  // Testlabor gehört zu Box: unten bleibt Box markiert
   document.querySelectorAll("#zh-tabs [data-zh-tab]").forEach((b) => { if (b.dataset.zhTab === reiter) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
   $("h-zuhause").textContent = ZH_TAB_TITEL[name];
   // Fenster schließen beim Wechsel; auf Hören bleiben nur dessen eigene Fenster offen (nicht „Mehr“ von Einmessen/Box)
@@ -12619,17 +12761,11 @@ function zhTab(name, merken = true) {
   if (typeof JETZT !== "undefined" && JETZT.raumPruefen) JETZT.raumPruefen();  // Raumansicht: Pegel nur auf Hören abfragen
 }
 document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-zh-tab]"); if (!b) return; zhTab(b.dataset.zhTab);
-  // Werkstatt hin und zurück: der Fokus geht nicht auf einen versteckten Knopf verloren (Prüfer 0.3.22)
-  if (b.id === "zh-ws-zurueck") { const l = $("zh-version"); if (l) { l.scrollIntoView({ block: "center" }); l.focus({ preventScroll: true }); } return; }
-  window.scrollTo(0, 0); });
-// Werkstatt öffnen: lange auf die Versionsnummer im Box-Kopf tippen (600 ms; Entwurf 13.11.2026: versteckt). Ein kurzer Tipp
-// tut nichts. VoiceOver und Tastatur: die unsichtbare Taste „Werkstatt“ gleich nach der Version (zh-ws-oeffnen)
+  window.scrollTo(0, 0);
+  // Testlabor hin und zurück: der Fokus geht nicht verloren (Prüfer 0.3.22), zurück auf den Link „Testlabor“ im Box-Kopf
+  if (b.id === "zh-ws-zurueck") { const l = $("zh-ws-oeffnen"); if (l) l.focus({ preventScroll: true }); } });
+// Testlabor öffnen: der Link „Testlabor“ rechts im Box-Kopf (Entwurf 15.11.2026; wie „CD-Regal“ auf Hören, auch für VoiceOver)
 function werkstattAuf() { zhTab("werkstatt"); window.scrollTo(0, 0); const z = $("h-zuhause"); if (z) { z.tabIndex = -1; z.focus({ preventScroll: true }); } }
-let versionHalten = null;
-document.addEventListener("pointerdown", (ev) => { const v = ev.target.closest && ev.target.closest("#zh-version"); if (!v || ev.button > 0) return;
-  clearTimeout(versionHalten); versionHalten = setTimeout(() => { versionHalten = null; werkstattAuf(); }, 600); });
-["pointerup", "pointercancel", "pointerleave"].forEach((a) => document.addEventListener(a, () => { clearTimeout(versionHalten); versionHalten = null; }, true));
-document.addEventListener("contextmenu", (ev) => { if (ev.target.closest && ev.target.closest("#zh-version")) ev.preventDefault(); });
 document.addEventListener("click", (ev) => { if (ev.target.closest && ev.target.closest("#zh-ws-oeffnen")) werkstattAuf(); });
 // sicher: der Stand ist bekannt (Status der Box da oder keine Box). Vorher vorläufig „Hören“, danach einmal richtig
 // wählen, solange der Nutzer nichts angetippt hat (Prüfer 06.11.2026: sonst öffnete eine eingemessene Box bei „Einmessen“)
@@ -12641,7 +12777,7 @@ function zhTabStart(einmessungDa, sicher = true) {
   if (!sicher) { if (!sec.dataset.tab) { zhTab("hoeren", false); sec.dataset.tabAuto = "1"; } return; }
   if (!sec.dataset.tab || sec.dataset.tabAuto) zhTab(einmessungDa ? "hoeren" : "einmessen", false);
 }
-// Takt-Labor: Varianten testen (5 Minuten, automatischer Rückfall), Ergebnisse, behalten oder zurück
+// Testlabor › Takt-Labor: Varianten testen (5 Minuten, automatischer Rückfall), Ergebnisse, behalten oder zurück
 const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen bei gleicher Rate (besser für die Qualität)"],
   roehre: ["Röhre", "nur Fernseher (optisch): Weiche direkt am Klangrechner statt über den groben Takt; geschätzt etwa 25 ms, gemessen wird im Test"],
   roehre_schlank: ["Röhre schlank", "wie Röhre, baut aber den Rückstau vom Start ab und hält nur eine feste Reserve im Ausgang; wird es knapp, gibt sie selbst eine Stufe nach. Etwa 4–5 ms weniger als Röhre"],
@@ -12652,35 +12788,6 @@ const TAKT = { bitgenau: ["Bitgenau", "wie heute, aber ohne unnötiges Umrechnen
   roehre_mittel3: ["Röhre mittel 3", "kleine Blöcke, Reserve 4,7 ms, sanft geglättet: am sichersten der drei"] };
 // Kleine Blöcke (64) ließen die Box hängen (Bericht 13.11.2026): nur noch in alten Ergebnissen, nicht mehr zum Testen
 const TAKT_GESPERRT = new Set(["roehre_knapp", "roehre_mittel1", "roehre_mittel2", "roehre_mittel3"]);
-// Gastro (Test): status.gastro, POST /api/inhalt {gastro: {an|tageszeit|fuelle|grenze_db}}. Einmal bauen, danach nur bei Änderung
-// (Status alle 5 s; ein Neubau nähme Tastatur und VoiceOver den Fokus)
-const GASTRO = [["an", "Gastro", [[false, "Aus"], [true, "An"]]],
-  ["art", "Art", [["cafe", "Café/Restaurant"], ["bar", "Bar"]]],
-  ["tageszeit", "Tageszeit", [["auto", "Uhr"], ["morgens", "Morgens"], ["mittags", "Mittags"], ["abends", "Abends"]]],
-  ["fuelle", "Laden", [["leer", "Leer"], ["mittel", "Mittel"], ["voll", "Voll"]]],
-  ["grenze_db", "Höchstens", [[-20, "−20 dB"], [-15, "−15 dB"], [-10, "−10 dB"], [-6, "−6 dB"]]]];
-const GASTRO_NAME = { morgens: "Morgens", mittags: "Mittags", abends: "Abends" };
-function gastroZeigen() {
-  const g = zh.st && zh.st.gastro; $("zh-gastro-block").hidden = !g; if (!g) return;
-  taktSetzen("zh-gastro-wahl", GASTRO.filter(([k]) => k === "an" || g.an).map(([k, titel, werte]) => `<div class="kb-gruppe zeile"><span class="kb-label" id="zh-gastro-${k}">${titel}</span>
-    <div class="seg" role="group" aria-labelledby="zh-gastro-${k}">${werte.map(([w, txt]) => `<button type="button" data-gastro="${k}" data-wert="${esc(JSON.stringify(w))}" aria-pressed="${g[k] === w}">${txt}</button>`).join("")}</div></div>`).join(""));
-  const db = (x) => `${x < 0 ? "−" : ""}${zk(Math.abs(x), 0)} dB`;
-  $("zh-gastro-text").textContent = !g.an ? "" : [`Uhr der Box ${g.box_uhr}${g.uhr_gestellt ? "" : " (nicht gestellt: Tageszeit von Hand wählen)"}`,
-    `jetzt ${GASTRO_NAME[g.fenster] || g.fenster}`, g.lautstaerke_db != null ? `Lautstärke ${db(g.lautstaerke_db)}` : "", g.grund || ""].filter(Boolean).join(" · ");
-  // Personal-Hinweis (über 85 dB(A)): da, solange der Status ihn meldet; sonst weg (Fehlermeldungen eines Tipps bleiben)
-  const ph = $("zh-gastro-status"), alt = ph.dataset.personal === "1";
-  if (g.an && g.personal_hinweis) { ph.innerHTML = `<span class="warn">${esc(g.personal_hinweis)}</span>`; ph.dataset.personal = "1"; }
-  else if (alt) { ph.textContent = ""; delete ph.dataset.personal; }
-}
-document.addEventListener("click", async (ev) => {
-  const b = ev.target.closest("button[data-gastro]"); if (!b || b.getAttribute("aria-pressed") === "true") return;
-  const st = zh.st || {}, inh = st.inhalt || {};
-  const a = await nativ.box("inhalt", { profil: inh.profil || "Film", raeumlichkeit: inh.raeumlichkeit ?? 1, gastro: { [b.dataset.gastro]: JSON.parse(b.dataset.wert) } }, { zeitMs: 8000 });
-  if (!a.ok) { $("zh-gastro-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; delete $("zh-gastro-status").dataset.personal; return; }
-  $("zh-gastro-status").textContent = ""; delete $("zh-gastro-status").dataset.personal;
-  zh.st = { ...st, inhalt: a.inhalt || st.inhalt, ...(a.hintergrund ? { hintergrund: a.hintergrund } : {}), ...(a.gastro ? { gastro: a.gastro } : {}) };
-  gastroZeigen();
-});
 // Röhre fest: eigener Schalter (ab Werk aus, POST /api/takt_labor {aktion: "fest", an}); die Box schaltet ihn bei einem Knacks selbst aus
 const taktFest = (f) => `<span class="seg" role="group" aria-label="Röhre fest" style="margin-top:6px"><button type="button" data-takt="fest" data-an="0" aria-pressed="${!f.an}">Aus</button><button type="button" data-takt="fest" data-an="1" aria-pressed="${!!f.an}">An</button></span>`
   + (f.aus_grund ? `<br><span class="klein warn">Die Box hat es ausgeschaltet: ${esc(f.aus_grund)}.</span>` : "")
@@ -12688,11 +12795,12 @@ const taktFest = (f) => `<span class="seg" role="group" aria-label="Röhre fest"
 // Stille nach Takt (Test): eigener Schalter (ab Werk aus, POST /api/takt_labor {aktion: "stille_takt", an}); wirkt nur mit Röhre
 const taktStille = (f) => `<div class="reihe"><span><b>Stille nach Takt (Test)</b><br><span class="klein">nur mit Röhre: ohne Signal am Fernseher füllt die Box die Stille nach ihrem gemessenen Takt nach und baut den Überschuss ab, sobald wieder Ton kommt. Aus: wie bisher.</span>
   <span class="seg" role="group" aria-label="Stille nach Takt" style="margin-top:6px"><button type="button" data-takt="stille_takt" data-an="0" aria-pressed="${!f.an}">Aus</button><button type="button" data-takt="stille_takt" data-an="1" aria-pressed="${!!f.an}">An</button></span></span></div>`;
-// Steht in der Werkstatt (nicht mehr als Fenster unter Box); neu gezeichnet nur, wenn sich etwas ändert (Status alle 5 s)
+// Steht im Testlabor als Fenster; neu gezeichnet nur, wenn sich etwas ändert (Status alle 5 s)
 const taktSetzen = (id, html) => { const e = $(id); if (e.dataset.html !== html) { e.innerHTML = html; e.dataset.html = html; } };
 function taktZeigen() {
   const t = (zh.st && zh.st.takt) || {}, lab = t.labor;
-  $("zh-takt-block").hidden = !(zh.st && zh.st.takt);
+  $("zh-takt-k").hidden = !(zh.st && zh.st.takt);
+  $("zh-takt-wert").textContent = lab ? "· Test läuft" : t.variante ? `· ${(TAKT[t.variante] || [t.variante])[0]} behalten` : "· wie ab Werk";
   taktSetzen("zh-takt-laeuft", lab ? `<div class="kasten"><b>Test läuft: ${esc(TAKT[lab.variante][0])}</b> · noch ${lab.rest_s} s
     <span class="klein">Verzögerung jetzt ${lab.ms != null ? `${zk(lab.ms, 1)} ms` : "– (kein Ton?)"} · Aussetzer ${lab.aussetzer} · Klangrechner ${esc(lab.zustand || "–")}${lab.ppm != null ? ` · Takt ${zk(lab.ppm, 0)} ppm` : ""}</span>
     <button type="button" class="zweit klein" data-takt="stopp">Test abbrechen</button></div>` : "");
@@ -12704,7 +12812,6 @@ function taktZeigen() {
   taktSetzen("zh-takt-ergebnisse", erg.length ? `<span class="marke">Ergebnisse</span>` + erg.map((e) => `<div class="zeile"><i class="ampel ${e.ok ? "gruen" : "rot"}"></i><span><b>${esc((TAKT[e.variante] || [e.variante])[0])}</b> · ${esc(e.datum || "")} · ${esc(e.quelle || "")}<br>
     <span class="klein">${e.ms_median != null ? `Verzögerung ${zk(e.ms_median, 1)} ms (höchstens ${zk(e.ms_max, 1)})` : "keine Messung mit Ton"} · Aussetzer ${e.aussetzer} · Unterläufe ${e.unterlauf ?? "–"}${e.boden != null ? ` · Reserve im Ausgang ${zk(e.boden / 48, 1)} ms${e.stufen_hoch ? ` (${e.stufen_hoch}× nachgegeben)` : ""}` : ""}${e.fest != null ? ` · Reserve in der Röhre ${zk(e.fest / 48, 1)} ms${e.stufen_hoch ? ` (${e.stufen_hoch}× erhöht)` : ""}` : ""}${e.fehler ? ` · ${esc(e.fehler)}` : ""}</span>
     ${e.ok && t.variante !== e.variante && !TAKT_GESPERRT.has(e.variante) ? `<button type="button" class="klein" data-takt="behalten" data-variante="${esc(e.variante)}">Behalten</button>` : ""}</span></div>`).join("") : "");
-  gastroZeigen();  // Gastro (Test) steht ebenfalls in der Werkstatt
 }
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("button[data-takt]"); if (!b || b.getAttribute("aria-pressed") === "true") return;
@@ -12712,9 +12819,9 @@ document.addEventListener("click", async (ev) => {
   const a = await nativ.box("takt_labor", { aktion: b.dataset.takt, ...(b.dataset.variante ? { variante: b.dataset.variante } : {}), ...(b.dataset.an ? { an: b.dataset.an === "1" } : {}), ...(b.dataset.takt === "start" ? { dauer_s: 300 } : {}) }, { zeitMs: 20000 });
   if (!a.ok) { st(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return; }
   st(""); zh.st = { ...(zh.st || {}), takt: a.takt }; taktZeigen();
-  const inWerkstatt = () => { const sec = document.querySelector('.schritt[data-s="18"]'); return !!sec && !sec.hidden && sec.dataset.tab === "werkstatt"; };
+  const imTestlabor = () => { const sec = document.querySelector('.schritt[data-s="18"]'); return !!sec && !sec.hidden && sec.dataset.tab === "werkstatt"; };
   // Antwortet die Box nicht mehr, nicht stumm bei „noch 300 s“ stehen bleiben (Bericht 13.11.2026)
-  if (b.dataset.takt === "start") for (let i = 0, still = 0; i < 200 && inWerkstatt(); i++) {
+  if (b.dataset.takt === "start") for (let i = 0, still = 0; i < 200 && imTestlabor(); i++) {
     await warte(2000);
     const s = await nativ.box("status", {}, { zeitMs: 6000 });
     if (s.ok) { still = 0; st(""); zh.st = s; taktZeigen(); if (!s.takt || !s.takt.labor) break; }
@@ -12731,8 +12838,9 @@ const KERNEL_TEXT = { neu: "Noch nicht geprüft.", pruefe: "Die Box prüft und l
   zurueck: "Zurück auf dem bisherigen Kern." };
 let kernelSt = null;
 function kernelZeigen() {
-  const k = kernelSt; $("zh-kernel-block").hidden = !k;
+  const k = kernelSt; $("zh-kernel-k").hidden = !k;
   if (!k) return;
+  $("zh-kernel-wert").textContent = `· ${k.zustand === "behalten" ? "neuer Kern behalten" : `läuft ${k.kernel_jetzt || "–"}`}`;
   const z = k.zustand || "neu", knopf = (a, t, zweit = true) => `<button type="button" class="${zweit ? "zweit " : ""}klein" data-kernel="${a}">${t}</button>`;
   const liste = (k.letzte_pruefung && z === "probe_laeuft" ? k.letzte_pruefung : k.pruefungen || [])
     .map((p) => `<div class="zeile"><i class="ampel ${p.ok ? "gruen" : "rot"}"></i><span><b>${esc(p.name)}</b><br><span class="klein">${esc(p.text)}</span></span></div>`).join("");
@@ -12770,9 +12878,9 @@ document.addEventListener("click", async (ev) => {
 let kernelFolgt = false;
 async function kernelVerfolgen() {
   if (kernelFolgt) return; kernelFolgt = true;
-  const inWerkstatt = () => { const sec = document.querySelector('.schritt[data-s="18"]'); return !!sec && !sec.hidden && sec.dataset.tab === "werkstatt"; };
+  const imTestlabor = () => { const sec = document.querySelector('.schritt[data-s="18"]'); return !!sec && !sec.hidden && sec.dataset.tab === "werkstatt"; };
   try {
-    for (let i = 0; i < 400 && inWerkstatt() && kernelSt && ["pruefe", "spiele_ein", "probe_start", "probe_laeuft"].includes(kernelSt.zustand); i++) {
+    for (let i = 0; i < 400 && imTestlabor() && kernelSt && ["pruefe", "spiele_ein", "probe_start", "probe_laeuft"].includes(kernelSt.zustand); i++) {
       await warte(kernelSt.zustand === "probe_laeuft" ? 10000 : 3000);
       const s = await nativ.box("kernel", { aktion: "status" }, { zeitMs: 8000 });
       if (s.ok) { kernelSt = s; kernelZeigen(); $("zh-kernel-status").textContent = ""; }
@@ -12904,13 +13012,13 @@ const MA_HILFE = "Musik so laut wie Filme beim selben Regler. Lauter? Einfach ho
 const MA_HILFE_VORSTUFE = "Regelt der Verstärker die Lautstärke, ist Musik immer gleich viel leiser, lauter geht es am Verstärker. Aus: Musik wieder unverändert (bitgenau).";
 const HS_STANDARD = { stimme: "gemessen", bereich: null, bass: "voll", mitte: "ausgerichtet", anpassung: "geladen", ziel: "stereo" };
 // Im Fenster Klang: Stimme und Bass (der Bereich steht auf Hören). Mitte, Rechnung und Kino-Ziel sind Messvarianten zum
-// Testen und stehen in der Werkstatt (Entwurf 13.11.2026, „Aufbau“)
+// Testen und stehen im Testlabor (Entwurf 15.11.2026)
 const HS_GRUPPEN = [
   ["bereich", "Bereich", [[90, "90 Hz"], [150, "150 Hz"], [null, "Voll"]], "Bereich: bis zu welcher Tonhöhe die Einmessung den Raum ausgleicht. 90 und 150 Hz lassen Stimmen ganz unberührt, Voll gleicht bis 300 Hz aus."],
   ["stimme", "Stimme", [["gemessen", "Gemessen"], ["je_seite", "Je Seite"], ["teil", "Gemeinsam"], ["symmetrisch", "Beide gleich"]], "Stimme: wie die Box Stimmen und Instrumente (über 120 Hz) ausgleicht. Gemessen ist der Vorschlag der Messung, Beide gleich gibt beiden Boxen dieselbe Kurve."],
   ["bass", "Bass", [["voll", "Ganz"], ["maessig", "Gemäßigt"]], "Bass: Ganz senkt Dröhnen so weit wie nötig, Gemäßigt höchstens um 6 dB (oft satter)."]];
 const hsStand = () => ({ ...HS_STANDARD, ...((zh.st && zh.st.hoerschalter) || {}) });
-// Werkstatt › Messvarianten
+// Testlabor › Messvarianten
 const HS_MITTE = ["mitte", "Mitte", [["ausgerichtet", "Ausgerichtet"], ["raum", "Wie der Raum"]], "Ausgerichtet steht die Stimme scharf in der Mitte. Wie der Raum klingt breiter und weicher."];
 const HS_ANPASSUNG = ["anpassung", "Rechnung", [["geladen", "Wie geladen"], ["neu", "Neu"]], "Neu heißt aus denselben Messdaten mit der Auswertung dieser App-Version neu gerechnet."];
 // Kino an 2.0/2.1 (zum Test): dieselbe Messung mit dem alten Kino-Ziel (Kino-Linie: mehr Bass, volle Korrektur je Seite) oder wie Stereo (Standard)
@@ -12919,10 +13027,11 @@ const HS_ALLE = HS_GRUPPEN.concat([HS_MITTE, HS_ANPASSUNG, HS_ZIEL]);
 const kinoLinieDa = () => !!(zh.st && zh.st.hoerschalter_kino_linie);
 const hsSegment = (s, [k, titel, werte]) => `<div class="seg" role="group" aria-label="${titel}">${werte.filter(([w]) => (w !== "je_seite" || (zh.st && zh.st.hoerschalter_voll) || s[k] === w)
   && (w !== "teil" || (zh.st && zh.st.hoerschalter_teil) || s[k] === w)).map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="${s[k] === w}">${t}</button>`).join("")}</div>`;
-// Werkstatt › Messvarianten: Mitte immer, Rechnung sobald neu gerechnet ist, Kino-Ziel nur, wenn die Box beide Rechnungen hat
+// Testlabor › Messvarianten (Fenster): Mitte immer, Rechnung sobald neu gerechnet ist (Kino-Ziel steht auf Einmessen)
 function variantenZeigen() {
   const st = zh.st, s = hsStand(), md = (st && st.messdaten) || {}, neuDa = !!(md.neu && !md.neu.fehler), hsDa = boxBereit() && !!(st && st.hoerschalter);
-  $("zh-ws-varianten").hidden = !hsDa;
+  $("zh-varianten-k").hidden = !hsDa;
+  $("zh-varianten-wert").textContent = `· Mitte ${s.mitte === "raum" ? "wie der Raum" : "ausgerichtet"}${s.anpassung === "neu" ? ", neu gerechnet" : ""}`;
   const gruppen = !hsDa ? [] : [HS_MITTE].concat(neuDa || s.anpassung === "neu" ? [HS_ANPASSUNG] : []);  // Kino-Ziel: auf Einmessen (Kino „Voll | Stereo“)
   listeMitFokus($("zh-ws-schalter"), gruppen.map((g) => `<div class="kb-gruppe"><span class="kb-label">${g[1]}</span>${hsSegment(s, g)}<p class="klein">${g[3]}</p></div>`).join(""));
   listeMitFokus($("zh-schalter-md"), !hsDa ? "" : !md.da ? `<span class="klein">${(aktuelleRunde() || {}).messdaten_box ? "" : "Neu rechnen geht erst, wenn du einmal neu gemessen hast (die Box hebt dann die Messdaten auf)."}</span>`
@@ -13014,45 +13123,55 @@ $("zh-inhalt-gruppen").addEventListener("click", async (ev) => {
   if (a.ok && a.musik_ausgleich) { zh.st = { ...(zh.st || {}), musik_ausgleich: a.musik_ausgleich }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); }
   else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
-// Werkstatt › Ton › Fehler im Film-Ton: kaputte Mehrkanal-Rahmen vom Fernseher hart stumm (Knack) oder sanft überbrücken
+// Testlabor › Ton › Fehler im Film-Ton: kaputte Mehrkanal-Rahmen vom Fernseher hart stumm (Knack) oder sanft überbrücken
 // (Nutzer 13.11.2026), ab Werk sanft
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-zh-sanft]"); if (!b || !nativ || !boxBereit()) return;
   const an = b.dataset.zhSanft === "1";
   if (zh.st && zh.st.rahmen_sanft && zh.st.rahmen_sanft.an === an) return;
-  $("zh-ws-ton-status").innerHTML = `<span class="laeuft">Die Box stellt um, kurz still…</span>`;
+  $("zh-sanft-status").innerHTML = `<span class="laeuft">Die Box stellt um, kurz still…</span>`;
   const a = await nativ.box("rahmen_sanft", { an }, { zeitMs: 8000 });
-  if (a.ok && a.rahmen_sanft) { zh.st = { ...(zh.st || {}), rahmen_sanft: a.rahmen_sanft }; $("zh-ws-ton-status").textContent = ""; tonZeigen(); }
-  else $("zh-ws-ton-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+  if (a.ok && a.rahmen_sanft) { zh.st = { ...(zh.st || {}), rahmen_sanft: a.rahmen_sanft }; $("zh-sanft-status").textContent = ""; tonZeigen(); }
+  else $("zh-sanft-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
-// Werkstatt › Ton: Fehler im Ton (was die Box selbst verursacht hat; früher die Kachel unter Box), woher sie kamen
-// (status.rahmen_sanft.herkunft und .ursache, lesbar), Fehler im Film-Ton Hart | Sanft
+// Testlabor › Einzelheiten zu den Kacheln Aussetzer, Knacken, Hänger: Fehler im Ton (was die Box selbst verursacht hat),
+// heute je Kachel, Ursache und Herkunft (status.rahmen_sanft.herkunft und .ursache, lesbar). Fenster Fehler im Film-Ton: Hart | Sanft
 const HERKUNFT = [["fehler", "Kaputte Mehrkanal-Rahmen"], ["raster", "Verlorene Werte in der Box"], ["haenger", "Hänger der Klangkette"],
   ["lesen_haenger", "Eingang lieferte eine Weile nichts"], ["kernel_dma", "Fehler der Tonschnittstelle (Kernel)"], ["leitung", "Sekunden mit Übertragungsfehler am Eingang"],
   ["lock_weg", "Sekunden, in denen das Signal kurz weg war"], ["ungueltig", "Ungültige Werte am Eingang"], ["spruenge", "Sprünge im Ton (Detektor, ungeprüft)"],
   ["serien", "Wiederkehrende Sprünge (etwa Synth-Bass)"]];
 const URSACHE = [["box", "die Box selbst"], ["leitung", "Kabel oder Zuspieler"], ["umschalten", "Umschalten"], ["kernel", "Kernel"], ["unbestaetigt", "unbestätigt"]];
+const HEUTE = [["aussetzer", "Aussetzer"], ["knacken", "Knacken"], ["haenger", "Hänger"]];
 function fehlerImTon(st) {
   const h = st.rahmen_sanft && st.rahmen_sanft.herkunft, ur = st.rahmen_sanft && st.rahmen_sanft.ursache;
   return ur && Number.isFinite(+ur.box) ? +ur.box : h ? (+h.fehler || 0) + (+h.raster || 0) + (+h.haenger || 0) : null;
 }
 function tonZeigen() {
   const st = zh.st, rs = boxBereit() && st ? st.rahmen_sanft : null;
-  $("zh-ws-ton").hidden = !rs; if (!rs) return;
-  const n = fehlerImTon(st), h = rs.herkunft || {}, ur = rs.ursache || {};
+  $("zh-sanft-k").hidden = !rs; if (!rs) { listeMitFokus($("zh-ws-ton-inhalt"), ""); return; }
+  $("zh-sanft-wert").textContent = `· ${rs.an ? "sanft überbrücken" : "hart"}`;
+  const n = fehlerImTon(st), h = rs.herkunft || {}, ur = rs.ursache || {}, hz = ur.heute || {};
   const zeile = (t, w) => `<li><span>${esc(t)}</span><b>${esc(w)}</b></li>`;
   const herkunft = HERKUNFT.filter(([k]) => +h[k] > 0).map(([k, t]) => zeile(t, zk(+h[k], 0))).join("");
   const ursache = URSACHE.filter(([k]) => +ur[k] > 0).map(([k, t]) => zeile(t, zk(+ur[k], 0))).join("");
-  listeMitFokus($("zh-ws-ton-inhalt"), `<div class="kb-gruppe zeile"><span class="kb-label">Fehler im Ton</span><b id="zh-ws-fehler">${n == null ? "–" : n}</b></div>
-    <p class="klein">Seit dem Start der Box, nur was sie selbst verursacht hat. Das Kabel meldet der Hinweis unter Box.</p>
+  const heute = HEUTE.filter(([k]) => hz[k]).map(([k, t]) => zeile(t, `${zk(+hz[k].n || 0, 0)}${hz[k].zuletzt ? ` · zuletzt ${UHRZEIT(hz[k].zuletzt)}${hz[k].art ? `, ${hz[k].art}` : ""}` : ""}`)).join("");
+  listeMitFokus($("zh-ws-ton-inhalt"), `<ul class="zh-ws-zeilen"><li><span>Seit dem Start der Box</span><b id="zh-ws-fehler">${n == null ? "–" : n}</b></li></ul>
+    <p class="klein">Nur, was die Box selbst verursacht hat. Das Kabel meldet der Hinweis unter Box.</p>
+    ${heute ? `<span class="kb-label">${hz.seit_start ? "Seit dem Start" : "Heute"}</span><ul class="zh-ws-zeilen klein" id="zh-ws-heute">${heute}</ul>` : ""}
     ${ursache ? `<span class="kb-label">Ursache</span><ul class="zh-ws-zeilen klein" id="zh-ws-ursache">${ursache}</ul>` : ""}
-    <span class="kb-label">Herkunft der Knackser</span>${herkunft ? `<ul class="zh-ws-zeilen klein" id="zh-ws-herkunft">${herkunft}</ul>` : `<p class="klein" id="zh-ws-herkunft">Nichts seit dem Start.</p>`}
-    <div class="kb-gruppe zeile" id="zh-sanft"><span class="kb-label">Fehler im Film-Ton</span>
+    <span class="kb-label">Herkunft der Knackser</span>${herkunft ? `<ul class="zh-ws-zeilen klein" id="zh-ws-herkunft">${herkunft}</ul>` : `<p class="klein" id="zh-ws-herkunft">Nichts seit dem Start.</p>`}`);
+  listeMitFokus($("zh-sanft-inhalt"), `<div class="kb-gruppe" id="zh-sanft"><span class="kb-label" id="zh-sanft-label">Kaputte Rahmen</span>
     <div class="seg" role="group" aria-label="Fehler im Film-Ton"><button type="button" data-zh-sanft="0" aria-pressed="${!rs.an}">Hart</button><button type="button" data-zh-sanft="1" aria-pressed="${!!rs.an}">Sanft</button></div></div>
     <p class="klein">Kaputte Mehrkanal-Rahmen vom Fernseher: Hart schaltet kurz stumm (knackt), Sanft überbrückt sie.</p>
     ${rs.aus_grund ? `<p class="klein warn">Die Box hat „Sanft“ ausgeschaltet: ${esc(rs.aus_grund)}.</p>` : ""}`);
 }
-function werkstattZeigen() { tonZeigen(); variantenZeigen(); }
+// Testlabor: Gruppen nur mit Box und nur mit Zeilen darin; Kacheln und Einzelheiten
+function werkstattZeigen() {
+  tonZeigen(); variantenZeigen(); werkstattBlick();
+  const da = boxBereit() && !!zh.st;
+  $("zh-ws-tests").hidden = !da;
+  $("zh-ws-tonzeilen").hidden = !da || ["zh-bitgenau-k", "zh-stf-k", "zh-sanft-k", "zh-varianten-k"].every((id) => $(id).hidden);
+}
 // „Knacken gehört“ (Nutzer 07.11.2026): sofort tippen, die Box sieht nach, ob sie in den 20 s davor einen Aussetzer hatte
 $("zh-knacken").addEventListener("click", async () => {
   const st = (t) => { $("zh-ws-ton-status").innerHTML = t; };
@@ -13114,7 +13233,7 @@ function klangZeileZeigen() {
   el.hidden = !boxBereit() || !st || !zh.einmessungDa;
   bereichZeigen();
   if (el.hidden) return;
-  // Was anders ist als gemessen (Stimme, Bass, dazu die Messvarianten der Werkstatt), sonst „Wie gemessen“
+  // Was anders ist als gemessen (Stimme, Bass, dazu die Messvarianten des Testlabors), sonst „Wie gemessen“
   const s = hsStand(), name = ([k, , werte]) => (werte.find(([w]) => w === s[k]) || [])[1];
   const rest = HS_ALLE.slice(1).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name).filter(Boolean);
   const teile = rest.length ? rest : ["Wie gemessen"];
@@ -13126,24 +13245,88 @@ function klangZeileZeigen() {
 // Hören: Bereich als Hauptsegment (Hör-Schalter „bereich“, gleiche Logik wie im Fenster), sobald die Box eine Einmessung spielt
 function bereichZeigen() {
   const st = zh.st, da = boxBereit() && !!st && !!zh.einmessungDa, kino = !!st && st.modus === "kino";
+  const vorher = zhVorherAn();
   $("zh-bereich").hidden = !da || !st.hoerschalter || kino;  // Kino: kein 90 | 150 | Voll
-  zielZeigen(st, da && kino);
+  zielZeigen(st, da && kino, vorher);
+  $("zh-vn").hidden = !da || !kino || !$("zh-ziel").hidden;  // Kino ohne Ziel-Wahl: nur Vorher | Nachher
+  for (const b of $("zh-vn").children) b.setAttribute("aria-pressed", String((b.dataset.zhVorher === "1") === vorher));
+  $("zh-blind-zeile").hidden = !da;
   if (!da) { $("zh-bereich-status").textContent = ""; return; }
   if (!$("zh-bereich").hidden) {
-    // einmal bauen, danach nur aria-pressed (Neubau bei jedem Status nähme Tastatur und VoiceOver den Fokus)
+    // einmal bauen, danach nur aria-pressed (Neubau bei jedem Status nähme Tastatur und VoiceOver den Fokus); „Hz“ fällt
+    // auf schmalen Handys weg (ci.css), damit „Vorher | 90 | 150 | Voll“ in eine Zeile passt
     const s = hsStand(), [k, , werte] = HS_GRUPPEN[0], seg = $("zh-bereich");
-    if (!seg.children.length) seg.innerHTML = werte.map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="false">${t}</button>`).join("");
-    for (const b of seg.children) b.setAttribute("aria-pressed", String(s[k] === (b.dataset.hsWert ? +b.dataset.hsWert : null)));
+    if (!seg.children.length) seg.innerHTML = `<button type="button" data-zh-vorher="1" aria-pressed="false">Vorher</button>`
+      + werte.map(([w, t]) => `<button type="button" data-hs="${k}" data-hs-wert="${w === null ? "" : w}" aria-pressed="false"${w ? ` aria-label="${t}"` : ""}>${w ? `${w}<span class="zh-hz">&nbsp;Hz</span>` : t}</button>`).join("");
+    for (const b of seg.children) b.setAttribute("aria-pressed", String(b.dataset.zhVorher ? vorher : !vorher && s[k] === (b.dataset.hsWert ? +b.dataset.hsWert : null)));
   }
 }
+// Hören › „Vorher“ (Besitzer 15.11.2026): POST /api/aus wie „Hör den Unterschied“ (die Box gleicht den Pegel ab, blendet über
+// und hält ihre Grenzen). Nie zwei Anfragen zugleich, immer nur der letzte Wunsch; scheitert die letzte, gilt wieder der Stand
+// davor. Ohne laufende Anfrage zeigt der Status der Box (aus), was spielt. Wer Hören verlässt, hört wieder mit Einmessung.
+var vorherSender = { inFlug: null, soll: null, an: false };  // var: bereichZeigen kann schon beim Start laufen
+function zhVorherAn() { return vorherSender && vorherSender.inFlug ? vorherSender.an : !!(zh.st && zh.st.aus === true); }
+function zhVorher(an) {
+  if (!boxBereit() || (!vorherSender.inFlug && zhVorherAn() === an)) return vorherSender.inFlug || Promise.resolve();
+  vorherSender.an = an; vorherSender.soll = an;
+  if (!vorherSender.inFlug) vorherSender.inFlug = (async () => {
+    while (vorherSender.soll !== null) {
+      const x = vorherSender.soll; vorherSender.soll = null;
+      const a = await vglAus(x, { zeitMs: 6000 });
+      if (a.ok) zh.st = { ...(zh.st || {}), aus: x };
+      else if (vorherSender.soll === null) { vorherSender.an = !x; $("zh-bereich-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; }
+    }
+    vorherSender.inFlug = null; bereichZeigen();
+  })();
+  bereichZeigen();
+  return vorherSender.inFlug;
+}
+// Vorher an, dann ein Bereich (bzw. Voll | Stereo, Nachher): erst zurück auf die Einmessung, dann wie sonst den Bereich setzen
+$("zh-held").addEventListener("click", async (ev) => {
+  const v = ev.target.closest("[data-zh-vorher]"); if (v) { zhVorher(v.dataset.zhVorher === "1"); return; }
+  const b = ev.target.closest("#zh-bereich [data-hs], #zh-ziel [data-hs]"); if (!b || !zhVorherAn()) return;
+  ev.stopPropagation(); await zhVorher(false); if (!zhVorherAn()) b.click();
+});
+// Blind vergleichen: derselbe Blindtest (5 Runden); läuft Musik, mit der Musik, sonst mit der Testszene der Box
+$("zh-blind-zeile").addEventListener("click", () => { const st = zh.st || {};
+  abMusik = !!((st.streamer && st.streamer.spielt) || (st.quelle === "spdif" && st.eingang && st.eingang.signal)); }, true);
+// Vergleich ohne Einmessung (Vorher, Blind, „Hör den Unterschied“) darf nie hängen bleiben (Besitzer 16.11.2026): an nur mit
+// Frist (die Box schaltet danach selbst zurück, nach einem Neustart sofort); solange die App sichtbar ist, verlängert sie
+// die Frist (verlaengern: nur bei laufendem Vergleich, schaltet nie wieder ein). Unsichtbar oder geschlossen: zurück auf
+// die Einmessung. Wieder sichtbar: ein offener Blindtest bzw. A/B-Vergleich stellt die gezeigte Seite wieder her, Hören
+// zeigt „Nachher“.
+var VGL_FRIST_S = 600, vgl = { an: false, zuletzt: 0, warAn: false };
+function vglAus(x, opt) { vgl.an = !!x; vgl.zuletzt = Date.now(); return nativ.box("aus", x ? { aus: true, fuer_s: VGL_FRIST_S, vergleich: true } : { aus: false }, opt); }
+function vglTakt() {
+  if (!vgl.an || document.visibilityState !== "visible" || !boxBereit()) return;
+  if (Date.now() - vgl.zuletzt < VGL_FRIST_S * 1000 / 3) return;
+  vgl.zuletzt = Date.now();
+  nativ.box("aus", { aus: true, fuer_s: VGL_FRIST_S, vergleich: true, verlaengern: true }, { zeitMs: 6000 }).then((a) => { if (a && a.ok && a.aus === false) vgl.an = false; });
+}
+setInterval(vglTakt, 30000);
+function vglZurueck() {
+  if (!boxBereit()) return;
+  const an = vgl.an || zhVorherAn(); vgl.warAn = vgl.warAn || an;
+  if (!an) return;
+  if (zhVorherAn()) zhVorher(false); else vglAus(false, { zeitMs: 6000 });
+  vgl.an = false; if (zh.st) zh.st.aus = false;
+}
+function vglWieder() {
+  const war = vgl.warAn; vgl.warAn = false; if (!war || !boxBereit()) return;
+  if (ab && !ab.fertig && sheet.offen() && $("sheet-inhalt").querySelector("#ab-kuh")) abSetzen(ab.seite);
+  else if (schrittJetzt === 10 && av.seite === 0) avSetzen(0);
+  if (schrittJetzt === 18) bereichZeigen();
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") vglZurueck(); else vglWieder(); });
+window.addEventListener("pagehide", vglZurueck);
 // Kino an 2.0/2.1: „Voll | Stereo“ (Ziel Kino-Linie | Wie Stereo, Bereich voll), nur wenn die Box beide Rechnungen hat; der
 // orange Kreis bei Voll (Kino-Linie, Standard an 2.0/2.1)
-function zielZeigen(st, kino) {
+function zielZeigen(st, kino, vorher) {
   const seg = $("zh-ziel"), lay = String((st && st.layout) || "2.0");
   seg.hidden = !kino || !st.hoerschalter || !lay.startsWith("2.") || st.profil_aktiv !== "stereo_kino" || !kinoLinieDa();
   if (seg.hidden) return;
-  if (!seg.children.length) seg.innerHTML = [["kino", "Voll"], ["stereo", "Stereo"]].map(([w, t]) => `<button type="button" data-hs="ziel" data-hs-wert="${w}" data-hs-voll="1" aria-pressed="false"${w === "kino" ? ` aria-label="${t}, empfohlen"` : ""}>${w === "kino" ? EM_MINI : ""}${t}</button>`).join("");
-  const z = hsStand().ziel; for (const b of seg.children) b.setAttribute("aria-pressed", String(z === b.dataset.hsWert));
+  if (!seg.children.length) seg.innerHTML = `<button type="button" data-zh-vorher="1" aria-pressed="false">Vorher</button>` + [["kino", "Voll"], ["stereo", "Stereo"]].map(([w, t]) => `<button type="button" data-hs="ziel" data-hs-wert="${w}" data-hs-voll="1" aria-pressed="false"${w === "kino" ? ` aria-label="${t}, empfohlen"` : ""}>${w === "kino" ? EM_MINI : ""}${t}</button>`).join("");
+  const z = hsStand().ziel; for (const b of seg.children) b.setAttribute("aria-pressed", String(b.dataset.zhVorher ? !!vorher : !vorher && z === b.dataset.hsWert));
 }
 // „Für alle Plätze“ mit sanfterer Variante (status.hoerschalter_gleich): alle Schalter auf Standard heißt dann volle
 // Anpassung, nicht „wie gemessen“ (geladen ist die Variante); stehen sie wie von der Box gesetzt, ist es die Variante
@@ -13223,22 +13406,7 @@ function zhListeSetzen(html) {
   l.innerHTML = html; l.dataset.html = html;
   if (wahl) { const n = l.querySelector(wahl); if (n) try { n.focus({ preventScroll: true }); } catch (e) { /* ohne Fokus */ } }
 }
-// Werkstatt › Aufnahme mit Reserve (POST /api/aufnahme_reserve)
-function reserveZeigen() {
-  const r = boxBereit() && zh.st ? zh.st.aufnahme_reserve : null;
-  $("zh-reserve-block").hidden = !r; if (!r) return;
-  document.querySelectorAll("[data-reserve]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.reserve === "1") === !!r.an)));
-  if (r.aus_grund && !$("zh-reserve-status").textContent) $("zh-reserve-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(r.aus_grund)}.</span>`;
-}
-document.addEventListener("click", async (ev) => {
-  const b = ev.target.closest("[data-reserve]"); if (!b || !nativ || !boxBereit()) return;
-  const an = b.dataset.reserve === "1"; if (zh.st && zh.st.aufnahme_reserve && zh.st.aufnahme_reserve.an === an) return;
-  $("zh-reserve-status").innerHTML = `<span class="laeuft">Die Box stellt um, kurz still…</span>`;
-  const a = await nativ.box("aufnahme_reserve", { an }, { zeitMs: 8000 });
-  if (a.ok && a.aufnahme_reserve) { zh.st = { ...(zh.st || {}), aufnahme_reserve: a.aufnahme_reserve }; $("zh-reserve-status").textContent = ""; reserveZeigen(); }
-  else $("zh-reserve-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
-});
-// Werkstatt: warum ein Schalter gerade nicht wirkt (Status „grund“), kurz und ohne Markennamen
+// Testlabor: warum ein Schalter gerade nicht wirkt (Status „grund“), kurz und ohne Markennamen
 const SCHALTER_GRUND = { kino: "Kino-Modus", funk: "Funk zum Satelliten", umrechnung: "Umrechnung nötig", takt_labor: "Takt-Labor-Test läuft",
   usb: "USB-Wandler", satellit: "Satellit", kein_regler: "Quelle ohne eigenen Takt-Regler" };
 function schalterGrund(r) {
@@ -13249,19 +13417,28 @@ function schalterGrund(r) {
 function wirktZeigen(id, r) { const t = schalterGrund(r); $(id).textContent = t; $(id).hidden = !t; }
 // Streamer-Takt folgen läuft mit, solange Stereo bitgenau wirkt (auch mit eigenem Schalter aus)
 function stfWirktText(r) { return r && r.wegen_bitgenau ? "Wirkt gerade mit, weil Stereo bitgenau wirkt (Musik ohne Umrechnung braucht den gemeinsamen Takt)." : schalterGrund(r); }
-// Werkstatt › Stereo bitgenau (POST /api/stereo_bitgenau)
+// Testlabor › Stereo bitgenau (POST /api/stereo_bitgenau)
 function bitgenauZeigen() {
   const r = boxBereit() && zh.st ? zh.st.stereo_bitgenau : null;
-  $("zh-bitgenau-block").hidden = !r; if (!r) return;
+  $("zh-bitgenau-k").hidden = !r; if (!r) return;
+  $("zh-bitgenau-wert").textContent = `· ${r.an ? (r.wirkt ? "an" : "an, wirkt gerade nicht") : "aus"}`;
   document.querySelectorAll("[data-bitgenau]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.bitgenau === "1") === !!r.an)));
   wirktZeigen("zh-bitgenau-wirkt", r);
   if (r.aus_vorgemerkt) { $("zh-bitgenau-wirkt").textContent = `Schaltet sich beim nächsten Titelwechsel oder in der nächsten Pause aus: ${r.aus_vorgemerkt}.`; $("zh-bitgenau-wirkt").hidden = false; }
   if (r.aus_grund && !$("zh-bitgenau-status").textContent) $("zh-bitgenau-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(r.aus_grund)}.</span>`;
 }
-// Werkstatt › Streamer-Takt folgen (POST /api/streamer_takt_folgen): ohne Umbau, kein „kurz still“
+// Testlabor › Streamer-Takt folgen (POST /api/streamer_takt_folgen): ohne Umbau, kein „kurz still“. Im Fenster dazu die
+// Werte der Regelung: Korrektur, Füllstand der Weiche, wie der Takt der Quelle wandert (streamer_takt)
+const ppmText = (p) => `${p > 0 ? "+" : p < 0 ? "−" : ""}${zk(Math.abs(p), 0)} ppm`;
 function stfZeigen() {
-  const r = boxBereit() && zh.st ? zh.st.streamer_takt_folgen : null;
-  $("zh-stf-block").hidden = !r; if (!r) return;
+  const r = boxBereit() && zh.st ? zh.st.streamer_takt_folgen : null, mt = zh.st && zh.st.streamer_takt;
+  $("zh-stf-k").hidden = !r; if (!r) return;
+  $("zh-stf-wert").textContent = `· ${r.an || r.wegen_bitgenau ? "an" : "aus"}${r.korrektur_ppm != null ? ` · ${ppmText(r.korrektur_ppm)}` : ""}`;
+  const zeile = (t, w) => `<li><span>${esc(t)}</span><b>${esc(w)}</b></li>`;
+  listeMitFokus($("zh-stf-werte"), (r.korrektur_ppm != null ? zeile("Korrektur", ppmText(r.korrektur_ppm)) : "")
+    + (mt && mt.fuell != null && +mt.puffer > 0 ? zeile("Puffer der Weiche", `${zk(100 * mt.fuell / mt.puffer, 0)} % (${zk(mt.fuell, 0)} von ${zk(mt.puffer, 0)} Werten)`) : "")
+    + (mt && mt.ppm != null ? zeile("Takt der Quelle wandert", ppmText(mt.ppm)) : "")
+    + (r.aussetzer ? zeile("Aussetzer in 10 min", zk(r.aussetzer, 0)) : ""));
   document.querySelectorAll("[data-stf]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.stf === "1") === !!r.an)));
   { const t = stfWirktText(r); $("zh-stf-wirkt").textContent = t; $("zh-stf-wirkt").hidden = !t; }
   if (r.aus_grund && !$("zh-stf-status").textContent) $("zh-stf-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(r.aus_grund)}.</span>`;
@@ -13286,7 +13463,7 @@ const DARSTELLUNG = [["auto", "Automatisch"], ["hell", "Hell"], ["dunkel", "Dunk
 const zhDarstellung = () => { const w = window.klangboxDarstellung ? klangboxDarstellung.wert() : "auto";
   return `<div class="zh-darstellung"><span id="zh-darstellung-label">Darstellung</span><div class="seg" role="group" aria-labelledby="zh-darstellung-label">${DARSTELLUNG.map(([k, t]) =>
     `<button type="button" data-darstellung="${k}" aria-pressed="${w === k}">${t}</button>`).join("")}</div></div>`; };
-const zhAppGruppe = (ohneIc) => zhGruppe("App", zhAktion("zh-app", ohneIc ? "" : ZH_IC.app, "Einstellungen der App<small>AirPlay, Raumscan, Freigaben</small>", !!nativ && !window.klangboxBedienseite) + zhDarstellung());
+const zhAppGruppe = () => zhGruppe("App", zhAktion("zh-app", ZH_IC.app, "Einstellungen der App<small>AirPlay, Raumscan, Freigaben</small>", !!nativ && !window.klangboxBedienseite) + zhDarstellung());
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-darstellung]"); if (!b || !window.klangboxDarstellung) return;
   const w = klangboxDarstellung.setzen(b.dataset.darstellung);
@@ -13295,6 +13472,16 @@ document.addEventListener("click", (ev) => {
 // Nach dem Umschalten: was Farben aus den Tokens liest, neu zeichnen (3D-Akzent liest --kb-signal; SVG-Skizzen folgen von selbst)
 window.addEventListener("klangboxthema", () => { try { if (window.Raum3D && Raum3D.setAkzent) Raum3D.setAkzent(); } catch (e) { /* ohne 3D */ } });
 const zhLayout = () => (boxBereit() && zh.st && zh.st.layout) || MA.layout;
+// Kopf von Hören und Einmessen (ein Baustein, Besitzer 15.11.2026): „Raum · Layout“ der Einmessung, die der Reiter zeigt.
+// Stereo und Kino nur vorne spielen auf den Boxen vorne (2.0, mit Sub 2.1), das Kino des Layouts auf allen (4.0, 5.1 …);
+// mit einer benannten Aufstellung (Sofa, Schreibtisch) deren Name. Ohne bekannte Einmessung das Layout der Anlage.
+function kopfAnlage(id) {
+  const st = zh.st, lz = zhLayout(), raum = MA.name || "Meine Anlage";
+  const auf = boxBereit() && st && st.aufstellung ? (st.aufstellung.liste || []).find((x) => x.id === st.aufstellung.aktiv) : null;
+  if (auf && auf.name !== MA.name) return `${raum} · ${auf.name}`;
+  const l = /^kino_/.test(id || "") ? id.slice(5) : id === "stereo" || id === "stereo_kino" ? (/\.1$/.test(lz || "") ? "2.1" : "2.0") : lz;
+  return `${raum}\u00a0· ${l}`;
+}
 // Symbole ohne Klång-Box (Box verbinden, App; Linien 1,6 px, 24 px). Die Box auf einen Blick kommt ohne Symbole aus
 const ZH_IC = {
   verbinden: '<svg viewBox="0 0 24 24"><path d="M10 14l4-4"/><path d="M8.5 11.5l-2 2a3.5 3.5 0 0 0 5 5l2-2M15.5 12.5l2-2a3.5 3.5 0 0 0-5-5l-2 2"/></svg>',
@@ -13303,9 +13490,8 @@ const ZH_IC = {
 // laden: den Status der Box neu holen (zhLaden zeichnet danach ohne erneutes Laden, sonst fragt die Seite ohne Ende)
 function zuhauseZeigen(laden = true) {
   const boxDa = boxBereit(), st = zh.st;
-  const aufAktiv = boxDa && st && st.aufstellung ? (st.aufstellung.liste || []).find((x) => x.id === st.aufstellung.aktiv) : null;
   $("zh-raum-waehler").dataset.sheetTitel = MA.name || "Raum";
-  $("zh-anlage").textContent = aufAktiv && aufAktiv.name !== MA.name ? `${MA.name || "Meine Anlage"} · ${aufAktiv.name}` : `${MA.name || "Meine Anlage"} · ${(boxDa && st && st.layout) || MA.layout}`;
+  $("zh-anlage").textContent = kopfAnlage((boxDa && st && st.profil_aktiv) || profilJetzt);
   // Modus: mit Box die Wahl der Box (fest oder auto), sonst nur, welche Einmessung oben steht
   const wahl = st && st.modus_regel ? st.modus_regel.wahl : st && st.modus_wahl === "auto" ? "auto" : st && st.modus ? st.modus : modus;
   $("zh-auto").hidden = !boxDa;
@@ -13338,6 +13524,7 @@ function zuhauseZeigen(laden = true) {
   let emBlick = "";
   try { emBlick = emId ? zhEinmessenBlick(emId, emIds, emWeiter) : ""; } catch (err) { emBlick = ""; }  // nie ganz Zuhause kaputt
   document.querySelector('.schritt[data-s="18"]').classList.toggle("em-an", !!emBlick);
+  emKopfZeigen(emBlick ? emId : null, emIds);
   // Mit dem Blick bleiben die anderen Karten: nur auf der Box eingemessen, noch offen, anderes Layout (Prüfer)
   const nurBox = profileFuer(lz).filter((p) => !emIds.includes(p.id)).map((p) => zhKarte(p.id)).filter((h) => !h.includes("zh-karte leer"));
   // Entwurf 13.11.2026 (Aufbau: Einmessen = Ergebnis des Profils, das spielt; Werkzeuge hinter „Mehr“): mit dem Blick stehen
@@ -13346,7 +13533,7 @@ function zuhauseZeigen(laden = true) {
   // Einmessungen der Box, darunter dieselben zwei Knöpfe; die offenen liegen auch dann unter „Mehr“
   const kartenHtml = emBlick ? emBlick : voll.join("");
   const mehrKarten = (emBlick ? nurBox.join("") : "") + leer.join("");
-  const kEl = $("zh-karten"), fokus = kEl.contains(document.activeElement) ? (document.activeElement.id ? `#${document.activeElement.id}` : document.activeElement.dataset.hsWert != null ? `[data-hs-wert="${document.activeElement.dataset.hsWert}"]` : document.activeElement.dataset.emWeiter != null ? `[data-em-weiter="${CSS.escape(document.activeElement.dataset.emWeiter)}"]` : null) : null;  // Umschalter Stereo | Kino: Fokus bleibt (Prüfer)
+  const kEl = $("zh-karten"), fokus = kEl.contains(document.activeElement) ? (document.activeElement.id ? `#${document.activeElement.id}` : document.activeElement.dataset.hsWert != null ? `[data-hs-wert="${document.activeElement.dataset.hsWert}"]` : null) : null;
   if (kEl.dataset.html !== kartenHtml + (fremd.length ? "f" : "")) {  // nur neu bauen, wenn sich etwas ändert (Fokus bleibt)
   kEl.dataset.html = kartenHtml + (fremd.length ? "f" : "");
   // Hinweis zu den Zahlen nur, wenn eine Karte Zahlen zeigt (Prüfer: Box-Karten haben keine)
@@ -13395,67 +13582,44 @@ function zuhauseZeigen(laden = true) {
   const mehrKnopf = `<button type="button" class="kb-zeile" id="zh-em-mehr" data-sheet-block="zh-mehr" data-sheet-titel="Mehr"><span>Mehr</span></button>`;
   listeMitFokus($("zh-mehr-liste"), (mehrKarten ? `<div class="zh-karten em-mehr-karten">${mehrKarten}</div>` : "") + zhGruppe("Werkzeuge", emZeilen + zhKinoFolgtMehr()) + pruefen);
   kinoFolgtZeigen();
-  $("zh-aktionen").innerHTML = emBlick && !weiter ? "" : hauptKnopf + mehrKnopf;
-  // Box auf einen Blick (Nutzer 13.11.2026; Entwurf 13.11.2026 „Aufbau“): Kopf mit Name und Version (lange tippen: Werkstatt),
-  // Zustand nur, wenn etwas nicht stimmt, vier Zeilen für den Alltag, der Rest hinter „Mehr“. Für einen Satelliten und als
-  // Rückfall (Kopf scheitert) dieselben Zeilen; die alte gruppierte Liste gibt es nicht mehr
+  // mit dem Blick und einem wartenden Schritt: „Weiter: …“ und „Mehr“ in einer Zeile wie „Neu einmessen | Mehr“ (Entwurf)
+  $("zh-aktionen").innerHTML = emBlick ? (weiter ? `<div class="em-unten">${hauptKnopf}<button type="button" class="zweit" id="zh-em-mehr" data-sheet-block="zh-mehr" data-sheet-titel="Mehr">Mehr</button></div>` : "") : hauptKnopf + mehrKnopf;
+  // Box (Entwurf 15.11.2026 „Box · neu“): Kopf, Zustand, Kacheln, Update (boxStatusHtml), dann Quellen, Lautstärke, Ausgang,
+  // Rear-Box hinzufügen, Darstellung und „Mehr“ (WLAN, Schlafen, Startklang, Hördosis, Updates, Einstellungen der App).
+  // Feste Reihenfolge in allen Zuständen; was es nicht gibt, fehlt, nichts wandert. Lippen-Sync steht auf Hören (Film).
+  // Für einen Satelliten dieselben Zeilen, soweit sie ihn betreffen; scheitert der Kopf, bleiben die Zeilen
   let boxBlick = "", boxKopf = "";
   if (boxDa && st) {
-    const sat = st.rolle === "satellit", lr2 = st.lautstaerke, sb2 = st.standby;
-    // Rear-Box: bei einem Layout mit Rears und ohne Satellit in den Hauptzeilen, sonst unter „Mehr“ (Prüfer)
-    const rear = window.klangboxBedienseite || sat ? "" : zhAktion("zh-rear", "", "Rear-Box hinzufügen<small>zweite Box hinten, über Funk</small>", !!(nativ && nativ.boxen) && !((st.satelliten || []).length));
-    const rearVorn = rear && !["2.0", "2.1"].includes(st.layout || "2.0");
-    // „Mehr“ nennt genau, was darin steht (Nutzer 14.11.2026: Schlafen ist unwichtig, darum unter „Mehr“; ein neues Update
-    // steht als Knopf oben, die Zeile Updates darum ebenfalls unter „Mehr“; ohne Symbole wie die Hauptseite)
+    const sat = st.rolle === "satellit", lr2 = st.lautstaerke, sb2 = st.standby, aus = st.ausgang;
+    const rear = window.klangboxBedienseite || sat ? "" : zhAktion("zh-rear", "", "Rear-Box hinzufügen<small>über Funk</small>", !!(nativ && nativ.boxen) && !((st.satelliten || []).length));
+    // Ausgang (Besitzer 15.11.2026: eine Einstellung der Anlage, kein Test): Optisch | USB und Ausgangsrate in einem Fenster
+    const usbWahl = !!aus && (((aus.usb || []).length) || aus.wahl === "usb");
+    const ausgang = zhAktion("zh-ausgang-k", "", `Ausgang<small>${aus && aus.wahl === "usb" ? "USB" : "Optisch"}${st.streamer ? ` · bis ${zk((+st.streamer.max_rate || 96000) / 1000, 1)} kHz` : ""}</small>`,
+      !sat && (!!st.streamer || usbWahl), ` data-sheet-block="zh-ausgang" data-sheet-titel="Ausgang"`);
     const namen = [], teil = (name, html) => { if (html) namen.push(name); return html; };
-    const mehr = teil("Rear-Box", rearVorn ? "" : rear)
-      + teil("Updates", typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa, "upd") : "")
-      + teil("WLAN", typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa, "wlan") : "")
+    const mehr = teil("WLAN", typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa, "wlan") : "")
       + teil("Schlafen", zhAktion("zh-standby", "", `Schlafen<small>${esc(standbyKurz(sb2))}</small>`, !sat && !!sb2 && "minuten" in sb2, ` data-sheet-block="zh-standby" data-sheet-titel="Schlafen"`))
       + teil("Startklang", zhAktion("zh-startklang", "", `Startklang<small>${esc(startklangKurz(st))}</small>`, !!st.startklang, ` data-sheet-block="zh-startklang" data-sheet-titel="Startklang"`))
       + teil("Hördosis", zhAktion("zh-dosis-k", "", `Hördosis<small>${esc(dosisKurz(st))}</small>`, !!st.pegel, ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`))
-      + teil("App", zhAppGruppe(true));
+      + teil("Updates", typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa, "upd") : "")
+      + teil("App", zhAktion("zh-app", "", "Einstellungen der App<small>AirPlay, Raumscan, Freigaben</small>", !!nativ && !window.klangboxBedienseite));
     listeMitFokus($("zh-box-mehr-liste"), mehr);
     try { boxKopf = boxStatusHtml(st); } catch (err) { boxKopf = ""; }  // nie ganz Box kaputt: dann nur die Zeilen
     boxBlick = boxKopf
       + `<div class="em-funde">`
       + zhAktion("zh-quellen-k", "", `Quellen<small>${esc(quellenKurz(st))}</small>`, !!st.streamer, ` data-sheet-block="zh-quellen" data-sheet-titel="Quellen und Dienste"`)
       + zhAktion("zh-laut-k", "", `Lautstärke<small>regelt ${lr2 && lr2.fuehren ? "die Klång-Box" : "der Verstärker"}</small>`, !!lr2 && !sat, ` data-sheet-block="zh-lautstaerke" data-sheet-titel="Lautstärke &amp; Verstärker"`)
-      + zhAktion("zh-lippen", "", `Lippen-Sync<small>${zk(lippenMs(st), 0)} ms</small>`, true, ` data-sheet-block="zh-lippen" data-sheet-titel="Lippen-Sync"`)
-      + (rearVorn ? rear : "")
-      + `<button type="button" class="kb-zeile" id="zh-box-mehr" data-sheet-block="zh-box-mehr" data-sheet-titel="Mehr"><span>Mehr <span class="wert">· ${namen.join(" · ")}</span></span></button></div>`;
+      + ausgang + rear + zhDarstellung()
+      + (namen.length ? `<button type="button" class="kb-zeile" id="zh-box-mehr" data-sheet-block="zh-box-mehr" data-sheet-titel="Mehr"><span>Mehr <span class="wert">· ${namen.join("&nbsp;· ")}</span></span></button>` : "") + `</div>`;
   } else listeMitFokus($("zh-box-mehr-liste"), "");
   document.querySelector('.schritt[data-s="18"]').classList.toggle("box-an", !!boxKopf);
   zhListeSetzen(!boxDa ? zhGruppe("Box", zhAktion("zh-verbinden", ZH_IC.verbinden, "Klång-Box verbinden<small>freiwillig</small>", true)) + zhAppGruppe() : boxBlick);
   standbyZeigen();
-  // Box-Zustand: Funk je Satellit, Eingang, Warnungen der Wächter
-  $("zh-zustand").hidden = !boxDa || !st;
-  if (boxDa && st) {
-    const zeilen = [], warn = (st.waechter || []).filter((w) => w && w.ok === false);
-    const sats = st.satelliten || [];
-    for (const s of sats) { const a = funkAmpel(st.funk && Array.isArray(st.funk.partner) ? (st.funk.partner.find((p) => p.id === s.id) || st.funk) : st.funk);
-      zeilen.push(`<div class="zeile"><i class="ampel ${s.erreichbar === false ? "rot" : a.stufe}"></i><span><b>${esc(s.name || "Satellit")}</b> · ${esc(s.erreichbar === false ? "nicht erreichbar" : a.titel)}</span></div>`); }
-    // Funk-Stick (status.funk.stick): neu erkannt (Funk noch nicht eingerichtet), abgezogen oder hostapd nicht gestartet
-    const stick = st.funk && st.funk.stick, stickSat = einSatelliten().length || sats.length;
-    const stickZeigen = !!stick && (stick.zustand !== "neu" || !!stickSat) && !window.klangboxBedienseite;
-    if (stickZeigen) zeilen.push(`<div class="zeile"><i class="ampel ${stick.zustand === "neu" ? "gelb" : "rot"}"></i><span><b>Funk-Stick</b> · ${esc(stick.text || "")}`
-      + (stick.zustand !== "fehlt" ? ` <button type="button" class="kb-link" id="zh-funk-einrichten"${zhFunkLaeuft ? " disabled" : ""}>${zhFunkLaeuft ? "Richtet ein …" : "Funk einrichten"}</button>` : "") + `</span></div>`);
-    const e = st.eingang || {};
-    zeilen.push(`<div class="zeile"><i class="ampel ${e.signal === false ? "gelb" : "gruen"}"></i><span><b>Eingang</b> · ${e.signal === false ? "kein Signal" : "Signal da"}</span></div>`);
-    for (const w of warn) zeilen.push(`<div class="zeile"><i class="ampel gelb"></i><span>${esc(w.text || w.regel)}</span></div>`);
-    $("zh-zustand-zeilen").innerHTML = zeilen.join("");
-    const schlecht = warn.length || e.signal === false || sats.some((s) => s.erreichbar === false) || stickZeigen;
-    $("zh-ampel").className = `ampel ${schlecht ? "gelb" : "gruen"}`;
-    $("zh-zustand-kurz").textContent = schlecht ? "· bitte ansehen" : "· alles in Ordnung";
-    // Zustand nur, wenn etwas nicht stimmt (Entwurf 13.11.2026; kein Signal ist kein Problem)
-    if (!(warn.length || sats.some((s) => s.erreichbar === false) || stickZeigen)) $("zh-zustand").hidden = true;
-  }
   if (boxDa && st) zhBoxBloecke(st);
-  werkstattZeigen();
-  reserveZeigen();
   bitgenauZeigen();
   stfZeigen();
   taktZeigen();
+  werkstattZeigen();
   // Ohne Box: die Tipps für die Regler der eigenen Geräte
   const tipps = !boxDa && r ? GW.karte(r, runden) : "";
   $("zh-tipps").hidden = !tipps; $("zh-tipps-inhalt").innerHTML = tipps;
@@ -13505,8 +13669,8 @@ $("zh-mehr-liste").addEventListener("click", (ev) => {
   const kas = ev.target.closest("[data-zh-kas]"); if (kas) { sheet.zu(); kinoAusStereo(kas.dataset.zhKas); return; }
   const e = ev.target.closest("[data-zh-einmessen]"); if (e) { sheet.zu(); setzeProfil(e.dataset.zhEinmessen); zeigeSchritt(MA.gespeichert || window.klangboxBedienseite ? 3 : 2); }
 });
+$("em-kopf-wahl").addEventListener("click", (ev) => { const n = ev.currentTarget.dataset.emWeiter; if (n) { zh.emProfil = n; zuhauseZeigen(false); } });
 $("zh-karten").addEventListener("click", (ev) => {
-  const pw = ev.target.closest("[data-em-weiter]"); if (pw) { zh.emProfil = pw.dataset.emWeiter; zuhauseZeigen(false); return; }
   const kas = ev.target.closest("[data-zh-kas]"); if (kas) { kinoAusStereo(kas.dataset.zhKas); return; }
   const e = ev.target.closest("[data-zh-einmessen]"); if (e) { setzeProfil(e.dataset.zhEinmessen); zeigeSchritt(MA.gespeichert || window.klangboxBedienseite ? 3 : 2); return; }
   const fd = ev.target.closest("[data-em-fund]"); if (fd) { emFundZeigen(fd.dataset.emFund, +fd.dataset.emNr); return; }
@@ -13628,7 +13792,7 @@ function abNeu(blind) {
 async function abSetzen(seite) {
   if (!ab) return;
   ab.seite = seite; abZeigen();
-  const a = await nativ.box("aus", { aus: !abIstB(seite) }, { zeitMs: 6000 });
+  const a = await vglAus(!abIstB(seite), { zeitMs: 6000 });
   if (!a.ok) $("ab-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 }
 function abZeigen() {
@@ -13675,7 +13839,7 @@ document.querySelectorAll("[data-ab-mag]").forEach((b) => b.addEventListener("cl
   $("ab-ergebnis").innerHTML = `<div class="kasten"><span class="marke">Auflösung</span><p style="font-size:15px; color: var(--kb-text)">${esc(abEinordnung(n))}</p>
     <p class="klein">${ab.wahl.map((w, i) => `Runde ${i + 1}: ${w ? "mit" : "ohne"} Klång-Box`).join(" · ")}</p></div>`;
   if (r) { r.blindtest = { box: n, runden: AB_RUNDEN, datum: new Date().toLocaleDateString("de-DE"), runde: r.id, musik: !!ab.musik }; rundeSpeichern(); }
-  nativ.box("aus", { aus: false }, { zeitMs: 6000 }); ab.seite = 1; abZeigen();
+  vglAus(false, { zeitMs: 6000 }); ab.seite = 1; abZeigen();
 }));
 $("ab-modus").addEventListener("click", () => abNeu(!(ab && ab.blind)));
 $("ab-spielen").addEventListener("click", () => abSzene());
@@ -13688,7 +13852,7 @@ window.addEventListener("sheetauf", async (ev) => {
   const st = await nativ.box("status", {}, { zeitMs: 6000 });  // frisch: bietet die Box einen Testclip an?
   if (st && st.ok && ab) { zh.st = st; abNeu(true); }
 });
-window.addEventListener("sheetzu", (ev) => { if (ev.detail && ev.detail.id === "ab-kuh") { abMusik = false; av.seite = 1; const r0 = aktuelleRunde(); if (schrittJetzt === 10 && r0 && ablaufPhase(r0) === "vergleich") $("a-phase").innerHTML = avHtml(r0); } if (ev.detail && ev.detail.id === "ab-kuh" && ab) { const clip = ab.laeuft ? ab.clip : null; ab = null; if (boxBereit()) { nativ.box("aus", { aus: false }, { zeitMs: 6000 }); if (clip) abClipStoppen(clip); } if (schrittJetzt === 18) zuhauseZeigen(false); } });
+window.addEventListener("sheetzu", (ev) => { if (ev.detail && ev.detail.id === "ab-kuh") { abMusik = false; av.seite = 1; const r0 = aktuelleRunde(); if (schrittJetzt === 10 && r0 && ablaufPhase(r0) === "vergleich") $("a-phase").innerHTML = avHtml(r0); } if (ev.detail && ev.detail.id === "ab-kuh" && ab) { const clip = ab.laeuft ? ab.clip : null; ab = null; if (boxBereit()) { vglAus(false, { zeitMs: 6000 }); if (zh.st) zh.st.aus = false; if (clip) abClipStoppen(clip); } if (schrittJetzt === 18) zuhauseZeigen(false); } });
 // --- Vorher/Nachher anhören (Nutzer: „Den Unterschied dieser Kurve als Sound-Datei zum Antesten“) --------------------
 // Ein CC0-Musikstück mit kräftigem Bass (vorgeschmack/bass.flac, werkzeuge/vorgeschmack_musik.py) per OfflineAudioContext:
 // A unverändert, B mit genau den Filtern, Pegeln und Laufzeiten aus dem Export an die Klång-Box (dieselben Biquads,
@@ -13913,7 +14077,7 @@ function lippenText(lp) {
     : "Der Fernseher meldet über HDMI keine Bildverzögerung. Darum gilt der Schieber (von Hand).";
 }
 const quellenKurz = (st) => { const s = st && st.streamer; if (!s) return ""; const an = Object.entries(s.dienste || {}).filter(([, d]) => d.an).length;
-  return `${an} Dienste an`; };  // die Ausgangsrate steht in der Werkstatt
+  return `${an} Dienste an`; };  // die Ausgangsrate steht unter Box › Ausgang
 const dbText = (v) => `${v < 0 ? "−" : ""}${zk(Math.abs(v), 0)} dB`;
 const startklangKurz = (st) => { const k = st && st.startklang; if (!k) return "";
   return k.an ? `an · ${dbText(+k.db)}` : k.systemklaenge ? "aus · Systemklänge an" : "aus"; };
@@ -13929,7 +14093,7 @@ function zhBoxBloecke(st) {
     + ("album_infos" in s ? `<div class="reihe"><div><span style="font-size:15px; font-weight:600">Album-Infos aus dem Netz</span><span class="klein">Booklet, Mitwirkende und Cover im CD-Regal</span></div>
     <button type="button" class="schalter" role="switch" data-zh-dienst="album_infos" aria-checked="${!!s.album_infos}" aria-label="Album-Infos aus dem Netz"></button></div>` : "");
   const mr = +s.max_rate || 96000, w = wandlerOptisch();
-  $("zh-ws-rate").hidden = !st.streamer;  // Werkstatt › Ausgangsrate
+  $("zh-ws-rate").hidden = !st.streamer;  // Box › Ausgang › Ausgangsrate
   $("zh-rate-text").textContent = "So hoch geht die Klång-Box in Stereo mit der Rate der Quelle. Im Kino rechnet sie immer mit 48 kHz.";
   $("zh-rate").innerHTML = RATEN.map((r) => `<button type="button" class="chip" data-zh-rate="${r}" aria-pressed="${r === mr}">${zk(r / 1000, 1)} kHz</button>`).join("");
   $("zh-rate-tipp").textContent = (w ? `${w.name} nimmt optisch bis ${zk(w.optisch_max_hz / 1000, 1)} kHz: ${w.optisch_max_hz > mr ? `${zk(w.optisch_max_hz / 1000, 1)} kHz wählen.` : "passt."} ` : "Viele optische Strecken enden bei 96 kHz. Nimmt dein Wandler mehr, stell es höher. ")
@@ -15578,11 +15742,11 @@ function saOberflaeche(K) {
 // Interpret · Album · Spielzeit als Text, Lautstärke-Leiste (lautstaerke.js). „Mehr zum Album“ (Fenster): Mitwirkende, Über das Album,
 // Quelle und Format, Signalweg, Vollbild. Die Bibliothek der Box steht im CD-Regal (bibZeile, regal.js).
 // Daten nur aus GET /api/jetzt (SCHNITTSTELLE „Jetzt läuft“), Bibliothek und Warteschlange über mpd, Updates aus dem
-// Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu Werkstatt › „Bericht senden“
+// Status (Updates: suchen, installieren mit Fortschritt, automatisch nachts). Dazu Testlabor › „Bericht senden“
 // (GET /api/bericht: Bericht in drei Phasen als Datei klangbox-bericht.txt, sonst Text bzw. Zwischenablage), der Schalter „Externer Streamer am Eingang“ (POST /api/modus) und „WLAN“ (mehrere
-// WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt). Werkstatt › Fehlersuche: Diagnose kopieren
+// WLANs merken, z. B. vorab das des Nachbarn; GET/POST /api/wlan, nur gekoppelt). Testlabor: Diagnose kopieren
 // (GET /api/diagnose, schnell und ohne Sperre der Box: Rückfall, wenn der Bericht zu lange braucht), Mehrkanal prüfen, Eingang prüfen,
-// Ton direkt testen, Ausgang, Funk-Protokoll (Markup in der Vorlage, #zh-werkstatt).
+// Ton direkt testen, Funk-Protokoll (Markup in der Vorlage, #zh-werkstatt); Box › Ausgang (#zh-ausgang-block).
 // Nutzt von der Seite: nativ, boxBereit, zh (Zuhause-Zustand), esc, zk, sheet, zuhauseZeigen, SITZ_KURZ, profilInfo.
 const JETZT = (() => {
   const $ = (id) => document.getElementById(id);
@@ -16139,17 +16303,18 @@ const JETZT = (() => {
     catch (e) { zumKopierenZeigen(st, text, t.wort); }
     if (knopf) knopf.blur();
   }
-  // Werkstatt (Vorlage #zh-werkstatt): Bericht und Fehlersuche nur mit Box
+  // Testlabor (Vorlage #zh-werkstatt): Bericht, Anschluss und Diagnose nur mit Box
   function untenZeigen() {
     $("zh-ws-bericht").hidden = $("zh-fehlersuche").hidden = !da(); $("zh-ws-ohne").hidden = da();
-    $("zh-diag-bitstream-zeile").hidden = $("zh-diag-eingang-zeile").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
+    $("zh-diag-bitstream").hidden = $("zh-diag-eingang").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
     // Funk-Protokoll: nur an der Hauptbox (sie prüft auch die Satelliten über den Funk)
-    $("zh-diag-funk-zeile").hidden = !(zh && zh.st && zh.st.rolle === "haupt");
-    // Ausgang wählen (Nutzer 11.11.2026: Nubert per USB testen): nur, wenn ein USB-Wandler steckt oder USB gewählt ist
+    $("zh-diag-funk").hidden = !(zh && zh.st && zh.st.rolle === "haupt");
+    $("zh-ws-anschluss").hidden = !da() || ["zh-diag-bitstream", "zh-diag-eingang", "zh-diag-funk"].every((id) => $(id).hidden);
+    // Box › Ausgang: Optisch | USB (Nutzer 11.11.2026: Nubert per USB testen) nur, wenn ein USB-Wandler steckt oder USB gewählt ist
     const aus = zh && zh.st && zh.st.ausgang, az = $("zh-ausgang-zeile");
     az.hidden = !(aus && ((aus.usb || []).length || aus.wahl === "usb"));
     if (!az.hidden) {
-      az.querySelectorAll("[data-ausgang]").forEach((k) => k.setAttribute("aria-checked", String(k.dataset.ausgang === aus.wahl)));
+      az.querySelectorAll("[data-ausgang]").forEach((k) => k.setAttribute("aria-pressed", String(k.dataset.ausgang === aus.wahl)));
       const usb = (aus.usb || [])[0], name = usb ? `${usb.name || usb.karte || "USB"}${(usb.raten || []).length ? ` (${usb.raten.map((r) => String(r / 1000).replace(".", ",")).join(" / ")} kHz${(usb.formate || []).length ? ", " + usb.formate.join(", ") : ""})` : ""}` : "kein USB-Gerät";
       $("zh-ausgang-text").textContent = aus.wahl === "usb"
         ? `USB: ${name}${aus.aktiv !== "usb" ? " (gerade nicht aktiv" + (aus.grund ? ": " + aus.grund : "") + ")" : ""}. Die Röhre greift über USB nicht (eigener Takt des Geräts).`
@@ -16200,7 +16365,7 @@ const JETZT = (() => {
   function bitteStand(st) {
     const hk = st && st.rahmen_sanft && st.rahmen_sanft.herkunft; if (!hk || !da() || st.rolle === "satellit") return null;
     // sichere Fehler: kaputte und verlorene Rahmen, Hänger. Die Sprünge des Knacks-Detektors zählen nicht (Bericht 14.11.2026:
-    // 23 im Kinderhörspiel ohne bestätigtes Knacken); woher sie kamen, steht in der Werkstatt › Ton
+    // 23 im Kinderhörspiel ohne bestätigtes Knacken); woher sie kamen, steht im Testlabor (Kacheln)
     const n = (+hk.fehler || 0) + (+hk.raster || 0) + (+hk.haenger || 0);
     const start = Math.round((Date.now() / 1000 - (+st.laufzeit_s || 0)) / 300);  // Startzeit der Box, auf 5 min genau
     // dieselbe Laufzeit der Box: Startzeit passt und die Zähler sind nicht kleiner (sie wachsen nur; ein schneller Neustart
@@ -16311,7 +16476,7 @@ const JETZT = (() => {
     if (wv) { const n = wv.dataset.wlanVergessen; wlanAufruf({ aktion: "vergessen", ssid: n }, wv, () => `✓ „${n}“ vergessen.`); return; }
     if (t.closest("#zh-diag-kopieren")) { diagnoseKopieren(t.closest("button")); return; }
     if (t.closest("#zh-diag-bericht")) { berichtTeilen(t.closest("button")); return; }
-    if (t.closest("#zh-diag-funk")) { berichtTeilen(t.closest("button"), $("zh-fehler-status"), "funk"); return; }
+    if (t.closest("#zh-diag-funk")) { berichtTeilen(t.closest("button"), $("zh-anschluss-status"), "funk"); return; }
     // Bitte um Bericht auf Hören: ein Tipp holt, der zweite teilt
     if (t.closest("#zh-bitte-senden")) { const s = bitteStand(zh && zh.st), stEl = $("zh-bitte-status");
       await berichtTeilen(t.closest("button"), stEl);
@@ -16322,15 +16487,15 @@ const JETZT = (() => {
       const a = await nativ.box("ausgang", { ausgang: k.dataset.ausgang }, { zeitMs: 8000 });
       if (a && a.ok !== false) { if (zh.st) zh.st.ausgang = a.ausgang; untenZeigen(); }
       else z.innerHTML = `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
-    if (t.closest("#zh-diag-direkt")) { const z = $("zh-fehler-status"); z.textContent = "Startet …";
+    if (t.closest("#zh-diag-direkt")) { const z = $("zh-ws-ton-status"); z.textContent = "Startet …";
       const a = await nativ.box("diagnose", { direktton: true }, { zeitMs: 15000 });
       z.innerHTML = a && a.ok !== false ? h(a.hinweis || "Läuft.") : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
     if (t.closest("#zh-diag-eingang")) { const k = t.closest("button"); if (k.disabled) return;
-      const z = $("zh-fehler-status"); z.textContent = "Prüft den Eingang …"; k.disabled = true;
+      const z = $("zh-anschluss-status"); z.textContent = "Prüft den Eingang …"; k.disabled = true;
       try { const a = await nativ.box("diagnose", { eingang_pruefen: true }, { zeitMs: 15000 });
         z.innerHTML = a && a.ok !== false ? h(a.hinweis || "Geprüft. Das Ergebnis steht im Bericht.") : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`;
       } finally { k.disabled = false; } return; }
-    if (t.closest("#zh-diag-bitstream")) { const z = $("zh-fehler-status"); z.textContent = "Prüft: Die Box ist dafür etwa 15 Sekunden still …";
+    if (t.closest("#zh-diag-bitstream")) { const z = $("zh-anschluss-status"); z.textContent = "Prüft: Die Box ist dafür etwa 15 Sekunden still …";
       const a = await nativ.box("diagnose", { bitstream_pruefen: true }, { zeitMs: 35000 });
       z.innerHTML = a && a.ok !== false ? "✓ Geprüft. Das Ergebnis steht jetzt in der Diagnose und im Bericht." : `<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`; return; }
     if (t.closest("#zh-ext-schalter")) { const b = $("zh-ext-schalter"), neu = b.getAttribute("aria-checked") !== "true";
@@ -16821,11 +16986,11 @@ const REGAL = (() => {
     _bilder: { bild, stand: () => ({ anzahl: bilder.size, bytes: bilderBytes, pfade: [...bilder.keys()] }) } };
 })();
 </script>
-<script>// Großer Test (Werkstatt › „Großer Test“): geführte Ansicht für POST /api/grosser_test (klangbox/dienst/grosser_test.py,
+<script>// Großer Test (Testlabor › „Großer Test“): geführte Ansicht für POST /api/grosser_test (klangbox/dienst/grosser_test.py,
 // docs/box/SCHNITTSTELLE.md). Die Box taktet alles Lange selbst (intern, Filmabende, Musikabende); das Handy braucht es
 // nur etwa 5 Minuten (Mikrofon, liegt flach). Beim nächsten Öffnen geht es dort weiter, wo die Box steht. Am Ende ein
 // großer Knopf „Bericht senden“ (GET /api/bericht: teilen, sonst kopieren).
-// Markup in der Vorlage: #gt-einstieg (Werkstatt) und #gt-schritt (eigene Vollbild-Ansicht). Eigene Regeln mit Präfix gt-.
+// Markup in der Vorlage: #gt-oeffnen (Zeile im Testlabor) und #gt-schritt (eigene Vollbild-Ansicht). Eigene Regeln mit Präfix gt-.
 // Nutzt von der Seite: nativ, boxBereit, esc, warte, wach, mikrofonOeffnen, audioKontext, mdB64, ladeSkript und die
 // Pegelautomatik der Einmessung (pegelautomatik.js): Vor der Aufnahme pegelt die Box ein (Schritt „Einpegeln“, siehe
 // klangbox/dienst/grosser_test.py): die Box spielt Rauschen im Band der Kennungen, die App misst es am Mikrofon gegen
@@ -16886,13 +17051,13 @@ body.gt-offen { overflow: hidden; }
   const mitLeiser = (t, gilt = true) => (gilt && ep().lauter_gebeten ? `${t ? `${t} ` : ""}${LEISER}` : t);
   const dauer = (min) => { min = Math.max(0, Math.round(+min || 0)); return min >= 90 ? `etwa ${Math.round(min / 60)} h` : `etwa ${min} min`; };
 
-  // --- Einstieg in der Werkstatt -------------------------------------------------------------------------------------
+  // --- Einstieg im Testlabor: eine Zeile „Großer Test · …“ ---------------------------------------------------------------
   function einstieg() {
-    const e = $("gt-einstieg"); if (!e) return;
+    const e = $("gt-oeffnen"); if (!e) return;
     e.hidden = !da();
     const t = $("gt-einstieg-text"); if (!t) return;
-    t.textContent = laeuft() ? `Läuft. Noch ${dauer(st.rest_min)} (Filme und Musik zählen von selbst). Tippen, um weiterzumachen.`
-      : st && st.phase === "fertig" ? "Fertig. Der Bericht wartet." : "Die Box prüft alles: Formate, Mikrofon (5 min), Filmabende, Musikabende. Du schaust einfach weiter.";
+    t.textContent = laeuft() ? `· läuft, noch ${dauer(st.rest_min)}`
+      : st && st.phase === "fertig" ? "· fertig, der Bericht wartet" : "· geführt, mit Film und Musik";
   }
 
   // --- Ansicht ---------------------------------------------------------------------------------------------------
@@ -16984,7 +17149,7 @@ body.gt-offen { overflow: hidden; }
   function zeigen() {
     const el = $("gt-schritt"); if (!el || !offen) return;
     const fokus = document.activeElement && document.activeElement.id;
-    const html = `<div class="gt-innen"><div class="gt-kopf"><button type="button" class="kb-link" id="gt-zurueck"${aufn ? " disabled" : ""}>‹ Werkstatt</button></div>
+    const html = `<div class="gt-innen"><div class="gt-kopf"><button type="button" class="kb-link" id="gt-zurueck"${aufn ? " disabled" : ""}>‹ Testlabor</button></div>
       <h2 class="gt-titel" id="gt-titel">Großer Test</h2>
       ${!da() ? `<p class="klein">Dafür muss die Klång-Box verbunden sein.</p>` : karte()}
       <p class="klein" id="gt-meldung" aria-live="polite">${meldung}</p>
@@ -17257,7 +17422,7 @@ body.gt-offen { overflow: hidden; }
     } finally { t.disabled = false; zeigen(); einstieg(); }
   });
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && offen) schliessen(); });
-  // Wiederaufnahme: der Stand kommt von der Box, sobald die Werkstatt zu sehen ist (höchstens alle 30 s)
+  // Wiederaufnahme: der Stand kommt von der Box, sobald das Testlabor zu sehen ist (höchstens alle 30 s)
   setInterval(() => { const l = $("zh-werkstatt"); if (!offen && da() && l && l.offsetParent && Date.now() - geladen > 30000) laden(); else einstieg(); }, 2000);
   return { laden, oeffnen, schliessen, get stand() { return st; }, set wartenS(s) { wartenS = +s > 0 ? +s : 120; } };
 })();

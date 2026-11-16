@@ -680,7 +680,7 @@ label.klein:has(> input[type="checkbox"]) { min-height: 44px; display: flex; ali
 main > .schritt:not([hidden]) { gap: 16px !important; }
 .schritt[data-s="18"] { gap: 16px !important; }
 .knoepfe, .zh-karten, .zh-aktionen, .af-layouts { gap: 12px; }
-.zh-held, .zh-platz, .bs-box, .kasten, .wahl, #p-liste, .regler + .regler { gap: 12px; }
+.zh-held, .zh-platz, .bs-oben, .kasten, .wahl, #p-liste, .regler + .regler { gap: 12px; }
 .haken, ol.tun, .dateien { gap: 8px; }
 .felder { gap: 8px 12px; } .felder label { gap: 4px; } .dauer { gap: 12px; }
 
@@ -957,6 +957,7 @@ body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, var(--kb-
 .zh-box-liste:empty { display: none; }
 #zh-box-mehr-liste { gap: 0; }   /* „Mehr“ von Box: Zeilen ohne Lücken wie die Hauptseite, nur vor der Gruppe App Abstand */
 #zh-box-mehr-liste > .zh-gruppe { margin-top: 24px; }
+#zh-box-mehr-liste > .zh-adresse { margin: 0; padding: 8px 0 12px; overflow-wrap: anywhere; }   /* Bedienseite: Adresse leise unter WLAN */
 .zh-gruppe { display: grid; }
 .zh-gruppe > .kb-label { margin: 0 0 4px; }
 .zh-gruppe > .kb-zeile:first-of-type { border-top: 1px solid var(--kb-linie); }
@@ -1091,14 +1092,14 @@ body.rg-offen .sheet-lage { z-index: 80; }
 /* Tippsperre nach Bildschirmwechsel (Vorlage: tippSperre) */
 body.tippsperre { pointer-events: none; }
 /* Zuordnung der Teile zu den Reitern (bleibt CSS bis Phase 4) */
-.schritt[data-s="18"][data-tab="hoeren"] :is(#zh-karten, #zh-karten-hinweis, #zh-aktionen, #bs-box, #bs-oben, #zh-box-liste, #zh-tipps) { display: none !important; }
-.schritt[data-s="18"][data-tab="einmessen"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-box, #zh-box-liste) { display: none !important; }
+.schritt[data-s="18"][data-tab="hoeren"] :is(#zh-karten, #zh-karten-hinweis, #zh-aktionen, #bs-oben, #zh-box-liste, #zh-tipps) { display: none !important; }
+.schritt[data-s="18"][data-tab="einmessen"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #zh-box-liste) { display: none !important; }
 .schritt[data-s="18"][data-tab="einmessen"][data-box="1"] #zh-tipps { display: none !important; }  /* R20: Geräte-Tipps nur ohne Box */
 .schritt[data-s="18"][data-tab="box"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-tipps) { display: none !important; }
 .schritt[data-s="18"]:not([data-tab="hoeren"]) #zh-regal, .schritt[data-s="18"]:not([data-tab="hoeren"], [data-tab="einmessen"]) #zh-raum-waehler { display: none !important; }
 .schritt[data-s="18"]:not([data-tab="einmessen"]) :is(#em-kopf-wahl, #em-anlage), .schritt[data-s="18"][data-tab="einmessen"] #zh-anlage { display: none !important; }
 .schritt[data-s="18"]:not([data-tab="hoeren"]) :is(#zh-film, #zh-lippen-h) { display: none !important; }   /* Fernseher nur auf Hören (auch nicht im Testlabor; Prüfer) */
-.schritt[data-s="18"][data-tab="werkstatt"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-box, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-tipps, #zh-box-liste) { display: none !important; }
+.schritt[data-s="18"][data-tab="werkstatt"] :is(#zh-jetzt, #zh-vol, #zh-held, #zh-hinweise, #bs-oben, #zh-karten, #zh-karten-hinweis, #zh-aktionen, #zh-tipps, #zh-box-liste) { display: none !important; }
 /* Box und Testlabor: ohne Meldung keine Lücke über dem Kopf, damit er genau dort steht, wo er auf Hören steht */
 .schritt[data-s="18"]:is([data-tab="box"], [data-tab="werkstatt"]) #zh-status:empty { display: none; }
 .schritt[data-s="18"]:not([data-tab="werkstatt"]) #zh-werkstatt { display: none !important; }
@@ -12387,6 +12388,8 @@ function boxStatusHtml(st) {
   const satz = probleme.length ? "Etwas stimmt nicht." : aus ? "Die Box ist aus." : kein ? "Bereit." : st.zustand === "neutral" ? "Spielt ohne Einmessung."
     : vorher ? "Spielt gerade ohne Korrektur (Vorher)." : "Ton kommt sauber an.";
   const unter = probleme.length ? probleme : aus ? [] : kein ? ["Gerade kommt kein Ton."] : weg ? [weg] : [];
+  // Rear-Box (Satellit): bedient wird über die Hauptbox; steht im Zustand, nicht als Kasten über dem Kopf
+  if (st.rolle === "satellit") unter.push("Das ist eine Rear-Box (Satellit). Bedienen geht über die Hauptbox.");
   // Update nicht verstecken (Nutzer 14.11.2026): ein neues steht als Knopf direkt unter den Kacheln; er installiert gleich
   // und öffnet dann das Fenster mit dem Fortschritt (Nutzer 15.11.2026, jetzt.js: data-upd-installieren)
   const upd = st.update || {}, updKnopf = updKnopfOben(upd)
@@ -13394,6 +13397,17 @@ $("zh-musik-start").addEventListener("click", async () => {
     st(`<span class="warn">Die Box hat nicht geantwortet. Noch einmal versuchen, während das Lied läuft.</span>`);
   } finally { b.disabled = false; }
 });
+// Bedienseite der Box (bedienseite.js): die Adresse als leise Zeile unter WLAN in Box › Mehr, als Rückfall die IP,
+// falls klangbox.local im Netz einmal nicht geht (dieselbe Seite, auch als eigene Home-Bildschirm-App)
+function boxAdresseHtml(st) {
+  if (!window.klangboxBedienseite || !st) return "";
+  const n = st.netz || {}, ueberIp = n.ip && location.hostname === n.ip;
+  const name = n.alias || (/\.local$/.test(location.hostname) ? location.hostname : null);
+  const pr = location.protocol === "https:" ? "https" : "http";
+  const text = name && n.ip ? `Adresse: <b>${pr}://${esc(name)}</b>&nbsp;· falls das nicht geht: <b>${pr}://${esc(n.ip)}/</b>`
+    : n.ip && !ueberIp ? `Adresse der Box: <b>${pr}://${esc(n.ip)}/</b>` : `Adresse der Box: <b>${pr}://${esc(location.host)}/</b>`;
+  return `<p class="klein zh-adresse" id="zh-adresse">${text}</p>`;
+}
 function zhAktion(id, icon, text, an = true, extra = "") {
   return an ? `<button type="button" class="zh-aktion kb-zeile" id="${id}"${extra}>${icon ? `<span class="zh-ic">${icon}</span>` : ""}<span class="zh-aktion-text">${text}</span></button>` : "";
 }
@@ -13569,6 +13583,9 @@ function zuhauseZeigen(laden = true) {
       abGeht ? ` data-sheet-block="ab-kuh" data-sheet-titel="Hör den Unterschied"` : boxDa ? " disabled" : boxOhneApp() ? ` data-sheet-block="ab-hilfe" data-sheet-titel="Blindtest über das Box-Symbol"` : ` data-sheet-block="zh-vg" data-sheet-titel="Hör den Unterschied"`)
     + zhAktion("zh-em-tipps", "", "Tipps aus der Messung<small>Empfehlungen, Raum</small>", !!emTippsHtml(rl), ` data-sheet-block="em-tipps" data-sheet-titel="Tipps aus der Messung"`)
     + zhAktion("zh-verbessern", "", "Aufstellung verbessern<small>Boxen und Sofa</small>", true, ` data-zu="8"`)
+    // Bedienseite der Box über http: Ergebnisse der Mess-Seite kommen per Einfügen (bedienseite.js); solange nichts
+    // eingemessen ist, steht der Knopf zusätzlich oben unter dem Kopf (#bs-oben)
+    + zhAktion("zh-uebernehmen", "", "Ergebnis übernehmen<small>von der Mess-Seite</small>", !!(window.klangboxBedienseite && !window.klangboxBedienseite.direkt))
     + sk  // Sub abgleichen (subabgleich.js), nur mit Sub
     + zhAktion("zh-anlage-zeile", "", `Meine Anlage<small>${esc(MA.layout || "")}</small>`, true, ` data-zu="2"`)
     // Ohne Box: die beste Stellung der Regler an den eigenen Geräten rechnen (Regler deiner Geräte)
@@ -13597,7 +13614,7 @@ function zuhauseZeigen(laden = true) {
     const ausgang = zhAktion("zh-ausgang-k", "", `Ausgang<small>${aus && aus.wahl === "usb" ? "USB" : "Optisch"}${st.streamer ? ` · bis ${zk((+st.streamer.max_rate || 96000) / 1000, 1)} kHz` : ""}</small>`,
       !sat && (!!st.streamer || usbWahl), ` data-sheet-block="zh-ausgang" data-sheet-titel="Ausgang"`);
     const namen = [], teil = (name, html) => { if (html) namen.push(name); return html; };
-    const mehr = teil("WLAN", typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa, "wlan") : "")
+    const mehr = teil("WLAN", typeof JETZT !== "undefined" ? JETZT.kacheln(st, boxDa, "wlan") : "") + boxAdresseHtml(st)
       + teil("Schlafen", zhAktion("zh-standby", "", `Schlafen<small>${esc(standbyKurz(sb2))}</small>`, !sat && !!sb2 && "minuten" in sb2, ` data-sheet-block="zh-standby" data-sheet-titel="Schlafen"`))
       + teil("Startklang", zhAktion("zh-startklang", "", `Startklang<small>${esc(startklangKurz(st))}</small>`, !!st.startklang, ` data-sheet-block="zh-startklang" data-sheet-titel="Startklang"`))
       + teil("Hördosis", zhAktion("zh-dosis-k", "", `Hördosis<small>${esc(dosisKurz(st))}</small>`, !!st.pegel, ` data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"`))
@@ -13739,6 +13756,7 @@ document.addEventListener("click", async (ev) => {
     if (ph && ph !== "fertig" && ph !== "messen") { if (wi) anwendenArt = "wiim"; else { anwendenArt = "box"; setzeQuelle("box"); profilStandard(r); } zeigeSchritt(10); return; }
     if (nm) { anwendenArt = nm; profilStandard(r); zeigeSchritt(10); } else zeigeSchritt(MA.gespeichert || window.klangboxBedienseite ? 3 : 2); }  // neues Handy: erst einmal „Meine Anlage“
   if (b.id === "zh-app" && nativ) { nativ.ereignis({ art: "einstellungen" }); return; }
+  if (b.id === "zh-uebernehmen" && window.klangboxBedienseite) { window.klangboxBedienseite.uebernehmen(); return; }
   if (b.id === "zh-hoerprobe") { const r = letzteRunde(modus); if (r && typeof HP !== "undefined") HP.oeffnen(r); return; }
   if (b.id === "zh-rear" || b.id === "zh-verbinden" || b.id === "zh-leer-verbinden") { verbArt = b.id === "zh-rear" ? "rear" : "haupt"; zeigeSchritt(12); }
 });
@@ -14077,7 +14095,7 @@ function lippenText(lp) {
     : "Der Fernseher meldet über HDMI keine Bildverzögerung. Darum gilt der Schieber (von Hand).";
 }
 const quellenKurz = (st) => { const s = st && st.streamer; if (!s) return ""; const an = Object.entries(s.dienste || {}).filter(([, d]) => d.an).length;
-  return `${an} Dienste an`; };  // die Ausgangsrate steht unter Box › Ausgang
+  return `${an} ${an === 1 ? "Dienst" : "Dienste"} an`; };  // die Ausgangsrate steht unter Box › Ausgang
 const dbText = (v) => `${v < 0 ? "−" : ""}${zk(Math.abs(v), 0)} dB`;
 const startklangKurz = (st) => { const k = st && st.startklang; if (!k) return "";
   return k.an ? `an · ${dbText(+k.db)}` : k.systemklaenge ? "aus · Systemklänge an" : "aus"; };

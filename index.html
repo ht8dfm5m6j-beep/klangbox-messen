@@ -545,8 +545,8 @@ details.mehr > :not(summary) { animation: aufklappen var(--kb-zeit) var(--kb-kur
 
 /* --- Lautstärke auf Hören (lautstaerke.js, 0.2.54) in D+: klein rechts in der Titelzeile (§3.12); Leiste − | Zahl | +
    unter dem Cover, nur wenn die Box regelt; beim Bedienen die Ebene über dem Cover (§3.9, Werte der Ebene dunkel). */
-.zh-jetzt-karte { --vol-ink: var(--kb-text); --vol-leise: var(--kb-text-leise); --vol-nadel: var(--kb-signal); --vol-schleier: var(--kb-ebene-schleier);
-  --vol-over-ink: var(--kb-ebene-text); --vol-over-leise: var(--kb-cover-schrift); --vol-strich: var(--kb-skala-leer); --vol-strich-an: var(--kb-ebene-text);
+.zh-jetzt-karte { --vol-ink: var(--kb-text); --vol-leise: var(--kb-text-leise); --vol-schleier: var(--kb-ebene-schleier);
+  --vol-over-ink: var(--kb-ebene-text); --vol-over-leise: var(--kb-cover-schrift); --vol-strich: var(--kb-skala-leer);
   --vol-schrift: var(--kb-schrift); --vol-zeit: var(--kb-zeit); }
 .zh-jetzt-zeile { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
 /* lange Titel (Hörspiele): höchstens zwei Zeilen mit Auslassung; die Zahl rechts steht bündig mit der ersten Zeile */
@@ -582,23 +582,21 @@ details.mehr > :not(summary) { animation: aufklappen var(--kb-zeit) var(--kb-kur
 .zh-vol-mitte-zahl { color: inherit; }
 .zh-jetzt-karte .zh-jetzt-text { transition: opacity var(--vol-zeit) var(--kb-kurve); }
 .zh-jetzt-karte[data-laut="1"] .zh-jetzt-text { opacity: 0; }
-.zh-vol-over-innen { display: grid; justify-items: center; gap: 8px; width: min(80%, 260px); user-select: none; -webkit-user-select: none; }
-.zh-vol-etikett { font: var(--kb-t-label); letter-spacing: var(--kb-ls-label); text-transform: uppercase; color: var(--vol-over-ink); }
-.zh-vol-wert { display: flex; align-items: baseline; gap: 8px; }
+.zh-vol-over-innen { display: grid; justify-items: center; gap: 8px; width: min(80%, 260px); user-select: none; -webkit-user-select: none; text-align: center; }
 .zh-vol-zahl { font: var(--kb-t-anzeige-xl); color: var(--vol-over-ink); white-space: nowrap; }
 .zh-jetzt-karte.still .zh-vol-zahl { font-size: 72px; line-height: 72px; }
 .zh-jetzt-karte[data-laut-stumm="1"] .zh-vol-zahl { font-size: 64px; line-height: 64px; color: var(--vol-over-leise); }
-.zh-vol-einheit { font: 400 26px/28px var(--kb-schrift); color: var(--vol-over-leise); }
-.zh-vol-skala { display: grid; gap: 4px; width: 100%; margin-top: 8px; }
-.zh-vol-striche { position: relative; display: flex; justify-content: space-between; align-items: flex-end; height: 20px; }
-.zh-vol-striche i { display: block; width: 1px; height: 10px; background: var(--vol-strich); }
-.zh-vol-striche i.lang { height: 18px; }
-.zh-vol-striche i.an { background: var(--vol-strich-an); }
-.zh-vol-nadel { position: absolute; bottom: -2px; width: 2px; height: 24px; margin-left: -1px; background: var(--vol-nadel); border-radius: 0; }
-.zh-vol-grenze { position: absolute; top: -4px; width: 1px; height: 4px; background: var(--vol-over-leise); text-decoration: none; }
-.zh-vol-ziffern { display: flex; justify-content: space-between; font: var(--kb-t-skala); color: var(--vol-over-leise); }
-.zh-vol-ziffern span { width: 0; display: flex; justify-content: center; white-space: nowrap; }
-.zh-vol-spl { font: var(--kb-t-klein); color: var(--vol-over-leise); min-height: 20px; }
+/* feine Linie unter der Zahl (Mockup laut3): Füllung bis zur Stellung, Striche an den Grenzen von Loudness bzw. Couch-Auto */
+.zh-vol-feinlinie { position: relative; display: block; width: 100%; height: 2px; margin-top: 4px; background: var(--vol-strich); }
+.zh-vol-feinlinie i { position: absolute; left: 0; top: 0; height: 2px; width: 0; background: var(--vol-over-ink); }
+.zh-vol-feinlinie s { position: absolute; top: -4px; width: 1px; height: 10px; background: var(--vol-over-leise); text-decoration: none; }
+.zh-vol-feinlinie .zh-vol-grenze { top: -6px; height: 14px; }
+.zh-vol-was { font: var(--kb-t-bedien); color: var(--vol-over-ink); min-height: 20px; }
+.zh-vol-wie { font: var(--kb-t-klein); color: var(--vol-over-leise); }
+.zh-vol-wie:empty { display: none; }
+.zh-vol-extra { display: grid; gap: 2px; justify-items: center; }
+.zh-vol-spl { font: var(--kb-t-klein); color: var(--vol-over-leise); }
+.zh-vol-spl:empty { display: none; }
 .zh-vol { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }  /* nur der Zugang, ohne Platz im Raster */
 .zh-vol-zugang { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; white-space: nowrap; }
 
@@ -899,14 +897,35 @@ body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, var(--kb-
 .kb-gruppen:empty { display: none; }
 .kb-gruppe { display: grid; gap: 8px; }
 .kb-gruppe > .klein { margin-top: -4px; }
-/* kurze Gruppen im Fenster Klang: Bezeichnung links, Segment rechts */
-.kb-gruppen.eng { gap: 8px; }
-.kb-gruppe.zeile { grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 8px; }
-.kb-gruppe.zeile > .seg > button { white-space: nowrap; padding: 0 8px; }
-/* sehr schmal (200 % Zoom, große Systemschrift): Bezeichnung über dem Segment, Knöpfe dürfen umbrechen */
-@media (max-width: 340px) { .kb-gruppe.zeile { grid-template-columns: minmax(0, 1fr); } .kb-gruppe.zeile > .seg > button { white-space: normal; padding: 0 4px; } .zh-tabs button { min-width: 0; } }
-#zh-schalter-mehr #zh-schalter-hilfe { display: grid; gap: 8px; }
+/* sehr schmal (200 % Zoom, große Systemschrift): Reiter dürfen schrumpfen */
+@media (max-width: 340px) { .zh-tabs button { min-width: 0; } }
 .sheet-fuss { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 16px; padding-top: 8px; border-top: 1px solid var(--kb-linie); }
+/* Fenster Klang (Hören › „Klang ›“, Mockup C 0.3.42): Abschnitte „Für jetzt“, „Klangprofil“ (2×2-Kacheln), „Einmessung“.
+   Zeilen „Für jetzt“: Titel und eine Zeile Erklärung links, Segment rechts (vier Stufen: Segment darunter, ganze Breite).
+   Kachel gewählt: dunkel gefüllt, Haken unten rechts; Neutral trägt immer den orangen Ring („Empfohlen“, ohne Text);
+   im Kino blass, was dort nicht wirkt (Vinyl, Bühne). Orange nur für den Ring. */
+.kl-fenster { display: grid; gap: 24px; }
+.kl-abschnitt { display: grid; gap: 8px; }
+.kl-reihe { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; min-height: 56px; padding: 8px 0; }
+.kl-reihe + .kl-reihe { border-top: 1px solid var(--kb-linie); }
+.kl-reihe .n { font-weight: 500; display: block; }
+.kl-reihe > .seg > button { min-width: 52px; padding: 0 12px; }
+.kl-reihe > .seg.breit { grid-column: 1 / -1; }
+.kl-kacheln { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.kl-kachel { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; align-content: start; justify-items: start; gap: 4px; min-height: 104px; padding: 12px; border: 0;
+  border-radius: var(--kb-r-gruppe); background: var(--kb-flaeche); color: var(--kb-text); text-align: left; box-shadow: none; font-weight: 400; }
+.kl-kachel .n { font: var(--kb-t-titel3); font-weight: 500; padding-right: 20px; }
+.kl-kachel .d { font: var(--kb-t-klein); color: var(--kb-text-leise); }
+.kl-kachel.empfohlen::before { content: ""; position: absolute; right: 14px; top: 16px; width: 14px; height: 14px; box-sizing: border-box;
+  border-radius: 50%; border: 2px solid var(--kb-signal); background: transparent; }
+.kl-kachel[aria-checked="true"] { background: var(--kb-text); color: var(--kb-grund); }
+.kl-kachel[aria-checked="true"] .n { font-weight: 600; }
+.kl-kachel[aria-checked="true"] .d { color: var(--kb-flaeche); }
+.kl-kachel[aria-checked="true"]::after { content: ""; position: absolute; right: 12px; bottom: 12px; width: 18px; height: 18px; background: var(--kb-grund);
+  -webkit-mask: var(--kb-sym-haken) center / contain no-repeat; mask: var(--kb-sym-haken) center / contain no-repeat; }
+.kl-kachel:disabled { opacity: .5; background: var(--kb-flaeche); color: var(--kb-text); border: 0; box-shadow: none; }
+.kl-fuss { align-items: center; }
+@media (max-width: 340px) { .kl-reihe { grid-template-columns: minmax(0, 1fr); } }
 .zh-held { position: relative; display: grid; gap: 4px; padding: 0; overflow: visible; isolation: isolate; }
 .zh-quelle { color: var(--kb-text-leise); font: var(--kb-t-klein); min-height: 20px; margin: 0; }
 .zh-quelle b { font-weight: 500; color: var(--kb-text); }
@@ -1451,6 +1470,42 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
 .zh-film { display: grid; gap: 2px; margin: 4px 0 2px; }
 .zh-film-titel { font: var(--kb-t-titel3); }
 #zh-bereich .em-mini { fill: var(--kb-signal); }
+
+/* --- Pegel einmessen und „Wie echt“ (pegelecht.js): Ergänzung der Lautstärke-Ebene, Box › Lautstärke, Fenster --- */
+.zh-vol-echt { font: var(--kb-t-klein); color: var(--vol-over-leise); }
+.zh-vol-echt-strich { position: absolute; top: -6px; width: 2px; height: 14px; margin-left: -1px; background: var(--vol-over-ink); opacity: .9; text-decoration: none; }
+.zh-pe-zeilen { display: grid; grid-template-columns: auto 1fr; border-top: 1px solid var(--kb-linie); }
+.zh-pe-zeilen span { padding: 8px 0; border-bottom: 1px solid var(--kb-linie); }
+.zh-pe-zeilen span:nth-child(2n) { text-align: right; color: var(--kb-text-leise); padding-left: 12px; }
+.zh-echt-stepper { display: flex; align-items: center; gap: 16px; }
+.zh-echt-stepper .zh-vol-knopf { flex: none; width: 56px; height: 56px; border-radius: 50%; background: none; box-shadow: inset 0 0 0 1px var(--kb-linie); color: var(--kb-text); font: 400 24px/24px var(--kb-schrift); display: grid; place-items: center; padding: 0; }
+.zh-echt-zahl { font: 500 40px/44px var(--kb-schrift); min-width: 4ch; text-align: center; }
+.zh-echt-quelle { opacity: .85; }
+
+/* Bass je Ton (Einmessen › Mehr › Prüfen, Musik-Analyse): Tonreihe E1–H2, nur Text und Linien, kein Signal (Orange) */
+.bjt-inhalt { display: grid; gap: 12px; }
+.bjt-inhalt[hidden] { display: none; }
+.bjt-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.bjt-svg text { font: var(--kb-t-skala); fill: var(--kb-text-leise); }
+.bjt-ohne, .bjt-ganz, .bjt-musik { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.bjt-ohne { stroke: var(--kb-linie); stroke-width: 2.5; }
+.bjt-ganz { stroke: var(--kb-text-leise); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.bjt-musik { stroke: var(--kb-text); stroke-width: 2.25; }
+.bjt-raster { stroke: var(--kb-linie); stroke-width: .5; }
+.bjt-null { stroke: var(--kb-linie); stroke-width: 1; }
+.bjt-kreis { fill: var(--kb-grund); stroke: var(--kb-text); stroke-width: 1.25; }
+.bjt-taste { fill: var(--kb-grund); stroke: var(--kb-linie); stroke-width: 1; }
+.bjt-schwarz { fill: var(--kb-flaeche); }
+.bjt-weg { stroke: var(--kb-text); stroke-width: 1.5; }
+.bjt-svg .bjt-ton-weg { fill: var(--kb-text); font-weight: 600; }
+.bjt-svg .bjt-inst { font-size: 11px; }
+.bjt-bereich { stroke: var(--kb-text-leise); stroke-width: 1; }
+.bjt-koerper { stroke-dasharray: 2 3; }
+.bjt-satz { margin: 0; font: var(--kb-t-text); color: var(--kb-text); }
+.bjt-senken .kb-label { display: block; margin-top: 4px; }
+.bjt-quellen summary { cursor: pointer; }
+.bjt-quellen .zh-ws-zeilen li { display: grid; grid-template-columns: 7.5em 1fr; gap: 8px; }
+.bjt-quellen .zh-ws-zeilen li span:last-child { color: var(--kb-text-leise); }
 </style>
 <!-- Startanimation (docs/raumcheck-seite/start.js): nur Kaltstart in App und Home-Bildschirm-App -->
 <script>// Startanimation „Ring erhaben → Klång-Box“ (docs/ci/UMBAU_BAUPLAN.md §5.3, Vorlage docs/ci/start_animation/start.html).
@@ -1926,7 +1981,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
   <!-- Schritt 9: Klangprofil („Wie soll es klingen?“) -->
   <section class="schritt" data-s="9" hidden style="display: grid; gap: 16px;" aria-labelledby="h-klang">
     <h1 id="h-klang">Wie soll es klingen?</h1>
-    <p>Die Raumanpassung bleibt immer. Ein Klangprofil verschiebt nur die Tonbalance, um ein, zwei dB. Neutral ist voreingestellt.</p>
+    <p>Die Raumanpassung bleibt immer. Ein Klangprofil verschiebt die Tonbalance um ein, zwei dB, Vinyl und Bühne ändern dazu das Stereobild (nur Stereo). Neutral ist voreingestellt, wechseln geht jederzeit unter Hören › Klang.</p>
     <div class="card"><span class="klein">Prognose am Hauptplatz (dB, 20 Hz bis 20 kHz)</span><div id="p-kurve"></div>
       <div class="legende" id="p-legende"></div></div>
     <div id="p-waechter" aria-live="polite"></div>
@@ -2210,6 +2265,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
         <p class="klein">Musik aus dem Netz läuft bei gleicher Rate ohne Umrechnung durch die Box, nur die Raumkorrektur rechnet. Der Schalter lässt dabei „Streamer-Takt folgen“ mitlaufen; hilft das nicht, schaltet die Box ihn selbst ab.</p>
         <div class="seg" role="group" aria-label="Stereo bitgenau"><button type="button" data-bitgenau="0" aria-pressed="false">Aus</button><button type="button" data-bitgenau="1" aria-pressed="true">An</button></div>
         <p class="klein" id="zh-bitgenau-wirkt" hidden></p>
+        <p class="klein" id="zh-bitgenau-profil" hidden></p>
         <p class="klein" id="zh-bitgenau-status" aria-live="polite"></p></div>
       <!-- Streamer-Takt folgen: die Quellen folgen dem Takt der Ausgabe, geregelt auf den Füllstand, ab Werk an (0.3.35), Rückschaltung -->
       <div class="sheet-block" hidden data-block="zh-stf" id="zh-stf-block">
@@ -2274,6 +2330,10 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
         <button type="button" class="leise klein" id="zh-lr-ohne">Ohne Einstellen umschalten</button></div>
       <div class="kasten" id="zh-lr-max" hidden><div class="regler"><label for="zh-lr-max-r"><span>Höchstens</span><span class="wert" id="zh-lr-max-wert">100</span></label><input type="range" id="zh-lr-max-r" min="30" max="100" step="1" value="100"></div>
         <span class="klein">Lauter geht es nicht, auch nicht mit Fernbedienung oder Handy.</span></div>
+      <!-- Pegel einmessen (pegelecht.js): nur, wenn die Klång-Box regelt; danach „≈ dB“ auf Hören und „Wie echt“ im Fenster Klang -->
+      <div id="zh-pe-platz"></div>
+      <!-- Musik ↔ Film (0.3.42 aus dem Fenster Klang hierher): einmal einstellen, kein Hörgeschmack -->
+      <div id="zh-ma-platz"></div>
       <p class="klein" id="zh-lr-kal" hidden></p>
       <p class="klein" id="zh-lr-status" aria-live="polite"></p>
     </div>
@@ -2305,6 +2365,26 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
       <button type="button" id="zh-musik-start">Mithören (30 s)</button>
       <p class="klein" id="zh-musik-status" aria-live="polite"></p>
       <div id="zh-musik-ergebnis" style="display: grid; gap: 8px"></div>
+      <button type="button" class="kb-zeile" id="zh-musik-bjt" data-sheet-block="zh-bjt" data-sheet-titel="Bass je Ton"><span>Bass je Ton <span class="wert">welche Töne leiser werden</span></span></button>
+    </div>
+    <!-- Bass je Ton (klangbox/bass_je_ton.py, POST /api/bass_je_ton; gerechnet mit analyse.js bassStellungen): Pegel je Halbton
+         E1–H2 ohne, mit „ganz“ und mit „musikalisch“, Töne über der Grenze markiert, darunter die Bereiche der Instrumente;
+         daneben Bass ganz ↔ musikalisch (Hör-Schalter, live) und der Blindvergleich über „Hör den Unterschied“ -->
+    <div class="sheet-block" hidden data-block="zh-bjt" id="zh-bjt-block">
+      <p class="klein">Wie laut jeder Ton im Bass an deinem Platz ankommt. Ein Ton, der mehr als 6 dB unter seinen Nachbartönen liegt, ist mit einem Kreis markiert: In einer Basslinie verschwindet er fast.</p>
+      <div class="bjt-inhalt" id="zh-bjt-inhalt" hidden>
+        <p class="bjt-satz" id="zh-bjt-satz"></p>
+        <div class="bjt-bild" id="zh-bjt-bild"></div>
+        <ul class="zh-ws-zeilen klein bjt-senken" id="zh-bjt-senken"></ul>
+        <p class="klein" id="zh-bjt-hinweis" hidden></p>
+        <div class="kb-gruppe"><span class="kb-label">Bass</span><div class="seg" id="zh-bjt-seg" role="group" aria-label="Bass ganz oder musikalisch"></div>
+          <p class="klein">Musikalisch: Dröhnen weg, aber kein Ton verschwindet.</p></div>
+        <button type="button" class="zweit" id="zh-bjt-blind">Blind vergleichen: ganz ↔ musikalisch</button>
+        <details class="bjt-quellen"><summary class="klein">Instrumente und Quellen</summary><ul class="zh-ws-zeilen klein" id="zh-bjt-instrumente"></ul>
+          <p class="klein">Grundtöne nach Sengpiel (Frequenzen der Musikinstrumente), Vienna Symphonic Library (Instrumentenkunde) und den Tonumfängen der Instrumente; Bassdrum und 808 nach Owsinski (Mixing Engineer's Handbook). Gerundet, Solisten reichen weiter.</p></details>
+        <p class="klein" id="zh-bjt-quelle"></p>
+      </div>
+      <p class="klein" id="zh-bjt-status" aria-live="polite"></p>
     </div>
     <!-- Hör-Schalter (klangbox/feinabstimmung.py): dieselbe Einmessung in Varianten, sofort hörbar, zum Einhören -->
     <div class="sheet-block" hidden data-block="zh-auf" id="zh-auf-block">
@@ -2316,23 +2396,55 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
         <button type="button" id="zh-auf-anlegen">Anlegen</button></div>
       <p class="klein" id="zh-auf-status" aria-live="polite"></p>
     </div>
-    <!-- Fenster Klang (Hören › „Klang · …“): Hör-Schalter (klangbox/feinabstimmung.py) Stimme und Bass (Bereich steht auf Hören,
-         Mitte und Rechnung sind Messvarianten im Testlabor); im Kino Räumlichkeit und Couch, dazu Nachtmodus, Musik ↔ Film,
-         Hintergrund (nur Musik) und Vorne ↔ Hinten. Fuß: Zurücksetzen. Kein Vorher/Blind, kein Klangprofil (gibt es beim Einmessen). -->
-    <div class="sheet-block" hidden data-block="zh-schalter" id="zh-schalter-block">
-      <div class="kb-gruppen eng" id="zh-schalter-gruppen"></div>
-      <div class="kb-gruppen eng" id="zh-inhalt-gruppen"></div>
+    <!-- Fenster Klang (Hören › „Klang · …“, Mockup C 0.3.42): „Für jetzt“ (Stereo: Nacht, Hintergrund; Kino: Couch, Räumlich),
+         „Klangprofil“ (Neutral, Röhre, Vinyl, Bühne als 2×2-Kacheln, POST /api/klangprofil; Vinyl und Bühne nur Stereo),
+         „Einmessung“ (Feinheiten: Stimme und Bass, eigenes Fenster). Fuß: „Alles wie gemessen“ (Hör-Schalter und Profil
+         zurück), rechts Modus und Aufstellung. Jede Zeile trägt ihre eine Erklärung. Musik ↔ Film steht unter Box › Lautstärke,
+         Vorne ↔ Hinten im Fenster Raum. Kein Vorher/Blind (auf Hören). -->
+    <div class="sheet-block kl-fenster" hidden data-block="zh-schalter" id="zh-schalter-block">
+      <div class="kl-abschnitt" id="zh-jetzt-abschnitt"><span class="kb-label">Für jetzt</span><div id="zh-inhalt-gruppen"></div><div id="zh-echt-platz"></div></div>
+      <div class="kl-abschnitt" id="zh-profil-abschnitt"><span class="kb-label" id="zh-profil-label">Klangprofil</span>
+        <div class="kl-kacheln" id="zh-profil-kacheln" role="radiogroup" aria-labelledby="zh-profil-label"></div>
+        <p class="klein" id="zh-profil-text" hidden></p></div>
+      <div class="kl-abschnitt" id="zh-fein-abschnitt"><span class="kb-label">Einmessung</span>
+        <button type="button" class="kb-zeile" id="zh-feinheiten-zeile" data-sheet-block="zh-feinheiten" data-sheet-titel="Feinheiten"><span>Feinheiten <span class="wert" id="zh-feinheiten-wert"></span></span></button>
+        <button type="button" class="kb-zeile" id="zh-hoert-zeile" data-sheet-block="zh-hoert" data-sheet-titel="Was hört man?"><span>Was hört man?</span></button></div>
       <p class="klein" id="zh-schalter-status" aria-live="polite"></p>
-      <div class="sheet-fuss"><button type="button" class="kb-link" id="zh-schalter-zurueck">Zurücksetzen</button></div>
-      <details class="mehr" id="zh-schalter-mehr"><summary>Was die Schalter tun</summary><div id="zh-schalter-hilfe"></div></details>
+      <div class="sheet-fuss kl-fuss"><button type="button" class="kb-link" id="zh-schalter-zurueck">Alles wie gemessen</button><span class="klein" id="zh-klang-ort"></span></div>
     </div>
-    <!-- Fenster Raum (Hören › Raum-Wähler): Aufstellung, Modus Stereo · Kino · Auto (bei Kino „nur vorne“), was gerade spielt -->
+    <!-- Fenster „Was hört man?“ (Klang › Einmessung, Mockup laut-info): ab wann man einen Unterschied hört, und was davon bei
+         dir wirkt, aus der echten Einmessung, dem Klangprofil und Loudness (hoertZeigen) -->
+    <div class="sheet-block" hidden data-block="zh-hoert" id="zh-hoert-block">
+      <p class="klein">So groß muss ein Unterschied sein, damit man ihn hört (Durchschnitt, ruhiger Raum, Musik).</p>
+      <ul class="zh-ws-zeilen klein" id="zh-hoert-regeln">
+        <li><span>Ganze Lautstärke</span><b>ab ~1 dB</b></li>
+        <li><span>Breiter Bass oder Höhen (Profil, Loudness)</span><b>ab ~0,5–1 dB</b></li>
+        <li><span>Schmale Spitze (Raumdröhnen)</span><b>ab ~2–3 dB</b></li>
+        <li><span>Schmale Senke</span><b>ab ~4–6 dB</b></li>
+        <li><span>Zeit (Bühne, Laufzeit)</span><b>ab ~0,1 ms seitlich</b></li></ul>
+      <span class="kb-label">Bei dir</span>
+      <ul class="zh-ws-zeilen klein" id="zh-hoert-bei-dir"></ul>
+      <p class="klein">Was du im Blindtest nicht sicher hörst, ist für dich nicht wichtig. „Blind vergleichen“ auf Hören hilft dabei.</p>
+    </div>
+    <!-- Fenster „Wie echt“ (Klang › Für jetzt, pegelecht.js): Art, Ziel am Platz in 1-dB-Schritten, „So laut stellen“ -->
+    <div class="sheet-block" hidden data-block="zh-echt" id="zh-echt-block"><div id="zh-echt-inhalt" style="display: grid; gap: 16px"></div></div>
+    <!-- Fenster „Pegel einmessen“ (Box › Lautstärke, pegelecht.js): Mikrofon, Rauschen nur nach Bestätigung, Ergebnis -->
+    <div class="sheet-block" hidden data-block="zh-pe-mess" id="zh-pe-mess-block"><div id="zh-pe-mess-inhalt" style="display: grid; gap: 16px"></div></div>
+    <!-- Fenster Feinheiten (Klang › Einmessung): Hör-Schalter Stimme und Bass (klangbox/feinabstimmung.py), je eine Zeile Erklärung -->
+    <div class="sheet-block" hidden data-block="zh-feinheiten" id="zh-feinheiten-block">
+      <div class="kb-gruppen" id="zh-schalter-gruppen"></div>
+      <p class="klein" id="zh-fein-status" aria-live="polite"></p>
+    </div>
+    <!-- Fenster Raum (Hören › Raum-Wähler): Aufstellung, Modus Stereo · Kino · Auto (bei Kino „nur vorne“), was gerade spielt,
+         Vorne ↔ Hinten -->
     <div class="sheet-block" hidden data-block="zh-raum" id="zh-raum-block">
       <div class="kb-gruppe" id="zh-auf-gruppe" hidden><span class="kb-label">Aufstellung</span><div id="zh-auf" role="group" aria-label="Aufstellung"></div></div>
       <div class="kb-gruppe"><span class="kb-label">Modus</span>
         <div class="seg zh-modus" role="group" aria-label="Modus" id="zh-modus"><button type="button" data-zh-modus="stereo" aria-pressed="false">Stereo</button><button type="button" data-zh-modus="kino" aria-pressed="false">Kino</button><button type="button" data-zh-modus="auto" aria-pressed="false" id="zh-auto">Auto</button></div>
         <div class="seg seg-fein zh-fein" role="group" aria-label="Kino-Einmessung" id="zh-fein" hidden></div>
         <p class="klein zh-quelle" id="zh-quelle" aria-live="polite"></p></div>
+      <!-- Vorne ↔ Hinten (0.3.42 aus dem Fenster Klang hierher): beschreibt, wie man sitzt; nur mit Rear-Boxen -->
+      <div id="zh-vh-platz"></div>
       <div class="sheet-fuss"><button type="button" class="kb-link" data-sheet-block="zh-auf" data-sheet-titel="Aufstellungen">Aufstellungen bearbeiten</button></div>
     </div>
     <!-- Hörtest „Wo kommt der Ton her?“ (POST /api/testclip, clip raum_*; daten/testclips): fünf kurze Teile in echtem 5.1,
@@ -3279,17 +3391,151 @@ const GLEICH_TEILE = { mitte: ["Laufzeit und Pegel links/rechts nicht angegliche
   bass: ["Absenkungen höchstens 6 dB", "„Bass: gemäßigt“"] };
 function gleichName(s) { const t = ["mitte", "bereich", "bass"].filter((k) => k in s).map((k) => GLEICH_TEILE[k]);
   return t.map((x) => x[0]).join(", ") + " (Hör-Schalter " + t.map((x) => x[1]).join(" und ") + ")"; }
-function hoerVariante(cals, s) {  // wie feinabstimmung.anwenden für mitte/bereich/bass, nur die Fronts
+function hoerVariante(cals, s, messung = null) {  // wie feinabstimmung.anwenden für mitte/bereich/bass, nur die Fronts
   const r2 = (x) => Math.round(x * 100) / 100, r3 = (x) => Math.round(x * 1000) / 1000, c = {};
   for (const ch of ["FL", "FR"]) {
     let eq = cals[ch].eq.map((q) => ({ freq: q.freq, gain: q.gain, q: q.q }));
     if (s.bereich) eq = eq.filter((q) => q.freq <= s.bereich);
     if (s.bass === "maessig") eq = eq.map((q) => (q.freq <= 120 ? { ...q, gain: Math.max(q.gain, -6) } : q));
-    eq = einpassenKanal(eq).eq;
     c[ch] = { gain_db: r2(cals[ch].gain_db), delay_ms: r3(cals[ch].delay_ms), eq };
   }
+  if (s.bass === "musikalisch") { const m = bassMusikalisch({ FL: { eq: c.FL.eq }, FR: { eq: c.FR.eq } }, messung); c.FL.eq = m.FL.eq; c.FR.eq = m.FR.eq; }
+  // Leitplanke „Summe“ erst nach „musikalisch“: wie die Box, feinabstimmung.einpassen(feinabstimmung.anwenden(…))
+  for (const ch of ["FL", "FR"]) c[ch].eq = einpassenKanal(c[ch].eq).eq;
   if (s.mitte === "raum") { const g = r2((c.FL.gain_db + c.FR.gain_db) / 2), d = Math.min(c.FL.delay_ms, c.FR.delay_ms); for (const ch of ["FL", "FR"]) { c[ch].gain_db = g; c[ch].delay_ms = d; } }
   return c;
+}
+// --- Bass je Ton (klangbox/bass_je_ton.py, Besitzer 16.11.2026: „Bei Jazz fehlt mit Einmessung der Kontrabass.“) ------
+// Pegel je Halbton am Hörplatz (Messung + Filter; ohne Messung aus den Filtern), Senke gegen die Nachbartöne (±2) bzw. den
+// Zielverlauf (±6), schlimmste 40–120 Hz; „Bass: musikalisch“ führt nur schmale, tiefe Absenkungen 30–150 Hz auf die Grenze.
+// Gründe, Quellen und Grenzen dort; dieselbe Rechnung, test_bass_je_ton.py prüft die Gleichheit.
+const BJT = { grenzeDb: 6, schmalQ: 4, tiefDb: -6, vonHz: 30, bisHz: 150, bewertet: [40, 120], nachbarn: [-2, -1, 1, 2], zielHt: 6, zoneHt: 3,
+  schritte: 20, midiVon: 22, midiBis: 52, anzeige: [28, 47], halbton: Math.pow(2, 1 / 12),
+  tonNamen: ["C", "Cis", "D", "Dis", "E", "F", "Fis", "G", "Gis", "A", "B", "H"],
+  stellungen: ["ohne", "voll", "musikalisch", "maessig"], stellungName: { ohne: "ohne", voll: "ganz", musikalisch: "musikalisch", maessig: "gemäßigt" } };
+// Grundtonbereiche und Körper/Druck (Quellen in bass_je_ton.py)
+const BJT_INSTRUMENTE = [
+  {"id": "kontrabass", "name": "Kontrabass", "kurz": "Kontrabass", "grund": [32.7, 196.0], "koerper": null, "text": "E1 41,2 Hz bis etwa G3 196 Hz; mit C-Verlängerung (im Orchester üblich) ab C1 32,7 Hz"},
+  {"id": "e_bass", "name": "E-Bass (4- und 5-saitig)", "kurz": "E-Bass", "grund": [30.9, 392.0], "koerper": null, "text": "4-saitig ab E1 41,2 Hz, 5-saitig ab H0 30,9 Hz, bis etwa G4 392 Hz (24 Bünde)"},
+  {"id": "cello", "name": "Cello", "kurz": "Cello", "grund": [65.4, 880.0], "koerper": null, "text": "C2 65,4 Hz bis etwa A5 880 Hz"},
+  {"id": "fagott", "name": "Fagott", "kurz": "Fagott", "grund": [58.3, 622.0], "koerper": null, "text": "B1 58,3 Hz bis etwa Es5 622 Hz"},
+  {"id": "klavier", "name": "Klavier, linke Hand", "kurz": "Klavier links", "grund": [27.5, 130.8], "koerper": null, "text": "A0 27,5 Hz bis etwa C3 130,8 Hz (die linke Hand im Bass)"},
+  {"id": "synth", "name": "Synth-Bass, 808", "kurz": "Synth-Bass", "grund": [30.0, 80.0], "koerper": [30.0, 80.0], "text": "Grundton und Druck meist 30–80 Hz"},
+  {"id": "bassdrum", "name": "Bassdrum (Kick)", "kurz": "Bassdrum", "grund": null, "koerper": [50.0, 100.0], "text": "kein fester Ton; Körper und Druck etwa 50–100 Hz, darunter Tiefe ab etwa 40 Hz"},
+  {"id": "tuba", "name": "Tuba", "kurz": "Tuba", "grund": [36.7, 349.0], "koerper": null, "text": "etwa D1 36,7 Hz (Pedaltöne tiefer) bis F4 349 Hz"},
+  {"id": "bassposaune", "name": "Bassposaune", "kurz": "Bassposaune", "grund": [29.1, 466.0], "koerper": null, "text": "Pedalton B0 29,1 Hz, mit Ventilen lückenlos ab etwa C1 32,7 Hz, bis etwa B4 466 Hz"},
+  {"id": "kontrafagott", "name": "Kontrafagott", "kurz": "Kontrafagott", "grund": [29.1, 233.0], "koerper": null, "text": "B0 29,1 Hz (mit A-Stück A0 27,5 Hz) bis etwa B3 233 Hz"},
+  {"id": "bassklarinette", "name": "Bassklarinette", "kurz": "Bassklarinette", "grund": [58.3, 700.0], "koerper": null, "text": "klingend Des2 69,3 Hz, mit tiefem C klingend B1 58,3 Hz, bis etwa 700 Hz"},
+  {"id": "pauken", "name": "Pauken", "kurz": "Pauken", "grund": [73.4, 220.0], "koerper": null, "text": "etwa D2 73,4 Hz bis A3 220 Hz, je nach Größe (große Pauke bis C2 65,4 Hz)"},
+  {"id": "orgel", "name": "Orgel (Pedal)", "kurz": "Orgel", "grund": [16.4, 196.0], "koerper": null, "text": "32′-Register ab C0 16,4 Hz, 16′ ab C1 32,7 Hz, Pedal bis etwa G3 196 Hz"},
+  {"id": "harfe", "name": "Harfe (tief)", "kurz": "Harfe", "grund": [30.9, 130.8], "koerper": null, "text": "tiefste Saite Ces1 (= H0) 30,9 Hz; tiefe Lage bis etwa C3 130,8 Hz"},
+  {"id": "bassstimme", "name": "Männerstimme Bass", "kurz": "Bassstimme", "grund": [82.4, 330.0], "koerper": null, "text": "E2 82,4 Hz bis E4 330 Hz (tiefe Bässe bis C2 65,4 Hz)"},
+  {"id": "bariton", "name": "Männerstimme Bariton", "kurz": "Bariton", "grund": [110.0, 440.0], "koerper": null, "text": "A2 110 Hz bis A4 440 Hz"}];
+const bjtHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+const bjtName = (m) => `${BJT.tonNamen[m % 12]}${Math.floor(m / 12) - 1}`;
+const bjtRund = (x, n = 1) => { const p = Math.pow(10, n); return Math.floor(x * p + 0.5) / p; };
+const bjtZahl = (x) => typeof x === "number" && Number.isFinite(x);
+const bjtEq = (e) => (Array.isArray(e) ? e : []).filter((q) => q && typeof q === "object" && ["freq", "gain", "q"].every((k) => bjtZahl(q[k])) && q.q > 0 && q.freq > 0);
+const bjtPeq = (f, q) => peqDbAuf(q.freq, q.q, q.gain, [f])[0];
+function bjtMessung(kurve) {  // wie messung_sauber
+  if (!kurve || typeof kurve !== "object") return null;
+  const f = kurve.f, db = kurve.heute !== undefined ? kurve.heute : kurve.db;
+  if (!Array.isArray(f) || !Array.isArray(db) || f.length !== db.length) return null;
+  const p = f.map((x, i) => [x, db[i]]).filter(([a, b]) => bjtZahl(a) && bjtZahl(b) && a > 0).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (p.length < 4 || p[0][0] > bjtHz(BJT.midiVon) || p[p.length - 1][0] < bjtHz(BJT.midiBis)) return null;
+  return { f: p.map((x) => x[0]), db: p.map((x) => x[1]) };
+}
+function bjtRaum(m, f) {
+  if (!m) return 0;
+  const fs = m.f, db = m.db;
+  if (f <= fs[0]) return db[0];
+  for (let i = 1; i < fs.length; i++) if (fs[i] >= f) { const t = Math.log(f / fs[i - 1]) / Math.log(fs[i] / fs[i - 1]); return db[i - 1] + t * (db[i] - db[i - 1]); }
+  return db[db.length - 1];
+}
+function bjtKurven(ein, messung) {
+  const e = ein && typeof ein === "object" ? ein : {}, eq = {};
+  for (const c of ["FL", "FR"]) eq[c] = bjtEq(e[c] && typeof e[c] === "object" ? e[c].eq : null);
+  const out = { midi: [], mitte: [], FL: [], FR: [] };
+  for (let m = BJT.midiVon; m <= BJT.midiBis; m++) {
+    const f = bjtHz(m), raum = bjtRaum(messung, f), h = {};
+    for (const c of ["FL", "FR"]) { let s = 0; for (const q of eq[c]) s += bjtPeq(f, q); h[c] = s; }
+    const mitte = 20 * Math.log10((Math.pow(10, h.FL / 20) + Math.pow(10, h.FR / 20)) / 2);
+    out.midi.push(m); out.mitte.push(raum + mitte); out.FL.push(raum + h.FL); out.FR.push(raum + h.FR);
+  }
+  return out;
+}
+function bjtSenken(w) {
+  return w.map((_, i) => {
+    if (i - BJT.zielHt < 0 || i + BJT.zielHt >= w.length) return null;
+    let nah = 0; for (const d of BJT.nachbarn) nah += w[i + d]; nah /= BJT.nachbarn.length;
+    let ziel = 0; for (let d = -BJT.zielHt; d <= BJT.zielHt; d++) if (d) ziel += w[i + d]; ziel /= 2 * BJT.zielHt;
+    return Math.max(nah, ziel) - w[i];
+  });
+}
+const bjtBewertet = (m) => bjtHz(m) >= BJT.bewertet[0] && bjtHz(m) <= BJT.bewertet[1];
+function bjtSchlimmste(k, nur = null) {
+  let best = [-Infinity, k.midi[0], "mitte"];
+  for (const kurve of ["mitte", "FL", "FR"]) { const se = bjtSenken(k[kurve]);
+    k.midi.forEach((m, i) => { const s = se[i]; if (s === null || !bjtBewertet(m) || (nur && !nur.has(m))) return; if (s > best[0] + 1e-9) best = [s, m, kurve]; }); }
+  return best;
+}
+const bjtInstrumente = (f) => BJT_INSTRUMENTE.filter((i) => [i.grund, i.koerper].some((b) => b && b[0] <= f && f <= b[1]));
+const bjtInstrumenteText = (f, n = 5) => { const x = bjtInstrumente(f).map((i) => i.kurz); return x.slice(0, n).join(", ") + (x.length > n ? " u. a." : ""); };
+function bassJeTon(ein, messung = null) {  // wie kennzahl
+  const k = bjtKurven(ein, messung), se = { mitte: bjtSenken(k.mitte), FL: bjtSenken(k.FL), FR: bjtSenken(k.FR) };
+  const toene = k.midi.map((m, i) => ({ midi: m, name: bjtName(m), f: bjtRund(bjtHz(m), 1), db: bjtRund(k.mitte[i], 2),
+    senke: se.mitte[i] === null ? null : bjtRund(se.mitte[i], 2), senke_max: se.mitte[i] === null ? null : bjtRund(Math.max(se.mitte[i], se.FL[i], se.FR[i]), 2), bewertet: bjtBewertet(m) }));
+  const [s, m, kurve] = bjtSchlimmste(k);
+  return { toene, schlimmste: { senke_db: bjtRund(s, 1), midi: m, name: bjtName(m), f: bjtRund(bjtHz(m), 1), kurve, instrumente: bjtInstrumente(bjtHz(m)).map((i) => i.kurz) } };
+}
+function bjtGruppen(eq) {
+  const kand = [];
+  for (const c of ["FL", "FR"]) eq[c].forEach((q, i) => { if (q.q >= BJT.schmalQ && q.gain < 0 && q.freq >= BJT.vonHz && q.freq <= BJT.bisHz) kand.push([c, i]); });
+  kand.sort((a, b) => eq[a[0]][a[1]].freq - eq[b[0]][b[1]].freq || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0) || a[1] - b[1]);
+  const g = [];
+  for (const x of kand) { const f = eq[x[0]][x[1]].freq;
+    if (g.length && g[g.length - 1].some(([c, i]) => Math.max(f, eq[c][i].freq) / Math.min(f, eq[c][i].freq) < BJT.halbton)) g[g.length - 1].push(x); else g.push([x]); }
+  return g.filter((gr) => gr.some(([c, i]) => eq[c][i].gain < BJT.tiefDb));
+}
+function bassMusikalisch(ein, messung = null, grenzeDb = BJT.grenzeDb) {  // wie bass_musikalisch
+  const out = {}; for (const [c, v] of Object.entries(ein && typeof ein === "object" ? ein : {})) out[c] = v && typeof v === "object" ? { ...v } : v;
+  if (!["FL", "FR"].every((c) => out[c] && typeof out[c] === "object")) return out;
+  const eq = { FL: bjtEq(out.FL.eq).map((q) => ({ ...q })), FR: bjtEq(out.FR.eq).map((q) => ({ ...q })) };
+  for (const gr of bjtGruppen(eq)) {
+    const roh = gr.map(([c, i]) => eq[c][i].gain), fs = gr.map(([c, i]) => eq[c][i].freq), zone = new Set();
+    for (let m = BJT.midiVon; m <= BJT.midiBis; m++) if (Math.min(...fs.map((f) => Math.abs(12 * Math.log2(bjtHz(m) / f)))) <= BJT.zoneHt) zone.add(m);
+    const mit = (k) => { gr.forEach(([c, i], j) => { eq[c][i].gain = bjtRund(roh[j] * k / BJT.schritte, 1); }); return bjtSchlimmste(bjtKurven({ FL: { eq: eq.FL }, FR: { eq: eq.FR } }, messung), zone)[0]; };
+    const ohne = mit(0);
+    for (let k = BJT.schritte; k >= 0; k--) if (mit(k) <= Math.max(grenzeDb, ohne) + 1e-9) break;
+  }
+  for (const c of ["FL", "FR"]) out[c].eq = eq[c].filter((q) => Math.abs(q.gain) >= 0.05);
+  return out;
+}
+const bjtMaessig = (eq) => eq.map((q) => (q.freq <= 120 ? { ...q, gain: Math.max(q.gain, -6) } : q));
+function bassStellungen(ein, messung = null, profil = null, spielt = null) {  // wie stellungen (mit Leitplanke und was spielt)
+  const e = ein && typeof ein === "object" ? ein : {}, maessig = {};
+  for (const [c, v] of Object.entries(e)) maessig[c] = v && typeof v === "object" ? { ...v, eq: bjtMaessig(bjtEq(v.eq)) } : v;
+  const v = { ohne: {}, voll: e, musikalisch: bassMusikalisch(e, messung), maessig }, out = {};
+  // Kurve des Klangprofils, das spielt (wie feinabstimmung._profil_db; die Box hat es schon geprüft)
+  const profDb = profilKurveDb(profil);
+  for (const s of ["voll", "musikalisch", "maessig"]) {
+    const n = {}; for (const c of ["FL", "FR"]) if (v[s][c] && typeof v[s][c] === "object") n[c] = { eq: einpassenKanal(bjtEq(v[s][c].eq), profDb).eq };
+    v[s] = n;
+  }
+  if (spielt && v[spielt.stellung] && spielt.einstellungen) { const n = {}; for (const c of ["FL", "FR"]) n[c] = { eq: bjtEq((spielt.einstellungen[c] || {}).eq) }; v[spielt.stellung] = n; }
+  for (const s of BJT.stellungen) out[s] = { ...bassJeTon(v[s], messung), einstellungen: { FL: { eq: (v[s].FL || {}).eq || [] }, FR: { eq: (v[s].FR || {}).eq || [] } } };
+  return out;
+}
+const bjtZahlText = (x) => (Math.abs(x) >= 10 || Math.abs(x - bjtRund(x, 0)) < 0.05 ? bjtRund(x, 0).toFixed(0) : bjtRund(x, 1).toFixed(1).replace(".", ","));
+function bassSatz(st) {  // wie satz
+  const v = st.voll.schlimmste, mu = st.musikalisch.schlimmste;
+  if (v.senke_db < 1) return "Mit „ganz“ fehlt kein Ton merklich gegenüber seinen Nachbartönen.";
+  const t = st.musikalisch.toene.find((x) => x.midi === v.midi), bei = t ? t.senke_max : null;
+  return `Bei ${v.name} fehlen mit „ganz“ ${bjtZahlText(v.senke_db)} dB gegenüber den Nachbartönen, mit „musikalisch“ ${bei !== null ? bjtZahlText(Math.max(0, bei)) : bjtZahlText(mu.senke_db)} dB.`;
+}
+function bassSenkenSaetze(kz, grenzeDb = BJT.grenzeDb) {  // wie senken_saetze
+  return kz.toene.filter((t) => t.bewertet && t.senke_max !== null && t.senke_max > grenzeDb).sort((a, b) => b.senke_max - a.senke_max)
+    .map((t) => `${t.name} (${String(t.f).replace(".", ",")} Hz): −${bjtZahlText(t.senke_max)} dB · betrifft ${bjtInstrumenteText(bjtHz(t.midi))}`);
 }
 const gleichRund = (g) => ({ spanne_db: rund(g.spanne_db, 2), streuung_db: rund(g.streuung_db, 2), ueberhang_db: rund(g.ueberhang_db, 2) });
 function gleichmaessigkeit(H, cals, roh = false) {  // H: [{FL, FR}] Frequenzgänge (antwort) je Messpunkt; roh: ungerundet (zum Vergleichen)
@@ -3798,23 +4044,33 @@ function anhebungBegrenzen(eq) {
   }
   return eq;
 }
-// Leitplanke „Summe“ für eine Hör-Schalter-Variante (wie feinabstimmung.anhebung_einpassen, ohne Klangprofil): Heben die
-// Filter zusammen mehr als +3,05 dB an (eine Absenkung neben einer Anhebung fällt weg oder wird flacher), alle Anhebungen
-// gleichmäßig in 1-%-Schritten senken (auf 0,01 dB), bis die Summe höchstens +3 dB ist; Filter unter 0,05 dB fallen weg.
-// Geht es auch mit 0 % nicht: unverändert. Rückgabe { eq, skala } (1 = unverändert)
-function anhebungEinpassen(eq) {
-  if (!eq.length || !eq.some((q) => q.gain > 0) || Math.max(...summeDb(eq)) <= 3.05) return { eq, skala: 1 };
+// Leitplanke „Summe“ für eine Hör-Schalter-Variante (wie feinabstimmung.anhebung_einpassen): Heben die Filter zusammen
+// mehr als +3,05 dB an (eine Absenkung neben einer Anhebung fällt weg oder wird flacher), alle Anhebungen gleichmäßig in
+// 1-%-Schritten senken (auf 0,01 dB), bis die Summe höchstens +3 dB ist; Filter unter 0,05 dB fallen weg. profDb: Kurve
+// eines Klangprofils dazu (auf F), dann gilt auch dessen Regel (profilVerstoss). Geht es auch mit 0 % nicht: unverändert.
+// Rückgabe { eq, skala } (1 = unverändert)
+function anhebungEinpassen(eq, profDb = null) {
+  const zuviel = (fl) => { const r = summeDb(fl); return Math.max(...r) > 3.05 || (profDb !== null && profilVerstoss({ K: r }, profDb) !== null); };
+  const frei = (fl) => { const r = summeDb(fl); return Math.max(...r) <= 3 && (profDb === null || profilVerstoss({ K: r }, profDb) === null); };
+  if (!eq.length || !eq.some((q) => q.gain > 0) || !zuviel(eq)) return { eq, skala: 1 };
   for (let k = 99; k >= 0; k--) {
     const skala = k / 100, fl = [];
     for (const q of eq) { const g = q.gain > 0 ? Math.floor(q.gain * skala * 100 + 0.5) / 100 : q.gain; if (Math.abs(g) >= 0.05) fl.push({ ...q, gain: g }); }
-    if (Math.max(...summeDb(fl)) <= 3) return { eq: fl, skala };
+    if (frei(fl)) return { eq: fl, skala };
   }
   return { eq, skala: 1 };
 }
 // Ein Kanal (kein Sub) wie feinabstimmung.einpassen: nur wenn jeder Filter einzeln in den Leitplanken liegt (sonst
-// entscheiden die Wächter). Für Hör-Schalter-Varianten und den Export mit Korrekturbereich (exportObjekt, wie die Box beim Laden)
-function einpassenKanal(eq) {
-  return eq.every((q) => { const p = sicherPeq(q); return p && p.gain === q.gain && p.q === q.q; }) ? anhebungEinpassen(eq) : { eq, skala: 1 };
+// entscheiden die Wächter). Für Hör-Schalter-Varianten, den Export mit Korrekturbereich (exportObjekt, wie die Box beim
+// Laden) und „Bass je Ton“ (mit der Kurve des Klangprofils, das spielt)
+// Kurve eines Klangprofils für die Leitplanke „Summe“ (wie feinabstimmung._profil_db): Filter plus Zusatz; null ohne Wirkung
+function profilKurveDb(profil) {
+  if (!profil || typeof profil !== "object" || !((profil.filter || []).length || profil.zusatz)) return null;
+  const d = profilFilterDb(profil.filter || []), ton = zusatzTonDb(profil.zusatz || null); for (let i = 0; i < NF; i++) d[i] += ton[i];
+  return d;
+}
+function einpassenKanal(eq, profDb = null) {
+  return eq.every((q) => { const p = sicherPeq(q); return p && p.gain === q.gain && p.q === q.q; }) ? anhebungEinpassen(eq, profDb) : { eq, skala: 1 };
 }
 // Wächter: Kein Platz darf im Bass schlechter werden, und an keinem Platz darf eine Raummode deutlich stärker
 // steigen als der übrige Bass. Solange eins davon verletzt ist, fliegt der Filter raus, dessen Wegfall am
@@ -4283,8 +4539,78 @@ const PROFIL_SKALEN = []; for (let k = 20; k >= 0; k--) PROFIL_SKALEN.push(k / 2
 const LEIT = { boost: 3.0, ueber300: 300, boostOben: 2.0, tol: 0.05 };  // klangbox/guardrails.py
 const PROFIL_PRAESENZ = [[2000, 5000, 1.0], [5000, 8000, 1.5]];
 function profilFilterDb(fl) { const c = new Float64Array(NF); for (const f of fl) { const d = biquadDb(biquad(PROFIL_ARTEN[f.typ], f.freq, f.q, f.gain_db)); for (let i = 0; i < NF; i++) c[i] += d[i]; } return c; }
+// Zusatz der Profile Vinyl (Übersprechen) und Bühne (Mitte/Seite), nur Stereo: wie klangprofile.zusatz_* in Python.
+// Symmetrisch, also nur Mitte M = (L+R)/2 und Seite S = (L−R)/2: je Hilfskanal Hochpass, Shelf, Faktor (plan.py)
+const PROFIL_ZUSATZ = { pegel: [-40, -20], maxDb: -15, hoehenHz: [2000, 16000], hoehenDb: [0, 12], hoehenQ: [0.5, 1], abHz: [100, 500], mitteDb: [-1.5, 0], seiteDb: [0, 1.5],
+  elliptikHz: 150, elliptikQVinyl: 0.5, hpAusHz: 1, hsAusHz: 1000,
+  // Lautheit (klangprofile.lautheit_db): Langzeitspektrum 1/f^1,7, K-Bewertung als RBJ-Biquads, Korrelation 0,7
+  beta: 1.7, korrelation: 0.7, k: [["Highshelf", 1681.974, 0.70718, 3.99984], ["Highpass", 38.1355, 0.50033, 0]], vor: [-6, 1.5] };
+const staerkeOk = (z) => { const s = z.staerke === undefined ? 1 : z.staerke; return zahlOk(s) && s >= 0 && s <= 1; };
+const ohneStaerke = (z) => { const o = { ...z }; delete o.staerke; return o; };
+const zahlOk = (x) => typeof x === "number" && Number.isFinite(x);
+const gleicheMenge = (o, felder) => { const k = Object.keys(o); return k.length === felder.length && felder.every((f) => k.includes(f)); };
+function zusatzFehler(z) {
+  if (!z || typeof z !== "object" || !["uebersprechen", "mitte_seite"].includes(z.typ)) return ["Zusatz unbekannt"];
+  const grenze = (k, [lo, hi], art) => (z[k] >= lo && z[k] <= hi) ? null : `${art}: ${k} ${z[k]} außerhalb ${lo} bis ${hi}`;
+  if (!staerkeOk(z)) return ["Zusatz: staerke muss zwischen 0 und 1 liegen"];
+  if (z.typ === "uebersprechen") {
+    const felder = ["typ", "pegel_db", "hoehen_hz", "hoehen_db", "hoehen_q", "mono_bass_hz"];
+    if (!gleicheMenge(ohneStaerke(z), felder) || !["pegel_db", "hoehen_hz", "hoehen_db", "hoehen_q"].every((k) => zahlOk(z[k]))) return ["Übersprechen: Felder fehlen oder sind keine Zahlen"];
+    const v = [grenze("pegel_db", PROFIL_ZUSATZ.pegel, "Übersprechen"), grenze("hoehen_hz", PROFIL_ZUSATZ.hoehenHz, "Übersprechen"), grenze("hoehen_db", PROFIL_ZUSATZ.hoehenDb, "Übersprechen"),
+      grenze("hoehen_q", PROFIL_ZUSATZ.hoehenQ, "Übersprechen")].filter(Boolean);
+    if (z.mono_bass_hz !== null && z.mono_bass_hz !== PROFIL_ZUSATZ.elliptikHz) v.push(`Übersprechen: Bass in der Mitte nur unter ${PROFIL_ZUSATZ.elliptikHz} Hz`);
+    if (!v.length && z.pegel_db + Math.max(...biquadDb(biquad("Highshelf", z.hoehen_hz, z.hoehen_q, z.hoehen_db))) > PROFIL_ZUSATZ.maxDb + LEIT.tol) v.push(`Übersprechen: höchstens ${zahlText(PROFIL_ZUSATZ.maxDb, 0)} dB`);
+    return v;
+  }
+  if (!gleicheMenge(ohneStaerke(z), ["typ", "ab_hz", "mitte_db", "seite_db"]) || !["ab_hz", "mitte_db", "seite_db"].every((k) => zahlOk(z[k]))) return ["Mitte/Seite: Felder fehlen oder sind keine Zahlen"];
+  return [grenze("ab_hz", PROFIL_ZUSATZ.abHz, "Mitte/Seite"), grenze("mitte_db", PROFIL_ZUSATZ.mitteDb, "Mitte/Seite"), grenze("seite_db", PROFIL_ZUSATZ.seiteDb, "Mitte/Seite")].filter(Boolean);
+}
+function zusatzPfade(z) {  // je Teil [Hochpass, Shelf, Faktor], Elliptik (Faktor, Güte) wie klangprofile.zusatz_pfade
+  const aus = [["Highpass", PROFIL_ZUSATZ.hpAusHz, 0.7071, 0], ["Highshelf", PROFIL_ZUSATZ.hsAusHz, 0.7071, 0], 0];
+  if (!z) return { m: aus, s: aus, elliptik: 0, elliptikQ: 0.7071 };
+  const k = z.staerke === undefined ? 1 : z.staerke;
+  if (z.typ === "uebersprechen") { const c = k * Math.pow(10, z.pegel_db / 20), hp = ["Highpass", PROFIL_ZUSATZ.hpAusHz, 0.7071, 0], hs = ["Highshelf", z.hoehen_hz, z.hoehen_q, z.hoehen_db];
+    const mono = z.mono_bass_hz !== null;
+    return { m: [hp, hs, c], s: [hp, hs, -c], elliptik: mono ? k : 0, elliptikQ: mono ? PROFIL_ZUSATZ.elliptikQVinyl : 0.7071 }; }
+  const hp = ["Highpass", z.ab_hz, 0.7071, 0], hs = ["Highshelf", PROFIL_ZUSATZ.hsAusHz, 0.7071, 0];
+  return { m: [hp, hs, Math.pow(10, k * z.mitte_db / 20) - 1], s: [hp, hs, Math.pow(10, k * z.seite_db / 20) - 1], elliptik: 0, elliptikQ: 0.7071 };
+}
+const zusatzGeschwaecht = (z, skala) => (!z ? null : skala >= 1 ? ohneStaerke(z) : { ...ohneStaerke(z), staerke: skala });
+function zusatzMs(z) {  // komplexer Frequenzgang von Mitte und Seite auf F (1 = unverändert)
+  const pf = zusatzPfade(z), teil = ([hp, hs, g]) => { const a = biquadH(biquad(...hp)), b = biquadH(biquad(...hs)), re = new Float64Array(NF), im = new Float64Array(NF);
+    for (let i = 0; i < NF; i++) { re[i] = 1 + g * (a.re[i] * b.re[i] - a.im[i] * b.im[i]); im[i] = g * (a.re[i] * b.im[i] + a.im[i] * b.re[i]); } return { re, im }; };
+  const m = teil(pf.m), s = teil(pf.s);
+  if (pf.elliptik) { const t = biquadH(biquad("Lowpass", PROFIL_ZUSATZ.elliptikHz, pf.elliptikQ, 0));
+    for (let i = 0; i < NF; i++) { const ar = 1 - pf.elliptik * t.re[i], ai = -pf.elliptik * t.im[i], r0 = s.re[i]; s.re[i] = r0 * ar - s.im[i] * ai; s.im[i] = r0 * ai + s.im[i] * ar; } }
+  return { m, s };
+}
+function zusatzTonDb(z) {  // Tonbalance für den Wächter: der lautere Anteil (Mitte oder Seite)
+  const out = new Float64Array(NF); if (!z) return out;
+  const { m, s } = zusatzMs(z);
+  for (let i = 0; i < NF; i++) out[i] = 20 * Math.log10(Math.max(Math.hypot(m.re[i], m.im[i]), Math.hypot(s.re[i], s.im[i])));
+  return out;
+}
+// Pegelgleich (klangprofile.lautheit_db, vorverstaerkung): gleicht die Lautheit des Profils aus, nicht die Spitze
+let PROFIL_K_DB = null;
+function profilLautheitDb(fl, z) {
+  if (!PROFIL_K_DB) { PROFIL_K_DB = new Float64Array(NF); for (const [art, f0, q, g] of PROFIL_ZUSATZ.k) { const d = biquadDb(biquad(art, f0, q, g)); for (let i = 0; i < NF; i++) PROFIL_K_DB[i] += d[i]; } }
+  const f = profilFilterDb(fl), r = PROFIL_ZUSATZ.korrelation, ms = z ? zusatzMs(z) : null;
+  let oben = 0, unten = 0;
+  for (let i = 0; i < NF; i++) {
+    const w = Math.pow(10, PROFIL_K_DB[i] / 10) * Math.pow(F[i] / 1000, 1 - PROFIL_ZUSATZ.beta);
+    const g = ms ? (1 + r) / 2 * (ms.m.re[i] ** 2 + ms.m.im[i] ** 2) + (1 - r) / 2 * (ms.s.re[i] ** 2 + ms.s.im[i] ** 2) : 1;
+    oben += w * Math.pow(10, f[i] / 10) * g; unten += w;
+  }
+  return 10 * Math.log10(oben / unten);
+}
+function profilVorverstaerkung(fl, z) {
+  const v = -Math.floor(profilLautheitDb(fl, z) * 10 + 0.5) / 10;
+  return Math.min(PROFIL_ZUSATZ.vor[1], Math.max(PROFIL_ZUSATZ.vor[0], v)) + 0;
+}
+// Gespeicherte Wahl mit alter id (bis 0.3.41): Röhre neu, die neun entfernten werden Neutral (wie klangprofile.neue_id)
+const profilNeueId = (id, daten) => (id == null ? id : ((daten && daten.alte_ids) || {})[id] || id);
 function pruefeProfil(p, grenzen) {
-  const g = grenzen, v = [], fl = p.filter || [];
+  const g = grenzen, fl = p.filter || [], z = p.zusatz == null ? null : p.zusatz, v = z ? zusatzFehler(z) : [];
   if (fl.length > g.max_filter) v.push(`mehr als ${g.max_filter} Filter`);
   for (const f of fl) {
     if (!(f.typ in PROFIL_ARTEN)) { v.push(`Filtertyp '${f.typ}' unbekannt`); continue; }
@@ -4295,7 +4621,7 @@ function pruefeProfil(p, grenzen) {
       if (Math.abs(f.gain_db) > LEIT.boostOben + 1e-9) v.push(`Filter ${f.freq} Hz: über 300 Hz höchstens ±2 dB`);
     } else if (f.q > 1.4 + 1e-9) v.push(`Filter ${f.freq} Hz zu schmal (Q ${f.q})`);
   }
-  if (!v.length && fl.length) { const s = profilFilterDb(fl); if (Math.max(...s) > g.max_summe_db + LEIT.tol || Math.min(...s) < -g.max_summe_db - LEIT.tol) v.push(`Filter zusammen außerhalb ±${g.max_summe_db.toFixed(0)} dB`);
+  if (!v.length && (fl.length || z)) { const s = profilFilterDb(fl), ton = zusatzTonDb(z); for (let i = 0; i < NF; i++) s[i] += ton[i]; if (Math.max(...s) > g.max_summe_db + LEIT.tol || Math.min(...s) < -g.max_summe_db - LEIT.tol) v.push(`Filter zusammen außerhalb ±${g.max_summe_db.toFixed(0)} dB`);
     // Präsenz: höchstens +1 dB bei 2–5 kHz, +1,5 dB bei 5–8 kHz (klangprofile.PRAESENZ_PROFIL)
     for (const [lo, hi, grenze] of PROFIL_PRAESENZ) { let m = -Infinity; for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] < hi) m = Math.max(m, s[i]);
       if (m > grenze + LEIT.tol) v.push(`Präsenz ${zahlText(lo / 1000, 0)}–${zahlText(hi / 1000, 0)} kHz: höchstens +${zahlKurz(grenze)} dB`); } }
@@ -4311,15 +4637,55 @@ function profilVerstoss(raumDb, profDb) {
   }
   return null;
 }
-const profilNeutral = () => ({ id: "neutral", name: "Neutral", kurz: "So, wie das Einmess-Ziel es vorsieht.", skala: 1, filter: [], vorverstaerkung_db: 0, zusatz_optional: null, zusatz_angewendet: false, braucht_engine: false, hinweise: [] });
+const profilNeutral = () => ({ id: "neutral", name: "Neutral", kurz: "So, wie das Einmess-Ziel es vorsieht.", skala: 1, filter: [], vorverstaerkung_db: 0, zusatz: null, zusatz_angewendet: false, hinweise: [] });
 // Profil auf die Raumanpassung setzen (wie klangprofile.anwenden). daten: Inhalt von daten/klangprofile.json
-function profilAnwenden(einstellungen, profil, daten) {
+// Einpassen statt ablehnen (wie klangprofile._eingepasst, raum_einpassen; die Box wählt so ein Profil auf Hören)
+const PROFIL_EINPASSEN = { minSkala: 0.8, pegelUnterMax: 0.5, reserve: 3.0, headroom: -6.0 };
+// ohne raumEinpassen (Prüfung 0.3.42): pegelgleich, aber nie weniger als 3 dB Reserve mit der Raumanpassung (wie Python)
+function profilVorMitReserve(einstellungen, fl, zs) {
+  const kanaele = ["FL", "FR"].filter((ch) => einstellungen[ch] && typeof einstellungen[ch] === "object");
+  const gleich = profilVorverstaerkung(fl, zs);
+  if (!kanaele.length) return gleich;
+  const prof = profilFilterDb(fl), ton = zusatzTonDb(zs); for (let i = 0; i < NF; i++) prof[i] += ton[i];
+  let spitze = -Infinity;
+  for (const ch of kanaele) { const r = summeDb(einstellungen[ch].eq || []); let m = -Infinity; for (let i = 0; i < NF; i++) m = Math.max(m, r[i] + prof[i]); spitze = Math.max(spitze, m + (+einstellungen[ch].gain_db || 0)); }
+  const vor = Math.min(gleich, Math.floor((-PROFIL_EINPASSEN.headroom - PROFIL_EINPASSEN.reserve - spitze) * 10 + 1e-6) / 10);
+  return Math.max(PROFIL_ZUSATZ.vor[0], vor) + 0;
+}
+function profilEingepasst(einstellungen, p, z, skaliert) {
+  const kanaele = ["FL", "FR"].filter((ch) => einstellungen[ch] && typeof einstellungen[ch] === "object");
+  for (const skala of PROFIL_SKALEN.filter((k) => k >= 0.25 - 1e-9)) {
+    const fl = skaliert(skala), zs = zusatzGeschwaecht(z, skala), prof = profilFilterDb(fl), ton = zusatzTonDb(zs);
+    for (let i = 0; i < NF; i++) prof[i] += ton[i];
+    const raum = {}, gesenkt = {};
+    for (const ch of kanaele) {
+      const eq = einstellungen[ch].eq || [];
+      let r = summeDb(eq);
+      if (profilVerstoss({ [ch]: r }, prof) !== null) {
+        if (skala > PROFIL_EINPASSEN.minSkala + 1e-9) break;  // erst das Profil bis 80 %, dann die Raumanpassung
+        const e = anhebungEinpassen(eq, prof);
+        r = summeDb(e.eq);
+        if (e.skala >= 1 || profilVerstoss({ [ch]: r }, prof) !== null) break;
+        gesenkt[ch] = e.skala;
+      }
+      raum[ch] = r;
+    }
+    if (Object.keys(raum).length < kanaele.length) continue;
+    const gleich = profilVorverstaerkung(fl, zs);
+    let spitze = -Infinity; for (const ch of kanaele) { let m = -Infinity; for (let i = 0; i < NF; i++) m = Math.max(m, raum[ch][i] + prof[i]); spitze = Math.max(spitze, m + (+einstellungen[ch].gain_db || 0)); }
+    if (!kanaele.length) spitze = 0;
+    const vor = Math.min(gleich, Math.floor((-PROFIL_EINPASSEN.headroom - PROFIL_EINPASSEN.reserve - spitze) * 10 + 1e-6) / 10);
+    if (gleich - vor > PROFIL_EINPASSEN.pegelUnterMax + 1e-9 || vor < PROFIL_ZUSATZ.vor[0]) continue;
+    return { skala, filter: fl, zusatz: zs, vor: vor + 0, gleich, gesenkt };
+  }
+  return null;
+}
+function profilAnwenden(einstellungen, profil, daten, optionen = {}) {
   if (profil == null) return profilNeutral();
-  const p = typeof profil === "string" ? daten.profile.find((x) => x.id === profil) : profil;
+  const p = typeof profil === "string" ? daten.profile.find((x) => x.id === profilNeueId(profil, daten)) : profil;
   if (!p) throw new Error(`Unbekanntes Klangprofil '${profil}'`);
-  const out = { id: p.id, name: p.name, kurz: p.kurz, skala: 1, filter: [], vorverstaerkung_db: 0, zusatz_optional: p.zusatz_optional || null,
-    zusatz_angewendet: false, braucht_engine: !!p.zusatz_optional, hinweise: [] };
-  if (out.braucht_engine) out.hinweise.push(`Den Zusatz aus dem Profil (${p.zusatz_optional.typ === "mitte_seite" ? "Mitte/Seite" : "Übersprechen"}) kann die Klång-Box-Engine noch nicht. Es wirken nur die Filter.`);
+  const z = p.zusatz || null;
+  const out = { id: p.id, name: p.name, kurz: p.kurz, skala: 1, filter: [], vorverstaerkung_db: 0, zusatz: null, zusatz_angewendet: false, hinweise: [] };
   const fehler = pruefeProfil(p, daten.grenzen);
   if (fehler.length) { out.skala = 0; out.hinweise.push(`Wächter: Das Profil hält die Grenzen nicht ein (${fehler.join("; ")}). Es bleibt neutral.`); return out; }
   if (!p.filter || !p.filter.length) return out;
@@ -4329,8 +4695,24 @@ function profilAnwenden(einstellungen, profil, daten) {
     if (d > 1 + LEIT.tol) out.hinweise.push(`Wächter: Über 500 Hz unterscheiden sich links und rechts schon durch die Raumanpassung um ${zahlText(d)} dB (bei ${zahlText(F[i], 0)} Hz, gut für die Bühne ist höchstens 1 dB). Das Profil gilt für beide Kanäle gleich und ändert daran nichts.`);
   }
   const skaliert = (s) => p.filter.map((f) => ({ typ: f.typ, freq: f.freq, gain_db: Math.round(f.gain_db * s * 100) / 100, q: f.q }));
+  if (optionen.raumEinpassen) {
+    const e = profilEingepasst(einstellungen, p, z, skaliert);
+    if (e) {
+      out.skala = e.skala; out.filter = e.filter; out.vorverstaerkung_db = e.vor;
+      if (e.zusatz) { out.zusatz = e.zusatz; out.zusatz_angewendet = true; }
+      const teile = [];
+      if (e.skala < 1) teile.push(`Das Profil wirkt hier etwas schwächer (${zahlText(e.skala * 100, 0)} %)`);
+      const g = Object.entries(e.gesenkt);
+      if (g.length) teile.push(`die Anhebungen der Raumanpassung sind ${g.map(([ch, k]) => `${ch === "FL" ? "links" : "rechts"} auf ${zahlText(k * 100, 0)} %`).join(", ")} gesenkt (zusammen höchstens +${zahlText(LEIT.boost, 0)} dB)`);
+      if (e.vor < e.gleich - 1e-9) teile.push(`es spielt ${zahlText(e.gleich - e.vor)} dB leiser als pegelgleich (${zahlText(PROFIL_EINPASSEN.reserve, 0)} dB Reserve gegen Übersteuern)`);
+      if (teile.length) { const t = teile.join("; "); out.hinweise.push(`Wächter: ${t[0].toUpperCase()}${t.slice(1)}.`); }
+      return out;
+    }
+  }
   let erster = null, skala = 0, fl = skaliert(0), ok = false;
-  for (const s of PROFIL_SKALEN) { const k = skaliert(s), v = profilVerstoss(raumDb, profilFilterDb(k)); if (v === null) { skala = s; fl = k; ok = true; break; } erster = erster || v; }
+  let zs = null;
+  for (const s of PROFIL_SKALEN) { const k = skaliert(s), zk = zusatzGeschwaecht(z, s), d = profilFilterDb(k), ton = zusatzTonDb(zk); for (let i = 0; i < NF; i++) d[i] += ton[i];
+    const v = profilVerstoss(raumDb, d); if (v === null) { skala = s; fl = k; zs = zk; ok = true; break; } erster = erster || v; }
   if (!ok) { skala = 0; fl = skaliert(0); }
   if (skala > 0 && skala < 0.25) {  // schwächer hört man ein Profil nicht mehr: dann lieber ehrlich aus
     out.skala = 0; out.hinweise.push(`Wächter: Zusammen mit deiner Raumanpassung dürfte das Profil nur noch zu ${zahlText(skala * 100, 0)} % wirken, das hört man nicht. Grund: Es hätte sonst ${erster}. Es bleibt aus.`);
@@ -4339,9 +4721,9 @@ function profilAnwenden(einstellungen, profil, daten) {
   out.skala = skala;
   if (skala === 0) { out.hinweise.push(`Wächter: Zusammen mit deiner Raumanpassung hätte das Profil ${erster}. Es passt hier nicht und bleibt aus.`); return out; }
   out.filter = fl;
-  const spitze = Math.max(0, Math.max(...profilFilterDb(fl)));
-  out.vorverstaerkung_db = spitze > 0 ? -Math.ceil(spitze * 10 - 1e-6) / 10 : 0;
-  if (skala < 1) out.hinweise.push(`Wächter: Ich habe das Profil auf ${zahlText(skala * 100, 0)} % abgeschwächt. Zusammen mit deiner Raumanpassung hätte es sonst ${erster}.`);
+  if (zs) { out.zusatz = zs; out.zusatz_angewendet = true; }
+  out.vorverstaerkung_db = profilVorMitReserve(einstellungen, fl, zs);
+  if (skala < 1) out.hinweise.push(`Wächter: Das Profil wirkt hier schwächer (${zahlText(skala * 100, 0)} %). Zusammen mit deiner Raumanpassung hätte es sonst ${erster}.`);
   return out;
 }
 // Wirkung des Profils in dB an beliebigen Frequenzen (für die Prognose-Kurve)
@@ -5451,14 +5833,15 @@ function kanalCheckAufnahme(daten, kanaele, layout, opt = {}, mikrofon = null, b
   return kanalCheck(aw, kanaele, layout, o);
 }
 
-if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, lrPegelVorsichtig, messampel, kalibrierdateiLesen, mikroKalibrierung, messgenauigkeit, MESSGENAUIGKEIT, geraetVonKennung, geraetVonUa, androidModellAusUa, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, profilFilterDb, zahlText, zahlKurz,
+if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, lrPegelVorsichtig, messampel, kalibrierdateiLesen, mikroKalibrierung, messgenauigkeit, MESSGENAUIGKEIT, geraetVonKennung, geraetVonUa, androidModellAusUa, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilEingepasst, PROFIL_EINPASSEN, profilDbAn, profilFilterDb, profilNeueId, zusatzTonDb, profilLautheitDb, profilVorverstaerkung, zusatzFehler, zahlText, zahlKurz,
   FILTER_ENTWURF, modenVersetzt, fitEqFuerTest: fitEq, nachpruefen, pruefungRechnen, wiederholStreuung, bandName, PR, praesenzAusLeistung, praesenzAnhebung, raumUeberhoehung, direktschall, direktFenster, absenkungPruefen, reflexion, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
   baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort, kanalCheck, kanalCheckAufnahme, bewegtProben, KC,
-  rueckPruefen, rueckUrteil, direktDb, gleichmaessigkeit, gleichmaessigWaehlen, hoerVariante, anhebungEinpassen, einpassenKanal, gleichName, GLEICH_VARIANTEN, RUECK_ECHO_MS, RUECK_VERDECKT_DB, RUECK_VERDECKT_GEGEN_VORNE_DB, RUECK_WEG_MAX_MS, FUNK_MS, GLEICH_SPANNE_DB, GLEICH_STREUUNG_DB };
+  rueckPruefen, rueckUrteil, direktDb, gleichmaessigkeit, gleichmaessigWaehlen, hoerVariante, anhebungEinpassen, einpassenKanal, profilKurveDb, gleichName, GLEICH_VARIANTEN, RUECK_ECHO_MS, RUECK_VERDECKT_DB, RUECK_VERDECKT_GEGEN_VORNE_DB, RUECK_WEG_MAX_MS, FUNK_MS, GLEICH_SPANNE_DB, GLEICH_STREUUNG_DB,
+  BJT, BJT_INSTRUMENTE, bjtMessung, bassJeTon, bassMusikalisch, bassStellungen, bassSatz, bassSenkenSaetze, bjtInstrumente, bjtInstrumenteText };
 </script>
 <script type="application/json" id="klangprofile-daten">{
   "schema_version": 1,
-  "beschreibung": "Klangprofile fuer Klang-Box (CamillaDSP). Alle Filter wirken ZUSAETZLICH zur Raumkorrektur auf das Ziel (Harman-nah). Gain in dB, Q nach RBJ-Cookbook (Shelf: Q 0.707 = Butterworth-Steilheit). Profile sind Tonwaagen-Naeherungen, keine Lautsprecher-Emulationen.",
+  "beschreibung": "Klangprofile fuer Klang-Box (CamillaDSP): Neutral, Röhre, Vinyl, Bühne. Alle Filter wirken ZUSAETZLICH zur Raumkorrektur auf das Ziel (Harman-nah). Gain in dB, Q nach RBJ-Cookbook (Shelf: Q 0.707 = Butterworth-Steilheit). Vinyl und Bühne tragen einen Zusatz (Übersprechen bzw. Mitte/Seite), nur Stereo. Bis 0.3.41 gab es 13 Profile; die entfernten stehen unter „entfernt“, gespeicherte Wahl wird Neutral (alte_ids).",
   "grenzen": {
     "max_gain_db_je_filter": 3.0,
     "max_summe_db": 3.0,
@@ -5518,7 +5901,7 @@ if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, l
         "summe_max_db": 0.0,
         "summe_ueber_300hz_min_db": 0.0,
         "summe_ueber_300hz_max_db": 0.0,
-        "vorschlag_vorverstaerkung_db": -0.0,
+        "vorschlag_vorverstaerkung_db": 0.0,
         "erwartete_bandabweichung_db": {
           "B1 Tiefbass": 0.0,
           "B2 Bass": 0.0,
@@ -5566,853 +5949,101 @@ if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, l
       "herleitung": "Kein Filter. Ob es 'Harman' klingt, hängt am Zielverlauf der Raumkorrektur (gleichmäßig fallend, Bass über Mitten angehoben) und am Abstrahlverhalten der KEF, nicht an diesem Profil. Bevorzugte Bass-/Höhenmenge streut individuell (Olive/Welti/McMullin 2013: im Mittel ca. +2 dB Bass und Höhen gegenüber 'flach im Raum', mit großer Streuung)."
     },
     {
-      "id": "waermer_roehre",
-      "name": "Wärmer",
-      "kurz": "Etwas voller im Grundton, Präsenz und Höhen leicht zurück.",
-      "filter": [
-        {
-          "typ": "peaking",
-          "freq": 110,
-          "gain_db": 1.5,
-          "q": 1.0
-        },
-        {
-          "typ": "lowshelf",
-          "freq": 250,
-          "gain_db": 1.0,
-          "q": 0.707
-        },
-        {
-          "typ": "peaking",
-          "freq": 3000,
-          "gain_db": -1.0,
-          "q": 0.8
-        },
-        {
-          "typ": "highshelf",
-          "freq": 9000,
-          "gain_db": -1.5,
-          "q": 0.707
-        }
-      ],
-      "was_es_nicht_kann": "Bildet nur den Frequenzgang nach, wie ihn ein Röhrenverstärker an vielen passiven Boxen zeigt. Nicht nachgebildet: Klirr, weiches Clipping, Kompression und Rauschen. An aktiven Boxen gibt es diesen Effekt gar nicht.",
-      "quellen": [
-        "https://stereophile.com/content/air-tight-atm-211-tube-monoblock-power-amplifier-measurements",
-        "https://stereophile.com/content/primaluna-prologue-premium-power-amplifier-measurements",
-        "https://stereophile.com/content/rogue-audio-atlas-power-amplifier-measurements",
-        "https://stereophile.com/content/raven-audio-spirit-300b-reference-stereo-power-amplifier-measurements",
-        "https://stereophile.com/content/kef-ls50-meta-loudspeaker-measurements",
-        "https://www.hifinews.com/node/131964"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": 2.46,
-        "summe_ueber_300hz_min_db": -1.5,
-        "summe_ueber_300hz_max_db": 0.54,
-        "vorschlag_vorverstaerkung_db": -2.5,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": 1.21,
-          "B2 Bass": 2.13,
-          "B3 Grundton": 1.18,
-          "B4 Untere Mitten": 0.1,
-          "B5 Praesenz": -0.64,
-          "B6 Brillanz": -0.65,
-          "B7 Hoehen": -1.05,
-          "B8 Luft": -1.44
-        },
-        "erwartet_terzen_db": {
-          "20": 1.05,
-          "25": 1.08,
-          "31.5": 1.13,
-          "40": 1.22,
-          "50": 1.37,
-          "63": 1.63,
-          "80": 2.04,
-          "100": 2.42,
-          "125": 2.35,
-          "160": 1.8,
-          "200": 1.28,
-          "250": 0.83,
-          "315": 0.47,
-          "400": 0.23,
-          "500": 0.09,
-          "630": 0.0,
-          "800": -0.07,
-          "1000": -0.15,
-          "1250": -0.27,
-          "1600": -0.45,
-          "2000": -0.68,
-          "2500": -0.92,
-          "3150": -1.01,
-          "4000": -0.85,
-          "5000": -0.65,
-          "6300": -0.57,
-          "8000": -0.73,
-          "10000": -1.06,
-          "12500": -1.35,
-          "16000": -1.49,
-          "20000": -1.5
-        }
-      },
-      "herleitung": "Bildet nur den linearen Teil nach: Grundton/Oberbass etwas voller, Präsenz und Höhen etwas zurück (typisches Bild eines Röhrenverstärkers mit 1-3 Ohm Ausgangsimpedanz an einer Lautsprecherimpedanz mit Gipfeln). Die echte Abweichung hängt am Lautsprecher und wäre bei der LS50 Wireless II gar nicht vorhanden (aktive Endstufen, Impedanz-Interaktion entfällt). Nicht nachgebildet: k2/k3-Klirr, weiches Clipping, lastabhängige Kompression, Netzteil-Einbrüche, Rauschen. Echter Klirr ist in CamillaDSP nicht vorgesehen (kein Waveshaper-Filter)."
-    },
-    {
-      "id": "roehre_ls50meta_modell",
+      "id": "roehre",
       "name": "Röhre",
-      "kurz": "Wie ein Röhrenverstärker an einer passiven Kompaktbox – nur der Frequenzgang.",
+      "kurz": "Wie ein Röhrenverstärker, nur die Tonbalance.",
       "filter": [
         {
           "typ": "peaking",
-          "freq": 93,
-          "gain_db": 2.0,
-          "q": 1.4
-        },
-        {
-          "typ": "peaking",
-          "freq": 240,
-          "gain_db": -2.0,
-          "q": 1.0
-        },
-        {
-          "typ": "peaking",
-          "freq": 1600,
+          "freq": 90,
           "gain_db": 1.0,
           "q": 1.0
         },
         {
-          "typ": "highshelf",
-          "freq": 4000,
+          "typ": "peaking",
+          "freq": 250,
+          "gain_db": -1.0,
+          "q": 0.7
+        },
+        {
+          "typ": "peaking",
+          "freq": 1800,
+          "gain_db": 1.0,
+          "q": 1.0
+        },
+        {
+          "typ": "peaking",
+          "freq": 6000,
           "gain_db": -0.5,
-          "q": 0.707
+          "q": 0.8
         }
       ],
-      "was_es_nicht_kann": "Ein Rechenmodell: Röhre mit 2 Ω Ausgangswiderstand an einer typischen Kompaktbox. Es macht nicht pauschal wärmer: etwas mehr Oberbass, dafür ein dünnerer Grundton und eine leichte Anhebung um 1,6 kHz. Kein Klirr, keine Kompression.",
+      "was_es_nicht_kann": "Ein Rechenmodell: Röhre mit 2 Ω Ausgangswiderstand an einer typischen passiven Zweiwegebox. Etwas mehr Oberbass, ein schlankerer Grundton, leicht vorn um 2 kHz, ganz oben eine Spur ruhiger. Kein Klirr, keine Kompression. An aktiven Boxen gibt es diesen Effekt gar nicht.",
       "quellen": [
-        "https://www.hifinews.com/node/131964",
-        "https://stereophile.com/content/kef-ls50-meta-loudspeaker-measurements",
-        "https://stereophile.com/content/air-tight-atm-211-tube-monoblock-power-amplifier-measurements",
-        "https://stereophile.com/content/primaluna-prologue-premium-power-amplifier-measurements"
+        "https://www.stereophile.com/reference/810/index.html",
+        "https://stereophile.com/content/unseen-variable-page-2",
+        "https://stereophile.com/content/measuring-loudspeakers-part-one-page-6",
+        "https://archimago.blogspot.com/2019/08/measurements-speaker-impedance-part-2.html",
+        "https://en.wikipedia.org/wiki/Damping_factor",
+        "https://github.com/HEnquist/camilladsp/blob/master/README.md"
       ],
       "grenzen_eingehalten": true,
       "pruefung": {
         "verstoesse": [],
-        "summe_max_db": 1.67,
-        "summe_ueber_300hz_min_db": -1.51,
-        "summe_ueber_300hz_max_db": 0.95,
-        "vorschlag_vorverstaerkung_db": -1.7,
+        "summe_max_db": 0.9,
+        "summe_ueber_300hz_min_db": -0.81,
+        "summe_ueber_300hz_max_db": 0.9,
+        "vorschlag_vorverstaerkung_db": -0.1,
         "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": 0.19,
-          "B2 Bass": 0.97,
-          "B3 Grundton": -1.36,
-          "B4 Untere Mitten": -0.39,
-          "B5 Praesenz": 0.54,
-          "B6 Brillanz": -0.31,
-          "B7 Hoehen": -0.47,
-          "B8 Luft": -0.49
+          "B1 Tiefbass": 0.17,
+          "B2 Bass": 0.48,
+          "B3 Grundton": -0.65,
+          "B4 Untere Mitten": -0.29,
+          "B5 Praesenz": 0.51,
+          "B6 Brillanz": -0.34,
+          "B7 Hoehen": -0.22,
+          "B8 Luft": -0.07
         },
         "erwartet_terzen_db": {
           "20": 0.04,
           "25": 0.06,
           "31.5": 0.11,
-          "40": 0.19,
-          "50": 0.36,
-          "63": 0.74,
-          "80": 1.45,
-          "100": 1.52,
-          "125": 0.5,
-          "160": -0.6,
-          "200": -1.44,
-          "250": -1.79,
-          "315": -1.39,
-          "400": -0.81,
-          "500": -0.42,
-          "630": -0.13,
-          "800": 0.12,
-          "1000": 0.39,
-          "1250": 0.72,
-          "1600": 0.95,
-          "2000": 0.77,
-          "2500": 0.45,
-          "3150": 0.17,
-          "4000": -0.08,
-          "5000": -0.26,
-          "6300": -0.38,
-          "8000": -0.44,
-          "10000": -0.47,
-          "12500": -0.49,
-          "16000": -0.5,
-          "20000": -0.5
-        }
-      },
-      "herleitung": "Angepasst (RMS-Fehler 0,28 dB, max. 1,1 dB, 30 Hz-16 kHz) an das Spannungsteiler-Modell Z/(Z+Ro) mit Ro = 2 Ohm und einer GENÄHERTEN LS50-Meta-Impedanzkurve (belegt: Min. ~3,65 Ohm @ 220-240 Hz, Max. ~31 Ohm @ 93 Hz, Weiche 2,1 kHz; Rest angenommen). Zeigt, dass eine Röhre an dieser Box NICHT pauschal 'wärmer' macht: +1,3 dB bei 93 Hz, aber -1,9 dB bei 230 Hz (Grundton dünner), +0,6 dB um 1,6 kHz. Kein Klirr, keine Kompression."
-    },
-    {
-      "id": "detail_focal",
-      "name": "Klarer",
-      "kurz": "Mehr Glanz in den oberen Höhen, die Mitten bleiben.",
-      "filter": [
-        {
-          "typ": "peaking",
-          "freq": 6500,
-          "gain_db": 1.5,
-          "q": 0.9
-        },
-        {
-          "typ": "highshelf",
-          "freq": 14000,
-          "gain_db": 1.0,
-          "q": 0.707
-        },
-        {
-          "typ": "peaking",
-          "freq": 2500,
-          "gain_db": -0.5,
-          "q": 0.8
-        }
-      ],
-      "was_es_nicht_kann": "Verschiebt nur Energie in die oberen Höhen. Weniger Klirr oder schnelleres Ausschwingen kann ein Filter nicht erzeugen. In halligen Räumen können mehr Höhen scharf wirken.",
-      "quellen": [
-        "https://www.stereophile.com/content/focal-kanta-no2-loudspeaker-measurements",
-        "https://hifinews.com/content/focal-kanta-no2-loudspeaker-lab-report",
-        "https://soundstagehifi.com/index.php/reference-components/790-recommended-reference-component-focal-aria-906-loudspeakers",
-        "https://erinsaudiocorner.com/loudspeakers/focal_aria_906/"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": 1.41,
-        "summe_ueber_300hz_min_db": -0.28,
-        "summe_ueber_300hz_max_db": 1.41,
-        "vorschlag_vorverstaerkung_db": -1.4,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": -0.0,
-          "B2 Bass": -0.0,
-          "B3 Grundton": -0.0,
-          "B4 Untere Mitten": -0.03,
-          "B5 Praesenz": -0.12,
-          "B6 Brillanz": 1.11,
-          "B7 Hoehen": 0.87,
-          "B8 Luft": 0.75
-        },
-        "erwartet_terzen_db": {
-          "20": -0.0,
-          "25": -0.0,
-          "31.5": -0.0,
-          "40": -0.0,
-          "50": -0.0,
-          "63": -0.0,
-          "80": -0.0,
-          "100": -0.0,
-          "125": -0.0,
-          "160": -0.0,
-          "200": -0.0,
-          "250": -0.01,
-          "315": -0.01,
-          "400": -0.01,
-          "500": -0.02,
-          "630": -0.03,
-          "800": -0.06,
-          "1000": -0.09,
-          "1250": -0.14,
-          "1600": -0.22,
-          "2000": -0.27,
-          "2500": -0.23,
-          "3150": 0.01,
-          "4000": 0.46,
-          "5000": 0.98,
-          "6300": 1.39,
-          "8000": 1.23,
-          "10000": 0.83,
-          "12500": 0.67,
-          "16000": 0.88,
-          "20000": 1.01
-        }
-      },
-      "herleitung": "Bildet nur die Energieverschiebung nach (Focal-Hochtöner strahlt 5-8 kHz breiter ab, daher mehr Leistung in diesem Band im Raum; leichte Präsenzsenke laut HFN). 'Detail' im Sinne von geringerem Klirr, schnellerem Ausschwingen oder Beryllium-Membran ist nicht erzeugbar: EQ hebt nur Pegel an. Mehr Höhen können in hallarmen Räumen detailreich, in hallenden Räumen scharf wirken."
-    },
-    {
-      "id": "bw",
-      "name": "Brillanter",
-      "kurz": "Mehr Höhen, die Präsenz leicht zurück.",
-      "filter": [
-        {
-          "typ": "peaking",
-          "freq": 3000,
-          "gain_db": -1.5,
-          "q": 1.0
-        },
-        {
-          "typ": "highshelf",
-          "freq": 7000,
-          "gain_db": 2.0,
-          "q": 0.707
-        },
-        {
-          "typ": "peaking",
-          "freq": 80,
-          "gain_db": 1.0,
-          "q": 1.0
-        }
-      ],
-      "was_es_nicht_kann": "Nur +2 dB breit, mehr lässt der Wächter nicht zu. Nicht nachbildbar: Abstrahlverhalten und Resonanzen bestimmter Lautsprecher.",
-      "quellen": [
-        "https://stereophile.com/content/bowers-wilkins-705-s3-loudspeaker-measurements",
-        "https://stereophile.com/content/bowers-wilkins-805-d4-signature-loudspeaker-measurements",
-        "https://www.stereophile.com/content/bowers-wilkins-diamond-series-804-d4-loudspeaker-measurements",
-        "https://hometheaterhifi.com/?p=88537",
-        "https://audioreview.frieve.com/products/en/bowers-wilkins-804-d4/"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": 2.0,
-        "summe_ueber_300hz_min_db": -1.45,
-        "summe_ueber_300hz_max_db": 2.0,
-        "vorschlag_vorverstaerkung_db": -2.0,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": 0.28,
-          "B2 Bass": 0.77,
-          "B3 Grundton": 0.17,
-          "B4 Untere Mitten": -0.04,
-          "B5 Praesenz": -0.83,
-          "B6 Brillanz": 0.08,
-          "B7 Hoehen": 1.56,
-          "B8 Luft": 1.92
-        },
-        "erwartet_terzen_db": {
-          "20": 0.07,
-          "25": 0.11,
-          "31.5": 0.18,
-          "40": 0.31,
-          "50": 0.51,
-          "63": 0.81,
-          "80": 1.0,
-          "100": 0.83,
-          "125": 0.54,
-          "160": 0.3,
-          "200": 0.18,
-          "250": 0.1,
-          "315": 0.05,
-          "400": 0.02,
-          "500": -0.02,
-          "630": -0.05,
-          "800": -0.1,
-          "1000": -0.17,
-          "1250": -0.29,
-          "1600": -0.52,
-          "2000": -0.86,
-          "2500": -1.29,
-          "3150": -1.42,
-          "4000": -0.94,
-          "5000": -0.3,
-          "6300": 0.39,
-          "8000": 1.1,
-          "10000": 1.6,
-          "12500": 1.86,
-          "16000": 1.97,
-          "20000": 2.0
-        }
-      },
-      "herleitung": "Stereophile misst bei aktuellen B&W (705 S3, 805 D4 Signature, 804 D4) achsial deutlich zu viel Hochton (bis ~10 dB-Spitze bei 10 kHz beim 705 S3, Hochtöner bis 5 dB zu laut beim 805 D4 Sig.), die im Hörfenster/mit Einwinkelung geringer ausfällt. Hier nur +2 dB breit, weil der Wächter mehr nicht zulässt und weil Spitzen auf Achse im Raum nicht in voller Höhe ankommen. Nicht nachbildbar: Bündelung/Abstrahlung des Diamant-Hochtöners, Gehäuse- und Port-Resonanzen (804 D4: 308/567 Hz), Ausschwingen bei 3,8 kHz, Impedanzlast."
-    },
-    {
-      "id": "bbc_harbeth",
-      "name": "Sanfte Stimmen",
-      "kurz": "Stimmen weicher, wie bei klassischen Studio-Monitoren.",
-      "filter": [
-        {
-          "typ": "lowshelf",
-          "freq": 200,
-          "gain_db": 1.0,
-          "q": 0.707
-        },
-        {
-          "typ": "peaking",
-          "freq": 2500,
-          "gain_db": -2.0,
-          "q": 0.8
-        },
-        {
-          "typ": "highshelf",
-          "freq": 10000,
-          "gain_db": -1.0,
-          "q": 0.707
-        }
-      ],
-      "was_es_nicht_kann": "Eine flache Absenkung um 1 bis 4 kHz, wie sie manche klassische Monitor-Konstruktion hatte. Das Profil bildet eine Idee ab, keinen bestimmten Lautsprecher.",
-      "quellen": [
-        "https://stereophile.com/node/65331",
-        "https://stereophile.com/content/harbeth-monitor-302-40th-anniversary-edition-loudspeaker-measurements",
-        "https://www.diyaudio.com/forums/multi-way/34354-bbc-dip.html",
-        "https://en.wikipedia.org/wiki/Harbeth_Audio_Limited",
-        "https://stereophile.com/content/harbeth-p3esr-loudspeaker-measurements"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": 1.0,
-        "summe_ueber_300hz_min_db": -2.0,
-        "summe_ueber_300hz_max_db": 0.12,
-        "vorschlag_vorverstaerkung_db": -1.0,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": 1.0,
-          "B2 Bass": 0.92,
-          "B3 Grundton": 0.42,
-          "B4 Untere Mitten": -0.16,
-          "B5 Praesenz": -1.42,
-          "B6 Brillanz": -0.73,
-          "B7 Hoehen": -0.66,
-          "B8 Luft": -0.94
-        },
-        "erwartet_terzen_db": {
-          "20": 1.0,
-          "25": 1.0,
-          "31.5": 1.0,
-          "40": 1.0,
-          "50": 0.99,
-          "63": 0.99,
-          "80": 0.97,
-          "100": 0.94,
-          "125": 0.86,
-          "160": 0.7,
-          "200": 0.48,
-          "250": 0.26,
-          "315": 0.09,
-          "400": -0.02,
-          "500": -0.1,
-          "630": -0.19,
-          "800": -0.32,
-          "1000": -0.52,
-          "1250": -0.81,
-          "1600": -1.28,
-          "2000": -1.76,
-          "2500": -2.0,
-          "3150": -1.75,
-          "4000": -1.23,
-          "5000": -0.81,
-          "6300": -0.56,
-          "8000": -0.51,
-          "10000": -0.65,
-          "12500": -0.87,
-          "16000": -0.99,
-          "20000": -1.0
-        }
-      },
-      "herleitung": "Der 'BBC-Dip' ist eine flache Absenkung um 1-4 kHz bei BBC-Konstruktionen der 1960er-80er; Harbeth selbst sagt, dass LS3/5a ihn nicht hat, und Stereophile misst die Monitor 30.2 eher glatt mit leichtem Energieverlust im mittleren Hochton. Das Profil bildet also eine Idee ab, keinen bestimmten Lautsprecher. Nicht nachbildbar: dünnwandiges, bewusst mitschwingendes Gehäuse (Harbeth-Prinzip), Membranmaterial, Abstrahlung des grösseren Tieftöners."
-    },
-    {
-      "id": "punchiger",
-      "name": "Punchiger",
-      "kurz": "Mehr Kick im Bass, weniger Mulm.",
-      "filter": [
-        {
-          "typ": "peaking",
-          "freq": 90,
-          "gain_db": 2.5,
-          "q": 1.2
-        },
-        {
-          "typ": "peaking",
-          "freq": 300,
-          "gain_db": -1.0,
-          "q": 1.0
-        },
-        {
-          "typ": "peaking",
-          "freq": 3000,
-          "gain_db": 0.75,
-          "q": 1.0
-        }
-      ],
-      "was_es_nicht_kann": "Punch ist vor allem Dynamik und Zeitverhalten. Ein Filter hebt nur 80 bis 100 Hz an und nimmt 250 bis 350 Hz zurück. Nahe einer Raummode kann daraus Dröhnen statt Punch werden.",
-      "quellen": [
-        "https://stereophile.com/content/sounds-audio-glossary-glossary-f-h",
-        "https://labs.sonicfield.org/library/perceived-sound-quality-of-sound-reproducing-systems"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": 2.4,
-        "summe_ueber_300hz_min_db": -0.82,
-        "summe_ueber_300hz_max_db": 0.74,
-        "vorschlag_vorverstaerkung_db": -2.4,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": 0.41,
-          "B2 Bass": 1.74,
-          "B3 Grundton": -0.22,
-          "B4 Untere Mitten": -0.37,
-          "B5 Praesenz": 0.41,
-          "B6 Brillanz": 0.27,
-          "B7 Hoehen": 0.06,
-          "B8 Luft": 0.02
-        },
-        "erwartet_terzen_db": {
-          "20": 0.09,
-          "25": 0.14,
-          "31.5": 0.24,
-          "40": 0.42,
-          "50": 0.75,
-          "63": 1.37,
-          "80": 2.24,
-          "100": 2.22,
-          "125": 1.32,
-          "160": 0.45,
-          "200": -0.13,
-          "250": -0.61,
-          "315": -0.82,
-          "400": -0.64,
-          "500": -0.39,
-          "630": -0.2,
-          "800": -0.08,
-          "1000": 0.01,
-          "1250": 0.1,
-          "1600": 0.23,
-          "2000": 0.42,
-          "2500": 0.65,
-          "3150": 0.74,
-          "4000": 0.54,
-          "5000": 0.33,
-          "6300": 0.18,
-          "8000": 0.1,
-          "10000": 0.05,
-          "12500": 0.03,
-          "16000": 0.01,
-          "20000": 0.0
-        }
-      },
-      "herleitung": "Punch ist vor allem Dynamik und Zeitverhalten: Pegelreserve, kein Kompressionsverhalten von Treiber/Endstufe, kurzes Ausschwingen von Raummoden und saubere Sub-Übergabe. Ein EQ hebt nur 80-100 Hz an und nimmt 250-350 Hz zurück. Die Anhebung kostet 2,5 dB Headroom (Vorverstärkung entsprechend absenken) und belastet LS50/LSX-Tieftöner und REL stärker; nahe der Raummoden kann +2,5 dB Dröhnen statt Punch ergeben."
-    },
-    {
-      "id": "luftiger",
-      "name": "Luftiger",
-      "kurz": "Mehr Glanz und Raum ganz oben.",
-      "filter": [
-        {
-          "typ": "highshelf",
-          "freq": 11000,
-          "gain_db": 2.0,
-          "q": 0.707
-        },
-        {
-          "typ": "peaking",
-          "freq": 5000,
-          "gain_db": -0.5,
-          "q": 0.8
-        }
-      ],
-      "was_es_nicht_kann": "Luft ist Energie ab etwa 10 kHz. Wer älter als etwa 50 ist, hört dort weniger, die Wirkung ist dann klein. Oberhalb von 10 kHz misst das Handy nur ungefähr.",
-      "quellen": [
-        "https://forum.polkaudio.com/discussion/148663/how-do-you-describe-sound-quality",
-        "https://stereophile.com/content/sounds-audio-glossary-glossary-b-c",
-        "https://www.stereophile.com/content/focal-kanta-no2-loudspeaker-measurements"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": 1.99,
-        "summe_ueber_300hz_min_db": -0.46,
-        "summe_ueber_300hz_max_db": 1.99,
-        "vorschlag_vorverstaerkung_db": -2.0,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": -0.0,
-          "B2 Bass": -0.0,
-          "B3 Grundton": -0.0,
-          "B4 Untere Mitten": -0.01,
-          "B5 Praesenz": -0.16,
-          "B6 Brillanz": -0.33,
-          "B7 Hoehen": 0.61,
-          "B8 Luft": 1.61
-        },
-        "erwartet_terzen_db": {
-          "20": -0.0,
-          "25": -0.0,
-          "31.5": -0.0,
-          "40": -0.0,
-          "50": -0.0,
-          "63": -0.0,
-          "80": -0.0,
-          "100": -0.0,
-          "125": -0.0,
-          "160": -0.0,
-          "200": -0.0,
-          "250": -0.0,
-          "315": -0.0,
-          "400": -0.0,
-          "500": -0.01,
-          "630": -0.01,
-          "800": -0.02,
-          "1000": -0.03,
-          "1250": -0.05,
-          "1600": -0.08,
-          "2000": -0.12,
-          "2500": -0.19,
-          "3150": -0.3,
-          "4000": -0.42,
-          "5000": -0.46,
-          "6300": -0.31,
-          "8000": 0.04,
-          "10000": 0.58,
-          "12500": 1.29,
-          "16000": 1.85,
-          "20000": 1.99
-        }
-      },
-      "herleitung": "Luft = Energie ab ~10-12 kHz bis 20 kHz. Wer über ~50-60 Jahre alt ist, hört ab 12-14 kHz deutlich weniger; die Wirkung ist dann klein. Die Messung oberhalb 10 kHz hängt stark von Mikrofonwinkel und -kalibrierung ab. Nicht nachbildbar: breitere Abstrahlung (ein Hochtöner, der über 10 kHz bündelt, bringt mehr Luft nur auf Achse)."
-    },
-    {
-      "id": "entspannt",
-      "name": "Entspannt",
-      "kurz": "Für leises Hören am Abend.",
-      "filter": [
-        {
-          "typ": "lowshelf",
-          "freq": 150,
-          "gain_db": 2.0,
-          "q": 0.707
-        },
-        {
-          "typ": "peaking",
-          "freq": 3200,
-          "gain_db": -1.5,
-          "q": 0.8
-        },
-        {
-          "typ": "highshelf",
-          "freq": 9000,
-          "gain_db": -1.0,
-          "q": 0.707
-        }
-      ],
-      "was_es_nicht_kann": "Ein fester Ausgleich für leises Hören (leise klingt Bass schwächer) und etwas weniger Präsenz gegen Ermüdung. Ersetzt nicht den Nachtmodus für laute Filmstellen.",
-      "quellen": [
-        "https://moodeaudio.org/forum/printthread.php?tid=7745",
-        "https://labs.sonicfield.org/library/frequency-response-and-perceived-sound-quality"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": 2.0,
-        "summe_ueber_300hz_min_db": -1.51,
-        "summe_ueber_300hz_max_db": 0.1,
-        "vorschlag_vorverstaerkung_db": -2.0,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": 1.99,
-          "B2 Bass": 1.63,
-          "B3 Grundton": 0.45,
-          "B4 Untere Mitten": -0.06,
-          "B5 Praesenz": -0.92,
-          "B6 Brillanz": -0.9,
-          "B7 Hoehen": -0.82,
-          "B8 Luft": -1.0
-        },
-        "erwartet_terzen_db": {
-          "20": 2.0,
-          "25": 2.0,
-          "31.5": 2.0,
-          "40": 1.99,
-          "50": 1.97,
-          "63": 1.94,
-          "80": 1.85,
-          "100": 1.67,
-          "125": 1.34,
-          "160": 0.87,
-          "200": 0.47,
-          "250": 0.22,
-          "315": 0.08,
-          "400": 0.0,
-          "500": -0.04,
-          "630": -0.08,
-          "800": -0.14,
-          "1000": -0.23,
-          "1250": -0.36,
-          "1600": -0.6,
-          "2000": -0.92,
-          "2500": -1.29,
-          "3150": -1.51,
-          "4000": -1.34,
-          "5000": -1.0,
-          "6300": -0.74,
-          "8000": -0.69,
-          "10000": -0.82,
-          "12500": -0.96,
-          "16000": -1.01,
-          "20000": -1.01
-        }
-      },
-      "herleitung": "Statischer Ausgleich für leises Hören (Kurven gleicher Lautheit: bei niedrigen Pegeln wird Bass schwächer wahrgenommen) plus weniger Präsenz gegen Ermüdung. Eine echte pegelabhängige Loudness wäre besser; CamillaDSP hat dafür ein eigenes Loudness-Filter, das an den Lautstärkeregler gekoppelt ist. Nicht ersetzt: Dynamikkompression für Nachtbetrieb."
-    },
-    {
-      "id": "kino_dialog",
-      "name": "Kino-Dialog",
-      "kurz": "Klarere Dialoge – Stimmen etwas nach vorn, weniger Dröhnen.",
-      "filter": [
-        {
-          "typ": "lowshelf",
-          "freq": 120,
-          "gain_db": -1.5,
-          "q": 0.707
-        },
-        {
-          "typ": "peaking",
-          "freq": 2500,
-          "gain_db": 1.0,
-          "q": 0.8
-        },
-        {
-          "typ": "highshelf",
-          "freq": 10000,
-          "gain_db": -0.5,
-          "q": 0.707
-        }
-      ],
-      "was_es_nicht_kann": "Hebt den Sprachbereich sanft an (höchstens +1 dB, damit es auf Dauer nicht anstrengt) und nimmt Bass zurück, der Sprache verdeckt. Ersetzt keinen Center-Lautsprecher und keinen Nachtmodus.",
-      "zusatz_optional": {
-        "typ": "mitte_seite",
-        "beschreibung": "Peaking 2500 Hz +1 dB Q 0.8 nur auf M=(L+R)/2 statt auf L und R; per CamillaDSP-Mixer L/R->M/S->L/R. Pegelneutral für reine Seiteninformation."
-      },
-      "quellen": [
-        "https://labs.sonicfield.org/library/perceived-sound-quality-of-sound-reproducing-systems",
-        "https://audioxpress.com/article/fresh-from-the-bench-kef-ls50-meta-the-measurements"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": 1.0,
-        "summe_ueber_300hz_min_db": -0.5,
-        "summe_ueber_300hz_max_db": 1.0,
-        "vorschlag_vorverstaerkung_db": -1.0,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": -1.48,
-          "B2 Bass": -1.02,
-          "B3 Grundton": -0.16,
-          "B4 Untere Mitten": 0.09,
-          "B5 Praesenz": 0.71,
-          "B6 Brillanz": 0.28,
-          "B7 Hoehen": -0.17,
-          "B8 Luft": -0.42
-        },
-        "erwartet_terzen_db": {
-          "20": -1.5,
-          "25": -1.5,
-          "31.5": -1.49,
-          "40": -1.48,
-          "50": -1.46,
-          "63": -1.39,
-          "80": -1.25,
-          "100": -1.01,
-          "125": -0.69,
-          "160": -0.36,
-          "200": -0.16,
-          "250": -0.06,
-          "315": -0.01,
-          "400": 0.03,
-          "500": 0.06,
-          "630": 0.1,
-          "800": 0.16,
-          "1000": 0.26,
-          "1250": 0.4,
-          "1600": 0.64,
-          "2000": 0.88,
-          "2500": 1.0,
-          "3150": 0.87,
-          "4000": 0.6,
-          "5000": 0.37,
-          "6300": 0.18,
-          "8000": 0.01,
-          "10000": -0.18,
-          "12500": -0.36,
-          "16000": -0.47,
-          "20000": -0.5
-        }
-      },
-      "herleitung": "Hebt den Sprach-Verständlichkeitsbereich (1-4 kHz) breit an und nimmt Bass zurück, der Sprache verdeckt. Bei Stereo-Material ist Dialog meist in der Mitte; gezielter wäre eine Anhebung nur im Mitte-Signal (M/S, siehe zusatz_optional). Ersetzt keinen Center-Lautsprecher und keine Dynamikkompression für laute Effekte."
-    },
-    {
-      "id": "mehr_buehne",
-      "name": "Bühne weiter hinten",
-      "kurz": "Die ganze Musik rückt etwas zurück.",
-      "filter": [
-        {
-          "typ": "peaking",
-          "freq": 2500,
-          "gain_db": -1.5,
-          "q": 0.7
-        },
-        {
-          "typ": "highshelf",
-          "freq": 10000,
-          "gain_db": 0.0,
-          "q": 0.707
-        }
-      ],
-      "was_es_nicht_kann": "Eine breite Präsenzsenke lässt Quellen etwas entfernter wirken. Mehr Tiefe zwischen den Instrumenten bringt sie nicht.",
-      "zusatz_optional": {
-        "typ": "mitte_seite",
-        "beschreibung": "S-Anteil +1 dB, M-Anteil -0.5 dB (breitbandig, oberhalb 200 Hz). Nur für Stereo-Musik, nicht für Filme."
-      },
-      "quellen": [
-        "https://labs.sonicfield.org/library/perceived-sound-quality-of-sound-reproducing-systems",
-        "https://aaltodoc.aalto.fi/items/d5e9595f-c665-47d1-ab5c-e6da255f2216",
-        "https://jcaa.caa-aca.ca/index.php/jcaa/article/download/845/562/952"
-      ],
-      "grenzen_eingehalten": true,
-      "pruefung": {
-        "verstoesse": [],
-        "summe_max_db": -0.0,
-        "summe_ueber_300hz_min_db": -1.5,
-        "summe_ueber_300hz_max_db": -0.01,
-        "vorschlag_vorverstaerkung_db": -0.0,
-        "erwartete_bandabweichung_db": {
-          "B1 Tiefbass": -0.0,
-          "B2 Bass": -0.0,
-          "B3 Grundton": -0.02,
-          "B4 Untere Mitten": -0.18,
-          "B5 Praesenz": -1.12,
-          "B6 Brillanz": -0.56,
-          "B7 Hoehen": -0.15,
-          "B8 Luft": -0.05
-        },
-        "erwartet_terzen_db": {
-          "20": -0.0,
-          "25": -0.0,
-          "31.5": -0.0,
-          "40": -0.0,
-          "50": -0.0,
-          "63": -0.0,
-          "80": -0.0,
-          "100": -0.0,
-          "125": -0.01,
-          "160": -0.01,
-          "200": -0.02,
-          "250": -0.03,
-          "315": -0.05,
-          "400": -0.08,
-          "500": -0.12,
-          "630": -0.19,
-          "800": -0.3,
-          "1000": -0.47,
-          "1250": -0.71,
-          "1600": -1.05,
-          "2000": -1.36,
-          "2500": -1.5,
-          "3150": -1.35,
-          "4000": -1.0,
-          "5000": -0.68,
-          "6300": -0.43,
-          "8000": -0.25,
-          "10000": -0.14,
-          "12500": -0.07,
-          "16000": -0.03,
+          "40": 0.18,
+          "50": 0.31,
+          "63": 0.53,
+          "80": 0.74,
+          "100": 0.64,
+          "125": 0.22,
+          "160": -0.29,
+          "200": -0.66,
+          "250": -0.84,
+          "315": -0.79,
+          "400": -0.58,
+          "500": -0.36,
+          "630": -0.16,
+          "800": 0.04,
+          "1000": 0.25,
+          "1250": 0.53,
+          "1600": 0.85,
+          "2000": 0.85,
+          "2500": 0.54,
+          "3150": 0.19,
+          "4000": -0.1,
+          "5000": -0.32,
+          "6300": -0.42,
+          "8000": -0.34,
+          "10000": -0.21,
+          "12500": -0.11,
+          "16000": -0.04,
           "20000": -0.01
         }
       },
-      "herleitung": "Die breite Präsenzsenke rückt die ganze Bühne etwas zurück, mehr Staffelung (Tiefe zwischen den Instrumenten) bringt sie nicht. Mehr Höhen wirken näher, deshalb hier keine Höhenanhebung (HS 10 kHz auf 0 dB). Eine breite Präsenzsenke lässt Quellen entfernter wirken ('Nähe' ist eine eigene Wahrnehmungsdimension, Gabrielsson). Echte Breite/Tiefe kommt von L/R-Gleichheit, frühen seitlichen Reflexionen (<~30 ms, ähnlicher Pegel) und der Aufnahme. Optional M/S-Breite (Seite +1 dB) – verletzt den Wächter nicht, weil sie nicht den Summenfreqünzgang hebt, aber sie verändert Mono-Kompatibilität und Mittenabbildung."
+      "herleitung": "Spannungsteiler Z/(Z+Ro) mit Ro = 2 Ohm (Röhren-Endstufen ohne viel Gegenkopplung: etwa 1-3 Ohm) an einer TYPISCHEN Impedanzkurve passiver Zweiwegeboxen mit Reflexrohr (angenommen, keine bestimmte Box: Gipfel ~20 Ohm @ 40 Hz und ~18 Ohm @ 80 Hz um die Abstimmung ~55 Hz, Minimum ~5 Ohm @ 250 Hz, Weichengipfel ~13 Ohm @ 1,8 kHz, ~6 Ohm @ 5-7 kHz, 8 Ohm @ 20 kHz). Gemessene Abweichung pegelneutral (Mittel 30 Hz-16 kHz): +1,1 dB @ 80 Hz, -0,9 dB @ 250 Hz, +0,75 dB @ 1,8 kHz, -0,6 dB @ 7 kHz. Mit 1 Ohm etwa die Hälfte, mit 3 Ohm das 1,4-Fache. Angepasst mit 4 Filtern: RMS-Fehler 0,29 dB, max. 1,0 dB (30 Hz-16 kHz; die Reflexgipfel unter 60 Hz sind von Box zu Box anders und bleiben bewusst grob). Die Box kennt die Impedanz der eigenen Boxen nicht (Gerätedaten ohne Impedanzkurve), darum typisch. Nicht nachgebildet: k2/k3-Klirr, weiches Clipping, lastabhängige Kompression, Netzteil-Einbrüche, Rauschen. CamillaDSP 4.1.3 hat dafür keinen Baustein: kein Waveshaper; der Limiter mit soft_clip formt nur symmetrisch (ungerade Obertöne) und erst nahe der Grenze, also pegelabhängig - bewusst nicht gebaut."
     },
     {
       "id": "vinyl",
-      "name": "Wie Vinyl",
-      "kurz": "Runder – in Richtung Plattenspieler.",
+      "name": "Vinyl",
+      "kurz": "Runder, wie vom Plattenspieler.",
       "filter": [
         {
           "typ": "lowshelf",
@@ -6433,16 +6064,13 @@ if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, l
           "q": 0.707
         }
       ],
-      "was_es_nicht_kann": "Nur eine grobe Tonbalance. Nicht nachbildbar: geringere Kanaltrennung, Rumpeln, Gleichlaufschwankungen und Knistern.",
-      "zusatz_optional": {
-        "typ": "uebersprechen",
-        "beschreibung": "L->R und R->L je -25 dB (breitbandig) via CamillaDSP-Mixer; macht Bild minimal schmaler, wie Tonabnehmer-Übersprechen."
-      },
+      "was_es_nicht_kann": "Bildet nach, was jede Platte mitbringt: Bass unter 150 Hz in der Mitte, Übersprechen wie ein guter Tonabnehmer (um 1 kHz −28 dB, oben bis −18 dB) und etwas sanftere Höhen. Nicht nachgebildet: Knistern, Rumpeln, Gleichlaufschwankungen und Verzerrung der Innenrillen. Nur in Stereo. Läuft eine echte Platte, ruht es.",
       "quellen": [
-        "https://vinylsound.ca/products/audio-technica-vm510cb-dual-moving-magnet-cartridge",
-        "https://audio-technica.com/en-eu/at-oc9ml-ii",
+        "https://www.ka-electronics.com/kaelectronics/Elliptic_EQ/Elliptic_EQ.htm",
+        "https://www.sageaudio.com/articles/what-is-mastering-for-vinyl",
+        "https://www.robkleiner.com/vinyl-mastering-services",
         "https://tnt-audio.com/sorgenti/load_the_magnets_e.html",
-        "https://store.acousticsounds.com/d/60043/DB_Systems-DB_Systems_DBP-6_Phono_Capacitor_Loading_Kit-Any"
+        "https://docs.audio-technica.com/eu/Cartridges_Glossary_EN.pdf"
       ],
       "grenzen_eingehalten": true,
       "pruefung": {
@@ -6450,7 +6078,7 @@ if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, l
         "summe_max_db": 1.0,
         "summe_ueber_300hz_min_db": -1.47,
         "summe_ueber_300hz_max_db": 0.11,
-        "vorschlag_vorverstaerkung_db": -1.0,
+        "vorschlag_vorverstaerkung_db": -0.6,
         "erwartete_bandabweichung_db": {
           "B1 Tiefbass": 1.0,
           "B2 Bass": 0.89,
@@ -6495,42 +6123,52 @@ if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, l
           "20000": -1.47
         }
       },
-      "herleitung": "Linear nur grob: MM-Systeme haben je nach Lastkapazität eine Senke um 5 kHz und eine Spitze/Abfall bei 10-20 kHz – das ist systemabhängig, kein fester Vinyl-Klang. Nicht nachbildbar per EQ: Kanaltrennung nur ~25-31 dB @ 1 kHz (CD >90 dB), Mono-Bass aus dem Mastering, Rumpeln, Gleichlaufschwankungen, Abtastverzerrung (Innenrillen), Knistern. Die geringere Kanaltrennung ließe sich per Mixer (kleiner Crossfeed L<->R ca. -25 dB) andeuten – Option, nicht Teil der Filterliste."
+      "herleitung": "Drei Dinge, die jede Platte mitbringt, unabhängig vom Tonabnehmer: (1) Übersprechen: gute Abtaster trennen um 1 kHz 25-31 dB, bei 10 kHz nur noch 17-21 dB (Herstellerangaben je 1/10 kHz: 26/17, 31/21). Nachgebildet als L+x·R mit x = -28 dB, über einen Höhen-Shelf 8 kHz +10 dB (Q 0,707): -28 dB bis 2 kHz, -26,8 @ 5 kHz, -20,6 @ 10 kHz, -18 @ 20 kHz; gleichphasig, macht das Bild minimal schmaler. (2) Bass in der Mitte: beim Schnitt legt der Elliptik-Filter den Gegentakt im Tiefbass auf mono (je nach Schneidstudio 100-300 Hz); hier derselbe Elliptik-Filter wie bei der Platte (150 Hz), aber flacher (Güte 0,5): die Seite um 150 Hz nur knapp +1 dB statt +1,8 dB. (3) Höhen: Mastering für Platte zähmt Zischlaute und Spitzen um 5-8 kHz und rollt ganz oben sanft ab (Tiefpass-Rest der Abtastung); dazu die Filter unten. Systemabhängig (MM-Lastkapazität) und darum nur grob. Nicht nachgebildet: Knistern, Rumpeln, Gleichlaufschwankungen, Abtastverzerrung der Innenrillen. Für digitale Quellen; mit Inhalt „Platte“ ruht das Profil (nie doppelt).",
+      "zusatz": {
+        "typ": "uebersprechen",
+        "pegel_db": -28.0,
+        "hoehen_hz": 8000,
+        "hoehen_db": 10.0,
+        "hoehen_q": 0.707,
+        "mono_bass_hz": 150.0
+      }
     },
     {
-      "id": "kef_hausklang",
-      "name": "Werksbalance",
-      "kurz": "Ein Teil der Werksbalance der Boxen zurück – Raumkorrektur nur im Bass.",
+      "id": "mehr_buehne",
+      "name": "Bühne",
+      "kurz": "Die Musik rückt etwas zurück, mehr Raum.",
       "filter": [
         {
           "typ": "peaking",
-          "freq": 2000,
-          "gain_db": -1.0,
+          "freq": 2500,
+          "gain_db": -1.5,
           "q": 0.7
         }
       ],
-      "was_es_nicht_kann": "Stellt eine leichte Senke um 2 kHz wieder her, falls die Raumkorrektur sie weggerechnet hätte. Nur sinnvoll, wenn die Korrektur oben eingreift.",
+      "was_es_nicht_kann": "Eine breite Senke um 2,5 kHz lässt Quellen etwas entfernter wirken. Über 200 Hz wird der Seitenanteil (Raum der Aufnahme) 1 dB lauter und die Mitte 0,5 dB leiser. In Mono hört man davon nur die Senke und die etwas leisere Mitte. Mehr Tiefe zwischen den Instrumenten bringt es nicht. Nur in Stereo.",
       "quellen": [
-        "https://audioxpress.com/article/fresh-from-the-bench-kef-ls50-meta-the-measurements",
-        "https://www.spinorama.org/speakers/KEF%20LS50%20Wireless%20II/ErinsAudioCorner/index_eac.html",
-        "https://erinsaudiocorner.com/loudspeakers/kef_wireless_ii/"
+        "https://labs.sonicfield.org/library/perceived-sound-quality-of-sound-reproducing-systems",
+        "https://aaltodoc.aalto.fi/items/d5e9595f-c665-47d1-ab5c-e6da255f2216",
+        "https://jcaa.caa-aca.ca/index.php/jcaa/article/download/845/562/952",
+        "https://www.masteringthemix.com/pages/how-to-get-the-right-stereo-width",
+        "https://www.soundonsound.com/techniques/processing-stereo-audio-files"
       ],
       "grenzen_eingehalten": true,
       "pruefung": {
         "verstoesse": [],
         "summe_max_db": -0.0,
-        "summe_ueber_300hz_min_db": -1.0,
-        "summe_ueber_300hz_max_db": -0.0,
-        "vorschlag_vorverstaerkung_db": -0.0,
+        "summe_ueber_300hz_min_db": -1.5,
+        "summe_ueber_300hz_max_db": -0.01,
+        "vorschlag_vorverstaerkung_db": 0.2,
         "erwartete_bandabweichung_db": {
           "B1 Tiefbass": -0.0,
-          "B2 Bass": -0.01,
+          "B2 Bass": -0.0,
           "B3 Grundton": -0.02,
-          "B4 Untere Mitten": -0.19,
-          "B5 Praesenz": -0.78,
-          "B6 Brillanz": -0.25,
-          "B7 Hoehen": -0.06,
-          "B8 Luft": -0.02
+          "B4 Untere Mitten": -0.18,
+          "B5 Praesenz": -1.12,
+          "B6 Brillanz": -0.56,
+          "B7 Hoehen": -0.15,
+          "B8 Luft": -0.05
         },
         "erwartet_terzen_db": {
           "20": -0.0,
@@ -6540,54 +6178,63 @@ if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, l
           "50": -0.0,
           "63": -0.0,
           "80": -0.0,
-          "100": -0.01,
+          "100": -0.0,
           "125": -0.01,
           "160": -0.01,
           "200": -0.02,
           "250": -0.03,
           "315": -0.05,
           "400": -0.08,
-          "500": -0.13,
-          "630": -0.2,
-          "800": -0.31,
+          "500": -0.12,
+          "630": -0.19,
+          "800": -0.3,
           "1000": -0.47,
-          "1250": -0.68,
-          "1600": -0.91,
-          "2000": -1.0,
-          "2500": -0.91,
-          "3150": -0.69,
-          "4000": -0.46,
-          "5000": -0.3,
-          "6300": -0.18,
-          "8000": -0.11,
-          "10000": -0.06,
-          "12500": -0.03,
-          "16000": -0.01,
-          "20000": -0.0
+          "1250": -0.71,
+          "1600": -1.05,
+          "2000": -1.36,
+          "2500": -1.5,
+          "3150": -1.35,
+          "4000": -1.0,
+          "5000": -0.68,
+          "6300": -0.43,
+          "8000": -0.25,
+          "10000": -0.14,
+          "12500": -0.07,
+          "16000": -0.03,
+          "20000": -0.01
         }
       },
-      "herleitung": "Die LS50 Meta zeigt achsial eine leichte Senke ~2 dB zwischen 1 und 3,5 kHz und fällt 1-2 dB von 3,5 bis 10 kHz (audioXpress, CEA-2034). Bei der Wireless II/LSX II ist die KEF-DSP-Abstimmung schon eingerechnet; dieses Profil stellt einen Teil der Werksbalance wieder her, falls die Raumkorrektur die Senke 'weggerechnet' hat. Nur sinnvoll, wenn die Korrektur oben eingreift."
+      "herleitung": "Die breite Präsenzsenke rückt die ganze Bühne etwas zurück ('Nähe' ist eine eigene Wahrnehmungsdimension, Gabrielsson); mehr Höhen wirken näher, darum keine Höhenanhebung. Dazu Mitte/Seite über 200 Hz (Hochpass 2. Ordnung auf dem Zusatzanteil): Seite +1 dB, Mitte -0,5 dB. Wirksam: Seite +0,5 dB @ 300 Hz, +0,9 dB @ 500 Hz, +1,0 dB ab 1 kHz. Behutsam: übliche Breiten-Änderungen beim Mastern liegen bei +0,5 bis +2 dB Seite; die Phantommitte bleibt, weil L und R gleich behandelt werden. Mono-Summe L+R = 2M: die Seite fällt weg wie immer, es bleibt nur M -0,5 dB und die Senke. Echte Breite/Tiefe kommt von L/R-Gleichheit, frühen seitlichen Reflexionen und der Aufnahme.",
+      "zusatz": {
+        "typ": "mitte_seite",
+        "ab_hz": 200.0,
+        "mitte_db": -0.5,
+        "seite_db": 1.0
+      }
     }
   ],
-  "seite": {
-    "auswahl": {
-      "stereo": [
-        "neutral",
-        "waermer_roehre",
-        "detail_focal",
-        "roehre_ls50meta_modell"
-      ],
-      "kino": [
-        "neutral",
-        "kino_dialog",
-        "entspannt",
-        "waermer_roehre"
-      ]
-    },
-    "ausgeblendet": [
-      "mehr_buehne"
-    ],
-    "hinweis": "LOGBUCH: keine 13 Profile auf einmal. Die Seite zeigt je Modus vier, die übrigen unter „Mehr Klangprofile“."
+  "alte_ids": {
+    "roehre_ls50meta_modell": "roehre",
+    "waermer_roehre": "neutral",
+    "detail_focal": "neutral",
+    "bw": "neutral",
+    "bbc_harbeth": "neutral",
+    "punchiger": "neutral",
+    "luftiger": "neutral",
+    "entspannt": "neutral",
+    "kino_dialog": "neutral",
+    "kef_hausklang": "neutral"
+  },
+  "entfernt": {
+    "waermer_roehre": "Wärmer",
+    "detail_focal": "Klarer",
+    "bw": "Brillanter",
+    "bbc_harbeth": "Sanfte Stimmen",
+    "punchiger": "Punchiger",
+    "luftiger": "Luftiger",
+    "entspannt": "Entspannt",
+    "kino_dialog": "Kino-Dialog",
+    "kef_hausklang": "Werksbalance"
   }
 }
 </script>
@@ -8915,7 +8562,7 @@ const sheet = (() => {
     rueck = { knoten, eltern: knoten.parentNode, danach: knoten.nextSibling };
     $("sheet-inhalt").appendChild(knoten); knoten.hidden = false;
     // Fenster von Hören (Klang, Raum, Album) kommen ab „breit“ als Seitenblatt von rechts (UMBAU_GERAETE.md §4)
-    $("sheet").classList.toggle("kb-seitenblatt", ["zh-schalter-block", "zh-raum-block", "zh-auf-block", "zh-lautstaerke-block"].includes(knoten.id));
+    $("sheet").classList.toggle("kb-seitenblatt", ["zh-schalter-block", "zh-feinheiten-block", "zh-hoert-block", "zh-raum-block", "zh-auf-block", "zh-lautstaerke-block"].includes(knoten.id));
     $("sheet").hidden = false; document.body.classList.add("sheet-offen"); $("sheet-inhalt").scrollTop = 0; tippSperre();
     hintergrundSperren($("sheet"));
     try { window.dispatchEvent(new CustomEvent("sheetauf", { detail: knoten })); } catch (e) {}
@@ -10649,7 +10296,9 @@ window.addEventListener("klangboxraum", (ev) => {
 })();
 // --- Ab dem Ergebnis: Klangprofil, Einstellungen anwenden, Nachmessung mit Rücknahme, „Ohne Box“ ---------
 // Rechnungen wie die Box (analyse.js, im Hauptfaden für die schnellen Dinge, sonst im Worker)
-const AJ = new Function($("analyse-src").textContent + "\nreturn { profilAnwenden, profilDbAn, einpassenKanal, zahlText, zahlKurz, reglerText, reglerWerte, reglerZusammensetzen, biquad, peqDbAuf, PROFIL_ARTEN, FS,\n"
+const AJ = new Function($("analyse-src").textContent + "\nreturn { profilAnwenden, profilDbAn, profilNeueId, einpassenKanal, profilKurveDb, zahlText, zahlKurz, reglerText, reglerWerte, reglerZusammensetzen, biquad, peqDbAuf, PROFIL_ARTEN, FS,\n"
+  // Bass je Ton (bass_je_ton.py)
+  + "  BJT, BJT_INSTRUMENTE, bjtMessung, bjtName, bjtHz, bassStellungen, bassSatz, bassSenkenSaetze,\n"
   // Ziel der Kurve auf Einmessen (Raster der Kurve): zielkurve wie die Bewertung, Stereo bzw. Kino (Kino-Linie)
   + "  zielAn: (fs, m) => { const z = zielkurve(HAUSKURVE[m] ?? HAUSKURVE.stereo); return fs.map((f) => { let b = 0; for (let i = 1; i < F.length; i++) if (Math.abs(F[i] - f) < Math.abs(F[b] - f)) b = i; return z[b]; }); } };")();
 // Vorher/Nachher anhören (weiter unten): früh angelegt, weil das Fenster unter Einmessen › Mehr sie braucht
@@ -10667,7 +10316,8 @@ const VG_CLIPS = [
 let PROFILE = null;
 try { PROFILE = JSON.parse($("klangprofile-daten").textContent); } catch (e) { PROFILE = null; }
 const NEUTRAL = { id: "neutral", name: "Neutral", kurz: "So, wie das Einmess-Ziel es vorsieht.", skala: 1, filter: [], vorverstaerkung_db: 0,
-  zusatz_optional: null, zusatz_angewendet: false, braucht_engine: false, hinweise: [] };
+  zusatz: null, zusatz_angewendet: false, hinweise: [] };
+const KL_NUR_STEREO = "Nur Stereo, wirkt im Kino nicht.";  // Vinyl und Bühne (Zusatz Übersprechen bzw. Mitte/Seite)
 const zt = (x, n = 1, v = false) => AJ.zahlText(x, n, v);
 const zk = (x, n = 1, v = false) => AJ.zahlKurz(x, n, v);  // ohne „,0“: „48 kHz“, „0 ms“
 // Messdaten der letzten Runde (nur im Speicher: Aufnahmen sind zu groß für den Browser-Speicher)
@@ -10676,10 +10326,11 @@ let messdaten = null;  // { id, dateien: [{name, daten}], bewegt, modus, raumM3 
 const aktuelleRunde = () => { const r = runden.find((x) => rundeProfil(x) === profilJetzt); return r && !r.e.fehler ? r : null; };
 const rundeSpeichern = () => schreiben("raumcheck-runden", JSON.stringify(rundenBehalten()));
 
-// Schritt 9: Profil wählen. Der Wächter rechnet Raum-EQ plus Profil zusammen (profilAnwenden).
+// Schritt 9: Profil wählen. Der Wächter rechnet Raum-EQ plus Profil zusammen (profilAnwenden), eingepasst wie auf Hören
+// (Prüfung 0.3.42: sonst blieb z. B. Röhre hier aus, die die Box auf Hören mit 80 % spielt; die Box passt beim Laden ein)
 function profilFuer(r, id) {
   if (!PROFILE || !id || id === "neutral") return { ...NEUTRAL };
-  try { return AJ.profilAnwenden(r.e.einstellungen, id, PROFILE); } catch (e) { return { ...NEUTRAL, hinweise: ["Profil ließ sich nicht rechnen, es bleibt neutral."] }; }
+  try { return AJ.profilAnwenden(r.e.einstellungen, id, PROFILE, { raumEinpassen: true }); } catch (e) { return { ...NEUTRAL, hinweise: ["Profil ließ sich nicht rechnen, es bleibt neutral."] }; }
 }
 function kurveVollSvg(f, linien) {
   const W = 320, H = 176, L = 30, R = 8, T = 8, B = 32, lo = Math.log(20), hi = Math.log(20000);
@@ -10704,30 +10355,37 @@ function profilZeigen() {
   const r = aktuelleRunde();
   if (!r) { zuEinmessen(); return; }
   if (!PROFILE) { $("p-liste").innerHTML = `<p class="warn">Die Klangprofile fehlen in dieser Seite. Es bleibt neutral.</p>`; return; }
+  profilMigrieren(r);
   const gewaehlt = r.profil_id || "neutral", p = profilFuer(r, gewaehlt);
   r.profil = p; rundeSpeichern();
   profilKurve(r, p);
-  const hw = sichtbareHinweise(p);
+  const hw = (r.klang_entfernt ? [`„${r.klang_entfernt}“ gibt es nicht mehr. Es bleibt Neutral.`] : []).concat(p.hinweise || []);
   $("p-waechter").innerHTML = hw.length ? `<div class="kasten">${hw.map((h) => `<p class="${/Wächter/.test(h) ? "warn" : "klein"}" style="font-size:14px">${esc(h)}</p>`).join("")}${
     p.skala < 1 && p.skala > 0 ? `<span class="klein">Ich wende es mit ${zt(p.skala * 100, 0)} % an. So bleibt alles in den Grenzen, die nie verschlimmbessern.</span>` : ""}</div>` : "";
-  // Klein und smart (LOGBUCH): je Modus vier Profile (daten/klangprofile.json „seite“), die übrigen zugeklappt
-  const s = PROFILE.seite || {}, aus = new Set(s.ausgeblendet || []), wahl = (s.auswahl || {})[r.modus] || PROFILE.profile.slice(0, 4).map((q) => q.id);
-  const karte = (q) => { const an = q.id === gewaehlt;
-    return `<div class="profil" data-an="${an}"><button type="button" class="waehlen" role="radio" aria-checked="${an}" data-profil="${esc(q.id)}">
-      <span class="titel"><b>${esc(q.name)}</b>${an ? `<span class="marke">gewählt</span>` : ""}</span><span class="klein">${esc(q.kurz)}</span></button>
+  // Dieselben vier wie auf Hören (Neutral, Röhre, Vinyl, Bühne); Vinyl und Bühne nur Stereo, im Kino blass mit Grund
+  const kino = r.modus === "kino";
+  const karte = (q) => { const an = q.id === gewaehlt, aus = kino && !!q.zusatz;
+    return `<div class="profil" data-an="${an}"><button type="button" class="waehlen" role="radio" aria-checked="${an}" data-profil="${esc(q.id)}"${aus ? " disabled" : ""}>
+      <span class="titel"><b>${esc(q.name)}</b>${an ? `<span class="marke">gewählt</span>` : ""}</span><span class="klein">${aus ? KL_NUR_STEREO : esc(q.kurz)}</span></button>
       <details><summary>Was es nicht kann</summary><p class="klein">${esc(q.was_es_nicht_kann)}</p></details></div>`; };
-  const oben = wahl.map((id) => PROFILE.profile.find((q) => q.id === id)).filter(Boolean);
-  const rest = PROFILE.profile.filter((q) => !wahl.includes(q.id) && (!aus.has(q.id) || q.id === gewaehlt));
-  const offen = rest.some((q) => q.id === gewaehlt);
-  $("p-liste").innerHTML = oben.map(karte).join("") + (rest.length ? `<details class="mehr" id="p-mehr"${offen ? " open" : ""}><summary>Mehr Klangprofile (${rest.length})</summary><div class="profile">${rest.map(karte).join("")}</div></details>` : "");
+  $("p-liste").innerHTML = PROFILE.profile.map(karte).join("");
 }
-// Entwicklertext („kann die Engine noch nicht“) bleibt in den Daten, nicht im Ablauf (U6/U10)
-const sichtbareHinweise = (p) => (p.hinweise || []).filter((h) => !/Engine/.test(h));
+// Gespeicherte Runde mit einem der neun entfernten Profile (bis 0.3.41): Neutral, mit Hinweis; Röhre unter neuer id
+function profilMigrieren(r) {
+  if (!PROFILE || !r || !r.profil_id) return;
+  const neu = AJ.profilNeueId(r.profil_id, PROFILE);
+  if (neu === r.profil_id) return;
+  const weg = (PROFILE.entfernt || {})[r.profil_id];
+  if (weg) r.klang_entfernt = weg;
+  r.profil_id = neu; r.profil = profilFuer(r, neu); rundeSpeichern();
+}
+// beim Laden der Seite: gespeicherte Runden mit alter Profil-id umschreiben (entfernt: Neutral mit Hinweis in Schritt 9)
+try { runden.forEach(profilMigrieren); } catch (e) { /* ohne Profile in der Seite: nichts umzuschreiben */ }
 $("p-liste").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-profil]"), r = aktuelleRunde();
   if (!b || !r) return;
   if (r.profil_id !== b.dataset.profil && r.box_geladen === r.id) r.box_geladen = null;  // anderes Profil: neu senden
-  r.profil_id = b.dataset.profil; r.urteil = null; profilZeigen();
+  r.profil_id = b.dataset.profil; r.klang_entfernt = null; r.urteil = null; profilZeigen();
 });
 $("p-weiter").addEventListener("click", () => { anwendenArt = "box"; zeigeSchritt(10); });
 
@@ -10738,15 +10396,20 @@ const imBereich = (r, q) => !(r && r.bereich) || q.freq <= r.bereich;
 // Leitplanke „Summe“ (wie die Box beim Laden, feinabstimmung.einpassen): fällt im Korrekturbereich eine Absenkung neben einer
 // Anhebung weg, heben die übrigen zusammen evtl. über +3 dB; dann die Anhebungen gleichmäßig senken, statt dass die Box die
 // ganze Einmessung ablehnt (Besitzer 16.11.2026). Nicht der Sub (+6 dB, kaum Filter über 90 Hz).
-const bereichKanal = (r, ch, eq) => (r && r.bereich && ch !== "SUB" ? AJ.einpassenKanal(eq) : { eq, skala: 1 });
+// Mit Klangprofil (Prüfung 0.3.42) wie die Box beim Laden (feinabstimmung.einpassen): FL/FR gegen die Profilkurve eingepasst,
+// mit Korrekturbereich alle außer dem Sub; so lädt die Box ein in Schritt 9 eingepasstes Profil (z. B. Röhre 80 %)
+const bereichKanal = (r, ch, eq, profDb = null) => ((r && r.bereich && ch !== "SUB") || (profDb && (ch === "FL" || ch === "FR"))
+  ? AJ.einpassenKanal(eq, profDb) : { eq, skala: 1 });
 function bereichLeitplanke(r) {  // Hinweise wie die Box: „FR: Anhebungen auf 96 % (Leitplanke +3 dB zusammen)“
   const e = (r && r.e && r.e.einstellungen) || {};
   return Object.entries(e).filter(([ch, c]) => c && Array.isArray(c.eq)).map(([ch, c]) => [ch, bereichKanal(r, ch, c.eq.filter((q) => imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q }))).skala])
     .filter(([, k]) => k < 1).map(([ch, k]) => `${ch}: Anhebungen auf ${Math.round(k * 100)} % (Leitplanke +3 dB zusammen)`);
 }
 function exportObjekt(r, stand, einst, profil, geraet) {
+  const profDb = AJ.profilKurveDb(profil);
   const kanal = (c, ch) => { const eq = c.eq.filter((q) => einst !== r.e.einstellungen || imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q }));
-    return { gain_db: c.gain_db, delay_ms: c.delay_ms, eq: einst === r.e.einstellungen ? bereichKanal(r, ch, eq).eq : eq }; };
+    // andere Einstellungen (Kino-Linie, voriger Stand): ohne „bereich“ im Export passt die Box nur FL/FR gegen das Profil ein
+    return { gain_db: c.gain_db, delay_ms: c.delay_ms, eq: einst === r.e.einstellungen || profDb ? bereichKanal(einst === r.e.einstellungen ? r : null, ch, eq, profDb).eq : eq }; };
   const kanalVoll = (c) => ({ gain_db: c.gain_db, delay_ms: c.delay_ms, eq: c.eq.filter((q) => imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q })) });
   return { art: "klangbox-einstellungen", version: 1, stand, status: r.status || "vorhergesagt", modus: r.modus, anlage: r.anlage, runde: r.id, erstellt: new Date().toISOString(),
     einstellungen: { FL: kanal(einst.FL, "FL"), FR: kanal(einst.FR, "FR"), ...(einst.C ? { C: kanal(einst.C, "C") } : {}), ...(einst.SL && einst.SR ? { SL: kanal(einst.SL, "SL"), SR: kanal(einst.SR, "SR") } : {}),
@@ -10796,7 +10459,7 @@ function zusammenfassung(r) {
   const hinten = (ch, n) => e[ch] ? `<div class="zeile"><i class="ampel gut"></i><span><b>${n}</b>: Pegel ${zt(e[ch].gain_db, 1)} dB, Laufzeit ${zk(e[ch].delay_ms)} ms (vorne führt, hinten bis 35 ms später)</span></div>` : "";
   return `<span class="marke">Raumanpassung</span><div class="zeilen">${kanal("FL", "Links")}${kanal("FR", "Rechts")}${hinten("SL", "Hinten links")}${hinten("SR", "Hinten rechts")}</div>
     <span class="marke">Klang</span><div class="zeile"><i class="ampel ${p.skala < 1 ? "hinweis" : "gut"}"></i><span><b>${esc(p.name)}</b>${p.filter.length ? ` · ${p.filter.length} Filter, Vorverstärkung ${zt(p.vorverstaerkung_db, 1)} dB${p.skala < 1 ? `, auf ${zt(p.skala * 100, 0)} % abgeschwächt` : ""}` : ""}</span></div>
-    ${sichtbareHinweise(p).map((h) => `<p class="klein">${esc(h)}</p>`).join("")}`;
+    ${(p.hinweise || []).map((h) => `<p class="klein">${esc(h)}</p>`).join("")}`;
 }
 function anwendenZeigen() {
   const r = aktuelleRunde();
@@ -11011,6 +10674,9 @@ async function avFertig() {
   delete r.vergleich_offen; rundeSpeichern(); anwendenZeigen();
 }
 let abMusik = false;
+// Blindvergleich „Bass: ganz ↔ musikalisch“ (Bass je Ton): derselbe Weg, X und Y schalten den Hör-Schalter Bass statt
+// „ohne/mit“; mit der Musik, die gerade läuft. vorher: die Stellung davor, beim Schließen wieder gesetzt
+let abBass = null;
 $("a-phase").addEventListener("click", async (ev) => {
   const r = aktuelleRunde(); if (!r) return;
   const s = ev.target.closest("[data-av-seite]"); if (s) { avSetzen(+s.dataset.avSeite); return; }
@@ -13129,13 +12795,14 @@ async function rundenVonDerBox() {
 const MA_HILFE = "Musik so laut wie Filme beim selben Regler. Lauter? Einfach hochdrehen.";
 // Führt der Verstärker (Vorstufe, Box fest), gilt immer der volle Versatz (box._ma_kurve; Prüfer 15.11.2026, gewollt)
 const MA_HILFE_VORSTUFE = "Regelt der Verstärker die Lautstärke, ist Musik immer gleich viel leiser, lauter geht es am Verstärker. Aus: Musik wieder unverändert (bitgenau).";
+// Standard „Bass: ganz“; „musikalisch“ zum Testen (Blindtest). Als Standard: hier bass: "musikalisch" und feinabstimmung.WERTE
 const HS_STANDARD = { stimme: "gemessen", bereich: null, bass: "voll", mitte: "ausgerichtet", anpassung: "geladen", ziel: "stereo" };
-// Im Fenster Klang: Stimme und Bass (der Bereich steht auf Hören). Mitte, Rechnung und Kino-Ziel sind Messvarianten zum
-// Testen und stehen im Testlabor (Entwurf 15.11.2026)
+// Im Fenster Klang › Feinheiten: Stimme und Bass (der Bereich steht auf Hören). Mitte, Rechnung und Kino-Ziel sind
+// Messvarianten zum Testen und stehen im Testlabor (Entwurf 15.11.2026)
 const HS_GRUPPEN = [
   ["bereich", "Bereich", [[90, "90 Hz"], [150, "150 Hz"], [null, "Voll"]], "Bereich: bis zu welcher Tonhöhe die Einmessung den Raum ausgleicht. 90 und 150 Hz lassen Stimmen ganz unberührt, Voll gleicht bis 300 Hz aus."],
-  ["stimme", "Stimme", [["gemessen", "Gemessen"], ["je_seite", "Je Seite"], ["teil", "Gemeinsam"], ["symmetrisch", "Beide gleich"]], "Stimme: wie die Box Stimmen und Instrumente (über 120 Hz) ausgleicht. Gemessen ist der Vorschlag der Messung, Beide gleich gibt beiden Boxen dieselbe Kurve."],
-  ["bass", "Bass", [["voll", "Ganz"], ["maessig", "Gemäßigt"]], "Bass: Ganz senkt Dröhnen so weit wie nötig, Gemäßigt höchstens um 6 dB (oft satter)."]];
+  ["stimme", "Stimme", [["gemessen", "Gemessen"], ["je_seite", "Je Seite"], ["teil", "Gemeinsam"], ["symmetrisch", "Beide gleich"]], "Wie die Box Stimmen und Instrumente über 120 Hz ausgleicht. Beide gleich gibt beiden Boxen dieselbe Kurve."],
+  ["bass", "Bass", [["voll", "Ganz"], ["musikalisch", "Musikalisch"], ["maessig", "Gemäßigt"]], "Ganz senkt Dröhnen so weit wie nötig. Musikalisch: Dröhnen weg, aber kein Ton verschwindet. Gemäßigt senkt höchstens um 6 dB (oft satter)."]];
 const hsStand = () => ({ ...HS_STANDARD, ...((zh.st && zh.st.hoerschalter) || {}) });
 // Testlabor › Messvarianten
 const HS_MITTE = ["mitte", "Mitte", [["ausgerichtet", "Ausgerichtet"], ["raum", "Wie der Raum"]], "Ausgerichtet steht die Stimme scharf in der Mitte. Wie der Raum klingt breiter und weicher."];
@@ -13157,22 +12824,88 @@ function variantenZeigen() {
     : md.rechnet ? `<span class="laeuft">Die Box rechnet neu … (1 bis 5 Minuten, die Musik läuft weiter)</span>`
     : `${md.neu && md.neu.fehler ? `<span class="warn klein">Neu rechnen: ${esc(md.neu.fehler)}</span>` : ""}<button type="button" class="zweit" id="zh-neu-rechnen">${neuDa ? "Noch einmal neu rechnen" : "Aus den Messdaten neu rechnen"}</button>`);
 }
+// Fenster Klang (Mockup C 0.3.42): Für jetzt, Klangprofil, Einmessung › Feinheiten, Fuß „Alles wie gemessen“
+const hsName = (s, [k, , werte]) => (werte.find(([w]) => w === s[k]) || [])[1] || "";
+const feinKurz = (s) => `· Stimme ${hsName(s, HS_GRUPPEN[1]).toLowerCase()} · Bass ${hsName(s, HS_GRUPPEN[2]).toLowerCase()}`;
 function hsZeigen() {
-  const s = hsStand(), hsDa = !!(zh.st && zh.st.hoerschalter);
-  const gruppen = hsDa ? HS_GRUPPEN : [];
-  // kurz: Bezeichnung links, Segment rechts; die Erklärungen stehen gesammelt unter „Was die Schalter tun“ (Fuß bleibt sichtbar)
-  $("zh-schalter-gruppen").innerHTML = gruppen.filter(([k]) => k !== "bereich").map((g) => `<div class="kb-gruppe zeile"><span class="kb-label">${g[1]}</span>${hsSegment(s, g)}</div>`).join("");
-  $("zh-schalter-hilfe").innerHTML = gruppen.map(([, , , hilfe]) => `<p class="klein">${hilfe}</p>`).join("") + `<p class="klein">Nachtmodus: leise Stellen lauter, laute leiser.</p>`
-    + (zh.st && zh.st.modus === "kino" ? `<p class="klein">Couch: Stimme vorne, große Szenen nicht mehr so viel lauter. Gleich laut wie ohne. Nur im Kino.</p>` : "")
-    + (zh.st && zh.st.vorne_hinten && (zh.st.vorne_hinten.moeglich || zh.st.vorne_hinten.an) ? `<p class="klein">Vorne ↔ Hinten: Sitzt du andersherum (Bild an der Rückwand), spielen die Rear-Boxen vorne und die Fronts hinten. Nur mit Rear-Boxen.</p>` : "")
-    + `<p class="klein">Musik ↔ Film: ${MA_HILFE} ${MA_HILFE_VORSTUFE}</p>`
-    + `<p class="klein">Hintergrund: Musik nebenbei, etwa am Esstisch. Leiser, Gespräche fallen leichter. Bass bleibt, nur das Dröhnen geht. Nur bei Musik.</p>`;
-  $("zh-schalter-zurueck").hidden = !hsDa;
-  $("zh-schalter-zurueck").disabled = HS_ALLE.every(([k]) => s[k] === HS_STANDARD[k]);
+  const s = hsStand(), hsDa = !!(zh.st && zh.st.hoerschalter), kp = klangStand();
+  // Feinheiten: Stimme und Bass, je eine Zeile Erklärung (keine Sammelklappe mehr)
+  $("zh-schalter-gruppen").innerHTML = (hsDa ? HS_GRUPPEN.filter(([k]) => k !== "bereich") : [])
+    .map((g) => `<div class="kb-gruppe"><span class="kb-label">${g[1]}</span>${hsSegment(s, g)}<p class="klein">${g[3]}</p></div>`).join("");
+  $("zh-fein-abschnitt").hidden = !hsDa;
+  $("zh-feinheiten-wert").textContent = hsDa ? feinKurz(s) : "";
+  $("zh-schalter-zurueck").hidden = !hsDa && !kp;
+  $("zh-schalter-zurueck").disabled = HS_ALLE.every(([k]) => s[k] === HS_STANDARD[k]) && (!kp || kp.id === "neutral");
+  const st = zh.st || {}, auf = st.aufstellung ? (st.aufstellung.liste || []).find((x) => x.id === st.aufstellung.aktiv) : null;
+  $("zh-klang-ort").textContent = `${st.modus === "kino" ? "Kino" : "Stereo"} · ${auf ? auf.name : MA.name || "Meine Anlage"}`;
   inhaltZeigen();
+  profilKachelnZeigen();
   klangZeileZeigen();
   variantenZeigen();
 }
+// Klangprofil auf Hören (status.klangprofil, POST /api/klangprofil {id}): Neutral, Röhre, Vinyl, Bühne als Kacheln.
+// Neutral trägt immer den orangen Ring (gilt als „Empfohlen“) und „Eingemessen“; im Kino sind Vinyl und Bühne blass.
+// Mit Profil ist der Weg bewusst nicht mehr bitgenau (Hinweis unter Testlabor › Stereo bitgenau).
+const klangStand = () => (boxBereit() && zh.st && zh.st.klangprofil) || null;
+function profilKachelnZeigen() {
+  const kp = klangStand(), kino = !!(zh.st && zh.st.modus === "kino"), da = !!kp && !!PROFILE;
+  $("zh-profil-abschnitt").hidden = !da; if (!da) return;
+  const nur = (q) => !!q.zusatz;  // Vinyl, Bühne: Übersprechen bzw. Mitte/Seite, nur Stereo (klangprofile.nur_stereo)
+  listeMitFokus($("zh-profil-kacheln"), PROFILE.profile.map((q) => { const an = q.id === kp.id, aus = kino && nur(q);
+    return `<button type="button" class="kl-kachel${q.id === "neutral" ? " empfohlen" : ""}" role="radio" aria-checked="${an}" data-zh-klangprofil="${esc(q.id)}"${aus ? " disabled" : ""}>
+      <span class="n">${esc(q.name)}</span><span class="d">${q.id === "neutral" ? "Eingemessen" : aus ? KL_NUR_STEREO : esc(q.kurz)}</span></button>`; }).join(""));
+  // eingepasst (0.3.42: schwächer, Anhebungen der Raumanpassung gesenkt, leiser als pegelgleich): ehrlich sagen, nie still
+  const ein = kp.eingepasst ? kp.eingepasst.replace(/^Wächter: /, "") : "";
+  const text = kp.entfernt ? `„${kp.entfernt}“ gibt es nicht mehr. Die Box spielt Neutral.` : kp.id !== "neutral" && !kp.wirkt && kp.grund ? kp.grund
+    : kp.wirkt && ein ? `„${kp.name}“ wirkt eingepasst: ${ein}`
+    : kp.wirkt && kp.skala < 1 ? `„${kp.name}“ wirkt hier schwächer (${zt(kp.skala * 100, 0)} %): Deine Raumanpassung hebt dort schon an.` : "";
+  // nach dem Update einmal leiser gestellt (die Profile spielen jetzt pegelgleich): sagen, dass man hochstellen kann
+  const ges = kp.gesenkt_db > 0 ? `Die Profile spielen jetzt gleich laut wie Neutral. Damit es nach dem Update nicht lauter wird, hat die Box die Lautstärke einmal um ${zt(kp.gesenkt_db, 1)} dB gesenkt. Du kannst sie wieder hochstellen.` : "";
+  const alles = [text, ges].filter(Boolean).join(" ");
+  $("zh-profil-text").textContent = alles; $("zh-profil-text").hidden = !alles;
+}
+// „Was hört man?“ (Klang › Einmessung): Hörschwellen und was davon bei dir wirkt, aus der Einmessung dieser App (Runde, die
+// spielt), den Filtern der Klangprofile und Loudness bei der jetzigen Lautstärke. Breit: ab ~0,5–1 dB, schmale Spitze
+// (Absenken) ab ~2–3 dB, schmale Senke (Auffüllen) ab ~4–6 dB
+const HOERT = { breit: [[2, "deutlich"], [1, "hörbar"], [0.5, "gerade hörbar"]], spitze: [[6, "deutlich"], [2.5, "hörbar"], [2, "gerade hörbar"]],
+  senke: [[6, "deutlich"], [4, "hörbar"]] };
+const hoertWertung = (art, db) => (HOERT[art].find(([ab]) => Math.abs(db) >= ab) || [0, "kaum hörbar"])[1];
+function hoertZeigen() {
+  const zeilen = [], zeile = (a, b) => zeilen.push(`<li><span>${esc(a)}</span><b>${esc(b)}</b></li>`);
+  const r = aktuelleRunde(), eq = r && r.e && r.e.einstellungen ? ["FL", "FR"].flatMap((c) => (r.e.einstellungen[c] || {}).eq || []) : [];
+  const schnitt = eq.filter((q) => q.gain < 0).sort((a, b) => a.gain - b.gain)[0], hebt = eq.filter((q) => q.gain > 0).sort((a, b) => b.gain - a.gain)[0];
+  if (schnitt) zeile(`Einmessung: Dröhnen bei ${zk(schnitt.freq, 0)} Hz`, `${zt(schnitt.gain, 1)} dB · ${hoertWertung(schnitt.q >= 1.5 ? "spitze" : "breit", schnitt.gain)}`);
+  if (hebt) zeile(`Einmessung: ${hebt.q >= 1.5 ? "Senke" : "Bass"} bei ${zk(hebt.freq, 0)} Hz`, `${zt(hebt.gain, 1, true)} dB · ${hoertWertung(hebt.q >= 1.5 ? "senke" : "breit", hebt.gain)}`);
+  if (!eq.length) zeile("Einmessung", "noch keine in dieser App");
+  const fs = Array.from({ length: 120 }, (_, i) => 20 * Math.pow(1000, i / 119)), kp = klangStand();
+  for (const q of (PROFILE && PROFILE.profile) || []) {
+    if (q.id === "neutral") continue;
+    const d = AJ.profilDbAn(q.filter || [], fs), m = Math.max(...d.map(Math.abs)), s = q.zusatz && q.zusatz.typ === "mitte_seite" ? Math.abs(q.zusatz.seite_db) : 0;
+    const gross = Math.max(m, s), gew = kp && kp.id === q.id ? " (gewählt)" : "";
+    if (q.zusatz && q.zusatz.typ === "uebersprechen") zeile(`${q.name}${gew}`, `Übersprechen ${zk(q.zusatz.pegel_db, 0)} dB, Höhen ${zt(-m, 1)} dB · leise, eher Gefühl`);
+    else zeile(`${q.name}${gew}`, `±${zk(gross, 1)} dB · ${hoertWertung("breit", gross)}`);
+  }
+  const lo = zh.st && zh.st.auto && zh.st.auto.loudness, rg = zh.st && zh.st.lautstaerke && zh.st.lautstaerke.regler;
+  if (lo && lo.verfuegbar && rg && rg.stufe != null) {
+    const bass = lo.wirkt ? +lo.bass_db : LAUT.loudnessBei ? LAUT.loudnessBei(+rg.stufe) : 0;
+    zeile(`Loudness bei ${zk(+rg.stufe, 0)}${lo.an ? "" : " (aus)"}`, bass > 0 ? `${zt(bass, 1, true)} dB Bass · ${hoertWertung("breit", bass)}` : "nichts, laut genug");
+  }
+  listeMitFokus($("zh-hoert-bei-dir"), zeilen.join(""));
+}
+window.addEventListener("sheetauf", (ev) => { if (ev.detail && ev.detail.id === "zh-hoert-block") hoertZeigen(); });
+async function klangprofilSetzen(id) {
+  const st = (t) => { $("zh-schalter-status").innerHTML = t; };
+  if (!nativ || !boxBereit()) { st(`<span class="warn">Die Klång-Box ist nicht verbunden.</span>`); return false; }
+  const a = await nativ.box("klangprofil", { id }, { zeitMs: 8000 });
+  if (!a.ok) { st(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return false; }
+  zh.st = { ...(zh.st || {}), klangprofil: a.klangprofil }; st("");
+  profilKachelnZeigen(); klangZeileZeigen(); bitgenauZeigen();
+  return true;
+}
+$("zh-profil-kacheln").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-zh-klangprofil]"); if (!b || b.disabled || b.getAttribute("aria-checked") === "true") return;
+  klangprofilSetzen(b.dataset.zhKlangprofil);
+});
 // Im Fenster Klang: Räumlichkeit (nur Kino) und Nachtmodus (POST /api/inhalt); früher Kacheln im Box-Reiter
 const RAEUMLICH = ["aus", "wenig", "mittel", "viel"];
 const COUCH = ["Aus", "Leicht", "Mittel", "Stark"];
@@ -13199,48 +12932,79 @@ function vorneHintenHtml(st, boxDa) {
 function hintergrundHtml(st, boxDa) {
   const an = !!(st.inhalt || {}).hintergrund, hg = st.hintergrund || {}, kino = st.modus === "kino";
   if (!boxDa || (kino && !an)) return "";
-  const text = kino || (an && hg.grund) ? hg.grund || "Wirkt nur bei Musik." : "Leiser, Gespräche fallen leichter. Bass bleibt, nur das Dröhnen geht.";
-  return `<div class="kb-gruppe" id="zh-hg"><span class="kb-label" id="zh-hg-label">Hintergrund</span>
-    <div class="seg" role="group" aria-labelledby="zh-hg-label"><button type="button" data-zh-inhalt="hintergrund" data-wert="0" aria-pressed="${!an}">Aus</button><button type="button" data-zh-inhalt="hintergrund" data-wert="1" aria-pressed="${an}">An</button></div>
-    <p class="klein" id="zh-hg-text">${esc(text)}</p></div>`;
+  const text = kino || (an && hg.grund) ? hg.grund || "Wirkt nur bei Musik." : "Nebenbei, Gespräche fallen leichter.";
+  return klReihe("zh-hg", "Hintergrund", text, klKnopf("hintergrund", 0, !an, "Aus") + klKnopf("hintergrund", 1, an, "An"));
 }
 // „Musik ↔ Film“ (status.musik_ausgleich, POST /api/musik_ausgleich {an}; Besitzer 14.11.2026, ab Werk an): Musik der
 // eigenen Streamer so laut wie Filme beim selben Regler (Versatz am Hauptregler, der Regler bleibt stehen).
+// Steht unter Box › Lautstärke (0.3.42): einmal einstellen, kein Hörgeschmack
 function musikAusgleichHtml(st, boxDa) {
   const ma = st.musik_ausgleich; if (!boxDa || !ma || ma.grund === "satellit") return "";  // Satellit: regelt die Hauptbox
   const db = Math.round(Math.abs(+ma.db || 0));
-  const text = ma.wirkt && db ? `${MA_HILFE} Gerade ${db} dB leiser.` : MA_HILFE;
-  return `<div class="kb-gruppe" id="zh-ma"><span class="kb-label" id="zh-ma-label">Musik ↔ Film</span>
+  const fuehrt = !!(st.lautstaerke && st.lautstaerke.fuehren);
+  const text = `${ma.wirkt && db ? `${MA_HILFE} Gerade ${db} dB leiser.` : MA_HILFE}${fuehrt ? "" : ` ${MA_HILFE_VORSTUFE}`}`;
+  return `<div class="kasten" id="zh-ma"><h3 id="zh-ma-label">Musik ↔ Film</h3>
     <div class="seg" role="group" aria-labelledby="zh-ma-label"><button type="button" data-zh-ma="0" aria-pressed="${!ma.an}">Aus</button><button type="button" data-zh-ma="1" aria-pressed="${!!ma.an}">Gleich laut</button></div>
-    <p class="klein" id="zh-ma-text">${esc(text)}</p></div>`;
+    <span class="klein" id="zh-ma-text">${esc(text)}</span></div>`;
 }
+function musikAusgleichZeigen() { listeMitFokus($("zh-ma-platz"), musikAusgleichHtml(zh.st || {}, boxBereit())); }
+// Eine Zeile „Für jetzt“: Titel und eine Zeile Erklärung, Segment rechts (vier Stufen: darunter in ganzer Breite)
+const klReihe = (id, titel, text, seg, breit) => `<div class="kl-reihe" id="${id}"><span><span class="n" id="${id}-label">${titel}</span><span class="klein" id="${id}-text">${esc(text)}</span></span>${breit ? "<span></span>" : ""}
+  <div class="seg${breit ? " breit" : ""}" role="group" aria-labelledby="${id}-label">${seg}</div></div>`;
+const klKnopf = (art, w, an, t) => `<button type="button" data-zh-inhalt="${art}" data-wert="${w}" aria-pressed="${an}">${t}</button>`;
+const klAuto = (name, an) => `<button type="button" data-zh-auto="${name}" aria-pressed="${an}">Auto</button>`;
+// „Für jetzt“ (Besitzer 0.3.42): Stereo Nacht und Hintergrund; Kino Couch und Räumlich. Nacht wirkt nur in Stereo, im Kino
+// sorgt Couch für die Dynamik (box._nacht_wirkt)
 function inhaltZeigen() {
   const st = zh.st || {}, inh = st.inhalt || {}, boxDa = boxBereit(), kino = st.modus === "kino";
-  const raum = boxDa && kino ? `<div class="kb-gruppe zeile" id="zh-raum"><span class="kb-label">Räumlich</span>
-    <div class="seg" role="group" aria-label="Räumlichkeit">${RAEUMLICH.map((t, i) => `<button type="button" data-zh-inhalt="raeumlichkeit" data-wert="${i}" aria-pressed="${(inh.raeumlichkeit ?? 1) === i}">${t[0].toUpperCase() + t.slice(1)}</button>`).join("")}</div></div>` : "";
-  const nacht = boxDa ? `<div class="kb-gruppe zeile" id="zh-nacht"><span class="kb-label">Nacht</span>
-    <div class="seg" role="group" aria-label="Nachtmodus"><button type="button" data-zh-inhalt="nachtmodus" data-wert="0" aria-pressed="${!inh.nachtmodus}">Aus</button><button type="button" data-zh-inhalt="nachtmodus" data-wert="1" aria-pressed="${!!inh.nachtmodus}">An</button></div></div>` : "";
-  // „Couch“ (status.couch, POST /api/inhalt {couch: 0..3}; settings.COUCH_STUFEN): Stimme vorne, große Szenen enger. Nur im Kino
-  const co = inh.couch || 0;
-  const couch = boxDa && kino ? `<div class="kb-gruppe zeile" id="zh-couch"><span class="kb-label">Couch</span>
-    <div class="seg" role="group" aria-label="Couch">${COUCH.map((t, i) => `<button type="button" data-zh-inhalt="couch" data-wert="${i}" aria-pressed="${co === i}">${t}</button>`).join("")}</div></div>` : "";
-  $("zh-inhalt-gruppen").innerHTML = raum + nacht + couch + musikAusgleichHtml(st, boxDa) + hintergrundHtml(st, boxDa) + vorneHintenHtml(st, boxDa);
+  $("zh-jetzt-abschnitt").hidden = !boxDa;
+  const nacht = boxDa && !kino ? klReihe("zh-nacht", "Nacht", "Leise Stellen lauter, laute leiser.", klKnopf("nachtmodus", 0, !inh.nachtmodus, "Aus") + klKnopf("nachtmodus", 1, !!inh.nachtmodus, "An")) : "";
+  // „Couch“ (status.couch, POST /api/inhalt {couch: 0..3}; settings.COUCH_STUFEN): Stimme vorne, große Szenen enger. Nur im Kino.
+  // Stellung „Auto“ (status.auto.couch, POST /api/auto {couch}): nur, wenn die Box die Lautstärke regelt (verfuegbar), sonst
+  // gar nicht da; die Stufe folgt dann der Lautstärke, was gerade wirkt, steht leise in der Erklärzeile
+  const au = st.auto || {}, coAuto = !!(au.couch && au.couch.verfuegbar), coAn = coAuto && !!au.couch.an;
+  const co = inh.couch || 0, coWirkt = (st.couch && st.couch.wirkt_name) || (au.couch && au.couch.name) || "aus";
+  const couch = boxDa && kino ? klReihe("zh-couch", "Couch", coAn ? `Auto · gerade ${coWirkt}` : "Stimme vorn, große Szenen leiser.",
+    COUCH.map((t, i) => klKnopf("couch", i, !coAn && co === i, t)).join("") + (coAuto ? klAuto("couch", coAn) : ""), true) : "";
+  // Loudness (Stereo, nur wenn die Box die Lautstärke regelt) und Stimme (Stereo): Aus | Auto (POST /api/auto)
+  const lo = boxDa && !kino && au.loudness && au.loudness.verfuegbar ? klReihe("zh-loudness", "Loudness", "Leise etwas mehr Bass, wie das Ohr es braucht.",
+    klKnopf("auto_loudness", 0, !au.loudness.an, "Aus") + klAuto("loudness", !!au.loudness.an)) : "";
+  const stimme = boxDa && !kino && au.stimme ? klReihe("zh-stimme", "Stimme", "Bei Hörspiel und Podcast die Stimme etwas nach vorn.",
+    klKnopf("auto_stimme", 0, !au.stimme.an, "Aus") + klAuto("stimme", !!au.stimme.an)) : "";
+  const raum = boxDa && kino ? klReihe("zh-raum", "Räumlich", "Wie weit der Ton um dich herum geht.",
+    RAEUMLICH.map((t, i) => klKnopf("raeumlichkeit", i, (inh.raeumlichkeit ?? 1) === i, t[0].toUpperCase() + t.slice(1))).join(""), true) : "";
+  $("zh-inhalt-gruppen").innerHTML = nacht + hintergrundHtml(st, boxDa) + lo + stimme + couch + raum;
+  $("zh-vh-platz").innerHTML = vorneHintenHtml(st, boxDa);
+  musikAusgleichZeigen();
 }
+// Auto-Klang (POST /api/auto {loudness?, stimme?, couch?}): „Auto“ schaltet an; „Aus“ bei Loudness/Stimme bzw. eine Stufe
+// von Hand bei Couch schalten Auto ab (bei Couch danach die Stufe von Hand)
+async function autoSetzen(daten) {
+  const a = await nativ.box("auto", daten, { zeitMs: 6000 });
+  if (a.ok && a.auto) { zh.st = { ...(zh.st || {}), auto: a.auto, ...(a.couch ? { couch: a.couch } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); klangZeileZeigen(); return true; }
+  $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`; return false;
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-zh-auto]"); if (!b || b.getAttribute("aria-pressed") === "true" || !boxBereit()) return;
+  autoSetzen({ [b.dataset.zhAuto]: true });
+});
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-zh-inhalt]"); if (!b || b.getAttribute("aria-pressed") === "true") return;
+  if (b.dataset.zhInhalt.startsWith("auto_")) { autoSetzen({ [b.dataset.zhInhalt.slice(5)]: false }); return; }
+  if (b.dataset.zhInhalt === "couch" && zh.st && zh.st.auto && zh.st.auto.couch && zh.st.auto.couch.an && !(await autoSetzen({ couch: false }))) return;
   const st = zh.st || {}, inh = st.inhalt || {}, w = +b.dataset.wert;
   const art = b.dataset.zhInhalt, neu = art === "nachtmodus" || art === "vorne_hinten" || art === "hintergrund" ? { [art]: !!w } : art === "couch" ? { couch: w } : { raeumlichkeit: w };
   const a = await nativ.box("inhalt", { profil: inh.profil || "Film", raeumlichkeit: inh.raeumlichkeit ?? 1, ...neu }, { zeitMs: 6000 });
   if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt, ...(a.vorne_hinten ? { vorne_hinten: a.vorne_hinten } : {}), ...(a.hintergrund ? { hintergrund: a.hintergrund } : {}), ...(a.couch ? { couch: a.couch } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); klangZeileZeigen(); }
   else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
-$("zh-inhalt-gruppen").addEventListener("click", async (ev) => {
+$("zh-ma-platz").addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-zh-ma]"); if (!b || !nativ || !boxBereit()) return;
   const an = b.dataset.zhMa === "1";
   if (zh.st && zh.st.musik_ausgleich && zh.st.musik_ausgleich.an === an) return;
   const a = await nativ.box("musik_ausgleich", { an }, { zeitMs: 6000 });
-  if (a.ok && a.musik_ausgleich) { zh.st = { ...(zh.st || {}), musik_ausgleich: a.musik_ausgleich }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); }
-  else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+  if (a.ok && a.musik_ausgleich) { zh.st = { ...(zh.st || {}), musik_ausgleich: a.musik_ausgleich }; $("zh-lr-status").textContent = ""; musikAusgleichZeigen(); }
+  else $("zh-lr-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
 // Testlabor › Ton › Fehler im Film-Ton: kaputte Mehrkanal-Rahmen vom Fernseher hart stumm (Knack) oder sanft überbrücken
 // (Nutzer 13.11.2026), ab Werk sanft
@@ -13352,14 +13116,13 @@ function klangZeileZeigen() {
   el.hidden = !boxBereit() || !st || !zh.einmessungDa;
   bereichZeigen();
   if (el.hidden) return;
-  // Was anders ist als gemessen (Stimme, Bass, dazu die Messvarianten des Testlabors), sonst „Wie gemessen“
-  const s = hsStand(), name = ([k, , werte]) => (werte.find(([w]) => w === s[k]) || [])[1];
-  const rest = HS_ALLE.slice(1).filter(([k]) => s[k] !== HS_STANDARD[k]).map(name).filter(Boolean);
-  const teile = rest.length ? rest : ["Wie gemessen"];
-  const vh = (st.vorne_hinten && st.vorne_hinten.an ? " · Vorne ↔ Hinten" : "")  // auch auf Hören sichtbar, solange getauscht
-    + (st.inhalt && st.inhalt.hintergrund ? " · Hintergrund" : "")
-    + (st.modus === "kino" && st.inhalt && st.inhalt.couch ? ` · Couch ${["", "leicht", "mittel", "stark"][st.inhalt.couch] || ""}` : "");
-  $("zh-klang-wert").textContent = st.hoerschalter ? `· ${teile.join(" · ")}${vh}` : vh;
+  // „Klang · <Profil>“ (0.3.42), dazu was für jetzt an ist: Stereo „· Nacht“, „· Hintergrund“; Kino „· Couch mittel“
+  const kp = klangStand(), kino = st.modus === "kino", inh = st.inhalt || {}, au = st.auto || {};
+  // Couch: was wirkt (mit Auto die Stufe der Lautstärke), sonst die Stufe von Hand
+  const coName = au.couch && au.couch.an && au.couch.verfuegbar ? (st.couch && st.couch.wirkt_name) || au.couch.name : ["", "leicht", "mittel", "stark"][inh.couch || 0];
+  const dazu = (!kino && inh.nachtmodus ? " · Nacht" : "") + (!kino && inh.hintergrund ? " · Hintergrund" : "")
+    + (kino && coName && coName !== "aus" ? ` · Couch ${coName}` : "");
+  $("zh-klang-wert").textContent = `· ${kp ? kp.name : "Neutral"}${dazu}`;
 }
 // Hören: Bereich als Hauptsegment (Hör-Schalter „bereich“, gleiche Logik wie im Fenster), sobald die Box eine Einmessung spielt
 function bereichZeigen() {
@@ -13458,7 +13221,7 @@ const hsKurz = () => { const s = hsStand(), g = hsGleich(), an = [HS_ANPASSUNG, 
   return an.length ? an.join(" · ") : g && g.variante ? "volle Anpassung" : "wie gemessen"; };
 async function hsSetzen(neu) {
   // im Fenster der ganze Satz; auf Hören (unter dem Bereich) nur Warnungen, ein Erfolg braucht dort keinen Satz
-  const st = (t) => { $("zh-schalter-status").innerHTML = t; $("zh-ws-schalter-status").innerHTML = t; $("zh-bereich-status").innerHTML = /class="warn"/.test(t) ? t : ""; };
+  const st = (t) => { $("zh-schalter-status").innerHTML = t; $("zh-fein-status").innerHTML = t; $("zh-ws-schalter-status").innerHTML = t; $("zh-bjt-status").innerHTML = t; $("zh-bereich-status").innerHTML = /class="warn"/.test(t) ? t : ""; };
   if (!nativ || !boxBereit()) { st(`<span class="warn">Die Klång-Box ist nicht verbunden.</span>`); return; }
   st(`<span class="laeuft">Schaltet um…</span>`);
   // nur, was vom Standard abweicht: eine noch nicht aktualisierte Box kennt neue Schalter (anpassung) nicht (Prüfer)
@@ -13470,6 +13233,7 @@ async function hsSetzen(neu) {
   // abgeschwaecht: die Box hat die Anhebungen der Variante etwas gesenkt (Leitplanke „Summe“, feinabstimmung.einpassen)
   st(a.wirkt ? `<span class="ok">✓ ${esc(hsKurz())}${a.abgeschwaecht ? " · etwas abgeschwächt (Leitplanke)" : ""}</span>` : `<span class="warn">${esc(a.hinweis || (hsGleich() && hsGleich().variante ? "Die Wächter lassen diese Variante nicht zu, es spielt die geladene Variante (für alle Plätze)." : "Die Wächter lassen diese Variante nicht zu, es spielt die Einmessung wie gemessen."))}</span>`);
   hsZeigen(); zuhauseZeigen(false);
+  if (!$("zh-bjt-block").hidden) bjtLaden(true);
 }
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-hs]"); if (!b) return;
@@ -13478,7 +13242,12 @@ document.addEventListener("click", (ev) => {
   if (s[k] === w && !voll) return;
   hsSetzen({ ...s, [k]: w, ...(b.dataset.hsVoll === "1" ? { bereich: null } : {}) });
 });
-$("zh-schalter-zurueck").addEventListener("click", () => hsSetzen({}));
+// „Alles wie gemessen“: alle Hör-Schalter auf Standard und das Klangprofil auf Neutral
+$("zh-schalter-zurueck").addEventListener("click", async () => {
+  const kp = klangStand();
+  if (kp && kp.id !== "neutral" && !(await klangprofilSetzen("neutral"))) return;
+  if (!HS_ALLE.every(([k]) => hsStand()[k] === HS_STANDARD[k])) await hsSetzen({}); else hsZeigen();
+});
 document.addEventListener("click", async (ev) => {
   if (!ev.target.closest("#zh-neu-rechnen")) return;
   const a = await nativ.box("messdaten", { aktion: "rechnen" }, { zeitMs: 10000 });
@@ -13490,7 +13259,7 @@ document.addEventListener("click", async (ev) => {
     if (s.ok) { zh.st = { ...(zh.st || {}), messdaten: { da: s.da, rechnet: s.rechnet, neu: s.neu } }; variantenZeigen(); if (!s.rechnet) break; }
   }
 });
-window.addEventListener("sheetauf", (ev) => { if (ev.detail && ev.detail.id === "zh-schalter-block") { $("zh-schalter-status").textContent = ""; hsZeigen(); } });
+window.addEventListener("sheetauf", (ev) => { if (ev.detail && ["zh-schalter-block", "zh-feinheiten-block"].includes(ev.detail.id)) { $("zh-schalter-status").textContent = ""; $("zh-fein-status").textContent = ""; hsZeigen(); } });
 // Musik-Analyse: starten, dann den Stand abfragen, bis die Box gerechnet hat
 function musikZeigen(a) {
   const e = a && a.ergebnis; if (!e) { $("zh-musik-ergebnis").innerHTML = ""; return; }
@@ -13515,6 +13284,71 @@ $("zh-musik-start").addEventListener("click", async () => {
     st(`<span class="warn">Die Box hat nicht geantwortet. Noch einmal versuchen, während das Lied läuft.</span>`);
   } finally { b.disabled = false; }
 });
+// Bass je Ton (bass_je_ton.py; Besitzer 16.11.2026: „Bei Jazz fehlt mit Einmessung der Kontrabass“): die Box schickt die
+// spielenden Filter mit „Bass: ganz“ und die Messung am Platz, die Seite rechnet die Stellungen mit analyse.js (AJ.bassStellungen)
+let bjt = null;
+async function bjtLaden(still = false) {
+  const st = (t) => { $("zh-bjt-status").innerHTML = t; };
+  if (!nativ || !boxBereit()) { st(`<span class="warn">Die Klång-Box ist nicht verbunden.</span>`); return; }
+  if (!still) st(`<span class="laeuft">Rechnet…</span>`);
+  const a = await nativ.box("bass_je_ton", {}, { zeitMs: 10000 });
+  if (!a.ok) { st(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return; }
+  if (!a.da) { bjt = null; $("zh-bjt-inhalt").hidden = true; st(esc(a.grund || "")); return; }
+  bjt = { a, st: AJ.bassStellungen(a.einstellungen, a.messung ? AJ.bjtMessung(a.messung) : null, a.klangprofil || null, a.spielt || null) };
+  if (!still) st("");
+  bjtZeigen();
+}
+// Tonreihe E1–H2: oben die Pegel (ohne grau, ganz gestrichelt, musikalisch kräftig), Kreise an Tönen über der Grenze, darunter
+// eine schlichte Klaviatur und leise Bereichslinien der Instrumente (nur --kb-text, --kb-text-leise, --kb-linie, --kb-flaeche)
+const BJT_W = 360, BJT_L = 30, BJT_R = 6;
+function bjtSvg(st, grenze) {
+  const [von, bis] = AJ.BJT.anzeige, n = bis - von + 1, schritt = (BJT_W - BJT_L - BJT_R) / n, x = (m) => BJT_L + (m - von + 0.5) * schritt;
+  const reihe = (s) => st[s].toene.filter((t) => t.midi >= von && t.midi <= bis);
+  const alle = ["ohne", "voll", "musikalisch"].flatMap((s) => reihe(s).map((t) => t.db));
+  const oben = Math.max(3, Math.ceil(Math.max(...alle) / 3) * 3), unten = Math.min(-9, Math.floor(Math.min(...alle) / 3) * 3);
+  const t0 = 22, h = 120, y = (db) => t0 + (oben - db) / (oben - unten) * h;
+  const linie = (s, kl) => `<path class="${kl}" d="${reihe(s).map((t, i) => `${i ? "L" : "M"}${x(t.midi).toFixed(1)} ${y(t.db).toFixed(1)}`).join(" ")}"/>`;
+  const kreise = ["voll", "musikalisch"].flatMap((s) => reihe(s).filter((t) => t.bewertet && t.senke_max > grenze)
+    .map((t) => `<circle class="bjt-kreis" cx="${x(t.midi).toFixed(1)}" cy="${y(t.db).toFixed(1)}" r="4.5"><title>${esc(t.name)}: ${AJ.BJT.stellungName[s]} −${zt(t.senke_max, 1)} dB</title></circle>`)).join("");
+  const raster = [];
+  for (let d = unten; d <= oben; d += 3) raster.push(`<line class="${d === 0 ? "bjt-null" : "bjt-raster"}" x1="${BJT_L}" x2="${BJT_W - BJT_R}" y1="${y(d).toFixed(1)}" y2="${y(d).toFixed(1)}"/>` + (d % 6 === 0 ? `<text class="bjt-achse" x="${BJT_L - 4}" y="${(y(d) + 4).toFixed(1)}" text-anchor="end">${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d)}</text>` : ""));
+  const weg = new Set(reihe("voll").filter((t) => t.bewertet && t.senke_max > grenze).map((t) => t.midi));
+  const k0 = t0 + h + 10, kh = 16, tasten = [];
+  for (let m = von; m <= bis; m++) { const schwarz = [1, 3, 6, 8, 10].includes(m % 12);
+    tasten.push(`<rect class="bjt-taste${schwarz ? " bjt-schwarz" : ""}${weg.has(m) ? " bjt-weg" : ""}" x="${(x(m) - schritt / 2 + 1).toFixed(1)}" y="${k0}" width="${(schritt - 2).toFixed(1)}" height="${kh}" rx="2"/>`);
+    if (!schwarz || weg.has(m)) tasten.push(`<text class="bjt-ton${weg.has(m) ? " bjt-ton-weg" : ""}" x="${x(m).toFixed(1)}" y="${k0 + kh + 12}" text-anchor="middle">${esc(AJ.bjtName(m))}</text>`); }
+  const fHz = (f) => BJT_L + (12 * Math.log2(f / AJ.bjtHz(von)) + 0.5) * schritt, i0 = k0 + kh + 30, ih = 17, inst = AJ.BJT_INSTRUMENTE.slice(0, 8);
+  const bereiche = inst.map((ins, j) => { const yy = i0 + j * ih, b = ins.grund || ins.koerper, lo = Math.max(BJT_L, fHz(b[0])), hi = Math.min(BJT_W - BJT_R, fHz(b[1]));
+    return `<text class="bjt-inst" x="${lo.toFixed(1)}" y="${yy}">${esc(ins.kurz)}</text><line class="bjt-bereich${ins.grund ? "" : " bjt-koerper"}" x1="${lo.toFixed(1)}" x2="${hi.toFixed(1)}" y1="${yy + 4}" y2="${yy + 4}"/>`
+      + (fHz(b[0]) >= BJT_L ? `<line class="bjt-bereich" x1="${lo.toFixed(1)}" x2="${lo.toFixed(1)}" y1="${yy + 1}" y2="${yy + 7}"/>` : ""); }).join("");
+  const leg = [["bjt-ohne", "ohne"], ["bjt-ganz", "ganz"], ["bjt-musik", "musikalisch"]].map(([kl, t], i) => `<line class="${kl}" x1="${BJT_L + i * 92}" x2="${BJT_L + i * 92 + 22}" y1="8" y2="8"/><text class="bjt-achse" x="${BJT_L + i * 92 + 28}" y="12">${t}</text>`).join("");
+  const hoehe = i0 + inst.length * ih + 2;
+  return `<svg class="bjt-svg" viewBox="0 0 ${BJT_W} ${hoehe}" role="img" aria-label="Pegel je Ton von E1 bis H2: ohne, ganz und musikalisch; markiert sind Töne, die mehr als ${grenze} dB unter ihren Nachbarn liegen">
+    ${leg}${raster.join("")}${linie("ohne", "bjt-ohne")}${linie("voll", "bjt-ganz")}${linie("musikalisch", "bjt-musik")}${kreise}${tasten.join("")}${bereiche}</svg>`;
+}
+function bjtSegment() {
+  const b = hsStand().bass;
+  $("zh-bjt-seg").innerHTML = [["voll", "Ganz"], ["musikalisch", "Musikalisch"]].map(([w, t]) => `<button type="button" data-hs="bass" data-hs-wert="${w}" aria-pressed="${b === w}">${t}</button>`).join("");
+}
+function bjtZeigen() {
+  if (!bjt) return;
+  const { a, st } = bjt, g = a.grenze_db;
+  $("zh-bjt-inhalt").hidden = false;
+  $("zh-bjt-bild").innerHTML = bjtSvg(st, g);
+  $("zh-bjt-satz").textContent = AJ.bassSatz(st);
+  const zeilen = (s) => AJ.bassSenkenSaetze(st[s], g).map((z) => `<li><span>${esc(z)}</span></li>`);
+  const ganz = zeilen("voll"), mu = zeilen("musikalisch");
+  $("zh-bjt-senken").innerHTML = (ganz.length ? `<li><span class="kb-label">Mit ganz</span></li>${ganz.join("")}` : `<li><span>Mit „ganz“ fällt kein Ton mehr als ${zt(g, 0)} dB ab.</span></li>`)
+    + (mu.length ? `<li><span class="kb-label">Mit musikalisch</span></li>${mu.join("")}` : "");
+  $("zh-bjt-hinweis").hidden = !a.hinweis; $("zh-bjt-hinweis").textContent = a.hinweis ? `Hinweis zum Lied gerade${a.genre ? ` (${a.genre})` : ""}: ${a.hinweis}` : "";
+  const dr = a.droehnen && a.droehnen.gruppen && a.droehnen.gruppen.length ? a.droehnen.gruppen.map((x) => `${zt(x.f, 0)} Hz: ganz −${zt(x.ganz_db, 1)} dB, musikalisch −${zt(x.musikalisch_db, 1)} dB`).join(" · ") : "";
+  $("zh-bjt-quelle").textContent = `Gerechnet ${a.quelle}. Mitte und jede Seite für sich, die schlimmste zählt.${dr ? ` Dröhnen an der Mode: ${dr}.` : ""}`
+    + (a.bass === "musikalisch" && a.wirkt !== "musikalisch" ? " Die Wächter lassen „musikalisch“ gerade nicht zu, es spielt „ganz“." : "");
+  $("zh-bjt-instrumente").innerHTML = AJ.BJT_INSTRUMENTE.map((i) => `<li><span>${esc(i.name)}</span><span>${esc(i.text)}</span></li>`).join("");
+  bjtSegment();
+}
+window.addEventListener("sheetauf", (ev) => { if (ev.detail && ev.detail.id === "zh-bjt-block") { $("zh-bjt-status").textContent = ""; bjtZeigen(); bjtLaden(!!bjt); } });
+$("zh-bjt-blind").addEventListener("click", () => { abBass = { vorher: hsStand().bass }; sheet.auf("Blind: ganz ↔ musikalisch", $("ab-kuh")); });
 // Bedienseite der Box (bedienseite.js): die Adresse als leise Zeile unter WLAN in Box › Mehr, als Rückfall die IP,
 // falls klangbox.local im Netz einmal nicht geht (dieselbe Seite, auch als eigene Home-Bildschirm-App)
 function boxAdresseHtml(st) {
@@ -13556,6 +13390,9 @@ function bitgenauZeigen() {
   $("zh-bitgenau-wert").textContent = `· ${r.an ? (r.wirkt ? "an" : "an, wirkt gerade nicht") : "aus"}`;
   document.querySelectorAll("[data-bitgenau]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.bitgenau === "1") === !!r.an)));
   wirktZeigen("zh-bitgenau-wirkt", r);
+  // Mit Klangprofil ist der Weg bewusst nicht bitgenau: ehrlich sagen (ohne Profil bleibt er es)
+  const kp = klangStand(), pt = kp && kp.wirkt && kp.id !== "neutral" ? `Mit dem Klangprofil „${kp.name}“ ist der Weg bewusst nicht bitgenau: Das Profil verändert den Klang. Neutral lässt ihn, wie die Einmessung ihn rechnet.` : "";
+  $("zh-bitgenau-profil").textContent = pt; $("zh-bitgenau-profil").hidden = !pt;
   if (r.aus_grund && !$("zh-bitgenau-status").textContent) $("zh-bitgenau-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(r.aus_grund)}.</span>`;
 }
 // Testlabor › Streamer-Takt folgen (POST /api/streamer_takt_folgen): ohne Umbau, kein „kurz still“. Im Fenster dazu die
@@ -13638,7 +13475,7 @@ function zuhauseZeigen(laden = true) {
   zhTabStart(einmessungDa, !boxDa || !!st);
   klangZeileZeigen();
   aufZeigen();
-  inhaltZeigen();
+  hsZeigen();  // Fenster Klang (Für jetzt, Klangprofil, Feinheiten), Musik ↔ Film unter Lautstärke, Vorne ↔ Hinten unter Raum
   try { hoerenFilm(boxDa, st); } catch (err) { $("zh-film").hidden = true; }
   const lz = zhLayout(), fremd = st && st.profile ? Object.values(st.profile).filter((p) => p && p.spielbar === false && p.eingemessen) : [];
   // Eingemessene zuerst, danach die offenen (je Einmessung eine Zeile)
@@ -13710,6 +13547,7 @@ function zuhauseZeigen(laden = true) {
   // „Prüfen“ (Entwurf 13.11.2026): Musik-Analyse, „Wo kommt der Ton her?“ und die Hörprobe
   const pruefen = zhGruppe("Prüfen", zhAktion("zh-raumtest", "", `Wo kommt der Ton her?<small>${esc(RT.kurz())}</small>`, true, ` data-sheet-block="zh-raumtest" data-sheet-titel="Wo kommt der Ton her?"`)
     + zhAktion("zh-musik", "", `Musik-Analyse<small>was die Einmessung im Lied ändert</small>`, boxDa, ` data-sheet-block="zh-musik" data-sheet-titel="Musik-Analyse"`)
+    + zhAktion("zh-bjt", "", `Bass je Ton<small>welche Töne die Einmessung leiser macht</small>`, boxDa, ` data-sheet-block="zh-bjt" data-sheet-titel="Bass je Ton"`)
     + zhAktion("zh-hoerprobe", "", `Hörprobe<small>Wo ist die Kuh? Mitte und Seiten mit den Ohren prüfen</small>`, hpDa) + gc);
   // „Neu einmessen“ und „Mehr“: mit dem Blick im Blick selbst (wartet ein Schritt, führt er hier); ohne Blick hier
   const hauptKnopf = `<button type="button" class="zh-haupt${kasOffen ? " zweit" : ""}" id="zh-nachmessen">${haupt}</button>`;
@@ -13758,6 +13596,7 @@ function zuhauseZeigen(laden = true) {
   const tipps = !boxDa && r ? GW.karte(r, runden) : "";
   $("zh-tipps").hidden = !tipps; $("zh-tipps-inhalt").innerHTML = tipps;
   if (typeof LAUT !== "undefined") LAUT.zeigen();
+  if (typeof PEGELECHT !== "undefined") PEGELECHT.zeigen();  // Pegel einmessen (Box › Lautstärke), Wie echt (Klang)
   if (!boxDa || st) startBereit();
   if (boxDa && laden && !zh.laedt) zhLaden();
 }
@@ -13911,30 +13750,40 @@ async function abClipStarten() {
 function abClipStoppen(clip) { clearTimeout(abUhr); if (boxBereit()) nativ.box("testclip", { clip, aktion: "stopp" }, { zeitMs: 6000 }); }
 const abZufall = () => { try { return crypto.getRandomValues(new Uint8Array(1))[0] & 1; } catch (e) { return Math.random() < 0.5 ? 1 : 0; } };
 const abIstB = (seite) => (ab.blind ? ab.zuordnung[ab.runde - 1] === seite : seite === 1);
-function abEinordnung(n, gesamt = AB_RUNDEN) {
-  const kopf = `Du hast die Klång-Box in ${n} von ${gesamt} Runden gewählt.`;
+function abEinordnung(n, gesamt = AB_RUNDEN, bass = false) {
+  const kopf = bass ? `Du hast „musikalisch“ in ${n} von ${gesamt} Runden gewählt.` : `Du hast die Klång-Box in ${n} von ${gesamt} Runden gewählt.`;
+  if (bass && n <= 1) return `${kopf} Durch Zufall passiert das selten: Du hörst den Unterschied, und dir gefällt „ganz“ besser.`;
   if (n === gesamt) return `${kopf} Durch Zufall passiert das nur in etwa 3 % der Fälle: Du hörst den Unterschied.`;
   if (n === gesamt - 1) return `${kopf} 4 oder 5 Treffer kommen durch Zufall in etwa 19 % der Fälle vor: ein Hinweis, noch kein Beweis. Eine zweite Serie macht es sicherer.`;
-  return `${kopf} Kein klarer Unterschied gehört. Das ist völlig in Ordnung, die Box macht nichts schlechter.`;
+  return `${kopf} Kein klarer Unterschied gehört. ${bass ? "Dann ist es Geschmackssache, beide sind in Ordnung." : "Das ist völlig in Ordnung, die Box macht nichts schlechter."}`;
 }
 function abNeu(blind) {
   const clips = abClips(), alt = ab;
   const clip = alt && alt.clip && clips.some((c) => c.id === alt.clip) ? alt.clip : clips.some((c) => c.id === "kuh51") ? "kuh51" : clips[0] ? clips[0].id : null;
-  ab = { blind, runde: 1, wahl: [], zuordnung: Array.from({ length: AB_RUNDEN }, abZufall), seite: 0, fertig: false, clip: abMusik ? null : clip, musik: abMusik,
+  ab = { blind, runde: 1, wahl: [], zuordnung: Array.from({ length: AB_RUNDEN }, abZufall), seite: 0, fertig: false, clip: abMusik || abBass ? null : clip, musik: abMusik || !!abBass, bass: abBass,
     abgleich: !!(alt && alt.clip === clip && alt.abgleich), laeuft: !!(alt && alt.clip === clip && alt.laeuft) };
   $("ab-ergebnis").innerHTML = ""; $("ab-status").textContent = ""; abSetzen(0);
 }
 async function abSetzen(seite) {
   if (!ab) return;
   ab.seite = seite; abZeigen();
-  const a = await vglAus(!abIstB(seite), { zeitMs: 6000 });
+  const a = ab.bass ? await abBassSetzen(abIstB(seite) ? "musikalisch" : "voll") : await vglAus(!abIstB(seite), { zeitMs: 6000 });
   if (!a.ok) $("ab-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
+}
+// Bass-Vergleich: nur den Schalter Bass umstellen, alle anderen Hör-Schalter bleiben (still, ohne die Statuszeilen)
+async function abBassSetzen(bass) {
+  const neu = { ...hsStand(), bass }, senden = Object.fromEntries(Object.entries(neu).filter(([k, v]) => k in HS_STANDARD && v !== HS_STANDARD[k]));
+  const a = await nativ.box("hoerschalter", { hoerschalter: senden }, { zeitMs: 8000 });
+  if (a.ok) zh.st = { ...(zh.st || {}), hoerschalter: a.hoerschalter };
+  return a.ok && a.wirkt === false ? { ok: false, fehler: a.hinweis || "Die Wächter lassen diese Stellung nicht zu." } : a;
 }
 function abZeigen() {
   if (!ab) return;
-  const namen = ab.blind ? ["X", "Y"] : ["A · ohne", "B · mit Klång-Box"];
+  const namen = ab.blind ? ["X", "Y"] : ab.bass ? ["A · ganz", "B · musikalisch"] : ["A · ohne", "B · mit Klång-Box"];
   document.querySelector("#ab-kuh .knoepfe").hidden = !!ab.musik;  // eigene Musik: keine Szene starten
-  $("ab-intro").textContent = ab.musik ? "Deine Musik läuft weiter. X und Y sind ohne und mit Klång-Box, jede Runde neu verteilt, beide gleich laut. Schalte frei hin und her, dann tippe, was besser klingt."
+  $("ab-intro").textContent = ab.bass ? (ab.blind ? "Deine Musik läuft weiter, am besten ein Stück mit Kontrabass oder E-Bass. X und Y sind Bass „ganz“ und „musikalisch“, jede Runde neu verteilt. Schalte frei hin und her, dann tippe, was besser klingt."
+      : "Offen: A ist Bass „ganz“, B „musikalisch“. Deine Musik läuft weiter.")
+    : ab.musik ? "Deine Musik läuft weiter. X und Y sind ohne und mit Klång-Box, jede Runde neu verteilt, beide gleich laut. Schalte frei hin und her, dann tippe, was besser klingt."
     : ab.blind ? "Blindtest: X und Y sind ohne und mit Klång-Box, jede Runde neu verteilt. Beide gleich laut. Schalte frei hin und her, dann tippe, was besser klingt."
     : "Offen: A ist ohne Klång-Box, B mit. Beide gleich laut.";
   $("ab-runde").textContent = ab.blind ? (ab.fertig ? "Fertig" : `Runde ${ab.runde} von ${AB_RUNDEN}`) : "Offen vergleichen";
@@ -13971,8 +13820,9 @@ document.querySelectorAll("[data-ab-mag]").forEach((b) => b.addEventListener("cl
   if (ab.runde < AB_RUNDEN) { ab.runde++; abSetzen(0); return; }
   ab.fertig = true;
   const n = ab.wahl.filter(Boolean).length, r = aktuelleRunde();
-  $("ab-ergebnis").innerHTML = `<div class="kasten"><span class="marke">Auflösung</span><p style="font-size:15px; color: var(--kb-text)">${esc(abEinordnung(n))}</p>
-    <p class="klein">${ab.wahl.map((w, i) => `Runde ${i + 1}: ${w ? "mit" : "ohne"} Klång-Box`).join(" · ")}</p></div>`;
+  $("ab-ergebnis").innerHTML = `<div class="kasten"><span class="marke">Auflösung</span><p style="font-size:15px; color: var(--kb-text)">${esc(abEinordnung(n, AB_RUNDEN, !!ab.bass))}</p>
+    <p class="klein">${ab.wahl.map((w, i) => `Runde ${i + 1}: ${ab.bass ? (w ? "musikalisch" : "ganz") : `${w ? "mit" : "ohne"} Klång-Box`}`).join(" · ")}</p></div>`;
+  if (ab.bass) { meldeBox("ergebnis", { bass_blindtest: { musikalisch: n, runden: AB_RUNDEN } }); abBassSetzen(ab.bass.vorher); ab.seite = 0; abZeigen(); return; }
   if (r) { r.blindtest = { box: n, runden: AB_RUNDEN, datum: new Date().toLocaleDateString("de-DE"), runde: r.id, musik: !!ab.musik }; rundeSpeichern(); }
   vglAus(false, { zeitMs: 6000 }); ab.seite = 1; abZeigen();
 }));
@@ -13987,7 +13837,7 @@ window.addEventListener("sheetauf", async (ev) => {
   const st = await nativ.box("status", {}, { zeitMs: 6000 });  // frisch: bietet die Box einen Testclip an?
   if (st && st.ok && ab) { zh.st = st; abNeu(true); }
 });
-window.addEventListener("sheetzu", (ev) => { if (ev.detail && ev.detail.id === "ab-kuh") { abMusik = false; av.seite = 1; const r0 = aktuelleRunde(); if (schrittJetzt === 10 && r0 && ablaufPhase(r0) === "vergleich") $("a-phase").innerHTML = avHtml(r0); } if (ev.detail && ev.detail.id === "ab-kuh" && ab) { const clip = ab.laeuft ? ab.clip : null; ab = null; if (boxBereit()) { vglAus(false, { zeitMs: 6000 }); if (zh.st) zh.st.aus = false; if (clip) abClipStoppen(clip); } if (schrittJetzt === 18) zuhauseZeigen(false); } });
+window.addEventListener("sheetzu", (ev) => { if (ev.detail && ev.detail.id === "ab-kuh") { abMusik = false; av.seite = 1; const r0 = aktuelleRunde(); if (schrittJetzt === 10 && r0 && ablaufPhase(r0) === "vergleich") $("a-phase").innerHTML = avHtml(r0); } if (ev.detail && ev.detail.id === "ab-kuh" && ab && ab.bass) { const vorher = ab.bass.vorher; ab = null; abBass = null; if (boxBereit()) abBassSetzen(vorher).then(() => { hsZeigen(); if (!$("zh-bjt-block").hidden) bjtLaden(true); }); return; } if (ev.detail && ev.detail.id === "ab-kuh") abBass = null; if (ev.detail && ev.detail.id === "ab-kuh" && ab) { const clip = ab.laeuft ? ab.clip : null; ab = null; if (boxBereit()) { vglAus(false, { zeitMs: 6000 }); if (zh.st) zh.st.aus = false; if (clip) abClipStoppen(clip); } if (schrittJetzt === 18) zuhauseZeigen(false); } });
 // --- Vorher/Nachher anhören (Nutzer: „Den Unterschied dieser Kurve als Sound-Datei zum Antesten“) --------------------
 // Ein CC0-Musikstück mit kräftigem Bass (vorgeschmack/bass.flac, werkzeuge/vorgeschmack_musik.py) per OfflineAudioContext:
 // A unverändert, B mit genau den Filtern, Pegeln und Laufzeiten aus dem Export an die Klång-Box (dieselben Biquads,
@@ -14246,7 +14096,7 @@ function zhBoxBloecke(st) {
   const p = st.pegel || {}, wert = (x, e) => (x == null ? "–" : `${zk(x, 1)}${e}`);
   $("zh-dosis-werte").innerHTML = [[wert(p.hoerdauer_h_woche, " h"), "Hördauer, 7 Tage"], [wert(p.mittelpegel_db, " dB"), "Mittelpegel"], [p.dosis_prozent == null ? "–" : `${zk(p.dosis_prozent, 0)} %`, "Wochendosis"]]
     .map(([z, t]) => `<div class="zahlkarte"><span class="lbl">${t}</span><span class="zahl" style="font-size:24px">${esc(z)}</span></div>`).join("");
-  $("zh-dosis-text").textContent = [p.meldung, p.geschaetzt ? `Geschätzt, ${p.bewertung || "unbewertet"}. Nur eine Anzeige: Die Box regelt nie selbst leiser.` : ""].filter(Boolean).join(" ");
+  $("zh-dosis-text").textContent = [p.meldung, p.geschaetzt ? `Geschätzt, ${p.bewertung || "unbewertet"}${p.bezug ? `, Bezug ${p.bezug}` : ""}. Nur eine Anzeige: Die Box regelt nie selbst leiser.` : ""].filter(Boolean).join(" ");
   $("zh-kal-stand").textContent = p.kalibriert ? "· kalibriert" : "";
   $("zh-kal-weg").disabled = !p.kalibriert;
   if (document.activeElement !== $("zh-lippen-ms")) { $("zh-lippen-ms").value = lippenMs(st); $("zh-lippen-wert").textContent = `${zk(lippenMs(st), 0)} ms`; }
@@ -17571,8 +17421,9 @@ body.gt-offen { overflow: hidden; }
 //   schlanken Skala (Tippen darauf = stumm). Gehalten wiederholt „−/+“, erst langsam, dann etwas schneller (Tastatur:
 //   Enter bzw. Leertaste gehalten). Dazu die iPhone-Tasten (App, VolumeTasten.swift) und die Fernbedienung (Box). Keine
 //   Gesten auf dem Cover.
-// - Beim Bedienen dunkelt das Cover ab (≈ 72 %, 200 ms), groß die Zahl mit Etikett und Skala (Nadel in Signalfarbe;
-//   1,5 s nach der letzten Änderung blendet alles zurück.
+// - Beim Bedienen dunkelt das Cover ab (≈ 72 %, 200 ms), groß die Zahl, darunter eine feine Linie mit Füllung und
+//   Strichen an den Grenzen, an denen Loudness bzw. Couch-Auto umschalten, und eine Zeile, was bei dieser Stellung wirkt
+//   (Mockup laut3, 0.3.42); 1,5 s nach der letzten Änderung blendet alles zurück. In Ruhe ändert sich auf Hören nichts.
 // - Verstärker regelt (Standard): auf Hören gar keine Lautstärke-Anzeige, keine Abfrage des Ausgangspegels (Nutzer
 //   09.11.2026: „das springt mit jeder Sekunde“). Wer regelt, steht nur unter Box › Lautstärke.
 // - Die Zahl folgt jedem Druck sofort; zur Box geht höchstens alle 40 ms der letzte Wert, nie zwei Anfragen zugleich
@@ -17599,8 +17450,10 @@ const LAUT = (() => {
   const nativDa = () => nativ && typeof nativ.ereignis === "function" && !window.klangboxBedienseite;
   const haptik = (wert) => { if (z.fuehrt && nativDa()) nativ.ereignis({ art: "haptik", wert }); };
   const hoerenOffen = () => { const s = document.querySelector('.schritt[data-s="18"]'); return !!s && !s.hidden && (s.dataset.tab || "hoeren") === "hoeren" && !document.hidden; };
-  const STRICHE = 41;
-  const SKALA = { regler: ["0", "25", "50", "75", "100"] };
+  // Auto-Klang (wie klangbox/dienst/auto_klang.py, plan.loudness_kurve und settings.COUCH_STUFEN; Parität:
+  // tests/test_klang_auto_seite.py): Couch-Auto nach dem Abstand unter der Kino-Referenz, Loudness unter dem Bezug
+  const AUTO = { couchGrenzen: [[22, 3], [14, 2], [8, 1]], couchNamen: ["aus", "leicht", "mittel", "stark"],
+    couchStimmeDb: [0, 2, 4, 6], couchSpanneDb: [0, 9.5, 7.5, 6], loudnessBassJeDb: 0.15, loudnessBassMaxDb: 6 };
 
   // Zugang: verstecktes Range-Element, bleibt über das Neuzeichnen von „Jetzt läuft“ erhalten (Fokus, VoiceOver)
   function zugang() {
@@ -17615,14 +17468,14 @@ const LAUT = (() => {
     return e;
   }
   // Große Anzeige über dem Cover (bzw. über der Karte, wenn nichts läuft)
+  // Aufbau: Zahl, feine Linie (Füllung, Striche an den Auto-Grenzen, die Grenze „höchstens“), was wirkt (zwei Zeilen), dann
+  // ein Platz für weitere Zeilen (zh-vol-extra: „≈ 82 dB“, dazu „Klavier wie echt: 85 dB“ aus pegelecht.js)
   function overlayHtml() {
-    const striche = Array.from({ length: STRICHE }, (_, i) => `<i${i % 10 === 0 ? ' class="lang"' : ""}></i>`).join("");
     return `<div class="zh-vol-over" id="zh-vol-over" aria-hidden="true"><div class="zh-vol-over-innen">
-      <span class="zh-vol-etikett" id="zh-vol-etikett">Lautstärke</span>
-      <span class="zh-vol-wert"><span class="zh-vol-zahl" id="zh-vol-zahl">–</span><span class="zh-vol-einheit" id="zh-vol-einheit"></span></span>
-      <div class="zh-vol-skala"><div class="zh-vol-striche" id="zh-vol-striche">${striche}<b class="zh-vol-nadel" id="zh-vol-nadel"></b><s class="zh-vol-grenze" id="zh-vol-grenze" hidden></s></div>
-        <div class="zh-vol-ziffern" id="zh-vol-ziffern" data-art="regler">${SKALA.regler.map((t) => `<span>${t}</span>`).join("")}</div></div>
-      <span class="zh-vol-spl" id="zh-vol-spl"></span></div></div>`;
+      <span class="zh-vol-zahl" id="zh-vol-zahl">–</span>
+      <span class="zh-vol-feinlinie" id="zh-vol-feinlinie"><i id="zh-vol-feinfuellung"></i><span id="zh-vol-auto-striche"></span><s class="zh-vol-grenze" id="zh-vol-grenze" hidden></s></span>
+      <span class="zh-vol-was" id="zh-vol-was"></span><span class="zh-vol-wie" id="zh-vol-wie"></span>
+      <div class="zh-vol-extra" id="zh-vol-extra"><span class="zh-vol-spl" id="zh-vol-spl"></span></div></div></div>`;
   }
   const flaeche = () => { const k = $("zh-jetzt-karte"); return k ? (k.querySelector("#zh-lp") || k) : null; };
   // Bedienleiste (Mockup „Hören aufgeräumt“): runde Knöpfe − und + mit Haarlinie, dazwischen eine feine Linie mit Füllung
@@ -17649,21 +17502,50 @@ const LAUT = (() => {
   }
 
   // --- Zeichnen -------------------------------------------------------------------------------------------------------
-  function skalaZeigen(art, bis, nadel) {  // bis, nadel: 0–100 (Anteil der Skala) oder null
-    const s = $("zh-vol-striche"); if (!s) return;
-    s.querySelectorAll("i").forEach((t, i) => t.classList.toggle("an", bis != null && i / (STRICHE - 1) * 100 <= bis + 1e-9));
-    const n = $("zh-vol-nadel"); n.hidden = nadel == null; if (nadel != null) n.style.left = `${Math.max(0, Math.min(100, nadel))}%`;
-    const zf = $("zh-vol-ziffern");
-    if (zf.dataset.art !== art) { zf.dataset.art = art; zf.innerHTML = (SKALA[art] || SKALA.regler).map((t) => `<span>${t}</span>`).join(""); }
+  // Hörbare Stellung in dB wie box._auto_pegel_db: Regler plus Ausgleich Musik ↔ Film (wenn er wirkt) und Pegelabgleich
+  // des Profils, beides aus dem Status; so stimmen Grenzen und Text für jede Stellung der Anzeige, auch vor der Antwort
+  const autoSt = () => { const st = typeof zh !== "undefined" && zh ? zh.st : null; return (st && st.auto) || {}; };
+  const versatz = () => { const st = (typeof zh !== "undefined" && zh && zh.st) || {}, ma = st.musik_ausgleich;
+    const p = st.profile && st.profil_aktiv ? st.profile[st.profil_aktiv] : null;
+    return (ma && ma.wirkt ? +ma.db || 0 : 0) + (p ? +p.abgleich_db || 0 : 0); };
+  const unterBei = (stufe, bezugDb) => bezugDb - (dbAus(stufe) + versatz());
+  const stellungBei = (bezugDb, ab) => stufeAus(bezugDb - ab - versatz());  // wo „ab dB darunter“ beginnt
+  function loudnessBei(stufe) {
+    const lo = autoSt().loudness; if (!lo || lo.bezug_db == null) return 0;
+    const u = unterBei(stufe, +lo.bezug_db);
+    return Math.round(Math.min(AUTO.loudnessBassMaxDb, Math.max(0, u) * AUTO.loudnessBassJeDb) * 10) / 10;
+  }
+  function couchBei(stufe) {
+    const co = autoSt().couch; if (!co || co.referenz_db == null) return 0;
+    const u = unterBei(stufe, +co.referenz_db);
+    return (AUTO.couchGrenzen.find(([ab]) => u >= ab) || [0, 0])[1];
+  }
+  const zahlDe = (x) => String(Math.round(x * 10) / 10).replace(".", ",");
+  // Was bei dieser Stellung wirkt (gleich beim Drehen, vor der Antwort der Box), und wo die Grenzen liegen
+  function wirkung(stufe) {
+    const st = typeof zh !== "undefined" && zh ? zh.st || {} : {}, au = st.auto || {}, kino = st.modus === "kino";
+    if (kino) {
+      const auto = au.couch && au.couch.an && au.couch.verfuegbar;
+      const k = auto ? couchBei(stufe) : +((st.inhalt || {}).couch || 0);
+      const striche = auto ? AUTO.couchGrenzen.map(([ab]) => stellungBei(+au.couch.referenz_db, ab)) : [];
+      return { striche, was: k ? `Couch ${AUTO.couchNamen[k]}` : "Volle Dynamik",
+        wie: k ? `Stimme +${zahlDe(AUTO.couchStimmeDb[k])} dB · Action ${zahlDe(AUTO.couchSpanneDb[k])} dB darüber` : "" };
+    }
+    const lo = au.loudness && au.loudness.an && au.loudness.verfuegbar ? au.loudness : null;
+    const striche = lo ? [stellungBei(+lo.bezug_db, 0)] : [];
+    const bass = lo ? loudnessBei(stufe) : 0;
+    if (bass > 0) return { striche, was: "Loudness", wie: `Bass +${zahlDe(bass)} dB, weil leise` };
+    if (au.stimme && au.stimme.wirkt) return { striche, was: "Stimme vorn", wie: `Sprachband +${zahlDe(+au.stimme.mitte_db || 0)} dB` };
+    return { striche, was: "Wie eingemessen", wie: "" };
   }
   function texte() {
     if (z.art === "regler") {
       const w = z.wert == null ? null : Math.round(z.wert);
       const spl = z.spl != null && !z.stumm && z.wert > 0 ? Math.round(z.spl + dbAus(z.wert) - dbAus(z.splBei)) : null;
       const zahl = z.stumm ? "Stumm" : w == null ? "–" : String(w);
-      return { etikett: "Lautstärke", zahl, einheit: "", w, spl, klein: zahl };
+      return { zahl, w, spl, klein: zahl };
     }
-    return { etikett: "", zahl: "–", einheit: "", klein: "" };
+    return { zahl: "–", klein: "" };
   }
   function zeichnen() {
     const t = texte(), k = $("zh-vol-klein"), r = $("zh-vol-regler"), karte = $("zh-jetzt-karte");
@@ -17689,12 +17571,15 @@ const LAUT = (() => {
       }
     }
     if ($("zh-vol-zahl") && z.art === "regler") {
-      $("zh-vol-etikett").textContent = t.etikett; $("zh-vol-zahl").textContent = t.zahl; $("zh-vol-einheit").textContent = t.einheit;
-      if (z.art === "regler") {
-        skalaZeigen("regler", z.wert == null || z.stumm ? null : z.wert, z.wert);
-        $("zh-vol-grenze").style.left = `${z.grenze}%`; $("zh-vol-grenze").hidden = z.grenze >= 100;
-        $("zh-vol-spl").textContent = t.spl != null ? `≈ ${t.spl} dB` : "";
-      }
+      $("zh-vol-zahl").textContent = t.zahl;
+      const n = z.wert == null || z.stumm ? 0 : Math.max(0, Math.min(100, z.wert));
+      $("zh-vol-feinfuellung").style.width = `${n}%`;
+      $("zh-vol-grenze").style.left = `${z.grenze}%`; $("zh-vol-grenze").hidden = z.grenze >= 100;
+      const wk = wirkung(z.wert == null ? 0 : z.wert);
+      $("zh-vol-auto-striche").innerHTML = wk.striche.filter((s) => s > 0 && s < 100).map((s) => `<s style="left:${Math.round(s * 10) / 10}%"></s>`).join("");
+      $("zh-vol-was").textContent = z.stumm ? "" : wk.was; $("zh-vol-wie").textContent = z.stumm ? "" : wk.wie;
+      $("zh-vol-spl").textContent = t.spl != null ? `≈ ${t.spl} dB` : "";
+      if (typeof PEGELECHT !== "undefined") PEGELECHT.overlay();  // Ergänzung „Wie echt“ (pegelecht.js), eigener Teil
     }
     if (r) {
       if (z.art === "regler") {
@@ -17950,6 +17835,237 @@ const LAUT = (() => {
     if (ev.detail && ev.detail.id === "zh-lautstaerke-block" && vorstufeLaeuft) { vorstufeLaeuft = false; nativ.box("lautstaerke", { vorstufe: "abbrechen" }, { zeitMs: 6000 }); }
   });
 
-  return { zeigen, einhaengen, beschaeftigt, taste, sheetZeigen, dbAus, stufeAus, _z: z };
+  return { zeigen, einhaengen, beschaeftigt, taste, sheetZeigen, dbAus, stufeAus, loudnessBei, couchBei, wirkung, AUTO, _z: z };
 })();
+</script>
+<script>// Pegel einmessen und „Wie echt“ (klangbox/pegel_echt.py, docs/PEGEL_ECHT.md). Besitzer: „Klavier klingt nur echt bei
+// echter Klavier-Lautstärke.“
+// - Rechnung wie pegel_echt.py (Paritätstest tests/test_pegel_echt.py): Bezug K = Schalldruck am Platz − Wiedergabe der
+//   Box, Schätzung = Wiedergabe + K, Stellung für ein Ziel = Ziel − K − Programm, nie über die Grenze.
+// - Mikrofon: mikroPegel rechnet aus der Aufnahme den Effektivwert (unbewertet) des Raums vor dem Rauschen und des
+//   ruhigen Teils des Rauschens. Die Box verrechnet ihn (Messmikrofon mit Datei, abgeglichenes iPhone oder Ablesung).
+// - Oberfläche (nur im Browser): „Pegel einmessen“ unter Box › Lautstärke (nur, wenn die Klång-Box regelt), Fenster
+//   „Pegel einmessen“ (Rauschen nur nach Bestätigung), Zeile „Wie echt“ im Fenster Klang › Für jetzt (erst nach dem
+//   Einmessen), Fenster „Wie echt“ (Art, Ziel in 1-dB-Schritten, „So laut stellen“), und auf Hören beim Drehen der
+//   Strich „echt“ auf der Linie und „Klavier wie echt: 85 dB“ (overlay, von lautstaerke.js gerufen). „≈ dB“ selbst kommt
+//   wie bisher aus regler.spl_db (die Box rechnet ihn mit dem Bezug).
+// Nutzt von der Seite: nativ, zh, zhLaden, boxBereit, sheet, mikrofonOeffnen, mikroWahl, mikroProfil, warte, esc, $.
+(function (wurzel) {
+  "use strict";
+  const K_BEREICH = [60, 140], ABSTAND_MIN_DB = 10, STILLE_DBFS = -70;
+  const UMIK_NENN = -18, AES_DB = 10 * Math.log10(2);
+
+  const leistungDb = (werte) => {
+    const w = Array.isArray(werte) ? werte : [werte];
+    let p = 0; for (const v of w) if (v != null && v > -150) p += Math.pow(10, v / 10);
+    return p > 0 ? 10 * Math.log10(p) : -150;
+  };
+  const raumAbziehen = (gesamt, raum) => (gesamt - raum < ABSTAND_MIN_DB ? null : 10 * Math.log10(Math.pow(10, gesamt / 10) - Math.pow(10, raum / 10)));
+  const r1 = (x) => Math.round(x * 10) / 10, r2 = (x) => Math.round(x * 100) / 100;
+  const umikSplBei0dbfs = (sens) => r2(94 - (UMIK_NENN + +sens) + AES_DB);
+  function bezug(spl, wiedergabe) {
+    const k = +spl - +wiedergabe;
+    if (!(k >= K_BEREICH[0] && k <= K_BEREICH[1])) throw new Error(`Bezug ${k.toFixed(1)} dB unplausibel`);
+    return r1(k);
+  }
+  const amPlatz = (wiedergabe, k) => (wiedergabe == null || k == null || wiedergabe <= STILLE_DBFS ? null : r1(+wiedergabe + +k));
+  function echtStellung(ziel, k, programm, hoechst) {
+    const soll = +ziel - +k - +programm, bis = r1(+programm + +k + +hoechst);
+    if (soll > hoechst + 1e-9) return { stellung_db: r2(+hoechst), erreichbar: false, bis_db: bis };
+    return { stellung_db: r2(soll), erreichbar: true, bis_db: bis };
+  }
+  const dosisStunden = (l) => 40 * Math.pow(10, (80 - +l) / 10);
+  // Aufnahme (Float32, rate) → Effektivwert (20·log10 RMS, unbewertet) des Raums [raum[0], raum[1]] und des Rauschens
+  // [sig[0], sig[1]] in Sekunden ab Aufnahmebeginn
+  function mikroPegel(daten, rate, raum, sig) {
+    const mittel = (a, b) => { const i0 = Math.max(0, Math.floor(a * rate)), i1 = Math.min(daten.length, Math.floor(b * rate));
+      if (i1 - i0 < rate * 0.5) return null; let s = 0; for (let i = i0; i < i1; i++) s += daten[i] * daten[i]; return 10 * Math.log10(s / (i1 - i0) + 1e-30); };
+    return { raum_dbfs: mittel(raum[0], raum[1]), mikro_dbfs: mittel(sig[0], sig[1]) };
+  }
+  const RECHNUNG = { leistungDb, raumAbziehen, umikSplBei0dbfs, bezug, amPlatz, echtStellung, dosisStunden, mikroPegel, ABSTAND_MIN_DB };
+  wurzel.PegelEcht = RECHNUNG;
+  if (typeof document === "undefined") { if (typeof module !== "undefined") module.exports = RECHNUNG; return; }
+
+  // --- Oberfläche ---------------------------------------------------------------------------------------------------
+  const $$ = (id) => document.getElementById(id);
+  const h = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const zahl = (x, n = 0) => (x == null ? "–" : (+x).toFixed(n).replace(".", ",").replace("-", "−"));
+  const stand = () => (typeof zh !== "undefined" && zh && zh.st) || {};
+  const pe = () => stand().pegel_echt || null;
+  const boxRegelt = () => { const l = stand().lautstaerke || {}, r = l.regler || {}; return r.regelt === "box" || (!r.regelt && !!l.fuehren); };
+  const datum = (d) => { const s = String(d || ""); return s.length >= 10 ? `${+s.slice(8, 10)}.${+s.slice(5, 7)}.${s.slice(0, 4)}` : "?"; };
+  const bezugKurz = (b) => `Bezug ${datum(b.datum)} · ${b.mikrofon === "messmikro" ? "Messmikrofon" : b.mikrofon === "iphone" ? "iPhone" : "Pegelmesser"} · ±${zahl(b.genau_db, b.genau_db % 1 ? 1 : 0)} dB`;
+  let wahl = { art: null, ziel: null }, messWahl = null, laeuft = false;
+
+  // Box › Lautstärke: Kasten „Pegel einmessen“ (nur, wenn die Klång-Box regelt)
+  function lautKasten() {
+    const platz = $$("zh-pe-platz"); if (!platz) return;
+    const p = pe();
+    if (!p || !boxRegelt()) { platz.innerHTML = ""; return; }
+    const b = p.bezug;
+    const gilt = "Gilt, solange die Klång-Box regelt und der Verstärker nicht verstellt wird.";
+    platz.innerHTML = !b ? `<div class="kasten" id="zh-pe"><h3>Pegel einmessen</h3>
+        <span class="klein">Einmal, etwa 1 Minute: Die Box spielt 20 s Rauschen, so laut wie jetzt, nie lauter. Die App misst am Hörplatz, wie laut das bei dir ankommt. Danach zeigt Hören „≈ dB“, und im Fenster Klang gibt es „Wie echt“.</span>
+        <span class="klein">${gilt}</span>
+        <button type="button" id="zh-pe-los" data-sheet-block="zh-pe-mess" data-sheet-titel="Pegel einmessen">Pegel einmessen …</button></div>`
+      : `<div class="kasten" id="zh-pe"><h3>Pegel einmessen</h3>
+        <div class="zh-pe-zeilen klein"><span>Eingemessen</span><span>${h(datum(b.datum))}</span><span>Mikrofon</span><span>${h(b.mikrofon_name)} · ±${zahl(b.genau_db, b.genau_db % 1 ? 1 : 0)} dB</span>
+          ${p.gilt ? `<span>Jetzt</span><span>${p.jetzt_db == null ? "nichts zu hören" : `≈ ${zahl(p.jetzt_db)} dB am Platz`}</span>` : ""}</div>
+        ${p.gilt ? `<span class="klein">${p.hinweis ? h(p.hinweis) : gilt}</span>` : `<span class="klein warn">${h(p.grund_text || "Der Bezug gilt gerade nicht.")}</span>`}
+        <button type="button" class="zweit" id="zh-pe-neu" data-sheet-block="zh-pe-mess" data-sheet-titel="Pegel einmessen">Neu einmessen</button></div>`;
+    const kal = $$("zh-lr-kal"); if (kal && b) kal.hidden = true;  // „≈ dB“ kommt jetzt aus dem Einmessen
+  }
+
+  // Fenster „Pegel einmessen“: Mikrofon wählen, Rauschen nur nach Bestätigung, Ergebnis
+  function mikroArten() {
+    const w = typeof mikroWahl === "function" ? mikroWahl() : { messmikro: false, id: "" };
+    const prof = typeof mikroProfil === "function" ? mikroProfil() : null, kal = prof && prof.kalibrierung;
+    const kennung = w.id || "";
+    const p = pe() || {};
+    return { w, kennung, messmikro: !!(w.messmikro && kal && kal.sens_db != null && prof.typ === "umik-1"), sens: kal ? kal.sens_db : null, typ: prof ? prof.typ : null,
+      iphone: !w.messmikro && (p.mikrofone || []).includes(kennung) };
+  }
+  function messZeigen(text) {
+    const m = mikroArten();
+    if (!messWahl || (messWahl === "messmikro" && !m.messmikro) || (messWahl === "iphone" && !m.iphone)) messWahl = m.messmikro ? "messmikro" : m.iphone ? "iphone" : "ablesung";
+    const knopf = (id, t, an, aus) => `<button type="button" class="chip" data-pe-mikro="${id}" aria-pressed="${an}"${aus ? " disabled" : ""}>${t}</button>`;
+    const genau = { messmikro: "Messmikrofon mit Kalibrierdatei: etwa ±1 dB.", iphone: "Dieses iPhone ist abgeglichen: etwa ±3 dB.",
+      ablesung: "Eine geprüfte Pegelmesser-App am Platz ablesen (dB, Bewertung „Z“ oder „C“): etwa ±2–3 dB. Das iPhone hört mit und kann es danach allein." }[messWahl];
+    $$("zh-pe-mess-inhalt").innerHTML = `<p class="klein">Setz dich auf deinen Platz. Mikrofon nach oben, auf Ohrhöhe. Still sein. Die Box spielt 20 s Rauschen, so laut wie gerade gehört, nie lauter.</p>
+      <div class="kb-gruppe"><span class="kb-label">Mikrofon</span><div class="chips" id="zh-pe-mikro" role="group" aria-label="Mikrofon">
+        ${knopf("messmikro", "Messmikrofon", messWahl === "messmikro", !m.messmikro)}${knopf("iphone", "Dieses iPhone", messWahl === "iphone", !m.iphone)}${knopf("ablesung", "Pegelmesser ablesen", messWahl === "ablesung", false)}</div>
+        <p class="klein">${genau}${!m.messmikro ? " Messmikrofon: unter Einmessen › Vorbereiten mit Kalibrierdatei wählen." : ""}</p></div>
+      ${messWahl === "ablesung" ? `<label class="klein" for="zh-pe-ablesung">Während des Rauschens abgelesen (dB), danach eintippen</label><input type="number" id="zh-pe-ablesung" min="40" max="120" step="0.5" inputmode="decimal">` : ""}
+      <button type="button" id="zh-pe-start"${laeuft ? " disabled" : ""}>${laeuft ? "Rauschen läuft …" : "Rauschen starten (20 s)"}</button>
+      <p class="klein" id="zh-pe-status" aria-live="polite">${text || ""}</p>`;
+  }
+  async function einmessen() {
+    const st = (t) => { const e = $$("zh-pe-status"); if (e) e.innerHTML = t; };
+    if (laeuft || !nativ) return;
+    const m = mikroArten(), art = messWahl;
+    laeuft = true; messZeigen("Mikrofon an …");
+    let mic = null, rauschStart = null, t0 = 0;
+    try {
+      mic = typeof mikrofonOeffnen === "function" ? await mikrofonOeffnen({}) : { fehler: "Mikrofon nicht verfügbar." };
+      if (mic.fehler) mic = null;  // ohne Mikrofon geht nur Ablesen
+      if (!mic && art !== "ablesung") throw new Error("Ohne Mikrofon geht nur „Pegelmesser ablesen“.");
+      t0 = Date.now();
+      st("Raumgeräusch … still sein."); await warte(2500);
+      const a = await nativ.box("pegel_echt", { einmessen: "start" }, { zeitMs: 15000 });
+      if (!a || a.ok === false) throw new Error((a && a.fehler) || "Die Box spielt das Rauschen nicht.");
+      rauschStart = (Date.now() - t0) / 1000;
+      const dauer = +a.einmessen.dauer_s || 20;
+      for (let s = Math.ceil(dauer); s > 0; s--) { st(`<span class="laeuft">Rauschen läuft … noch ${s} s${art === "ablesung" ? " · jetzt ablesen" : ""}</span>`); await warte(1000); }
+      await warte(600);
+      let d = { einmessen: "fertig", mikrofon: art, kennung: m.kennung || undefined };
+      if (mic) { const r = await mic.stopp(); mic = null;
+        if (r && r.daten) { const ab = +a.einmessen.messen_ab_s + 1, bis = +a.einmessen.messen_bis_s - 1;
+          const x = mikroPegel(r.daten, r.rate || 48000, [0.3, Math.max(0.8, rauschStart - 0.2)], [rauschStart + ab, rauschStart + bis]);
+          if (x.mikro_dbfs != null && x.raum_dbfs != null) d = { ...d, mikro_dbfs: r2(x.mikro_dbfs), raum_dbfs: r2(x.raum_dbfs) }; } }
+      if (art === "messmikro") d = { ...d, sens_db: m.sens, typ: m.typ };
+      if (art === "ablesung") {
+        laeuft = false; messZeigen("Wert eintippen, dann „Übernehmen“.");
+        const k = document.createElement("button"); k.type = "button"; k.id = "zh-pe-uebernehmen"; k.textContent = "Übernehmen"; $$("zh-pe-start").after(k);
+        k.addEventListener("click", async () => { const v = parseFloat(String(($$("zh-pe-ablesung") || {}).value || "").replace(",", "."));
+          if (!isFinite(v)) { st(`<span class="warn">Bitte den abgelesenen Wert eintippen.</span>`); return; }
+          await fertig({ ...d, ablesung_db: v }); });
+        return;
+      }
+      await fertig(d);
+    } catch (e) {
+      if (mic) try { mic.schliessen(); } catch (x) {}
+      if (rauschStart != null) nativ.box("pegel_echt", { einmessen: "abbrechen" });
+      laeuft = false; messZeigen(`<span class="warn">${h(e.message || e)}</span>`);
+    } finally { laeuft = false; }
+  }
+  async function fertig(d) {
+    const a = await nativ.box("pegel_echt", d, { zeitMs: 10000 });
+    if (!a || a.ok === false) { messZeigen(`<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`); return; }
+    if (typeof zh !== "undefined" && zh) zh.st = { ...(zh.st || {}), pegel_echt: a.pegel_echt };
+    const b = a.pegel_echt.bezug;
+    messZeigen(`<span class="ok">✓ Eingemessen: Das Rauschen kam mit ${zahl(a.spl_db, 1)} dB an${b && b.abstand_db != null ? `, ${zahl(b.abstand_db)} dB über dem Raum` : ""}. Genauigkeit etwa ±${zahl(b.genau_db, b.genau_db % 1 ? 1 : 0)} dB.</span> Im Fenster Klang gibt es jetzt „Wie echt“.`);
+    if (typeof zhLaden === "function") zhLaden();
+  }
+
+  // Klang › Für jetzt: Zeile „Wie echt“ (erst nach dem Einmessen)
+  function klangZeile() {
+    const platz = $$("zh-echt-platz"); if (!platz) return;
+    const p = pe();
+    if (!p || !p.an) { platz.innerHTML = ""; return; }
+    const a = (p.arten || []).find((x) => x.id === p.art);
+    const wert = !p.gilt ? "gilt gerade nicht" : a && p.fuer_quelle ? `${a.name} ${p.ziel_db} dB` : "Art wählen";
+    platz.innerHTML = `<button type="button" class="kb-zeile" id="zh-echt-zeile" data-sheet-block="zh-echt" data-sheet-titel="Wie echt"><span>Wie echt <span class="wert">· ${h(wert)}</span></span></button>`;
+  }
+  // Fenster „Wie echt“
+  function echtZeigen(text) {
+    const p = pe(); if (!p || !$$("zh-echt-inhalt")) return;
+    if (!wahl.art) wahl.art = p.art || p.vorschlag_art || "klavier";
+    const a = (p.arten || []).find((x) => x.id === wahl.art) || (p.arten || [])[0];
+    if (wahl.ziel == null) wahl.ziel = a.ziel_db;
+    const b = p.bezug || {};
+    const vorschlag = p.vorschlag_art && p.vorschlag_art !== wahl.art ? (p.arten.find((x) => x.id === p.vorschlag_art) || {}).name : null;
+    const dosis = wahl.ziel >= (p.dosis_ab_db || 85) ? ` Ab ${p.dosis_ab_db || 85} dB im Mittel ist die Wochendosis nach etwa ${zahl(dosisStunden(wahl.ziel), dosisStunden(wahl.ziel) < 10 ? 1 : 0)} Stunden erreicht.` : "";
+    $$("zh-echt-inhalt").innerHTML = `<p class="klein">So laut, wie es im Raum wäre. Die Box stellt die Lautstärke einmal so, dass die Musik, die gerade läuft, am Platz den Wert trifft. Sie merkt sich den Wert je Art, nicht je Titel.</p>
+      ${p.gilt ? "" : `<p class="klein warn">${h(p.grund_text || "Der Bezug gilt gerade nicht.")}</p>`}
+      <div class="chips" id="zh-echt-arten" role="radiogroup" aria-label="Art">${(p.arten || []).map((x) => `<button type="button" class="chip" role="radio" data-echt-art="${h(x.id)}" aria-checked="${x.id === wahl.art}" aria-pressed="${x.id === wahl.art}">${h(x.name)}</button>`).join("")}</div>
+      <p class="klein" id="zh-echt-text">${h(a.text)}${a.mittel ? ` Vorschlag ${a.vorschlag_db} dB.` : ""}${vorschlag ? ` Aus den Album-Infos: eher „${h(vorschlag)}“.` : ""}</p>
+      ${a.quellen ? `<p class="klein zh-echt-quelle">Quelle: ${h(a.quellen)}</p>` : ""}
+      <div class="zh-echt-stepper"><button type="button" class="zh-vol-knopf" data-echt-schritt="-1" aria-label="1 dB leiser">−</button><span class="zh-echt-zahl" id="zh-echt-ziel" aria-live="polite">${wahl.ziel} dB</span><button type="button" class="zh-vol-knopf" data-echt-schritt="1" aria-label="1 dB lauter">+</button></div>
+      <button type="button" id="zh-echt-stellen"${p.gilt ? "" : " disabled"}>So laut stellen</button>
+      <p class="klein" id="zh-echt-status" aria-live="polite">${text || (p.gilt ? `Jetzt ${p.jetzt_db == null ? "ist nichts zu hören" : `≈ ${zahl(p.jetzt_db)} dB`}.${dosis}` : "")}</p>
+      <div class="sheet-fuss"><span class="klein">${h(bezugKurz(b))}</span><button type="button" class="kb-link" data-sheet-block="zh-pe-mess" data-sheet-titel="Pegel einmessen">Neu einmessen</button></div>`;
+  }
+  async function stellen() {
+    const st = (t) => { const e = $$("zh-echt-status"); if (e) e.innerHTML = t; };
+    st(`<span class="laeuft">Stelle ein …</span>`);
+    const a = await nativ.box("pegel_echt", { echt: { art: wahl.art, ziel_db: wahl.ziel } }, { zeitMs: 8000 });
+    if (!a || a.ok === false) { st(`<span class="warn">${h((a && a.fehler) || "Ging nicht.")}</span>`); return; }
+    if (typeof zh !== "undefined" && zh) zh.st = { ...(zh.st || {}), pegel_echt: a.pegel_echt, ...(a.lautstaerke ? { lautstaerke: a.lautstaerke } : {}) };
+    const g = a.gestellt || {};
+    const p = a.pegel_echt, dosis = wahl.ziel >= (p.dosis_ab_db || 85) ? ` Ab ${p.dosis_ab_db || 85} dB im Mittel ist die Wochendosis nach etwa ${zahl(dosisStunden(wahl.ziel), dosisStunden(wahl.ziel) < 10 ? 1 : 0)} Stunden erreicht.` : "";
+    echtZeigen(g.ok === false ? `<span class="warn">${h(g.text)}</span>` : `<span class="${g.erreichbar === false ? "warn" : "ok"}">${h(g.text || "Gemerkt.")}</span> Die Lautstärke gleitet langsam dorthin.${dosis}`);
+    klangZeile();
+    if (typeof LAUT !== "undefined") LAUT.zeigen();
+  }
+
+  // Hören: Ergänzung der Lautstärke-Überblendung (Grundform in lautstaerke.js). Strich „echt“ auf der Linie und die Zeile
+  // „Klavier wie echt: 85 dB“; nur mit gültigem Bezug und gewählter Art für die laufende Quelle. Sonst nichts.
+  function overlay() {
+    // Zeile unter „≈ dB“ im Platz für weitere Zeilen, Strich auf der feinen Linie (Grundform seit 0.3.42)
+    const innen = $$("zh-vol-extra"), striche = $$("zh-vol-feinlinie");
+    if (!innen || !striche) return;
+    let zeile = $$("zh-vol-echt"), strich = $$("zh-vol-echt-strich");
+    const p = pe(), e = p && p.gilt && p.fuer_quelle && p.echt, a = e && (p.arten || []).find((x) => x.id === p.art);
+    if (!e || !a) { if (zeile) zeile.hidden = true; if (strich) strich.hidden = true; return; }
+    if (!zeile) { zeile = document.createElement("span"); zeile.id = "zh-vol-echt"; zeile.className = "zh-vol-echt"; innen.appendChild(zeile); }
+    if (!strich) { strich = document.createElement("u"); strich.id = "zh-vol-echt-strich"; strich.className = "zh-vol-echt-strich"; striche.appendChild(strich); }
+    zeile.hidden = false; strich.hidden = false;
+    zeile.textContent = e.erreichbar ? `${a.name} wie echt: ${p.ziel_db} dB` : `${a.name} wie echt: ${p.ziel_db} dB, möglich bis ${zahl(e.bis_db)} dB`;
+    strich.style.left = `${Math.max(0, Math.min(100, +e.stufe))}%`;
+  }
+
+  function zeigen() { lautKasten(); klangZeile(); overlay(); }
+  document.addEventListener("click", (ev) => {
+    const t = ev.target;
+    const m = t.closest("[data-pe-mikro]"); if (m && !m.disabled) { messWahl = m.dataset.peMikro; messZeigen(); return; }
+    if (t.closest("#zh-pe-start")) { einmessen(); return; }
+    const ar = t.closest("[data-echt-art]"); if (ar) { wahl.art = ar.dataset.echtArt; const x = (pe().arten || []).find((y) => y.id === wahl.art); wahl.ziel = x ? x.ziel_db : wahl.ziel; echtZeigen(); return; }
+    const s = t.closest("[data-echt-schritt]"); if (s) { wahl.ziel = Math.max(60, Math.min(105, wahl.ziel + +s.dataset.echtSchritt)); echtZeigen(); return; }
+    if (t.closest("#zh-echt-stellen")) { stellen(); return; }
+  });
+  window.addEventListener("sheetauf", async (ev) => {
+    const id = ev.detail && ev.detail.id;
+    if (id === "zh-pe-mess-block") { messWahl = null; messZeigen(); }
+    if (id === "zh-echt-block") { wahl = { art: null, ziel: null };
+      echtZeigen();
+      const a = await nativ.box("pegel_echt", {}, { zeitMs: 6000 });  // mit Vorschlag aus den Album-Infos
+      if (a && a.ok !== false && typeof zh !== "undefined" && zh) { zh.st = { ...(zh.st || {}), pegel_echt: a.pegel_echt }; echtZeigen(); } }
+    if (id === "zh-lautstaerke-block") lautKasten();
+    if (id === "zh-schalter-block") klangZeile();
+  });
+  window.addEventListener("sheetzu", (ev) => {
+    if (ev.detail && ev.detail.id === "zh-pe-mess-block" && laeuft) nativ.box("pegel_echt", { einmessen: "abbrechen" });
+  });
+  window.PEGELECHT = { zeigen, overlay, lautKasten, klangZeile };
+})(typeof window !== "undefined" ? window : globalThis);
 </script>

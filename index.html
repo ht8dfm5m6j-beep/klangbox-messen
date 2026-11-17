@@ -15629,14 +15629,21 @@ function saOberflaeche(K) {
   }
   // Unterschied zu „Sub aus“ unter 80 Hz (wie subSpielt) und Abstand zum Raumgeräusch dort, wo der Sub spielt
   function subBefund(k, dbJetzt = null) {
-    const a = kw(k).ref_db, b = kw(st.haupt.kurve).ref_db, d = [], s = [], tief = [], mitte = [];
+    const a = kw(k).ref_db, b = kw(st.haupt.kurve).ref_db, d = [], s = [], s40 = [], tief = [], mitte = [], tiefS = [], mitteS = [];
     const mittel = (w) => (w.length ? w.reduce((q, x) => q + x, 0) / w.length : null);
     k.f.forEach((f, i) => { if (f < 25 || f > 80) return; const x = k.db[i], n = (k.rausch_db || [])[i];
-      const u = subDiff(k, a, b, i, dbJetzt); if (u !== null) { d.push(u); (f < 40 ? tief : mitte).push(u); }
-      if (x !== null && n !== null && n !== undefined) s.push(x - n); });
+      const u = subDiff(k, a, b, i, dbJetzt); if (u !== null) { d.push(u); (f < 40 ? tief : mitte).push(u);
+        if (sauber(st.haupt.kurve, i)) (f < 40 ? tiefS : mitteS).push(u); }  // für die Erkennung je Bereich: ohne Untergrenzen (Prüfer)
+      if (x !== null && n !== null && n !== undefined) { s.push(x - n); if (f < 40) s40.push(x - n); } });
     // je Bereich mit Vorzeichen: was der Sub dazubringt (unter 40 Hz: misst das Handy dort noch? 40–80 Hz: spielt er?)
     // mit Vorzeichen: „bringt der Sub etwas dazu?“ (Tonlabor: kaum Fehlalarme), mindestens 3 Punkte, sonst nicht beurteilbar
-    return { mehr_db: d.length >= 3 ? mittel(d) : null, abstand_db: s.length ? K.median(s) : null, unter40_db: mittel(tief), bis80_db: mittel(mitte) };
+    // je Bereich (0.3.48, Besitzer 17.11.2026: REL bei 55 Hz bringt nur unter ~50 Hz etwas, über 25–80 Hz gemittelt ging das
+    // unter): erkannt, wenn er in einem Bereich mit mindestens 2 Punkten klar etwas dazubringt
+    // mindestens 3 Punkte, an denen beide Messungen sauber sind (Prüfer: Untergrenzen heben den Mittelwert, Fehlalarm)
+    const bereich = (w) => (w.length >= 3 ? mittel(w) : null), b40 = bereich(tiefS), b80 = bereich(mitteS);
+    const bester = [b40, b80].filter((x) => x !== null);
+    return { mehr_db: d.length >= 3 ? mittel(d) : null, bester_db: bester.length ? Math.max(...bester) : null, bester_bereich: bester.length ? (b40 !== null && b40 === Math.max(...bester) ? "unter 40 Hz" : "40–80 Hz") : null,
+      abstand_db: s.length ? K.median(s) : null, abstand40_db: s40.length ? K.median(s40) : null, unter40_db: mittel(tief), bis80_db: mittel(mitte) };
   }
   function subCheck(meldung = "") {
     messBild("Sub an · spielt er?", "Sub · Schritt 2 von 5", `Schalte den Sub ein, so wie er steht, nichts verstellen. Dann zurück an den Platz. Die App spielt das Signal erst leise und wird lauter, bis sie deinen Sub sicher hört.`,
@@ -15651,8 +15658,13 @@ function saOberflaeche(K) {
         const m = await einmal(db === null ? "" : `Prüfton ${zahl(db, 0)} dB.`, db === stufen[0] ? 6000 : 0); if (!st) return;
         if (m.fehler && !m.leise) { subCheck(`<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
         const b = subBefund(m.kurve, m.db); letzter = { db, ...b };
-        const gefunden = b.mehr_db !== null && b.mehr_db >= CHECK_MEHR_DB && !m.leise;
-        if (gefunden && (b.abstand_db === null || b.abstand_db >= CHECK_ABSTAND_DB || db === stufen[stufen.length - 1])) { st.subCheck = letzter; subGefunden(); return; }
+        const gefunden = b.bester_db !== null && b.bester_db >= CHECK_MEHR_DB && !m.leise;
+        // lauter nur, wenn es gegen das Raumgeräusch zu leise ist (0.3.48, Besitzer: „bis 0 dB hoch, sehr laut“). Ist der
+        // Abstand gut und der Sub bringt nichts, ändert lauter nichts am Verhältnis: dann gleich „nicht gefunden“
+        // auch unter 40 Hz (dort spielt ein tief getrennter Sub; Prüfer: sonst Abbruch, bevor er aus dem Rauschen kommt)
+        const lautGenug = !m.leise && (b.abstand_db === null || b.abstand_db >= CHECK_ABSTAND_DB) && (b.abstand40_db === null || b.abstand40_db >= UEBER_RAUSCHEN_DB);
+        if (gefunden && (lautGenug || db === stufen[stufen.length - 1])) { st.subCheck = letzter; subGefunden(); return; }
+        if (lautGenug) break;
       }
       st.subCheck = null; subNichtGefunden(letzter);  // der zuletzt probierte (lauteste) Pegel bleibt für „Trotzdem weiter“
     };
@@ -15660,14 +15672,14 @@ function saOberflaeche(K) {
   function subGefunden() {
     const c = st.subCheck;
     zeige(`${kopf("Sub · Schritt 2 von 5")}<h1 id="sa-h">Dein Sub spielt</h1>
-      <p class="sa-lead" id="sa-check-ok">Unter 80 Hz ${zahl(c.mehr_db, 0)} dB mehr als ohne Sub, ${c.abstand_db === null ? "" : `${zahl(c.abstand_db, 0)} dB über dem Raumgeräusch. `}${c.db === null ? "" : `Alle Messungen laufen jetzt mit ${zahl(c.db, 0)} dB an der Box.`}</p>
+      <p class="sa-lead" id="sa-check-ok">${ex(c.bester_bereich === "40–80 Hz" ? "Bei 40–80 Hz" : c.bester_bereich === "unter 40 Hz" ? "Unter 40 Hz" : "Unter 80 Hz")} bringt dein Sub ${zahl(c.bester_db ?? c.mehr_db, 0)} dB dazu, ${c.abstand_db === null ? "" : `${zahl(c.abstand_db, 0)} dB über dem Raumgeräusch. `}${c.db === null ? "" : `Alle Messungen laufen jetzt mit ${zahl(c.db, 0)} dB an der Box.`}</p>
       ${bereiche(c)}<div class="sa-knoepfe eins"><button type="button" id="sa-weiter">Weiter</button></div>`);
     el("sa-weiter").onclick = () => liste();
   }
   const vz = (x) => `${x >= 0 ? "+" : ""}${zahl(x, 1)}`;
   const bereiche = (c) => (c && (c.unter40_db !== null || c.bis80_db !== null) ? `<p class="klein" id="sa-bereiche">Mit Sub gegenüber ohne: unter 40 Hz ${c.unter40_db === null ? "–" : `${vz(c.unter40_db)} dB`}, 40–80 Hz ${c.bis80_db === null ? "–" : `${vz(c.bis80_db)} dB`}.</p>` : "");
   function subNichtGefunden(c) {
-    const leise = c && c.abstand_db !== null && c.abstand_db < K.SNR_MIN_DB, offen = c && c.mehr_db === null && !leise;
+    const leise = c && c.abstand_db !== null && c.abstand_db < K.SNR_MIN_DB, offen = c && c.mehr_db === null && c.bester_db === null && !leise;
     if (offen) {  // kein Punkt beurteilbar: nicht „gleich wie ohne“ behaupten
       zeige(`${kopf("Sub · Schritt 2 von 5")}<h1 id="sa-h">Nicht zu beurteilen</h1>
         <p class="sa-lead" id="sa-check-nein">Unter 80 Hz war es zu unruhig, um Sub an und aus zu vergleichen. Fenster zu, Geräte aus, still sein, dann noch einmal.</p>

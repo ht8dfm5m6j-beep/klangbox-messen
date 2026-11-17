@@ -15236,6 +15236,20 @@ function saOberflaeche(K) {
 #sa .sa-messliste li { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 #sa .sa-messliste li span { display: grid; gap: 2px; } #sa .sa-messliste small { color: var(--kb-text-leise); }
 #sa .sa-messliste li.empfohlen span::before { content: "Empfohlen"; font: var(--kb-t-skala); color: var(--kb-signal-text); letter-spacing: .04em; }
+#sa .sa-regler-reihe { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; align-items: start; }
+#sa .sa-regler { display: grid; gap: 8px; justify-items: center; text-align: center; min-width: 0; }
+#sa .sa-regler .seg { width: 100%; max-width: 220px; }
+#sa .sa-regler-name { font: var(--kb-t-titel3); }
+#sa .sa-regler-wert { font: var(--kb-t-anzeige-m); }
+#sa .sa-dial { width: 100%; max-width: 200px; height: auto; display: block; cursor: pointer; touch-action: manipulation; }
+#sa .sa-regler.fest .sa-dial { cursor: default; }
+#sa .sa-dial .strich { stroke: var(--kb-linie); stroke-width: 1; } #sa .sa-dial .strich.lang { stroke-width: 2; }
+#sa .sa-dial .knopf { fill: var(--kb-flaeche); stroke: var(--kb-linie); stroke-width: 1; }
+#sa .sa-dial .zeiger { stroke: var(--kb-text); stroke-width: 5; stroke-linecap: round; }
+#sa .sa-dial .zeiger.ist { stroke: var(--kb-text-leise); stroke-dasharray: 2 7; }
+#sa .sa-dial text { font: var(--kb-t-skala); fill: var(--kb-text-leise); text-anchor: middle; }
+#sa .sa-bisher { border-top: 1px solid var(--kb-linie); padding-top: 12px; display: grid; gap: 12px; }
+#sa .sa-bisher summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 #sa .sa-warn { color: var(--kb-text); font-weight: 600; } #sa .sa-gut { color: var(--kb-text); }
 `;
   function stilEinmal() { if (el("sa-stil")) return; const s = document.createElement("style"); s.id = "sa-stil"; s.textContent = STIL; document.head.appendChild(s); }
@@ -15456,13 +15470,13 @@ function saOberflaeche(K) {
     const e = r.skala === "hz" ? "Hz" : r.skala === "db" ? "dB" : w.einheit || "";
     return `<label>${ex(r.name)}${e ? ` (${ex(e)})` : ""}<input type="number" id="${id}" inputmode="decimal" step="${w.schritt || (r.skala === "db" ? 0.5 : 1)}"${"von" in w ? ` min="${w.von}"` : ""}${"bis" in w ? ` max="${w.bis}"` : ""} value="${ex(v)}"></label>`;
   }
-  const feldAnzeige = (r, v) => (!r ? String(v) : r.stufen ? ((r.anzeige || {})[v] || v) : r.skala === "hz" ? `${String(v).replace(".", ",")} Hz` : r.skala === "db" ? `${String(v).replace(".", ",")} dB` : String(v));
+  const feldAnzeige = (r, v) => (v === undefined || v === null || v === "" ? "–" : !r ? String(v) : r.stufen ? ((r.anzeige || {})[v] || v) : r.skala === "hz" ? `${String(v).replace(".", ",")} Hz` : r.skala === "db" ? `${String(v).replace(".", ",")} dB` : r.skala === "grad" ? `${String(v).replace(".", ",")}°` : String(v));
   function stellungLesen() {
     const s = {};
     for (const r of felderRegler()) { const e = el(`sa-f-${rid(r)}`); if (!e || e.value === "") continue;
       const einheit = r.stufen || r.skala === "uhr" ? "" : r.skala === "hz" ? " Hz" : r.skala === "db" ? " dB" : "";
       const zahlText = (t) => { const x = parseFloat(String(t).replace(",", ".")); return Number.isFinite(x) ? String(Math.round(x * 10) / 10).replace(".", ",") : String(t); };
-      s[r.name] = r.stufen ? ((r.anzeige || {})[e.value] || e.value) : r.skala === "uhr" ? e.value : `${zahlText(e.value)}${einheit}`; st.zuletzt[rid(r)] = e.value; }
+      s[r.name] = r.stufen ? ((r.anzeige || {})[e.value] || e.value) : r.skala === "uhr" ? drehText(r, e.value) : `${zahlText(e.value)}${einheit}`; st.zuletzt[rid(r)] = e.value; }
     return s;
   }
   // Raster je Regler für K.vorschlag: Schalter (stufen), Uhr (halbe Stunden), Hz (Schritt 5), dB (Schritt 0,5)
@@ -15519,9 +15533,9 @@ function saOberflaeche(K) {
     el("sa-liegt").onclick = () => boxenAllein();
   }
   function boxenAllein() {
-    const aus = st.plan.fall === "misch" ? "Schalte den Sub aus (Netzschalter) oder stell den Sub-Pegel in der App der Boxen ganz zurück." : "Schalte den Sub aus (Netzschalter hinten) oder dreh seinen Pegel ganz zurück.";
-    messBild("Die Boxen allein", "Sub · 1 · ohne Sub", `${ex(aus)} Dann zurück an den Platz und „Messen“. So sieht die App, wo deine Boxen aufhören.`,
-      `<div class="sa-knoepfe"><button type="button" class="zweit" id="sa-ueber">Überspringen</button><button type="button" id="sa-messen">Messen</button></div>`);
+    const aus = st.plan.fall === "misch" ? "Schalte den Sub aus: Netzschalter auf AUS, oder den Sub-Pegel in der App der Boxen ganz zurück." : "Schalte den Sub aus: Netzschalter hinten auf AUS (OFF).";
+    messBild("Sub aus", "Sub · Schritt 1 von 4", `${ex(aus)} Dann zurück an den Platz. So misst die App deine Boxen allein und sieht, wo ihr Bass aufhört. Etwa 10 Sekunden, danach Ruhe.`,
+      `<div class="sa-knoepfe"><button type="button" class="zweit" id="sa-ueber">Überspringen</button><button type="button" id="sa-messen">Sub ist aus · Messen</button></div>`);
     el("sa-ueber").onclick = () => liste();
     el("sa-messen").onclick = async () => { el("sa-messen").disabled = true; el("sa-ueber").disabled = true;
       const m = await einmal(""); if (!st) return;
@@ -15540,38 +15554,132 @@ function saOberflaeche(K) {
     st.tol = K.toleranz(paare);
     return K.empfehlen(st.messliste.map((e) => ({ key: e.key, guete: e.w.guete, pegel_db: e.w.pegel_db, oberbass_db: e.w.oberbass_db })), st.tol, st.phil);
   }
+  // --- Regler als Bild (0.3.44, Besitzer: „Schritt für Schritt“, „12:30 Uhr sagt mir nichts, ich klick an“): Drehregler
+  // mit den Anschlägen wie am Gerät (MIN … MAX bzw. 30 Hz … 120 Hz), Schalter als Knöpfe. Antippen setzt die Stellung.
+  const DREH = (r) => r.skala === "uhr" || (r.skala === "hz" && !!(r.werte || {}).stufenlos);
+  const grenzen = (r) => { const w = r.werte || {}; return ["von" in w ? w.von : 30, "bis" in w ? w.bis : 150, w.schritt || 5]; };
+  function tAus(r, v) {
+    if (v === undefined || v === null || v === "") return null;
+    if (r.skala === "uhr") { const i = UHR.indexOf(String(v).replace(" Uhr", "")); return i < 0 ? null : i / (UHR.length - 1); }
+    const [lo, hi] = grenzen(r), x = parseFloat(String(v).replace(",", ".")); return Number.isFinite(x) ? Math.max(0, Math.min(1, (x - lo) / (hi - lo))) : null;
+  }
+  function wertAus(r, t) {
+    if (r.skala === "uhr") return `${UHR[Math.round(t * (UHR.length - 1))]} Uhr`;
+    const [lo, hi, sch] = grenzen(r); return String(Math.round((lo + t * (hi - lo)) / sch) * sch);
+  }
+  function drehText(r, v) {
+    const t = tAus(r, v); if (t === null) return "noch nicht angetippt";
+    if (r.skala === "hz") return `≈ ${String(v).replace(".", ",")} Hz`;
+    return t < 0.03 ? "ganz links (MIN)" : t > 0.97 ? "ganz rechts (MAX)" : `bei ${Math.round(t * 100)} %`;  // 5-%-Schritte: eindeutig je Stellung
+  }
+  const winkel = (t) => (-150 + 300 * t) * Math.PI / 180, punkt = (t, rr) => [100 + rr * Math.sin(winkel(t)), 100 - rr * Math.cos(winkel(t))];
+  function dialSvg(r, wert, ist) {
+    const [lo, hi] = grenzen(r), lmin = r.skala === "hz" ? `${lo} Hz` : "MIN", lmax = r.skala === "hz" ? `${hi} Hz` : "MAX";
+    let s = "";
+    for (let i = 0; i <= 20; i++) { const [x1, y1] = punkt(i / 20, 78), [x2, y2] = punkt(i / 20, i % 5 ? 84 : 90); s += `<line class="strich${i % 5 ? "" : " lang"}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }
+    s += `<circle class="knopf" cx="100" cy="100" r="62"/>`;
+    const ti = tAus(r, ist), tw = tAus(r, wert);
+    if (ti !== null && ti !== tw) { const [x, y] = punkt(ti, 56); s += `<line class="zeiger ist" x1="100" y1="100" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`; }
+    if (tw !== null) { const [x, y] = punkt(tw, 56); s += `<line class="zeiger" x1="100" y1="100" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`; }
+    const [ax, ay] = punkt(0, 98), [bx, by] = punkt(1, 98);
+    s += `<text x="${ax.toFixed(1)}" y="${(ay + 18).toFixed(1)}">${ex(lmin)}</text><text x="${bx.toFixed(1)}" y="${(by + 18).toFixed(1)}">${ex(lmax)}</text>`;
+    return `<svg class="sa-dial" viewBox="0 0 200 215" data-sa-dial="${ex(rid(r))}" role="slider" tabindex="0" aria-label="${ex(r.name)}" aria-valuemin="0" aria-valuemax="100"${tw !== null ? ` aria-valuenow="${Math.round(tw * 100)}"` : ""} aria-valuetext="${ex(drehText(r, wert))}">${s}</svg>`;
+  }
+  // ein Regler als Bild; ist: wo er gerade steht (gepunktet), wert: wo er hin soll bzw. steht (durchgezogen)
+  function reglerBild(r, wert, ist = null, bearbeiten = true) {
+    const id = `sa-f-${ex(rid(r))}`, v = wert === undefined || wert === null ? "" : String(wert);
+    if (r.stufen && !bearbeiten) return `<div class="sa-regler fest"><span class="sa-regler-name">${ex(r.name)}</span><b class="sa-regler-wert">${ex((r.anzeige || {})[v] || v || "–")}</b></div>`;
+    if (r.stufen) return `<div class="sa-regler"><span class="sa-regler-name">${ex(r.name)}</span><div class="seg" role="group" aria-label="${ex(r.name)}">${r.stufen.map((x) =>
+      `<button type="button" data-sa-stufe-r="${ex(rid(r))}" data-sa-stufe-w="${ex(x)}" aria-pressed="${x === v}"${bearbeiten ? "" : " disabled"}>${ex((r.anzeige || {})[x] || x)}</button>`).join("")}</div>
+      <input type="hidden" id="${id}" value="${ex(v)}"></div>`;
+    if (DREH(r)) return `<div class="sa-regler${bearbeiten ? "" : " fest"}"><span class="sa-regler-name">${ex(r.name)}</span>${dialSvg(r, v, ist)}<span class="klein" id="${id}-text">${ex(drehText(r, v))}</span>
+      <input type="hidden" id="${id}" value="${ex(v)}" data-ist="${ex(ist ?? "")}"></div>`;
+    if (!bearbeiten) return `<div class="sa-regler fest"><span class="sa-regler-name">${ex(r.name)}</span><b class="sa-regler-wert">${v === "" ? "–" : ex(feldAnzeige(r, v))}</b></div>`;
+    return `<div class="sa-felder">${feldHtml(r, wert)}</div>`;
+  }
+  // Antippen: Drehregler (Winkel → Stellung) und Schalter
+  document.addEventListener("click", (ev) => {
+    const sv = ev.target.closest && ev.target.closest("#sa svg[data-sa-dial]");
+    if (sv && !sv.closest(".fest")) { const r = felderRegler().find((x) => rid(x) === sv.dataset.saDial); if (!r) return;
+      const b = sv.getBoundingClientRect(), x = (ev.clientX - b.left) / b.width * 200 - 100, y = (ev.clientY - b.top) / b.height * 215 - 100;
+      let a = Math.atan2(x, -y) * 180 / Math.PI; if (Math.abs(a) > 150) a = x >= 0 ? 150 : -150;  // unten zwischen den Anschlägen: rechts MAX, links MIN
+      const v = wertAus(r, Math.max(0, Math.min(1, (a + 150) / 300))), inp = el(`sa-f-${rid(r)}`);
+      inp.value = v; sv.outerHTML = dialSvg(r, v, inp.dataset.ist || null); el(`sa-f-${rid(r)}-text`).textContent = drehText(r, v); return; }
+    const sb = ev.target.closest && ev.target.closest("#sa [data-sa-stufe-r]");
+    if (sb) { const inp = el(`sa-f-${sb.dataset.saStufeR}`); inp.value = sb.dataset.saStufeW;
+      sb.parentNode.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === sb))); }
+  });
+  // Tastatur (und Vorlesen): Pfeiltasten verstellen den fokussierten Drehregler um einen Rasterschritt
+  document.addEventListener("keydown", (ev) => {
+    const sv = ev.target.closest && ev.target.closest("#sa svg[data-sa-dial]"); if (!sv || sv.closest(".fest")) return;
+    const d = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[ev.key]; if (!d) return; ev.preventDefault();
+    const r = felderRegler().find((x) => rid(x) === sv.dataset.saDial), inp = r && el(`sa-f-${rid(r)}`); if (!inp) return;
+    let v;
+    if (r.skala === "uhr") { const i = UHR.indexOf(String(inp.value).replace(" Uhr", "")), j = Math.max(0, Math.min(UHR.length - 1, (i < 0 ? 10 : i) + d)); v = `${UHR[j]} Uhr`; }
+    else { const [lo, hi, sch] = grenzen(r), x = parseFloat(inp.value); v = String(Math.max(lo, Math.min(hi, (Number.isFinite(x) ? x : lo) + d * sch))); }
+    inp.value = v; sv.outerHTML = dialSvg(r, v, inp.dataset.ist || null); el(`sa-f-${rid(r)}-text`).textContent = drehText(r, v);
+    const neu = document.querySelector(`#sa svg[data-sa-dial="${rid(r)}"]`); if (neu) neu.focus();
+  });
+  function richtung(r, von, nach) {
+    if (r.stufen) return `Schalter auf ${(r.anzeige || {})[nach] || nach}.`;
+    if (!DREH(r)) return `von ${feldAnzeige(r, von)} auf ${feldAnzeige(r, nach)}.`;
+    const a = tAus(r, von), b = tAus(r, nach); if (a === null || b === null) return `Auf die durchgezogene Stellung.`;
+    const d = b - a, wie = Math.abs(d) < 0.07 ? "ein kleines Stück" : Math.abs(d) < 0.2 ? "ein Stück" : "deutlich";
+    return `${wie} nach ${d > 0 ? "rechts" : "links"}${r.skala === "hz" ? `, von ${drehText(r, von)} auf ${drehText(r, nach)}` : ""}.`;
+  }
   function liste(meldung = "") {
-    const ein = st.messliste, letzte = ein[ein.length - 1], erg = auswertung(), rph = phaseRegler();
-    const rx = felderRegler().find((r) => r.rolle === "sub_trennfrequenz" || r.rolle === "sub_out_tiefpass"), rxw = rx && letzte ? parseFloat(String(letzte.stellung[rx.name] || "").replace(",", ".")) : NaN;
+    const ein = st.messliste, letzte = ein[ein.length - 1], erg = auswertung(), rph = phaseRegler(), regler = felderRegler();
+    const rx = regler.find((r) => r.rolle === "sub_trennfrequenz" || r.rolle === "sub_out_tiefpass"), rxw = rx && letzte ? parseFloat(String(letzte.roh[rid(rx)] ?? "")) : NaN;
     const tipp = letzte ? K.hinweis(letzte.w, st.phil, rph ? K.phaseStatus(phaseVergleiche(rph), st.tol) : "klar", st.haupt ? kw(st.haupt.kurve).pegel_db : null,
       Number.isFinite(rxw) ? rxw : null, f6Von(st)) : null, wiederholt = ein.length > 0 && Object.values(ein.reduce((a, e) => ((a[e.key] = (a[e.key] || 0) + 1), a), {})).some((n) => n > 1);
-    const start = ein.length ? null : K.startstellung(st.plan, st.sub, st.ls, f6Von(st));
-    const raster = rasterRegler(), nach = ein.length > 1 ? K.vorschlag(raster, ein.map((e) => ({ roh: e.roh, guete: e.w.guete, pegel_db: e.w.pegel_db, oberbass_db: e.w.oberbass_db })), st.tol, st.phil) : null;
-    if (nach) for (const [k, v] of Object.entries(nach.roh)) st.zuletzt[k] = String(v);
-    const nachR = nach ? felderRegler().find((r) => rid(r) === nach.regler) : null;
-    const fehlt = letzte ? felderRegler().filter((r) => raster.find((x) => x.id === rid(r) && x.werte.length) && (letzte.roh[rid(r)] === undefined || Number.isNaN(letzte.roh[rid(r)]))) : [];
-    const vorschlagText = fehlt.length ? `Trag ${ex(fehlt.map((r) => r.name).join(" und "))} ein, dann kann die App die nächste Stellung vorschlagen.`
-      : !nach ? (ein.length > 2 ? "Alle Nachbarstellungen der Empfehlung sind gemessen: Die Empfehlung steht. Mehr messen geht trotzdem." : "")
-      : `Als Nächstes: ${nachR ? ex(nachR.name) : "Regler"} auf ${ex(feldAnzeige(nachR, nach.roh[nach.regler]))} stellen, der Rest bleibt. Erst stellen, dann „Messen“.`;
+    const raster = rasterRegler(), nach = ein.length > 1 || (ein.length === 1 && st.ohneWiederholung) ? K.vorschlag(raster, ein.map((e) => ({ roh: e.roh, guete: e.w.guete, pegel_db: e.w.pegel_db, oberbass_db: e.w.oberbass_db })), st.tol, st.phil) : null;
+    const fehlt = letzte ? regler.filter((r) => raster.find((x) => x.id === rid(r) && x.werte.length) && (letzte.roh[rid(r)] === undefined || Number.isNaN(letzte.roh[rid(r)]))) : [];
     const brauchbar = erg.liste.some((x) => x.key === erg.beste && x.guete >= 30);  // erst dann gibt es eine Empfehlung
+    const bestG = erg.liste.length ? Math.max(...erg.liste.map((x) => x.guete)) : null;
     const zeilen = [...erg.liste].sort((a, b) => b.guete - a.guete).map((x) => `<li class="sa-mess${x.key === erg.beste && brauchbar ? " empfohlen" : ""}"><span>${ex(x.key)}${x.n > 1 ? ` <small>(${x.n}×)</small>` : ""}${x.warnung ? `<small>${ex(x.warnung)}</small>` : ""}</span><b>${zahl(x.guete, 0)}</b></li>`).join("");
-    zeige(`${kopf(`Sub · ${ein.length ? `${ein.length} ${ein.length === 1 ? "Messung" : "Messungen"}` : "Einstellen"}`)}<h1 id="sa-h">${ein.length ? "Stell ein, dann messen" : "Erste Stellung"}</h1>
-      <p class="sa-lead">${ein.length ? "Geh zum Sub, stell um, komm zurück, trag ein, was du gestellt hast, und tippe „Messen“. So oft du willst." : "Trag ein, wie der Sub jetzt steht, und miss. Das ist dein Vergleichspunkt."}</p>
-      ${start && start.length ? `<details class="klein"><summary>Vorschlag für den Anfang</summary><ul class="sa-liste">${start.map((t) => `<li>${ex(t)}</li>`).join("")}</ul></details>` : ""}
-      <div class="sa-felder">${felderRegler().map((r) => feldHtml(r, st.zuletzt[rid(r)] ?? (r.stufen ? r.neutral : ""))).join("")}</div>
-      <div class="sa-knoepfe${ein.length && !wiederholt ? "" : " eins"}">${ein.length && !wiederholt ? `<button type="button" class="zweit" id="sa-wiederholen">Gleiche Stellung noch einmal</button>` : ""}<button type="button" id="sa-messen">Messen</button></div>
-      ${vorschlagText && !meldung ? `<p class="sa-lead" id="sa-vorschlag">${vorschlagText}</p>` : ""}
-      <p class="klein" id="sa-hinweis" aria-live="polite">${meldung || (tipp && (!nach || ["nochmal", "raum"].includes(tipp.art)) ? ex(tipp.text) : "")}</p>
-      ${ein.length === 1 && !wiederholt ? `<p class="klein">Tipp: Miss diese Stellung einmal neu. Nimm das Handy dazwischen kurz hoch und leg es wieder hin. So lernt die App, wie genau deine Messungen sind.</p>` : ""}
-      ${ein.length ? `${kurveSvg(["zuletzt", "Empfohlen", "Boxen allein"])}<ul class="zh-ws-zeilen klein sa-messliste">${zeilen}</ul>
-        <p class="klein">${!brauchbar ? "Noch keine gute Stellung: dem Vorschlag folgen." : erg.sicher ? "Empfohlen ist die beste Stellung." : `${erg.gleich.length} ${erg.gleich.length === 1 ? "weitere ist" : "weitere sind"} gleich gut (Unterschied unter ${st.tol} Punkten). Empfohlen ist die, die näher am Ziel liegt.`} Güte 0–100, ${wiederholt ? `deine Messungen streuen um etwa ${st.tol} Punkte.` : "Streuung noch geschätzt."}</p>
-        ${brauchbar ? `<div class="sa-knoepfe eins"><button type="button" class="zweit" id="sa-fertig-liste">Fertig: Empfehlung zeigen</button></div>` : ""}` : ""}`);
+    const bisher = ein.length ? `<details class="sa-bisher"><summary class="klein">Bisher: ${ein.length} ${ein.length === 1 ? "Messung" : "Messungen"}${bestG !== null ? ` · beste Güte ${zahl(bestG, 0)}` : ""}</summary>
+      ${kurveSvg(["zuletzt", "Empfohlen", "Boxen allein"])}<ul class="zh-ws-zeilen klein sa-messliste">${zeilen}</ul>
+      <p class="klein">${!brauchbar ? "Noch keine gute Stellung." : erg.sicher ? "Empfohlen ist die beste Stellung." : `${erg.gleich.length} ${erg.gleich.length === 1 ? "weitere ist" : "weitere sind"} gleich gut (Unterschied unter ${st.tol} Punkten). Empfohlen ist die, die näher am Ziel liegt.`} Güte 0–100, ${wiederholt ? `deine Messungen streuen um etwa ${st.tol} Punkte.` : "Streuung noch geschätzt."}</p></details>` : "";
+    const fertigKnopf = brauchbar ? `<div class="sa-knoepfe eins"><button type="button" class="zweit" id="sa-fertig-liste">Fertig: Empfehlung zeigen</button></div>` : "";
+    const hinweisZeile = `<p class="klein" id="sa-hinweis" aria-live="polite">${meldung || (tipp && ["nochmal", "raum"].includes(tipp.art) ? ex(tipp.text) : "")}</p>`;
+    let html, knopf = "sa-messen";
+    if (!ein.length) {  // Schritt 2: Sub an, wie steht er?
+      const z = (r) => st.zuletzt[rid(r)] ?? (r.stufen ? r.neutral : null);
+      html = `${kopf("Sub · Schritt 2 von 4")}<h1 id="sa-h">Sub an · wie steht er?</h1>
+        <p class="sa-lead">Schalte den Sub wieder ein. Tippe auf jedem Bild dahin, wo der Strich auf deinem Regler zeigt.</p>
+        <div class="sa-regler-reihe">${regler.map((r) => reglerBild(r, z(r))).join("")}</div>
+        ${(st.sub && (st.sub.regler || []).some((r) => r.rolle === "lfe_pegel")) && st.plan.fall !== "box" ? `<p class="klein">${ex((st.sub.regler.find((r) => r.rolle === "lfe_pegel") || {}).name || "LFE")} brauchst du nicht, er gilt nur für den LFE-Eingang.</p>` : ""}
+        <div class="sa-knoepfe eins"><button type="button" id="sa-messen">So steht er · Messen</button></div>${hinweisZeile}`;
+    } else if (ein.length === 1 && !wiederholt && !st.ohneWiederholung) {  // dieselbe Stellung noch einmal: Streuung des Handys
+      knopf = "sa-wiederholen";
+      html = `${kopf("Sub · Schritt 3 von 4 · Messung 2")}<h1 id="sa-h">Noch einmal, gleiche Stellung</h1>
+        <p class="sa-lead">Nichts am Sub verstellen. Nimm das Handy kurz hoch und leg es wieder genauso hin, dann messen.</p>
+        <p class="klein">So lernt die App, wie genau deine Messungen sind, und empfiehlt nur, was wirklich besser ist.</p>
+        <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-ohne-wdh">Überspringen</button><button type="button" id="sa-wiederholen">Noch einmal messen</button></div>${hinweisZeile}${bisher}`;
+    } else if (nach && !fehlt.length) {  // Schritt 3: genau das umstellen, was sich ändert (gepunktet: wo er steht, durchgezogen: wohin)
+      const quelle = letzte.roh, anders = regler.filter((r) => String(nach.roh[rid(r)] ?? "") !== String(quelle[rid(r)] ?? ""));
+      const eins = anders.length === 1 ? anders[0] : null;
+      const titel = eins ? (eins.stufen ? `Stell ${ex(eins.name)} um` : `Dreh ${ex(eins.name)}`) : `Stell ${anders.length} Regler um`;
+      html = `${kopf(`Sub · Schritt 3 von 4 · Messung ${ein.length + 1}`)}<h1 id="sa-h">${titel}</h1>
+        <p class="sa-lead" id="sa-vorschlag">${anders.map((r) => `${anders.length > 1 ? `${ex(r.name)}: ` : ""}${ex(richtung(r, quelle[rid(r)], nach.roh[rid(r)]))}`).join(" ")} Sonst nichts verstellen.</p>
+        <div class="sa-regler-reihe">${anders.map((r) => reglerBild(r, nach.roh[rid(r)], quelle[rid(r)])).join("")}</div>
+        ${regler.filter((r) => !anders.includes(r)).map((r) => `<input type="hidden" id="sa-f-${ex(rid(r))}" value="${ex(nach.roh[rid(r)] ?? "")}">`).join("")}
+        <p class="klein">Genau musst du nicht treffen. Steht er danach anders, tippe die echte Stellung an.</p>
+        <div class="sa-knoepfe eins"><button type="button" id="sa-messen">${eins && eins.stufen ? "Umgestellt" : "Gedreht"} · Messen</button></div>${hinweisZeile}${fertigKnopf}${bisher}`;
+    } else {  // nichts mehr vorzuschlagen, oder es fehlt eine Angabe: alle Regler zum Antippen
+      html = `${kopf(`Sub · ${ein.length} Messungen`)}<h1 id="sa-h">${fehlt.length ? "Wie steht der Sub?" : "Fertig gemessen"}</h1>
+        <p class="sa-lead" id="sa-vorschlag">${fehlt.length ? `Tippe ${ex(fehlt.map((r) => r.name).join(" und "))} an, dann kann die App die nächste Stellung vorschlagen.` : "Alle sinnvollen Nachbarstellungen sind gemessen: Die Empfehlung steht. Mehr messen geht trotzdem."}</p>
+        <div class="sa-regler-reihe">${regler.map((r) => reglerBild(r, letzte.roh[rid(r)] ?? null)).join("")}</div>
+        <div class="sa-knoepfe eins"><button type="button" class="${brauchbar ? "zweit" : ""}" id="sa-messen">Messen</button></div>${hinweisZeile}${fertigKnopf}${bisher}`;
+    }
+    zeige(html);
     if (ein.length) { const best = ein.filter((e) => e.key === erg.beste).pop();
       const kv = el("sa-k-vorher"), kb = el("sa-k-best"), kj = el("sa-k-jetzt");
       if (kv && st.haupt) kv.setAttribute("d", pfad(st.haupt.kurve, kw(st.haupt.kurve).ref_db || 0));
-      if (kb && best && best !== letzte) kb.setAttribute("d", pfad(best.kurve, best.w.ref_db || 0));
+      if (kb && best && best !== letzte && brauchbar) kb.setAttribute("d", pfad(best.kurve, best.w.ref_db || 0));
       if (kj && letzte) kj.setAttribute("d", pfad(letzte.kurve, letzte.w.ref_db || 0));
       const fl = el("sa-fertig-liste"); if (fl) fl.onclick = () => empfehlungZeigen(); }
+    const ow = el("sa-ohne-wdh"); if (ow) ow.onclick = () => { st.ohneWiederholung = true; liste(); };
     const messen = async (gleich) => {
       const roh = gleich ? letzte.roh : rohLesen(), s = gleich ? letzte.stellung : stellungLesen(), key = stellungKey(s);
       document.querySelectorAll("#sa button").forEach((b) => { if (b.id !== "sa-zu") b.disabled = true; });
@@ -15580,14 +15688,13 @@ function saOberflaeche(K) {
       st.messliste.push({ key, stellung: s, roh, kurve: m.kurve, w: m.w, zeit: Date.now() });
       liste();
     };
-    el("sa-messen").onclick = () => messen(false);
-    const wd = el("sa-wiederholen"); if (wd) wd.onclick = () => messen(true);
+    const mk = el(knopf); if (mk) mk.onclick = () => messen(knopf === "sa-wiederholen");
   }
   function empfehlungZeigen() {
     const erg = auswertung(), best = st.messliste.filter((e) => e.key === erg.beste).pop(), erste = st.messliste[0];
     st.nachher = { kurve: best.kurve, w: best.w }; st.vorher = { kurve: erste.kurve, w: erste.w };
-    zeige(`${kopf("Sub · Empfehlung")}<h1 id="sa-h">So stellst du den Sub ein</h1>
-      <ul class="zh-ws-zeilen klein">${Object.entries(best.stellung).map(([k, v]) => `<li><span>${ex(k)}</span><b>${ex(v)}</b></li>`).join("") || `<li><span>Stellung</span><b>${ex(best.key)}</b></li>`}</ul>
+    zeige(`${kopf("Sub · Schritt 4 von 4")}<h1 id="sa-h">So bleibt dein Sub</h1>
+      <div class="sa-regler-reihe">${felderRegler().map((r) => reglerBild(r, best.roh[rid(r)] ?? null, null, false)).join("")}</div>
       <div class="sa-zwei"><div><span class="klein">erste Stellung</span><b>${zahl(erg.liste.find((x) => x.key === erste.key).guete, 0)}</b></div><div><span class="klein">empfohlen</span><b>${zahl(erg.liste.find((x) => x.key === best.key).guete, 0)}</b></div></div>
       ${kurveSvg(["empfohlen", "", "erste Stellung"])}
       ${erg.sicher ? "" : `<p class="klein">${erg.gleich.length} ${erg.gleich.length === 1 ? "weitere Stellung war" : "weitere Stellungen waren"} gleich gut. Die empfohlene liegt näher am Ziel. Was dir besser gefällt, darfst du nehmen.</p>`}

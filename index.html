@@ -15316,12 +15316,14 @@ function saOberflaeche(K) {
       // Regler am Sub einstellen: ohne Einmessung (neutral), die Profile gleichen danach fein nach. Mit Frist wie überall:
       // je Messung nur SIGNAL_S Sekunden Rauschen (die App stoppt es sofort danach); bricht die App ab, hört die Box von
       // selbst auf und schaltet nach der Frist (120 s) zurück auf die Einmessung
+      st.kette = "unklar";  // echte Pegel vergleichen nur, wenn beide Messungen sicher neutral liefen (Prüfer)
       if (!st.mitEinstellungen) {
         const s = await nativ.box("status", {}, { zeitMs: 8000 });
         if (s.ok && !s.aus) { const x = await nativ.box("aus", { aus: true, fuer_s: 120 }, { zeitMs: 6000 }); st.ausGesetzt = !!x.ok; }
+        if (s.ok && (s.aus || st.ausGesetzt)) st.kette = "neutral";
       }
       // Pegel: im Regler-Ablauf der eingepegelte (Sub aus, Sub-Check); sonst (Automatik) der Messpegel der Einmessung
-      const a = await nativ.box("messsignal", { folge: "sub_abgleich", dauer_s: SIGNAL_S, start_in_ms: 300, modus: st.modus,
+      const a = await nativ.box("messsignal", { folge: "sub_abgleich", dauer_s: SIGNAL_S + Math.ceil((st.vorlaufMs || 0) / 1000), start_in_ms: 300, modus: st.modus,
         ...(Number.isFinite(st.subPegelDb) ? { pegel_db: st.subPegelDb } : {}) }, { zeitMs: 20000 });
       if (!a.ok) return `Die Klång-Box spielt das Signal nicht (${a.fehler || a.grund}).`;
       st.boxSignal = true; st.signalAb = Date.now() + (Number.isFinite(+a.start_in_ms) ? +a.start_in_ms : 300) + 2500; return null;
@@ -15509,7 +15511,9 @@ function saOberflaeche(K) {
   // eine Messung: Ruhe, Signal, Bilder sammeln, Signal aus. Ergebnis { kurve, w } oder { fehler }
   // Mikrofon gleich beim Tippen öffnen (Safari erlaubt es nur direkt nach einer Berührung, später liefert es Stille),
   // dann Ruhe, dann Signal; gemessen wird erst, wenn das Signal der Box sicher läuft (ihr Start + 2,5 s: Fenster 2 s)
-  async function einmal(text) {
+  async function einmal(text, vorlaufMs = 0) {
+    st.vorlaufMs = vorlaufMs;  // das Signal der Box läuft entsprechend länger
+    st.quelle = null; st.kette = null;
     st.signalAb = null;
     const fm = await liveStart(false); if (fm) { if (st && st.live) { st.live.stopp(); st.live = null; } return { fehler: fm }; }
     for (let s = RUHE_S; s > 0; s--) { const h = el("sa-hinweis"); if (h) h.textContent = `${text} Ruhe … ${s}`; await warte(1000); if (!st) return { fehler: "abgebrochen" }; }
@@ -15522,7 +15526,7 @@ function saOberflaeche(K) {
     }
     const h = el("sa-hinweis"); if (h) h.textContent = `${text} Ich messe, bitte still sein …`;
     const f = await signalAn(st); if (f) { if (st && st.live) { st.live.stopp(); st.live = null; } await signalAus(st); return { fehler: f }; }
-    const bis = st.signalAb || Date.now() + 2500; while (st && Date.now() < bis) await warte(100); if (!st) return { fehler: "abgebrochen" };
+    const bis = (st.signalAb || Date.now() + 2500) + vorlaufMs; while (st && Date.now() < bis) await warte(100); if (!st) return { fehler: "abgebrochen" };
     const [nb, nv] = messBilder(), bilder = await sammeln(nb, nv, true); if (!st) return { fehler: "abgebrochen" };
     if (st.live) { st.live.stopp(); st.live = null; } await signalAus(st); if (!st) return { fehler: "abgebrochen" };
     if (!bilder) { const hg = st.abgebrochen || document.hidden; st.abgebrochen = false;
@@ -15530,10 +15534,12 @@ function saOberflaeche(K) {
     const kurve = mittelKurve(bilder), w = kw(kurve);
     const roh = Math.max(-999, ...kurve.db.concat(kurve.rausch_db).filter((x) => x !== null && Number.isFinite(x)));
     if (roh < -160) return { fehler: "Das Mikrofon liefert nichts (nur Stille). Seite neu laden oder die App nutzen, Mikrofon erlauben, dann noch einmal." };
-    if (w.snr_db !== null && w.snr_db < K.SNR_MIN_DB) return { fehler: `Zu leise gegen das Raumgeräusch (Abstand ${zahl(w.snr_db, 0)} dB). Etwas lauter stellen, dann noch einmal.`, leise: true, kurve, w };
+    if (w.snr_db !== null && w.snr_db < K.SNR_MIN_DB) return { fehler: `Zu leise gegen das Raumgeräusch (Abstand ${zahl(w.snr_db, 0)} dB). Etwas lauter stellen, dann noch einmal.`, leise: true, kurve, w, db: pegelJetzt() };
     if (K.unruhig(bilder.map((k) => kw(k).guete))) return { fehler: "Zu unruhig, die Messung zählt nicht (Schritte, Stimmen, Tür?). Noch einmal, bitte still sein." };
-    return { kurve, w };
+    return { kurve, w, db: pegelJetzt() };
   }
+  // Pegel dieser Messung für den Vergleich mit echten Pegeln: nur über die Box, sicher neutral, mit pegel_db gespielt
+  const pegelJetzt = () => (st.quelle === "box" && st.kette === "neutral" && Number.isFinite(st.subPegelDb) ? st.subPegelDb : null);
   function handyHinlegen() {
     zeige(`${kopf("Sub · Vorbereiten")}<h1 id="sa-h">Handy fest hinlegen</h1>
       <p class="sa-lead">Leg das Handy an deinen Platz, auf Kopfhöhe, Mikrofon nach oben, zum Beispiel an die Sofalehne gelehnt. Dort bleibt es für alle Messungen.</p>
@@ -15545,32 +15551,51 @@ function saOberflaeche(K) {
     const aus = st.plan.fall === "misch" ? "Schalte den Sub aus: Netzschalter auf AUS, oder den Sub-Pegel in der App der Boxen ganz zurück." : "Schalte den Sub aus: Netzschalter hinten auf AUS (OFF).";
     messBild("Sub aus", "Sub · Schritt 1 von 5", `${ex(aus)} Dann zurück an den Platz. So misst die App deine Boxen allein und sieht, wo ihr Bass aufhört. Etwa 10 Sekunden, danach Ruhe.`,
       `<div class="sa-knoepfe"><button type="button" class="zweit" id="sa-ueber">Überspringen</button><button type="button" id="sa-messen">Sub ist aus · Messen</button></div>`);
-    el("sa-ueber").onclick = () => liste();
+    el("sa-ueber").onclick = () => { st.subPegelDb = undefined; st.hauptDb = undefined; st.hauptVergleichDb = null; st.haupt = null; st.f6Mess = null; st.subCheck = null; liste(); };
     el("sa-messen").onclick = async () => { el("sa-messen").disabled = true; el("sa-ueber").disabled = true;
-      // einpegeln wie beim Einmessen: leise anfangen, lauter, bis die Boxen 20 dB über dem Raumgeräusch liegen (über die Box)
+      // einpegeln wie beim Einmessen: ab −12 dB lauter, bis die Boxen AUS_ABSTAND_DB über dem Raumgeräusch liegen. Der
+      // Check misst ab demselben Pegel (Besitzer 17.11.2026: „unter 40 Hz −5,1 dB“, weil „Sub aus“ bei −18 dB im
+      // Rauschen lag und der Check bei 0 dB)
       const stufen = quelleJetzt() === "box" ? CHECK_DB : [null]; let m = null;
       for (const db of stufen) {
         st.subPegelDb = db === null ? undefined : db;
         m = await einmal(db === null ? "" : `Prüfton ${zahl(db, 0)} dB.`); if (!st) return;
         if (m.fehler && !m.leise) break;
-        if (!m.leise && (m.w.snr_db === null || m.w.snr_db >= CHECK_ABSTAND_DB)) break;
+        if (!m.leise && (m.w.snr_db === null || m.w.snr_db >= AUS_ABSTAND_DB)) break;
       }
       if (m.fehler) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(m.fehler)}</span>`; el("sa-messen").disabled = false; el("sa-ueber").disabled = false; return; }
-      st.haupt = { kurve: m.kurve }; st.f6Mess = K.bassende(m.kurve, st.modus); subCheck(); };
+      st.haupt = { kurve: m.kurve }; st.hauptDb = st.subPegelDb; st.hauptVergleichDb = m.db; st.f6Mess = K.bassende(m.kurve, st.modus); subCheck(); };
   }
   // --- Sub-Check (Besitzer 17.11.2026: „einmal aus und einmal nur Sub, dass man sicher ist, er spielt und es misst“;
   // „du spielst den Ton, wird er nicht gefunden, wird es lauter, bis du ihn findest“). Über die Box: ab dem Pegel von
   // „Sub aus“ (dort schon leise angefangen) in 6-dB-Schritten lauter (höchstens 0 dB, wie beim Einmessen), bis der Sub
   // sicher zu hören ist. Der Pegel gilt für alle Messungen danach (die Hörlautstärke bleibt). Ohne Box: eine Messung bei
-  // der Lautstärke der Anlage. Verglichen werden nur Frequenzen, an denen die Messung mit Sub 10 dB über ihrem eigenen
-  // Raumgeräusch liegt (Prüfer: sonst „findet“ ein Unterschied im Rauschen einen ausgeschalteten Sub).
-  const CHECK_DB = [-18, -12, -6, 0], CHECK_ABSTAND_DB = 20, UEBER_RAUSCHEN_DB = 10;  // Ziel: 20 dB über dem Raumgeräusch
+  // der Lautstärke der Anlage. Vergleich: siehe subDiff.
+  // Besitzer 17.11.2026: bei −18 und −12 dB „bewegt sich die Membran kaum“: Der Sub bekommt vom breiten Signal nur seinen
+  // Teil. Darum ab −12 dB und für „Sub aus“ 30 dB Abstand als Ziel (meist 0 dB, wie beim Einmessen höchstens)
+  const CHECK_DB = [-12, -6, 0], CHECK_ABSTAND_DB = 20, AUS_ABSTAND_DB = 30, UEBER_RAUSCHEN_DB = 10;
+  const sauber = (k, i) => { const x = k.db[i], n = (k.rausch_db || [])[i]; return x !== null && x !== undefined && !(n !== null && n !== undefined && x - n < UEBER_RAUSCHEN_DB); };
+  // Unterschied mit Sub gegen ohne an Punkt i, null = nicht beurteilbar. Mit Sub im Rauschen: nicht beurteilbar. Nur „Sub aus“ im Rauschen: dort ist „Sub aus“ höchstens so laut, der
+  // Unterschied also mindestens so groß; zählt nur, wenn er positiv ist (Prüfer: sonst fällt ein tief getrennter Sub
+  // unter 40 Hz ganz aus dem Vergleich bzw. erzeugt das Rauschen ein falsches Minus)
+  // Spielt die Box beide Messungen neutral mit bekanntem Pegel (pegel_db, pegelJetzt), zählt der echte Unterschied:
+  // x − y − (Pegel jetzt − Pegel „Sub aus“). Der Bezug 130–240 Hz taugt dann nicht (Besitzer 17.11.2026, Handy 10 cm vor dem REL: nur +3 dB,
+  // weil der REL aus der Nähe auch 130–240 Hz anhebt und der Bezug ihn wieder herausrechnet). Sonst (AirPlay, Datei):
+  // beide auf ihren Bezug bezogen.
+  function subDiff(k, a, b, i, dbJetzt = null) {
+    const echt = Number.isFinite(dbJetzt) && Number.isFinite(st.hauptVergleichDb);
+    if (echt) { a = dbJetzt; b = st.hauptVergleichDb; }
+    const x = k.db[i], y = st.haupt.kurve.db[i]; if (x === null || y === null || a === null || b === null || !sauber(k, i)) return null;
+    // Untergrenze nur bei gleichem Pegel (Prüfer: lauter verzerren die Boxen, Oberwellen fallen auf angeregte Punkte)
+    const gleich = echt ? dbJetzt === st.hauptVergleichDb : !Number.isFinite(st.hauptDb) && st.quelle !== "box";
+    const u = (x - a) - (y - b); return sauber(st.haupt.kurve, i) || (gleich && u > 0) ? u : null;
+  }
   // Unterschied zu „Sub aus“ unter 80 Hz (wie subSpielt) und Abstand zum Raumgeräusch dort, wo der Sub spielt
-  function subBefund(k) {
+  function subBefund(k, dbJetzt = null) {
     const a = kw(k).ref_db, b = kw(st.haupt.kurve).ref_db, d = [], s = [], tief = [], mitte = [];
     const mittel = (w) => (w.length ? w.reduce((q, x) => q + x, 0) / w.length : null);
-    k.f.forEach((f, i) => { if (f < 25 || f > 80) return; const x = k.db[i], y = st.haupt.kurve.db[i], n = (k.rausch_db || [])[i];
-      if (x !== null && y !== null && a !== null && b !== null && n !== null && n !== undefined && x - n >= UEBER_RAUSCHEN_DB) { const u = (x - a) - (y - b); d.push(Math.abs(u)); (f < 40 ? tief : mitte).push(u); }
+    k.f.forEach((f, i) => { if (f < 25 || f > 80) return; const x = k.db[i], n = (k.rausch_db || [])[i];
+      const u = subDiff(k, a, b, i, dbJetzt); if (u !== null) { d.push(Math.abs(u)); (f < 40 ? tief : mitte).push(u); }
       if (x !== null && n !== null && n !== undefined) s.push(x - n); });
     // je Bereich mit Vorzeichen: was der Sub dazubringt (unter 40 Hz: misst das Handy dort noch? 40–80 Hz: spielt er?)
     return { mehr_db: mittel(d), abstand_db: s.length ? K.median(s) : null, unter40_db: mittel(tief), bis80_db: mittel(mitte) };
@@ -15580,13 +15605,14 @@ function saOberflaeche(K) {
       `<div class="sa-knoepfe eins"><button type="button" id="sa-check">Sub ist an · Prüfen</button></div>`);
     if (meldung) el("sa-hinweis").innerHTML = meldung; else el("sa-hinweis").textContent = "";
     el("sa-check").onclick = async () => { el("sa-check").disabled = true;
-      const ab = Number.isFinite(st.subPegelDb) ? st.subPegelDb : CHECK_DB[0];
+      const ab = Number.isFinite(st.hauptDb) ? st.hauptDb : CHECK_DB[0];  // gleicher Pegel wie „Sub aus“, auch bei „Noch einmal“
       const stufen = quelleJetzt() === "box" ? CHECK_DB.filter((d) => d >= ab) : [null]; let letzter = null;
       for (const db of stufen) {
         st.subPegelDb = db === null ? undefined : db;
-        const m = await einmal(db === null ? "" : `Prüfton ${zahl(db, 0)} dB.`); if (!st) return;
+        // erster Schritt: 6 s Vorlauf, ein Sub mit Signal-Automatik wacht verzögert aus dem Standby auf
+        const m = await einmal(db === null ? "" : `Prüfton ${zahl(db, 0)} dB.`, db === stufen[0] ? 6000 : 0); if (!st) return;
         if (m.fehler && !m.leise) { subCheck(`<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
-        const b = subBefund(m.kurve); letzter = { db, ...b };
+        const b = subBefund(m.kurve, m.db); letzter = { db, ...b };
         const gefunden = b.mehr_db !== null && b.mehr_db >= SUB_SPIELT_DB && !m.leise;
         if (gefunden && (b.abstand_db === null || b.abstand_db >= CHECK_ABSTAND_DB || db === stufen[stufen.length - 1])) { st.subCheck = letzter; subGefunden(); return; }
       }
@@ -15603,7 +15629,13 @@ function saOberflaeche(K) {
   const vz = (x) => `${x >= 0 ? "+" : ""}${zahl(x, 1)}`;
   const bereiche = (c) => (c && (c.unter40_db !== null || c.bis80_db !== null) ? `<p class="klein" id="sa-bereiche">Mit Sub gegenüber ohne: unter 40 Hz ${c.unter40_db === null ? "–" : `${vz(c.unter40_db)} dB`}, 40–80 Hz ${c.bis80_db === null ? "–" : `${vz(c.bis80_db)} dB`}.</p>` : "");
   function subNichtGefunden(c) {
-    const leise = c && c.abstand_db !== null && c.abstand_db < K.SNR_MIN_DB;
+    const leise = c && c.abstand_db !== null && c.abstand_db < K.SNR_MIN_DB, offen = c && c.mehr_db === null && !leise;
+    if (offen) {  // kein Punkt beurteilbar: nicht „gleich wie ohne“ behaupten
+      zeige(`${kopf("Sub · Schritt 2 von 5")}<h1 id="sa-h">Nicht zu beurteilen</h1>
+        <p class="sa-lead" id="sa-check-nein">Unter 80 Hz war es zu unruhig, um Sub an und aus zu vergleichen. Fenster zu, Geräte aus, still sein, dann noch einmal.</p>
+        <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-check-trotzdem">Trotzdem weiter</button><button type="button" id="sa-check-nochmal">Noch einmal prüfen</button></div>`);
+      el("sa-check-nochmal").onclick = () => subCheck(); el("sa-check-trotzdem").onclick = () => liste(); return;
+    }
     zeige(`${kopf("Sub · Schritt 2 von 5")}<h1 id="sa-h">Ich höre deinen Sub nicht</h1>
       <p class="sa-lead" id="sa-check-nein">${leise ? (c.db === null ? "Unter 80 Hz kommt kaum etwas über das Raumgeräusch: Stell die Anlage lauter." : "Auch ganz laut kommt unter 80 Hz kaum etwas über das Raumgeräusch.") : "Mit Sub klingt es fast gleich wie ohne."} Ist er an (Netzschalter, Lampe)? Sitzt das Kabel zum Sub fest, auch die blanken Drähte? Dreh zum Prüfen den Level am Sub weiter auf.</p>
       ${c ? `<p class="klein">Zuletzt: unter 80 Hz ${zahl(c.mehr_db ?? 0, 1)} dB Unterschied, ${c.abstand_db === null ? "Abstand unbekannt" : `${zahl(c.abstand_db, 0)} dB über dem Raumgeräusch`}${c.db === null ? "" : `, bei ${zahl(c.db, 0)} dB an der Box`}.</p>${bereiche(c)}` : ""}
@@ -15700,8 +15732,7 @@ function saOberflaeche(K) {
   function subSpielt(e) {
     if (!st.haupt || !e) return true;
     const a = kw(e.kurve).ref_db, b = kw(st.haupt.kurve).ref_db; if (a === null || b === null) return true;
-    const d = []; e.kurve.f.forEach((f, i) => { const x = e.kurve.db[i], y = st.haupt.kurve.db[i], n = (e.kurve.rausch_db || [])[i];
-      if (f >= 25 && f <= 80 && x !== null && y !== null && !(n !== null && n !== undefined && x - n < UEBER_RAUSCHEN_DB)) d.push(Math.abs((x - a) - (y - b))); });
+    const d = []; e.kurve.f.forEach((f, i) => { if (f < 25 || f > 80) return; const u = subDiff(e.kurve, a, b, i, e.db ?? null); if (u !== null) d.push(Math.abs(u)); });
     return !d.length || d.reduce((s, x) => s + x, 0) / d.length >= SUB_SPIELT_DB;
   }
   const SUB_SPIELT_DB = 1.5;  // weniger Unterschied zum Sub aus: er spielt nicht (aus, Standby, Kabel)
@@ -15772,7 +15803,7 @@ function saOberflaeche(K) {
       document.querySelectorAll("#sa button").forEach((b) => { if (b.id !== "sa-zu") b.disabled = true; });
       const m = await einmal(""); if (!st) return;
       if (m.fehler) { liste(`<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
-      st.messliste.push({ key, stellung: s, roh, kurve: m.kurve, w: m.w, zeit: Date.now() });
+      st.messliste.push({ key, stellung: s, roh, kurve: m.kurve, w: m.w, zeit: Date.now(), db: m.db ?? null });
       liste();
     };
     const mk = el(knopf); if (mk) mk.onclick = () => messen(knopf === "sa-wiederholen");

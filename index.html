@@ -993,13 +993,6 @@ body.rg-offen .sheet-lage { z-index: 80; }
 .schritt[data-s="18"][data-tab="hoeren"] :is(#zh-klang-zeile, #zh-blind-zeile) { margin-top: 12px; }
 .schritt[data-s="18"][data-tab="hoeren"] #zh-blind-zeile:not([hidden]) ~ #zh-klang-zeile { margin-top: 0; }   /* Blind ›, Klang › untereinander */
 @media (max-width: 380px) { .zh-hz { display: none; } }   /* „Vorher | 90 | 150 | Voll“: auf dem kleinsten iPhone ohne „Hz“ */
-/* Hören ohne Scrollen (Besitzer 15.11.2026, mit „Blind vergleichen ›“): das Cover gibt nach, wenn die Höhe nicht reicht.
-   --zh-rest ist alles außer dem Cover (Kopf, Lied auf zwei Zeilen, Format, Lautstärke, Segment, Blind ›, Klang ›, Abstände);
-   jede weitere Zeile (Lippen-Sync) kommt dazu. Nie größer als die Spaltenbreite. */
-.schritt[data-s="18"][data-tab="hoeren"] { --zh-rest: 444px; }
-.schritt[data-s="18"][data-tab="hoeren"]:has(#zh-lippen-h:not([hidden])) { --zh-rest: 508px; }
-.schritt[data-s="18"][data-tab="hoeren"] .zh-jetzt-karte:not(.still) > .lp:not(.gross) {
-  width: min(100%, calc(100dvh - max(16px, var(--kb-sicher-oben-ist)) - 84px - var(--kb-sicher-unten-ist) - var(--zh-rest))); }
 .zh-jetzt-quelle { color: var(--kb-text-leise) !important; }
 .lp { width: 100%; aspect-ratio: 1; justify-self: center; perspective: none; cursor: pointer; border-radius: var(--kb-r); -webkit-tap-highlight-color: transparent; }
 .lp.gross { width: min(100%, 56dvh, 560px); }
@@ -1304,7 +1297,6 @@ body.rg-offen { overflow: hidden; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) > .zh-kopf { grid-column: 1 / -1; grid-row: 1; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) :is(#zh-jetzt, .zh-jetzt-karte) { display: contents; }
   .schritt[data-s="18"][data-tab="hoeren"] .zh-jetzt-karte > .lp { grid-column: 1; grid-row: 2 / 7; align-self: center; }
-  .schritt[data-s="18"][data-tab="hoeren"] .zh-jetzt-karte:not(.still) > .lp:not(.gross) { width: 100%; }   /* zweispaltig: das Cover füllt seine Spalte (die Höhe begrenzt --kb-spalte-links), es gibt nicht nach wie auf dem Handy */
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) .zh-jetzt-text { grid-column: 2; grid-row: 3; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) .zh-vol-leiste { grid-column: 2; grid-row: 4; }
   .schritt[data-s="18"][data-tab="hoeren"]:has(.lp) > #zh-held { grid-column: 2; grid-row: 5; }
@@ -1379,6 +1371,7 @@ div.em-kanal { border-bottom: 1px solid var(--kb-linie); }
 .em-ring-grund { stroke: var(--kb-linie); }
 .em-ring-wert { stroke: var(--kb-signal); }
 .em-ring span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 500; color: var(--kb-text); }
+.em-ring span.lang { font-size: 22px; }   /* vier Zeichen („+105“, Skala 400) passen in den Innenkreis */
 .em-teilwerte { display: grid; gap: 6px; }
 .em-teilwert { display: grid; justify-items: center; gap: 2px; min-width: 0; position: relative; }
 button.em-teilwert { min-height: 48px; padding: 0; border: 0; border-radius: var(--kb-r); background: transparent; color: var(--kb-text); box-shadow: none; font: var(--kb-t-text); }
@@ -1408,7 +1401,8 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
   .schritt[data-s="18"][data-tab="einmessen"] > .zh-kopf { margin-bottom: -16px; }   /* der Kopf hat in seinen 44 px schon Luft */
   .em-ring, .em-ring svg { width: 56px; height: 56px; }
   button.em-teilwert { min-height: 44px; gap: 0; }
-  .em-ring span { font-size: 22px; }
+  .em-ring span { font-size: 18px; }   /* „+29“ passt auch bei 130 % Schrift in den Innenkreis (45 px) */
+  .em-ring span.lang { font-size: 14px; }
 }
 /* iPad hochkant: dieselbe Spalte, höchstens 640 px, mittig (nur CSS, Entwurf 15.11.2026; Größen aus den Tokens) */
 @media (min-width: 600px) {
@@ -12557,9 +12551,20 @@ function emEmpfehlung(funde) {
   const ab = (lo) => funde.some((x) => (x.hi || x.f) > lo && x.n >= 2);
   return ab(150) ? null : ab(90) ? 150 : 90;
 }
-// Ring: gefüllt bis zum Wert (Anteil von 100), in der Mitte die Anzeige (Entwurf 15.11.2026: nur der Zuwachs, „+7“)
-const emRing = (wert, anzeige = wert) => { const r = 42, u = 2 * Math.PI * r, a = Math.max(0, Math.min(100, +wert || 0)) / 100;
-  return `<div class="em-ring" aria-hidden="true"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="${r}" class="em-ring-grund"/><circle cx="48" cy="48" r="${r}" class="em-ring-wert" stroke-dasharray="${(u * a).toFixed(1)} ${u.toFixed(1)}" transform="rotate(-90 48 48)"/></svg><span>${esc(anzeige)}</span></div>`; };
+// Ring: gefüllt bis zum Wert (Anteil der Skala), in der Mitte die Anzeige (nur der Zuwachs, „+22“)
+const emRing = (wert, anzeige = wert, skala = 100) => { const r = 42, u = 2 * Math.PI * r, a = Math.max(0, Math.min(skala, +wert || 0)) / skala;
+  return `<div class="em-ring" aria-hidden="true"><svg viewBox="0 0 96 96"><circle cx="48" cy="48" r="${r}" class="em-ring-grund"/><circle cx="48" cy="48" r="${r}" class="em-ring-wert" stroke-dasharray="${(u * a).toFixed(1)} ${u.toFixed(1)}" transform="rotate(-90 48 48)"/></svg><span${String(anzeige).length > 3 ? ' class="lang"' : ""}>${esc(anzeige)}</span></div>`; };
+// Ring aus den Teilwerten (Besitzer 16.11.2026): Summe genau der angezeigten Kacheln (gerundet wie dort, je Kachel 0–100),
+// Skala 100 je Kachel (Stereo Bass/Bühne/Klang/Raum, Kino Bass/Kanäle/Dialog/Raum). Eine Kachel zählt nur mit Vorher- und
+// Nachher-Wert, wie in der Anzeige; Raum vorher = nachher (raumVon). Die Gesamtnote (bewertung.py) bleibt.
+const emKachelZahl = (x) => (x != null && x !== "" && Number.isFinite(+x) ? Math.max(0, Math.min(100, Math.round(+x))) : null);
+function emRingSumme(kacheln) {
+  const paare = Object.entries(kacheln || {}).map(([k, v]) => { const a = emKachelZahl(v && v.a);
+    return [a, k === "raum" ? a : emKachelZahl(v && v.b)]; }).filter(([a, b]) => a != null && b != null);
+  if (!paare.length) return null;
+  const summe = (i) => paare.reduce((t, p) => t + p[i], 0);
+  return { nach: summe(1), vor: summe(0), skala: paare.length * 100 };
+}
 const EM_MINI = '<svg class="em-mini" viewBox="0 0 32 32" aria-hidden="true"><path fill-rule="evenodd" d="M2 16a14 14 0 1 0 28 0a14 14 0 1 0 -28 0ZM8 16a8 8 0 1 0 16 0a8 8 0 1 0 -16 0Z"/></svg>';
 // Der Satz behauptet eine Wirkung nur, wenn die Nachmessung sie bestätigt hat; sonst (Prognose, ohne Nachmessung) im
 // Konjunktiv, zurückgenommen ohne Wirkung (Prüfer)
@@ -12700,10 +12705,11 @@ function emZweiZeilen(s) {
   for (let i = 1; i < w.length; i++) { const m = Math.max(w.slice(0, i).join(" ").length, w.slice(i).join(" ").length); if (m < best) { best = m; k = i; } }
   return `${esc(w.slice(0, k).join(" "))} <br>${esc(w.slice(k).join(" "))}`;
 }
-// Kurve und Ring je Bereich (Besitzer 15.11.2026: „dass sich die Kurve bei Einmessen sichtlich verändert je nach Modus“):
+// Kurve je Bereich (Besitzer 15.11.2026: „dass sich die Kurve bei Einmessen sichtlich verändert je nach Modus“):
 // Die Box filtert im Bereich 90 bzw. 150 Hz nur bis zur Grenze (imBereich). Es gibt keine Kurve je Bereich in den Daten, darum
 // ehrlich gerechnet: die Prognose (voll) ohne die Filter über der Grenze (Biquads wie analyse.js, je Seite, gemittelt als
-// Amplitude wie die Summe am Platz); der Ring aus e.varianten (die Auswertung rechnet den Raumklang je Stufe). Gemessen ist
+// Amplitude wie die Summe am Platz); das Ring-Blatt nennt den Raumklang aus e.varianten (die Auswertung rechnet ihn je Stufe).
+// Der Ring selbst zeigt die Summe der Teilwerte (emRingSumme); die gibt es nicht je Bereich, er bleibt darum stehen. Gemessen ist
 // nur die Nachmessung (geladen ist immer voll); alles andere ist vorhergesagt und so beschriftet. Kino: nur voll.
 function emBereich(s, b) {
   const voll = { kurve: s.kurve ? { ...s.kurve, vorhergesagt: !s.kurve.jetztF } : null, nach: s.nach };
@@ -12740,22 +12746,24 @@ function zhEinmessenBlick(id, profile, weiter) {
   const funde = s.funde, empf = emEmpfehlung(funde), fundId = id;
   funde.forEach((f) => { f.id = fundId; });
   // 1 Kopf: der Kopf von Hören (zh-kopf, emKopfZeigen): links „Raum · Layout“, rechts die Wahl Stereo | Kino
-  // Bereich, der spielt (90 | 150 | Voll): Kurve und Ring folgen ihm (emBereich); ohne Wiedergabe voll
+  // Bereich, der spielt (90 | 150 | Voll): die Kurve folgt ihm (emBereich); ohne Wiedergabe voll
   const spieltHier = s.spielt, aktiv = spieltHier ? s.hs.bereich ?? null : undefined, bs = emBereich(s, aktiv ?? null);
   // gerade umgeschaltet: die vorige Kurve blendet aus (solange das Überblenden läuft, bleibt das HTML gleich)
   const kv = zh.emKurve || {}, jetztT = Date.now();
   if (kv.id !== id || kv.b !== (aktiv ?? null)) zh.emKurve = { id, b: aktiv ?? null, alt: kv.id === id && kv.jetzt ? kv.jetzt : null, t: jetztT, jetzt: bs.kurve && bs.kurve.jetzt };
   else zh.emKurve.jetzt = bs.kurve && bs.kurve.jetzt;
   const alt = zh.emKurve.alt && jetztT - zh.emKurve.t < 400 ? zh.emKurve.alt : null;
-  // 2 Ring: gefüllt bis zum Raumklang nachher, in der Mitte nur der Zuwachs; rechts die Headline auf zwei Zeilen
-  const nach = bs.nach, d = s.vor != null && nach != null ? nach - s.vor : null;
-  const ring = nach != null ? `<button type="button" class="em-ring-knopf" data-em-ring="${esc(id)}" aria-haspopup="dialog" aria-label="Raumklang ${d != null ? `${d >= 0 ? "plus" : "minus"} ${Math.abs(d)}: von ${s.vor} auf ${nach}` : nach} von 100">${emRing(nach, d != null ? emPlus(d) : nach)}</button>` : "";
+  // 2 Ring: gefüllt bis zur Summe der Teilwerte nachher (Skala 100 je Kachel), in der Mitte nur der Zuwachs der Summe;
+  // rechts die Headline auf zwei Zeilen. Ohne Teilwerte (ältere Box): der Raumklang von 100 wie bisher
+  const rs = emRingSumme(s.kacheln), nach = rs ? rs.nach : bs.nach, vor = rs ? rs.vor : s.vor, ringSkala = rs ? rs.skala : 100;
+  const d = vor != null && nach != null ? nach - vor : null;
+  const ring = nach != null ? `<button type="button" class="em-ring-knopf" data-em-ring="${esc(id)}" aria-haspopup="dialog" aria-label="Raumklang${rs ? ", Teilwerte zusammen," : ""} ${d != null ? `${d >= 0 ? "plus" : "minus"} ${Math.abs(d)}: von ${vor} auf ${nach}` : nach} von ${ringSkala}">${emRing(nach, d != null ? emPlus(d) : nach, ringSkala)}</button>` : "";
   // Kino der Box ohne ihre Auswertung (ältere Box): nichts behaupten, was nicht gemessen ist
   const ohneDaten = s.quelle === "box" && !(st.profile[id] && st.profile[id].einmessung);
   const satz = ohneDaten ? "Kino folgt deiner Stereo-Einmessung." : emSatz(funde, { ...(s.r || {}), status: ok ? "bestaetigt" : g.zurueck ? "zurueckgenommen" : "vorhergesagt" });
   // 3 Teilwerte vorher → nachher (Raum auch „32 → 32“), antippbar; Raum öffnet das Raum-Fenster
   const teilwerte = Object.entries(s.kacheln).map(([k, v]) => {
-    const a = v.a != null && Number.isFinite(+v.a) ? Math.round(+v.a) : null, b0 = k === "raum" ? a : v.b != null && Number.isFinite(+v.b) ? Math.round(+v.b) : null;
+    const a = emKachelZahl(v.a), b0 = k === "raum" ? a : emKachelZahl(v.b);
     if (a == null || b0 == null) return "";
     const n = esc(v.titel);
     return `<button type="button" class="em-teilwert em-tippbar" ${k === "raum" && s.raum ? `data-em-raum="${esc(id)}"` : `data-em-teil="${esc(id)}" data-em-k="${esc(k)}"`} aria-haspopup="dialog" aria-label="${n}: vorher ${a}, ${ok ? "nachgemessen" : g.u ? "gemessen, zurückgenommen" : "Prognose"} ${b0}"><span class="klein" aria-hidden="true">${n}</span><span class="em-zahlen" aria-hidden="true"><span class="em-vor">${a}<span class="em-pfeil">&nbsp;→</span></span><b>${b0}</b></span></button>`;
@@ -12807,11 +12815,13 @@ function zhEinmessenBlick(id, profile, weiter) {
 // Blätter (wie ein Fund): Ring, Teilwert, Kurve
 function emBlatt(titel, html) { $("em-fund-inhalt").innerHTML = html; sheet.auf(titel, $("em-fund-block")); }
 function emRingZeigen(id) {
-  const s = emSicht(id); if (!s || s.nach == null) return;
-  const b = s.spielt ? s.hs.bereich ?? null : null, bs = emBereich(s, b), nach = bs.nach, teil = b != null && !s.kino;  // wie der Ring im Blick
-  const n = s.kino ? "Bass, Kanäle, Dialog und Raum" : "Bass, Bühne, Klang und Raum", d = s.vor != null ? nach - s.vor : null;
-  emBlatt("Raumklang", `<p>${s.vor != null ? `${s.vor} → ${nach}: ` : `${nach}: `}${d == null ? "" : teil ? `Bis ${b} Hz holt die Box voraussichtlich ${emPlus(d)} Punkte (Prognose).` : s.g.ok ? `Die Box hat ${emPlus(d)} Punkte geholt, nachgemessen.` : `Die Box holt voraussichtlich ${emPlus(d)} Punkte (Prognose).`}</p>
-    <p class="klein">Raumklang fasst ${n} zusammen, von 100. Was bleibt, liegt vor allem am Raum.${s.g.tag ? ` ${s.g.ok ? "Nachgemessen" : "Eingemessen"}, Einmessung vom ${esc(s.g.tag)}` : ""}</p>`);
+  const s = emSicht(id); if (!s) return;
+  // dieselben Zahlen wie der Ring im Blick: Summe der Teilwerte (von 100 je Kachel), ohne Teilwerte der Raumklang von 100
+  const b = s.spielt ? s.hs.bereich ?? null : null, bs = emBereich(s, b), rs = emRingSumme(s.kacheln), teil = !rs && b != null && !s.kino;  // die Summe gibt es nicht je Bereich
+  const nach = rs ? rs.nach : bs.nach, vor = rs ? rs.vor : s.vor, skala = rs ? rs.skala : 100; if (nach == null) return;
+  const n = s.kino ? "Bass, Kanäle, Dialog und Raum" : "Bass, Bühne, Klang und Raum", d = vor != null ? nach - vor : null;
+  emBlatt("Raumklang", `<p>${vor != null ? `${vor} → ${nach}` : nach}${rs ? ` von ${skala}` : ""}${d == null ? "." : `: ${teil ? `Bis ${b} Hz holt die Box voraussichtlich ${emPlus(d)} Punkte (Prognose).` : s.g.ok ? `Die Box hat ${emPlus(d)} Punkte geholt, nachgemessen.` : `Die Box holt voraussichtlich ${emPlus(d)} Punkte (Prognose).`}`}</p>
+    <p class="klein">${rs ? `Der Ring zählt ${n} zusammen, jedes von 100.` : `Raumklang fasst ${n} zusammen, von 100.`} Was bleibt, liegt vor allem am Raum.${s.g.tag ? ` ${s.g.ok ? "Nachgemessen" : "Eingemessen"}, Einmessung vom ${esc(s.g.tag)}` : ""}</p>`);
 }
 function emTeilZeigen(id, k) { const s = emSicht(id), v = s && s.kacheln[k]; if (!v) return; emBlatt(v.titel, `<p>${esc(v.satz || "")}</p>`); }
 function emKurveZeigen(id) {

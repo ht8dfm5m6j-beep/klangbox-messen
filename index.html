@@ -14886,6 +14886,7 @@ const SA = (() => {
   const ZIELE = { erweiterung: { pegel: [-2, 0.5], loch: [-2.5, 2.5], oberbass_max: 1.5 }, bassmanagement: { pegel: [-1.5, 1.5], loch: [-2, 2], oberbass_max: 3 } };
   const GUETE_JE_DB = 6, PEGEL_WAECHTER_DB = 3, TOLERANZ_MAX = 8, SCORE_TOL = 2;
   const AUTO_TRENN_HZ = [60, 70, 80, 90, 100, 110, 120], AUTO_LAUFZEIT_MAX_MS = 20, AUTO_LAUFZEIT_SCHRITT_MS = 0.25, AUTO_PEGEL_SCHRITT_DB = 0.5;
+  const ZIEL_WEIT = 1.4;
   const AUTO_ANHEBUNG_MAX_DB = 3, AUTO_ABSENKUNG_MAX_DB = 10, AUTO_GEWINN_MIN_DB = 0.3, AUTO_LUFT_MAX_DB = 0.5;
 
   // --- Zahlen wie in Python ------------------------------------------------------------------------------------------
@@ -15060,6 +15061,14 @@ const SA = (() => {
     const rang = (r) => (r.schritte === null || r.schritte === undefined ? 0 : r.pegel ? 1 : 2);
     for (const key of reihe) {
       const best = messungen.find((m) => schluessel(regler, m.roh) === key).roh, p = erg.liste.find((x) => x.key === key).pegel_db;
+      // Ziel bekannt (Trennfrequenz aus dem Bassende, wie Python): weit darüber, zuerst das Ziel messen
+      const schalterFertig = regler.every((r) => (r.schritte !== null && r.schritte !== undefined) || entschieden(regler, r, messungen, tol));
+      for (const r of schalterFertig ? regler : []) { const z = r.ziel, v = Number(best[r.id]);
+        if (!z || r.schritte === null || r.schritte === undefined || !r.werte || !r.werte.length || !Number.isFinite(v) || !(v > ZIEL_WEIT * z)) continue;
+        // höchstens einmal (Prüfer, wie Python): schon in der Nähe des Ziels gemessen, dann wie bisher weitersuchen
+        if (messungen.some((m) => { const w0 = m.roh[r.id]; return w0 !== null && w0 !== undefined && w0 !== "" && Number.isFinite(Number(w0)) && Number(w0) <= ZIEL_WEIT * z; })) continue;
+        const w = r.werte.reduce((a, x) => (Math.abs(Number(x) - z) < Math.abs(Number(a) - z) ? x : a)), neu = { ...best, [r.id]: w };
+        if (!gemessen.has(schluessel(regler, neu))) return { roh: neu, regler: r.id }; }
       const pr = regler.find((r) => r.pegel), andere = regler.filter((r) => r !== pr);
       const probiert = !!pr && messungen.some((m) => schluessel(andere, m.roh) === schluessel(andere, best) && String(m.roh[pr.id]) !== String(best[pr.id]));
       const folge = p !== null && p !== undefined && (p > hi + 3 || p < lo - 3) && !probiert ? regler.map((r, i) => [r, i]).sort((a, b) => rang(a[0]) - rang(b[0]) || a[1] - b[1]).map(([r]) => r) : regler;
@@ -15440,7 +15449,7 @@ function saOberflaeche(K) {
       <p class="sa-lead">${ex(p.text)} ${ex(fallText)}</p>
       <ol class="sa-liste klein">${p.fall === "box" ? "<li>Regler am Sub einmal auf neutral</li><li>Vorher messen, dann misst die Box Sub und Boxen einzeln</li><li>Sie stellt Polarität, Laufzeit, Trennfrequenz und Pegel ein</li><li>Nachmessen: nur was besser ist, bleibt</li>"
         : "<li>Handy fest an deinen Platz legen</li><li>Sub aus: die Boxen allein messen</li><li>Sub an: einstellen, zurück an den Platz, messen. So oft du willst</li><li>Die App empfiehlt die beste Stellung</li><li>Danach neu einmessen</li>"}</ol>
-      <p class="klein">${p.fall === "box" ? "Etwa 3 Minuten. Setz dich auf deinen Platz, Handy auf Ohrhöhe, Mikrofon nach oben." : "Jede Messung etwa 10 bis 15 Sekunden, danach ist Ruhe. Gemessen wird nie, während du am Sub drehst."} ${ex(weg)} Lautstärke wie beim Hören.</p>
+      <p class="klein">${p.fall === "box" ? "Etwa 3 Minuten. Setz dich auf deinen Platz, Handy auf Ohrhöhe, Mikrofon nach oben." : "Jede Messung etwa 10 bis 15 Sekunden, danach ist Ruhe. Gemessen wird nie, während du am Sub drehst."} ${ex(weg)} ${quelleJetzt() === "box" ? "Die Lautstärke des Prüftons stellt die Box selbst ein." : "Lautstärke wie beim Hören."}</p>
       ${!an.sub && p.fall === "regler" ? subWahlHtml() : ""}
       ${frage ? `<div class="kasten"><b>Wie hängt dein Sub?</b><div class="sa-stufen" role="group" aria-label="Anschluss des Subs">${[["hochpegel", "An der Endstufe", "Lautsprecherkabel"], ["line", "Am Vorverstärker", "Cinch"], ["boxen", "Am Sub-Ausgang", "der Boxen"]].map(([k, t, u]) => `<button type="button" class="zweit" data-sa-an="${k}">${t}<small>${u}</small></button>`).join("")}</div></div>` : ""}
       <button type="button" class="leise" id="sa-mehrere">Ich habe zwei Subs</button>
@@ -15525,7 +15534,9 @@ function saOberflaeche(K) {
       const pg = /pegel/.test(r.rolle || "") ? { pegel: true } : {};
       if (r.skala === "uhr") return { id: rid(r), werte: UHR.map((x) => `${x} Uhr`), schritte: [2, 1], ...pg };
       if (r.skala === "hz") { const sch = w.schritt || 5, v = []; for (let x = ("von" in w ? w.von : 30); x <= ("bis" in w ? w.bis : 150) + 1e-9; x += sch) v.push(Math.round(x * 10) / 10);
-        return { id: rid(r), werte: v, schritte: [Math.max(1, Math.round(10 / sch)), Math.max(1, Math.round(5 / sch))] }; }
+        // nur mit verlässlichem Bassende (Katalog oder Messung 35–90 Hz, wie f6Von; Prüfer: sonst Ziel aus dem Ersatzwert 50)
+        const ziel = st.plan.fall !== "box" && /trennfrequenz/.test(r.rolle || "") && (st.f6Kat || (st.f6Mess >= 35 && st.f6Mess <= 90)) ? 5 * Math.floor(0.9 * f6Von(st) / 5 + 0.5) : null;
+        return { id: rid(r), werte: v, schritte: [Math.max(1, Math.round(10 / sch)), Math.max(1, Math.round(5 / sch))], ...(ziel ? { ziel } : {}) }; }
       if (r.skala === "db") { const sch = w.schritt || 0.5, v = []; for (let x = ("von" in w ? w.von : -12); x <= ("bis" in w ? w.bis : 6) + 1e-9; x += sch) v.push(Math.round(x * 10) / 10);
         return { id: rid(r), werte: v, schritte: [Math.max(1, Math.round(3 / sch)), Math.max(1, Math.floor(1.5 / sch + 1e-9))], ...pg }; }
       if (r.skala === "grad") { const sch = w.schritt || 15, v = []; for (let x = ("von" in w ? w.von : 0); x <= ("bis" in w ? w.bis : 180) + 1e-9; x += sch) v.push(Math.round(x));
@@ -15800,7 +15811,10 @@ function saOberflaeche(K) {
       ${kurveSvg(["zuletzt", "Empfohlen", "Boxen allein"])}<ul class="zh-ws-zeilen klein sa-messliste">${zeilen}</ul>
       <p class="klein">${!brauchbar ? "Noch keine gute Stellung." : erg.sicher ? "Empfohlen ist die beste Stellung." : `${erg.gleich.length} ${erg.gleich.length === 1 ? "weitere ist" : "weitere sind"} gleich gut (Unterschied unter ${st.tol} Punkten). Empfohlen ist die, die näher am Ziel liegt.`} Güte 0–100, ${wiederholt ? `deine Messungen streuen um etwa ${st.tol} Punkte.` : "Streuung noch geschätzt."}</p></details>` : "";
     const fertigKnopf = brauchbar && (!nach || ein.length >= 12) ? `<div class="sa-knoepfe eins"><button type="button" class="zweit" id="sa-fertig-liste">Fertig: Empfehlung zeigen</button></div>` : "";
-    const hinweisZeile = `<p class="klein" id="sa-hinweis" aria-live="polite">${meldung || (tipp && ["nochmal", "raum"].includes(tipp.art) ? ex(tipp.text) : "")}</p>`;
+    // Level schon ganz auf und der Tiefbass bleibt unter dem Ziel (Besitzer: „Max ein Fehler oder notwendig?“): ehrlich sagen
+    const rpg = raster.find((r) => r.pegel && r.werte && r.werte.length), amMax = !!(letzte && rpg && String(letzte.roh[rpg.id]) === String(rpg.werte[rpg.werte.length - 1]));
+    const maxText = tipp && tipp.art === "pegel_mehr" && amMax && tipp.db <= 3 ? "Der Level steht ganz auf, und der Tiefbass bleibt etwas unter dem Ziel: Mehr schafft dein Sub an diesem Platz nicht. Lass den Level so, das ist kein Fehler." : "";
+    const hinweisZeile = `<p class="klein" id="sa-hinweis" aria-live="polite">${meldung || (tipp && ["nochmal", "raum"].includes(tipp.art) ? ex(tipp.text) : ex(maxText))}</p>`;
     let html, knopf = "sa-messen";
     if (letzte && !st.subBestaetigt && !subSpielt(letzte)) {  // die Messung mit Sub gleicht „Sub aus“: erst klären, dann weiter
       html = `${kopf(`Sub · Messung ${ein.length}`)}<h1 id="sa-h">Der Sub spielt nicht</h1>
@@ -15866,7 +15880,7 @@ function saOberflaeche(K) {
       <div class="sa-zwei"><div><span class="klein">erste Stellung</span><b>${zahl(erg.liste.find((x) => x.key === erste.key).guete, 0)}</b></div><div><span class="klein">empfohlen</span><b>${zahl(erg.liste.find((x) => x.key === best.key).guete, 0)}</b></div></div>
       ${kurveSvg(["empfohlen", "", "erste Stellung"])}
       ${erg.sicher ? "" : `<p class="klein">${erg.gleich.length} ${erg.gleich.length === 1 ? "weitere Stellung war" : "weitere Stellungen waren"} gleich gut. Die empfohlene liegt näher am Ziel. Was dir besser gefällt, darfst du nehmen.</p>`}
-      <div class="kasten"><b>Danach neu einmessen</b><p class="klein">Die Einmessung korrigiert, was Boxen und Sub zusammen ergeben. Stell den Sub so ein, dreh danach nichts mehr und miss jedes Profil, das du nutzt, neu ein.</p></div>
+      <div class="kasten"><b>Danach neu einmessen</b><p class="klein">Die Einmessung korrigiert, was Boxen und Sub zusammen ergeben. Stell den Sub so ein, dreh danach nichts mehr und miss Stereo neu ein. Ein Kino-Profil, das Stereo folgt, rechnet sich danach von selbst neu (nach „Behalten“ in Stereo); miss es nicht extra.</p></div>
       <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-zurueck-liste">Weiter messen</button><button type="button" id="sa-fertig">Speichern und fertig</button></div>`);
     const kv = el("sa-k-vorher"), kn = el("sa-k-jetzt");
     if (kv) kv.setAttribute("d", pfad(erste.kurve, erste.w.ref_db || 0)); if (kn) kn.setAttribute("d", pfad(best.kurve, best.w.ref_db || 0));

@@ -6331,7 +6331,7 @@ const GT = (() => {
         if (loch) t += ` Um ${zahl(fc)} Hz fehlt Bass: erst die Phase prüfen (Schritt davor). Bleibt das Loch danach, in kleinen Schritten höher, nach jedem Schritt messen.`;
         else if (messung !== "aus" && k.loch_db !== null && k.loch_db >= -LOCH) t += ` Um ${zahl(fc)} Hz ist es zu viel: eher tiefer.`;
         else t += " So tief wie möglich: Höher nur, wenn ein Loch bleibt, in kleinen Schritten, nach jedem Schritt messen.";
-        if (an && an.quelle === "lautsprecherklemmen") t += " Die Boxen spielen oben weiter, der Sub ergänzt nur unten (Live: „Sub abgleichen“).";
+        if (an && an.quelle === "lautsprecherklemmen") t += " Die Boxen spielen oben weiter, der Sub ergänzt nur unten (genau: „Sub abgleichen“ misst jede Stellung).";
         schritte.push(schritt(sname, t, "einstellen", rx.sicherheit !== "unsicher"));
         if (!gemessen && messung !== "aus") schritte.push(schritt(sname, "Für einen genauen Wert: Sub ausschalten und einmal messen. Dann sehe ich, wo deine Boxen wirklich aufhören.", "messen"));
       }
@@ -9724,8 +9724,8 @@ function hebelMassnahme(h) {
     return "Die Raumanpassung senkt die lautesten Bass-Spitzen. Ohne Umräumen hilft danach: Sub-Pegel und Phase an deinem Sub einstellen, ein dicker Teppich oder schwere Vorhänge.";
   if (!subAnschluss || !["bass_glaette", "nachklingen", "plaetze", "tiefgang", "sub"].includes(h.kennzahl)) return h.massnahme;
   const tf = ["lfe", "boxen", "funk"].includes(subAnschluss) ? "Trennfrequenz (im Receiver oder in der App der Boxen)" : "Trennfrequenz am Sub";
-  // mit Klång-Box misst „Sub abgleichen“ live mit; ohne rechnet „Regler deiner Geräte“ es vor (beide unter Einmessen › Mehr)
-  const weg = boxBereit() ? "„Sub abgleichen“ unter Einmessen › Mehr misst dabei live mit" : "„Regler deiner Geräte“ unter Einmessen › Mehr rechnet das vor";
+  // mit Klång-Box misst „Sub abgleichen“ jede Stellung; ohne rechnet „Regler deiner Geräte“ es vor (beide unter Einmessen › Mehr)
+  const weg = boxBereit() ? "„Sub abgleichen“ unter Einmessen › Mehr misst jede Stellung, die du einstellst" : "„Regler deiner Geräte“ unter Einmessen › Mehr rechnet das vor";
   return `Zuerst deinen Sub einstellen: Pegel, ${tf} und Phase, jeweils mit Nachmessung (${weg}). `
     + "Hilft das nicht genug, das Sofa 20 bis 40 cm nach vorne oder hinten rücken und neu messen. Erst zuletzt: ein zweiter Sub.";
 }
@@ -14863,13 +14863,13 @@ if (typeof document !== "undefined" && typeof aktuelleRunde === "function") {
   try { window.dispatchEvent(new CustomEvent("klangboxgehoer", { detail: null })); } catch (e) {}
 }
 </script>
-<script>// Sub abgleichen: geführter Live-Abgleich des Subwoofers, universell für jeden Sub. Dieselbe Rechnung wie
+<script>// Sub abgleichen: Messliste für jeden Sub (erst einstellen, dann messen, nie beides zugleich). Dieselbe Rechnung wie
 // klangbox/subabgleich.py (Regeln und Herleitung dort, Recherche in docs/Sub-Abgleich Recherche.md); tests/test_subabgleich.py
 // prüft beide gegeneinander. Hersteller-neutral: Namen, Orte und Bereiche der Regler kommen aus dem Gerätekatalog.
 //
-// Wege: „regler“ (der Sub hat eigene Regler, die Box steuert ihn nicht: du drehst, die Seite misst live), „box“ (der Sub
+// Wege: „regler“ (der Sub hat eigene Regler, die Box steuert ihn nicht: du stellst ein, die Seite misst danach), „box“ (der Sub
 // hängt an einem Ausgang der Klång-Box: sie gleicht Polarität, Laufzeit, Trennfrequenz und Pegel selbst ab), „misch“
-// (Regler in der App der Boxen), „mehrere“ (ehrlich abgelehnt), „fremd“ (der Sub gleicht sich selbst ab).
+// (Regler in der App der Boxen, dieselbe Messliste), „mehrere“ (ehrlich abgelehnt), „fremd“ (der Sub gleicht sich selbst ab).
 //
 // In die Seite eingebunden über den Platzhalter SUBABGLEICH der Vorlage (nach dem Hauptskript). Einhängepunkte der Seite:
 // SA.zuhauseKarte() in Einmessen, window.klangboxSubAbgleich.oeffnen({ zurueck }) für
@@ -14880,9 +14880,9 @@ const SA = (() => {
   const FS = 48000, DEZ = 24, N_DEZ = 4096, PERIODE_S = N_DEZ * DEZ / FS, BIN_HZ = FS / DEZ / N_DEZ, ANREGUNG_HZ = [15, 300];
   const RASTER = []; for (let i = 0; i < 44; i++) RASTER.push(20 * Math.pow(2, i / 12));
   const NEIGUNG = -0.8, HAUS_DB = { kino: 4, stereo: 2 }, REF_BAND = [130, 240];
-  const SNR_GUT_DB = 15, SNR_MIN_DB = 8, STABIL_FRAMES = 5, STABIL_STREUUNG = 1, LUFT_HZ = 150;
+  const SNR_GUT_DB = 15, SNR_MIN_DB = 8, UNRUHE_PUNKTE = 8, LUFT_HZ = 150;
   const ZIELE = { erweiterung: { pegel: [-2, 0.5], loch: [-2.5, 2.5], oberbass_max: 1.5 }, bassmanagement: { pegel: [-1.5, 1.5], loch: [-2, 2], oberbass_max: 3 } };
-  const GUETE_JE_DB = 6, PEGEL_WAECHTER_DB = 3, PHASE_GLEICH = 2, SUCHE_ABBRUCH = 6, PHASE_SCHALTER = 3, SCORE_TOL = 2;
+  const GUETE_JE_DB = 6, PEGEL_WAECHTER_DB = 3, TOLERANZ_MAX = 8, SCORE_TOL = 2;
   const AUTO_TRENN_HZ = [60, 70, 80, 90, 100, 110, 120], AUTO_LAUFZEIT_MAX_MS = 20, AUTO_LAUFZEIT_SCHRITT_MS = 0.25, AUTO_PEGEL_SCHRITT_DB = 0.5;
   const AUTO_ANHEBUNG_MAX_DB = 3, AUTO_ABSENKUNG_MAX_DB = 10, AUTO_GEWINN_MIN_DB = 0.3, AUTO_LUFT_MAX_DB = 0.5;
 
@@ -14974,58 +14974,106 @@ const SA = (() => {
   }
   const score = (k, modus, fx, subUnten = 25, haupt = null, philosophie = "erweiterung") => kennwerte(k, modus, fx, subUnten, haupt, philosophie).guete;
 
-  // --- Führung -------------------------------------------------------------------------------------------------------
+  // --- Messliste (wie Python: waechter, unruhig, toleranz, empfehlen, hinweis) ----------------------------------------
   function waechter(w, philosophie = "erweiterung") {
     const z = ZIELE[philosophie];
     if (w.pegel_db !== null && w.pegel_db !== undefined && w.pegel_db > PEGEL_WAECHTER_DB) return "Deutlich zu viel Tiefbass: Das ermüdet auf Dauer.";
     if (w.oberbass_db !== null && w.oberbass_db !== undefined && w.oberbass_db >= z.oberbass_max + 1.5) return "Der Sub spielt im Oberbass mit: Das nimmt den Boxen die Luft.";
     return null;
   }
-  const TEXT_GUT = { phase: "Voller und glatter geht es nicht: Hier passt die Phase.", phase_fein: "Voller und glatter geht es nicht: Hier passt die Phase.",
-    trennfrequenz: "Der Übergang ist am glattesten.", pegel: "Genau richtig: Der Sub fällt nicht auf, er würde nur fehlen, wenn er aus ist." };
-  const RICHTUNG_TEXT = { pegel: ["Etwas wärmer geht: Pegel ein wenig höher.", "Zu viel: Pegel etwas zurück."], trennfrequenz: ["Etwas höher drehen.", "Etwas tiefer drehen."],
-    phase: ["Noch etwas weiter drehen.", "Etwas zurück drehen."], phase_fein: ["Noch etwas weiter drehen.", "Etwas zurück drehen."] };
-  function naechster(spur, k) {
-    const rel = (x) => { const ref = median(x.f.map((f, i) => [f, x.db[i]]).filter(([f, v]) => v !== null && v !== undefined && f >= REF_BAND[0] && f <= REF_BAND[1]).map(([, v]) => v));
-      const o = new Map(); if (ref === null) return o; x.f.forEach((f, i) => { const v = x.db[i]; if (v !== null && v !== undefined && f >= 20 && f <= 200) o.set(Math.round(f * 1000) / 1000, v - ref); }); return o; };
-    const jetzt = rel(k); let best = null, beste = null;
-    spur.forEach((s, i) => { const a = rel(s), d = []; for (const [f, v] of jetzt) if (a.has(f)) d.push(v - a.get(f)); if (!d.length) return;
-      const mu = d.reduce((x, y) => x + y, 0) / d.length, e = Math.sqrt(d.reduce((x, y) => x + (y - mu) ** 2, 0) / d.length); if (beste === null || e < beste - 1e-12) { best = i; beste = e; } });
-    return best;
+  function unruhig(gueten) { const g = gueten.filter((x) => x !== null && x !== undefined); return g.length < 2 || Math.max(...g) - Math.min(...g) > UNRUHE_PUNKTE; }
+  function toleranz(paare) {
+    const d = paare.filter(([a, b]) => a !== null && a !== undefined && b !== null && b !== undefined).map(([a, b]) => Math.abs(a - b));
+    const unten = d.length >= 2 ? SCORE_TOL : SCORE_TOL + 2;
+    if (!d.length) return unten;
+    return Math.trunc(Math.min(TOLERANZ_MAX, Math.max(unten, Math.ceil(Math.max(...d)))));
   }
-  function bewerten(schritt, w, philosophie = "erweiterung", best = null, phase = "suchen", bestPegel = null, richtung = null) {
-    const z = ZIELE[philosophie], snr = w.snr_db;
-    if (snr !== null && snr !== undefined && snr < SNR_MIN_DB) return { zustand: "unsicher", wert: null, nadel: 0, text: "Zu viel Störgeräusch oder zu leise: lauter stellen oder warten, bis es ruhig ist." };
-    const v = w.guete;
-    if (v === null || v === undefined) return { zustand: "unsicher", wert: null, nadel: 0, text: "Noch kein Messwert." };
-    const p = w.pegel_db, stopp = waechter(w, philosophie);
-    if (phase === "suchen") {
-      let nadel = 0;
-      if (schritt === "pegel" && p !== null && p !== undefined) { const [lo, hi] = z.pegel; nadel = rund(Math.max(-1, Math.min(1, p < lo ? (p - lo) / 4 : p > hi ? (p - hi) / 4 : 0)), 2); }
-      if (stopp && best !== null && v <= best - SUCHE_ABBRUCH) return { zustand: "weniger", wert: v, nadel: schritt === "pegel" ? nadel : 1, text: stopp + " Stopp, zurück." };
-      return { zustand: "mehr", wert: v, nadel, text: "Langsam weiter drehen. Ich merke mir den besten Punkt." };
+  function empfehlen(eintraege, tol, philosophie = "erweiterung") {
+    const gruppen = new Map();
+    for (const e of eintraege) { if (e.guete === null || e.guete === undefined) continue;
+      if (!gruppen.has(e.key)) gruppen.set(e.key, { key: e.key, g: [], p: [], o: [] });
+      const g = gruppen.get(e.key); g.g.push(e.guete); g.p.push(e.pegel_db ?? null); g.o.push(e.oberbass_db ?? null); }
+    const mitte = (w) => { const v = w.filter((x) => x !== null && x !== undefined); return v.length ? rund(v.reduce((s, x) => s + x, 0) / v.length, 1) : null; };
+    const liste = [...gruppen.values()].map((g) => ({ key: g.key, guete: rund(g.g.reduce((s, x) => s + x, 0) / g.g.length, 1), n: g.g.length, pegel_db: mitte(g.p), oberbass_db: mitte(g.o) }));
+    if (!liste.length) return { beste: null, gleich: [], liste: [], sicher: false };
+    for (const x of liste) x.warnung = waechter(x, philosophie);
+    const okL = liste.filter((x) => !x.warnung), ok = okL.length ? okL : liste;
+    const top = Math.max(...ok.map((x) => x.guete)), gleich = ok.filter((x) => x.guete >= top - tol);
+    const [lo, hi] = ZIELE[philosophie].pegel;
+    const ruhig = (x) => [x.pegel_db !== null ? rund(Math.max(0, x.pegel_db - hi) + Math.max(0, lo - x.pegel_db), 1) : 0, x.oberbass_db !== null ? Math.max(0, x.oberbass_db) : 0, -x.guete];
+    const kleiner = (a, b) => { const ra = ruhig(a), rb = ruhig(b); for (let i = 0; i < 3; i++) if (ra[i] !== rb[i]) return ra[i] < rb[i]; return false; };
+    const beste = gleich.reduce((a, b) => (kleiner(b, a) ? b : a));
+    return { beste: beste.key, gleich: gleich.filter((x) => x.key !== beste.key).map((x) => x.key), liste, sicher: gleich.length === 1 };
+  }
+  const schluessel = (regler, roh) => regler.map((r) => `${r.id}=${roh[r.id] === undefined || roh[r.id] === null ? "None" : roh[r.id]}`).join(" · ");
+  function indexIn(werte, v) {
+    const i = werte.indexOf(v); if (i >= 0) return i;
+    const x = typeof v === "number" ? v : (v === null || v === undefined || v === "" ? NaN : Number(v)); if (!Number.isFinite(x)) return null;
+    const zahlen = werte.map((w, j) => [j, w]).filter(([, w]) => typeof w === "number"); if (!zahlen.length) return null;
+    const schritt = zahlen.length > 1 ? Math.abs(zahlen[1][1] - zahlen[0][1]) : 0;
+    if (x < zahlen[0][1] - schritt - 1e-9 || x > zahlen[zahlen.length - 1][1] + schritt + 1e-9) return null;
+    let best = null; for (const [j, w] of zahlen) { const d = Math.abs(w - x); if (best === null || d < best[0]) best = [d, j]; }
+    return best[1];
+  }
+  function entschieden(regler, r, messungen, tol) {
+    const andere = regler.filter((x) => x.id !== r.id), je = new Map();
+    for (const m of messungen) { if (m.guete === null || m.guete === undefined) continue; const k = schluessel(andere, m.roh);
+      if (!je.has(k)) je.set(k, new Map()); const g = je.get(k), v = String(m.roh[r.id] === undefined || m.roh[r.id] === null ? "None" : m.roh[r.id]); if (!g.has(v)) g.set(v, []); g.get(v).push(m.guete); }
+    let vergleiche = 0;
+    for (const g of je.values()) if (g.size >= 2) { vergleiche++; const mittel = [...g.values()].map((v) => v.reduce((a, b) => a + b, 0) / v.length).sort((a, b) => b - a); if (mittel[0] - mittel[1] > tol) return true; }
+    return vergleiche >= 2;
+  }
+  function vorschlag(regler, messungen, tol, philosophie = "erweiterung") {
+    if (!messungen.length) return null;
+    const erg = empfehlen(messungen.map((m) => ({ key: schluessel(regler, m.roh), guete: m.guete, pegel_db: m.pegel_db, oberbass_db: m.oberbass_db })), tol, philosophie);
+    if (erg.beste === null) return null;
+    const gemessen = new Set(messungen.map((m) => schluessel(regler, m.roh))), guete = Object.fromEntries(erg.liste.map((x) => [x.key, x.guete]));
+    const reihe = [erg.beste].concat([...erg.gleich].sort((a, b) => guete[b] - guete[a])), [lo, hi] = ZIELE[philosophie].pegel;
+    const rang = (r) => (r.schritte === null || r.schritte === undefined ? 0 : r.pegel ? 1 : 2);
+    for (const key of reihe) {
+      const best = messungen.find((m) => schluessel(regler, m.roh) === key).roh, p = erg.liste.find((x) => x.key === key).pegel_db;
+      const pr = regler.find((r) => r.pegel), andere = regler.filter((r) => r !== pr);
+      const probiert = !!pr && messungen.some((m) => schluessel(andere, m.roh) === schluessel(andere, best) && String(m.roh[pr.id]) !== String(best[pr.id]));
+      const folge = p !== null && p !== undefined && (p > hi + 3 || p < lo - 3) && !probiert ? regler.map((r, i) => [r, i]).sort((a, b) => rang(a[0]) - rang(b[0]) || a[1] - b[1]).map(([r]) => r) : regler;
+      for (const r of folge) {
+        if (!r.werte || !r.werte.length) continue;
+        let kandidaten = [];
+        if (r.schritte === null || r.schritte === undefined) { if (entschieden(regler, r, messungen, tol)) continue; kandidaten = r.werte.filter((w) => w !== best[r.id]); }
+        else { const i = indexIn(r.werte, best[r.id]); if (i === null) continue;
+          for (const sch of r.schritte) for (const d of [-1, 1]) { const j = Math.min(r.werte.length - 1, Math.max(0, i + d * sch)); if (j !== i) kandidaten.push(r.werte[j]); } }
+        for (const w of kandidaten) { const neu = { ...best, [r.id]: w }; if (!gemessen.has(schluessel(regler, neu))) return { roh: neu, regler: r.id }; }
+      }
     }
-    const d = best === null ? 0 : Math.max(0, Math.trunc(best - v));
-    const mitPegel = schritt === "pegel" && p !== null && p !== undefined && bestPegel !== null && bestPegel !== undefined;
-    const nadel = mitPegel ? rund(Math.max(-1, Math.min(1, (p - bestPegel) / 4)), 2) : rund(-Math.min(1, d / 20), 2);
-    if (best === null || v >= best - PHASE_GLEICH) return { zustand: "gut", wert: v, nadel, text: TEXT_GUT[schritt] };
-    if (richtung === -1 || richtung === 1) { const stark = rund(Math.min(1, Math.max(0.3, d / 20)), 2);
-      return { zustand: richtung < 0 ? "mehr" : "weniger", wert: v, nadel: richtung < 0 ? -stark : stark, text: RICHTUNG_TEXT[schritt][richtung < 0 ? 0 : 1] }; }
-    if (mitPegel) return p < bestPegel ? { zustand: "mehr", wert: v, nadel, text: "Etwas wärmer geht: Pegel ein wenig höher." } : { zustand: "weniger", wert: v, nadel, text: "Zu viel: Pegel etwas zurück." };
-    return { zustand: "mehr", wert: v, nadel, text: `${d} Punkte unter dem besten Punkt: zurück dorthin.` };
-  }
-  function stabil(verlauf) {
-    const l = verlauf.slice(-STABIL_FRAMES);
-    if (l.length < STABIL_FRAMES || l.some((b) => b.zustand !== "gut" || b.wert === null)) return false;
-    const w = l.map((b) => b.wert); return Math.max(...w) - Math.min(...w) <= 2 * STABIL_STREUUNG;
-  }
-  function suchbereich(schritt, regler, f6) {
-    const r = regler || {};
-    if (schritt === "trennfrequenz") { const w = r.werte || {}, lo = "von" in w ? w.von : 30, hi = "bis" in w ? w.bis : 150;
-      const a = Math.max(lo, 5 * Math.floor(0.6 * f6 / 5 + 0.5)), b = Math.min(hi, 5 * Math.floor(1.3 * f6 / 5 + 0.5)); return { art: "hz", von: a, bis: Math.max(a, b) }; }
-    if (schritt === "pegel") return r.skala === "uhr" ? { art: "uhr", von: "9 Uhr", bis: "14 Uhr" } : { art: "db", von: -9, bis: 6 };
-    if (schritt === "phase" || schritt === "phase_fein") { if (r.stufen) return { art: "stufen", stufen: [...r.stufen] }; const w = r.werte || { von: 0, bis: 180 }; return { art: "grad", von: "von" in w ? w.von : 0, bis: "bis" in w ? w.bis : 180 }; }
     return null;
+  }
+  function phaseStatus(vergleiche, tol) {
+    if (!vergleiche.length) return "nie";
+    for (const [[ga, wa], [gb, wb]] of vergleiche) {
+      if (ga === null || ga === undefined || gb === null || gb === undefined) continue;
+      if (!wa && !wb) return "klar";
+      const siegerWarn = ga >= gb ? wa : wb;
+      if (Math.abs(ga - gb) > tol && !siegerWarn) return "klar";
+    }
+    return "offen";
+  }
+  function hinweis(w, philosophie = "erweiterung", phase = "klar", hauptPegelDb = null, trennHz = null, f6 = null) {
+    const z = ZIELE[philosophie], da = (x) => x !== null && x !== undefined, mitte = (z.pegel[0] + z.pegel[1]) / 2, p = w.pegel_db;
+    const um = (d) => rund(Math.floor(Math.abs(d) * 2 + 0.5) / 2, 1), zahlDe = (x) => (Number.isInteger(x) ? String(x) : x.toFixed(1).replace(".", ","));
+    const subTraegt = !da(p) || !da(hauptPegelDb) || p - hauptPegelDb > 1.0;
+    const tief = philosophie === "erweiterung" && da(trennHz) && da(f6) && trennHz > 1.3 * f6;
+    if (!da(w.guete)) return { art: "nochmal", text: "Kein Messwert: lauter stellen oder warten, bis es ruhig ist, dann noch einmal.", db: null };
+    if (da(w.snr_db) && w.snr_db < SNR_MIN_DB) return { art: "nochmal", text: "Zu leise gegen das Raumgeräusch: etwas lauter stellen, dann noch einmal.", db: null };
+    if (phase === "nie") return { art: "phase", text: "Jetzt die andere Phase messen, sonst nichts verstellen. Die Phase hat Vorrang.", db: null };
+    if (da(p) && p > PEGEL_WAECHTER_DB + 3 && subTraegt) return { art: "pegel_weniger", text: `Deutlich zu viel Tiefbass: Level etwa ${zahlDe(um(p - mitte))} dB zurück probieren.`, db: um(p - mitte) };
+    if (phase === "offen") return { art: "phase", text: "Jetzt, wo der Pegel näher dran ist: die andere Phase noch einmal messen, sonst nichts verstellen.", db: null };
+    if (tief) return { art: "trenn_tiefer", text: `Deine Boxen spielen bis etwa ${zahlDe(rund(f6, 0))} Hz selbst: Crossover tiefer probieren, dann den Level nachstellen.`, db: null };
+    if (da(p) && p > z.pegel[1] && !subTraegt) return { art: "raum", text: "Der Tiefbass kommt schon von deinen Boxen und dem Raum: Weniger Sub bringt hier nichts mehr. Das gleicht danach die Einmessung aus.", db: null };
+    if (da(p) && p > PEGEL_WAECHTER_DB) return { art: "pegel_weniger", text: `Deutlich zu viel Tiefbass: Level etwa ${zahlDe(um(p - mitte))} dB zurück probieren.`, db: um(p - mitte) };
+    if (da(w.oberbass_db) && w.oberbass_db > z.oberbass_max) return { art: "trenn_tiefer", text: "Der Sub spielt im Oberbass mit: Crossover tiefer oder Level etwas zurück probieren.", db: null };
+    if (da(p) && p > z.pegel[1]) return { art: "pegel_weniger", text: `Etwas zu viel Tiefbass: Level etwa ${zahlDe(um(p - mitte))} dB zurück probieren.`, db: um(p - mitte) };
+    if (da(w.loch_db) && w.loch_db < z.loch[0]) return { art: "trenn_hoeher", text: "Loch am Übergang: Crossover etwas höher probieren.", db: null };
+    if (da(p) && p < z.pegel[0]) return { art: "pegel_mehr", text: `Tiefbass etwas leise: Level etwa ${zahlDe(um(mitte - p))} dB höher probieren.`, db: um(mitte - p) };
+    return { art: "gut", text: "Passt gut. Wenn du magst, eine Nachbarstellung zum Vergleich messen.", db: null };
   }
 
   // --- Wer stellt was ------------------------------------------------------------------------------------------------
@@ -15052,7 +15100,7 @@ const SA = (() => {
     const rp = (weg ? regler(ls, "sub_out_pegel") : null) || (an === "lfe" ? regler(sub, "lfe_pegel") : null) || regler(sub, "sub_pegel");
     schritte.push({ schritt: "pegel", wer: "regler", geraet: ((weg && regler(ls, "sub_out_pegel") ? ls : sub) || {}).id, regler: rp });
     return { fall: weg ? "misch" : "regler", schritte, philosophie: weg ? "bassmanagement" : "erweiterung",
-      text: weg ? "Trennfrequenz und Pegel stellst du in der App der Boxen, die Phase am Sub. Ich führe dich live." : "Der Sub hat eigene Regler: Du drehst, ich messe live und sage dir, wann es passt." };
+      text: weg ? "Trennfrequenz und Pegel stellst du in der App der Boxen, die Phase dort, wo dein System sie hat. Die App misst jede Stellung danach." : "Der Sub hat eigene Regler: Du stellst ein, die App misst danach und sagt dir, welche Stellung am besten ist." };
   }
   function startstellung(p, sub, ls = null, f6 = null) {
     const zeilen = [], neutralBox = p.fall === "box", start = (sub || {}).start || {};
@@ -15121,8 +15169,8 @@ const SA = (() => {
     return { aendern: true, kosten_vorher: rund(k0, 2), kosten_nachher: rund(k, 2), trenn_hz: fc, gain_db: rund(g0 + dg, 1), delay_ms: rund(d0 + dd, 2), gedreht: !!jetzt.gedreht !== (pol < 0), grund: null };
   }
 
-  const kern = { FS, DEZ, N_DEZ, PERIODE_S, BIN_HZ, RASTER, BINS, ZIELE, PEGEL_WAECHTER_DB, PHASE_SCHALTER, SCORE_TOL, SNR_GUT_DB, SNR_MIN_DB, LUFT_HZ,
-    rund, median, zielDb, Dezimierer, frame, kurve, kurveAusH, bassende, kennwerte, score, waechter, naechster, bewerten, stabil, suchbereich, plan, startstellung, lr4, auto };
+  const kern = { FS, DEZ, N_DEZ, PERIODE_S, BIN_HZ, RASTER, BINS, ZIELE, PEGEL_WAECHTER_DB, SCORE_TOL, SNR_GUT_DB, SNR_MIN_DB, LUFT_HZ, UNRUHE_PUNKTE,
+    rund, median, zielDb, Dezimierer, frame, kurve, kurveAusH, bassende, kennwerte, score, waechter, unruhig, toleranz, empfehlen, vorschlag, phaseStatus, hinweis, plan, startstellung, lr4, auto };
   if (typeof document === "undefined") return kern;
   return Object.defineProperties(kern, Object.getOwnPropertyDescriptors(saOberflaeche(kern)));
 })();
@@ -15155,23 +15203,6 @@ function saOberflaeche(K) {
 #sa .sa-kopf button { min-height: 44px; }
 #sa h1 { font: var(--kb-t-titel); margin: 0; }
 #sa .sa-lead { margin: 0; font: var(--kb-t-lead); color: var(--kb-text); }
-#sa .sa-anzeige { display: grid; gap: 8px; justify-items: center; padding: 16px 0; border-top: 1px solid var(--kb-linie); border-bottom: 1px solid var(--kb-linie); }
-#sa .sa-wort { font: var(--kb-t-titel2); text-align: center; min-height: 28px; }
-#sa .sa-wort.gut, #sa .sa-wort.weniger { color: var(--kb-text); } #sa .sa-wort.unsicher { color: var(--kb-text-leise); }
-#sa .sa-uhr { width: 100%; max-width: 280px; height: auto; display: block; }
-#sa .sa-uhr .bogen { fill: none; stroke: var(--kb-linie); stroke-width: 2; stroke-linecap: butt; }
-#sa .sa-uhr .mitte { fill: none; stroke: var(--kb-text); stroke-width: 4; stroke-linecap: butt; }
-#sa .sa-uhr .nadel { stroke: var(--kb-signal); stroke-width: 2; stroke-linecap: butt; transition: transform var(--kb-zeit) var(--kb-kurve); transform-origin: 140px 140px; }
-#sa .sa-uhr .nabe { fill: var(--kb-signal); }
-#sa .sa-skala { display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100%; max-width: 300px; font: var(--kb-t-skala); color: var(--kb-text-leise); }
-#sa .sa-skala span:nth-child(2) { text-align: center; } #sa .sa-skala span:nth-child(3) { text-align: right; }
-#sa .sa-zahl { display: flex; gap: 8px; align-items: baseline; justify-content: center; flex-wrap: wrap; }
-#sa .sa-zahl b { font: var(--kb-t-anzeige-m); color: var(--kb-text); min-width: 3ch; text-align: right; }
-#sa .sa-zahl span { font: var(--kb-t-klein); color: var(--kb-text-leise); }
-#sa .sa-haken { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: transparent; box-shadow: inset 0 0 0 1.5px var(--kb-text);
-  color: transparent; font-size: 0; position: relative; }
-#sa .sa-haken::after { content: ""; width: 24px; height: 24px; background: var(--kb-text); -webkit-mask: var(--kb-sym-haken) center / contain no-repeat; mask: var(--kb-sym-haken) center / contain no-repeat; }
-#sa .sa-haken[hidden] { display: none; }
 #sa .sa-kurve { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--kb-linie); border-bottom: 1px solid var(--kb-linie); }
 #sa .sa-kurve svg { width: 100%; height: auto; display: block; }
 #sa .sa-kurve .ziel { fill: var(--kb-flaeche); }
@@ -15200,9 +15231,13 @@ function saOberflaeche(K) {
 #sa .sa-zwei b { font: var(--kb-t-anzeige-m); }
 #sa .sa-felder { display: grid; gap: 12px; }
 #sa .sa-felder label { display: grid; gap: 4px; font: var(--kb-t-klein); color: var(--kb-text-leise); }
-#sa .sa-felder input, #sa .sa-felder select { min-height: 44px; }
+#sa .sa-felder input, #sa .sa-felder select { min-height: 44px; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+#sa .kasten { min-width: 0; overflow-wrap: anywhere; }
+#sa .sa-messliste li { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+#sa .sa-messliste li span { display: grid; gap: 2px; } #sa .sa-messliste small { color: var(--kb-text-leise); }
+#sa .sa-messliste li.empfohlen span::before { content: "Empfohlen"; font: var(--kb-t-skala); color: var(--kb-signal-text); letter-spacing: .04em; }
 #sa .sa-warn { color: var(--kb-text); font-weight: 600; } #sa .sa-gut { color: var(--kb-text); }
-@media (prefers-reduced-motion: reduce) { #sa .sa-uhr .nadel { transition: none; } }`;
+`;
   function stilEinmal() { if (el("sa-stil")) return; const s = document.createElement("style"); s.id = "sa-stil"; s.textContent = STIL; document.head.appendChild(s); }
 
   // --- Anlage und Katalog ----------------------------------------------------------------------------------------------
@@ -15259,17 +15294,19 @@ function saOberflaeche(K) {
   }
 
   // --- Signal: über die Klång-Box (Folge „sub_abgleich“) oder als Datei --------------------------------------------
+  const SIGNAL_S = 30;  // je Messung höchstens so lange Rauschen, auch wenn die App unterwegs abbricht (nie Dauerrauschen)
   const quelleJetzt = () => (boxDa() ? "box" : typeof nativ !== "undefined" && nativ ? "airplay" : "extern");
   async function signalAn(st) {
     st.quelle = quelleJetzt();
     if (st.quelle === "box") {
       // Regler am Sub einstellen: ohne Einmessung (neutral), die Profile gleichen danach fein nach. Mit Frist wie überall:
-      // bricht die App ab, schaltet die Box nach dem Signal (600 s) selbst zurück auf die Einmessung
+      // je Messung nur SIGNAL_S Sekunden Rauschen (die App stoppt es sofort danach); bricht die App ab, hört die Box von
+      // selbst auf und schaltet nach der Frist (120 s) zurück auf die Einmessung
       if (!st.mitEinstellungen) {
         const s = await nativ.box("status", {}, { zeitMs: 8000 });
-        if (s.ok && !s.aus) { const x = await nativ.box("aus", { aus: true, fuer_s: 660 }, { zeitMs: 6000 }); st.ausGesetzt = !!x.ok; }
+        if (s.ok && !s.aus) { const x = await nativ.box("aus", { aus: true, fuer_s: 120 }, { zeitMs: 6000 }); st.ausGesetzt = !!x.ok; }
       }
-      const a = await nativ.box("messsignal", { folge: "sub_abgleich", dauer_s: 600, start_in_ms: 300, modus: st.modus }, { zeitMs: 20000 });
+      const a = await nativ.box("messsignal", { folge: "sub_abgleich", dauer_s: SIGNAL_S, start_in_ms: 300, modus: st.modus }, { zeitMs: 20000 });
       if (!a.ok) return `Die Klång-Box spielt das Signal nicht (${a.fehler || a.grund}).`;
       st.boxSignal = true; return null;
     }
@@ -15287,22 +15324,16 @@ function saOberflaeche(K) {
   }
 
   // --- Anzeige-Bausteine ---------------------------------------------------------------------------------------------
-  function uhrSvg() {
-    const bogen = (a0, a1) => { const p = (a) => [140 + 110 * Math.sin(a * Math.PI / 180), 140 - 110 * Math.cos(a * Math.PI / 180)]; const [x0, y0] = p(a0), [x1, y1] = p(a1);
-      return `M${x0.toFixed(1)} ${y0.toFixed(1)} A110 110 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
-    return `<svg class="sa-uhr" viewBox="0 0 280 160" aria-hidden="true"><path class="bogen" d="${bogen(-80, 80)}"/><path class="mitte" d="${bogen(-14, 14)}"/>
-      <line class="nadel" id="sa-nadel" x1="140" y1="140" x2="140" y2="44"/><circle class="nabe" cx="140" cy="140" r="9"/></svg>`;
-  }
   const xF = (f) => 12 + Math.log10(f / 20) * 296;  // 20–200 Hz auf 12–308
   const yDb = (v) => 90 - Math.max(-18, Math.min(18, v)) * 4.4;
   function pfad(k, ref) { const p = []; k.f.forEach((f, i) => { const v = k.db[i]; if (v === null || f < 20 || f > 200) return; p.push(`${p.length ? "L" : "M"}${xF(f).toFixed(1)} ${yDb(v - K.zielDb(f, st.modus) - ref).toFixed(1)}`); }); return p.join(" "); }
-  function kurveSvg() {
+  function kurveSvg(namen = ["jetzt", "bester Punkt", "vorher"]) {
     let g = `<rect class="ziel" x="12" y="${yDb(2)}" width="296" height="${(yDb(-2) - yDb(2)).toFixed(1)}" rx="4"/>`;
     for (const f of [20, 50, 100, 200]) g += `<line class="gitter" x1="${xF(f).toFixed(1)}" y1="10" x2="${xF(f).toFixed(1)}" y2="170"/>`;
     g += `<line class="null" x1="12" y1="${yDb(0)}" x2="308" y2="${yDb(0)}"/><path class="vorher" id="sa-k-vorher" d=""/><path class="best" id="sa-k-best" d=""/><path class="jetzt" id="sa-k-jetzt" d=""/>`;
     return `<div class="sa-kurve"><svg viewBox="0 0 320 180" role="img" aria-label="Bass am Hörplatz von 20 bis 200 Hz gegen die Zielkurve (Band in der Mitte)">${g}</svg>
       <div class="sa-achse"><span>20</span><span>50</span><span>100</span><span>200 Hz</span></div>
-      <div class="sa-legende"><span><i></i>jetzt</span><span><i class="best"></i>bester Punkt</span><span><i class="vorher"></i>vorher</span></div></div>`;
+      <div class="sa-legende"><span><i></i>${namen[0]}</span>${namen[1] ? `<span><i class="best"></i>${namen[1]}</span>` : ""}<span><i class="vorher"></i>${namen[2]}</span></div></div>`;
   }
   function kurvenZeigen(jetzt, w) {
     const ref = w && w.ref_db !== null ? w.ref_db : 0, setz = (id, k, r) => { const e = el(id); if (e) e.setAttribute("d", k ? pfad(k, r) : ""); };
@@ -15325,17 +15356,29 @@ function saOberflaeche(K) {
   // mit oeffnen({ zurueck: n }) danach zurück zu Schritt n (Ablauf: Sub zuerst abgleichen, dann einmessen)
   async function schliessen(fertig = false) {
     const zurueck = st && st.extra ? st.extra.zurueck : null;
-    if (st) { if (st.live) st.live.stopp(); await signalAus(st); }
+    if (st) { if (st.sammelnAbbruch) st.sammelnAbbruch(); if (st.live) st.live.stopp(); await signalAus(st); }  // offene Messung beenden: autoSenden stellt dann zurück
     st = null; const h = el("sa"); if (h) h.hidden = true;
     try { window.dispatchEvent(new CustomEvent("klangboxsub", { detail: { ...daten(), fertig: !!fertig, zurueck: zurueck || null } })); } catch (e) {}
     if (zurueck && typeof zeigeSchritt === "function") zeigeSchritt(zurueck);
   }
 
   // --- Start ---------------------------------------------------------------------------------------------------------
+  // Welcher Sub? Ohne Modell kennt die App die Regler nicht (Schalter oder Drehregler): Modell aus dem Katalog oder „anderer“
+  function subWahlHtml() {
+    const subs = katalog().filter((e) => e.typ === "sub").sort((a, b) => (a.generisch - b.generisch) || String(a.name).localeCompare(String(b.name)));
+    return `<div class="kasten"><b>Welcher Sub?</b><p class="klein">Dann weiß die App, welche Regler er hat: Schalter, Stufen oder Drehregler.</p>
+      <div class="sa-felder"><label>Modell<select id="sa-sub-wahl"><option value="">wählen</option>${subs.map((e) => `<option value="${ex(e.id)}">${ex(e.generisch ? e.modell : e.name)}</option>`).join("")}</select></label></div>
+      <div class="sa-knoepfe eins"><button type="button" class="zweit" id="sa-sub-ok">Übernehmen</button></div></div>`;
+  }
+  function subMerken(id) {
+    if (!id) return;
+    try { const w = typeof GW !== "undefined" && GW.wahl ? GW.wahl() : null; if (w) w.sub = id;
+      const alt = JSON.parse(localStorage.getItem("raumcheck-geraete") || "{}") || {}; localStorage.setItem("raumcheck-geraete", JSON.stringify({ ...alt, sub: id })); } catch (e) {}
+  }
   function oeffnen(r = null, extra = {}) {
     const an = anlage(extra), p = K.plan(an.a, an.sub, an.ls);
     st = { r: r || (typeof aktuelleRunde === "function" ? aktuelleRunde() : null), modus: (r && r.modus) || (typeof modus !== "undefined" ? modus : "stereo"), plan: p, ...an,
-      phil: p.philosophie || "erweiterung", schritte: (p.schritte || []).filter((s) => s.wer === "regler"), i: -1, frames: [], extra };
+      phil: p.philosophie || "erweiterung", schritte: (p.schritte || []).filter((s) => s.wer === "regler"), messliste: [], zuletzt: {}, extra };
     const fallText = p.fall === "box" ? "Du stellst nur einmal die Regler am Sub auf neutral." : "";
     const frage = p.fall === "regler" && an.a.sub_anschluss === "weiss" && !an.sub;
     const weg = { box: "Die Klång-Box spielt das Signal.", airplay: "Die Seite spielt das Signal per AirPlay an deine Anlage.", extern: "Spiel das Signal von einem anderen Gerät ab (Datei „subabgleich“)." }[quelleJetzt()];
@@ -15347,17 +15390,19 @@ function saOberflaeche(K) {
     zeige(`${kopf("Sub")}<h1 id="sa-h">Sub abgleichen</h1>
       <p class="sa-lead">${ex(p.text)} ${ex(fallText)}</p>
       <ol class="sa-liste klein">${p.fall === "box" ? "<li>Regler am Sub einmal auf neutral</li><li>Vorher messen, dann misst die Box Sub und Boxen einzeln</li><li>Sie stellt Polarität, Laufzeit, Trennfrequenz und Pegel ein</li><li>Nachmessen: nur was besser ist, bleibt</li>"
-        : `<li>Vorher messen, wie es jetzt klingt</li><li>Regler auf die Startstellung</li>${st.schritte.map((s) => `<li>${ex(SCHRITT_NAME[s.schritt])}</li>`).join("")}<li>Nachmessen: nur was besser ist, bleibt</li>`}</ol>
-      <p class="klein">Etwa ${p.fall === "box" ? 3 : 5} Minuten. Setz dich auf deinen Platz, Handy auf Ohrhöhe, Mikrofon nach oben. ${ex(weg)} Lautstärke wie beim Hören.</p>
+        : "<li>Handy fest an deinen Platz legen</li><li>Sub aus: die Boxen allein messen</li><li>Sub an: einstellen, zurück an den Platz, messen. So oft du willst</li><li>Die App empfiehlt die beste Stellung</li><li>Danach neu einmessen</li>"}</ol>
+      <p class="klein">${p.fall === "box" ? "Etwa 3 Minuten. Setz dich auf deinen Platz, Handy auf Ohrhöhe, Mikrofon nach oben." : "Jede Messung etwa 10 bis 15 Sekunden, danach ist Ruhe. Gemessen wird nie, während du am Sub drehst."} ${ex(weg)} Lautstärke wie beim Hören.</p>
+      ${!an.sub && p.fall === "regler" ? subWahlHtml() : ""}
       ${frage ? `<div class="kasten"><b>Wie hängt dein Sub?</b><div class="sa-stufen" role="group" aria-label="Anschluss des Subs">${[["hochpegel", "An der Endstufe", "Lautsprecherkabel"], ["line", "Am Vorverstärker", "Cinch"], ["boxen", "Am Sub-Ausgang", "der Boxen"]].map(([k, t, u]) => `<button type="button" class="zweit" data-sa-an="${k}">${t}<small>${u}</small></button>`).join("")}</div></div>` : ""}
       <button type="button" class="leise" id="sa-mehrere">Ich habe zwei Subs</button>
       <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-nein">Lieber nicht</button><button type="button" id="sa-los">Los geht's</button></div>`);
     el("sa-nein").onclick = () => schliessen();
     el("sa-mehrere").onclick = () => oeffnen(r, { ...extra, subs: 2 });
     document.querySelectorAll("[data-sa-an]").forEach((b) => { b.onclick = () => { if (typeof MA !== "undefined") { MA.sub_anschluss = b.dataset.saAn; if (typeof maMerken === "function") maMerken(); } oeffnen(r, extra); }; });
-    el("sa-los").onclick = () => (p.fall === "box" ? autoStart() : vorherMessen());
+    const sw = el("sa-sub-ok"); if (sw) sw.onclick = () => { const v = el("sa-sub-wahl").value; if (!v) return; subMerken(v); oeffnen(r, extra); };
+    const los = el("sa-los"); if (!an.sub && p.fall === "regler") los.disabled = true;
+    los.onclick = () => (p.fall === "box" ? autoStart() : handyHinlegen());
   }
-  const SCHRITT_NAME = { phase: "Phase bzw. Polarität: voller ohne Dröhnen", phase_fein: "Phase fein", trennfrequenz: "Trennfrequenz: so tief wie möglich, ohne Loch", pegel: "Pegel: nicht auffallen, nur fehlen" };
 
   // --- Messen in Bildern: Live starten, n ruhige Bilder sammeln ----------------------------------------------------
   async function liveStart() {
@@ -15369,13 +15414,19 @@ function saOberflaeche(K) {
     return null;
   }
   const kw = (k) => K.kennwerte(k, st.modus, st.plan.fall === "box" ? (st.trenn || 80) : f6Von(st), st.subUnten, st.haupt ? st.haupt.kurve : null, st.phil);
-  // n Bilder nach einer Pause von „vorlauf“ Bildern (das 2-s-Fenster muss den alten Zustand vergessen)
-  function sammeln(n = 4, vorlauf = 3) {
-    return new Promise((fertig) => { const liste = []; let z = 0;
-      // kommt nach 20 s nichts an (Mikrofon liefert nicht), nicht ewig warten
-      const zeit = setTimeout(() => { if (st.beiKurve) { st.beiKurve = null; const h = el("sa-hinweis"); if (h) h.innerHTML = '<span class="sa-warn">Vom Mikrofon kommt nichts an. Seite neu laden, einmal auf den Bildschirm tippen und noch einmal starten.</span>'; } }, 20000);
-      st.beiKurve = (k) => { clearTimeout(zeit); z++; if (z <= vorlauf) return; liste.push(k); const b = el("sa-fort"); if (b) b.style.width = `${Math.min(100, liste.length / n * 100)}%`;
-        if (liste.length >= n) { st.beiKurve = null; fertig(mittelKurve(liste)); } }; });
+  // n Bilder nach „vorlauf“ Bildern (das 2-s-Fenster muss den alten Zustand vergessen). Kommt 20 s lang kein Bild (Mikrofon
+  // liefert nicht) oder wird die Messung abgebrochen (Seite verlassen), endet sie mit null: nie hängen bleiben
+  function sammeln(n = 4, vorlauf = 3, roh = false) {
+    const meinSt = st;
+    return new Promise((fertig) => { const liste = []; let z = 0, zeit = null;
+      const ende = (x) => { clearTimeout(zeit); if (meinSt) { meinSt.beiKurve = null; meinSt.sammelnAbbruch = null; } fertig(x); };
+      const wache = () => { clearTimeout(zeit); zeit = setTimeout(() => { if (st !== meinSt || !meinSt.beiKurve) { ende(null); return; }
+        const h = el("sa-hinweis"); if (h) h.innerHTML = '<span class="sa-warn">Vom Mikrofon kommt nichts an. Seite neu laden, einmal auf den Bildschirm tippen und noch einmal starten.</span>';
+        ende(null); }, 20000); };
+      meinSt.sammelnAbbruch = () => { meinSt.abgebrochen = true; ende(null); };
+      wache();
+      meinSt.beiKurve = (k) => { wache(); z++; if (z <= vorlauf) return; liste.push(k); const b = el("sa-fort"); if (b) b.style.width = `${Math.min(100, liste.length / n * 100)}%`;
+        if (liste.length >= n) ende(roh ? liste : mittelKurve(liste)); }; });
   }
   function mittelKurve(ls) { return { f: ls[0].f, db: ls[0].f.map((_, i) => { const v = ls.map((k) => k.db[i]).filter((x) => x !== null); return v.length ? 10 * Math.log10(v.reduce((s, x) => s + Math.pow(10, x / 10), 0) / v.length) : null; }),
     rausch_db: ls[0].f.map((_, i) => { const v = ls.map((k) => k.rausch_db[i]).filter((x) => x !== null); return v.length ? 10 * Math.log10(v.reduce((s, x) => s + Math.pow(10, x / 10), 0) / v.length) : null; }) }; }
@@ -15383,216 +15434,193 @@ function saOberflaeche(K) {
     zeige(`${kopf(marke)}<h1 id="sa-h">${ex(titel)}</h1><p class="sa-lead">${text}</p>
       <div class="sa-balken" aria-hidden="true"><i id="sa-fort"></i></div>${kurveSvg()}<p class="klein" id="sa-hinweis" aria-live="polite">Hör zu, ich messe…</p>${knoepfe}`);
   }
-  const extern = () => (st.quelle === "extern" ? ` Starte jetzt am anderen Gerät die Datei <a href="subabgleich.m4a" download>„subabgleich“</a> in Schleife.` : "");
 
-  async function vorherMessen() {
-    messBild("So klingt es jetzt", "Sub · vorher", `Nichts verstellen. Ich messe zuerst, wie es jetzt ist (etwa 5 Sekunden).${extern()}`);
-    const f = await liveStart(); if (f) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(f)}</span>`; return; }
-    const k = await sammeln(); if (!st) return;
-    st.vorher = { kurve: k, w: kw(k) }; kurvenZeigen(k, st.vorher.w);
-    if (!snrOk(st.vorher.w)) return;
-    hauptMessen();
+  // --- Messliste: einstellen, zurück an den Platz, messen. Nie messen, während jemand dreht ------------------------
+  // Das Handy liegt fest am Platz. Jede Messung: 3 s Ruhe, dann messBilder() ruhige Bilder, danach Stille.
+  // Gestört (Störabstand, Bilder streuen: K.unruhig) zählt nicht. Gleiche Stellungen werden gemittelt (K.empfehlen).
+  // Die App nimmt in Stücken von 3 s auf (ein Bild je Stück): dort 1 + 3 Bilder (etwa 13 s), sonst 3 + 8 halbe Sekunden
+  const appStuecke = () => typeof window.__saMikro !== "function" && typeof nativ !== "undefined" && !!nativ && !!nativ.kannAufnehmen;
+  const messBilder = () => (appStuecke() ? [3, 1] : [8, 3]), RUHE_S = 3;
+  const UHR = ["7", "7:30", "8", "8:30", "9", "9:30", "10", "10:30", "11", "11:30", "12", "12:30", "13", "13:30", "14", "14:30", "15", "15:30", "16", "16:30", "17"];
+  function felderRegler() {  // was der Nutzer stellt: die Regler des Plans, bei „misch“ dazu der Hochpass der Boxen
+    const r = st.schritte.map((s) => s.regler).filter((x) => x);
+    if (st.plan.fall === "misch" && st.ls) { const hp = (st.ls.regler || []).find((x) => x.rolle === "hochpass"); if (hp) r.push(hp); }
+    return r.filter((x, i) => r.indexOf(x) === i);
+  }
+  const rid = (r) => String(r.id || r.rolle);
+  const phaseRegler = () => felderRegler().find((r) => /phase|polaritaet/.test(r.rolle || "") && r.stufen);
+  function feldHtml(r, wert) {
+    const id = `sa-f-${ex(rid(r))}`, w = r.werte || {}, v = wert === undefined || wert === null ? "" : String(wert);
+    if (r.stufen) return `<label>${ex(r.name)}<select id="${id}">${r.stufen.map((x) => `<option value="${ex(x)}"${x === v ? " selected" : ""}>${ex((r.anzeige || {})[x] || x)}</option>`).join("")}</select></label>`;
+    if (r.skala === "uhr") return `<label>${ex(r.name)}<select id="${id}"><option value="">Stellung wählen</option>${UHR.map((x) => `<option value="${x} Uhr"${`${x} Uhr` === v ? " selected" : ""}>${x} Uhr</option>`).join("")}</select></label>`;
+    const e = r.skala === "hz" ? "Hz" : r.skala === "db" ? "dB" : w.einheit || "";
+    return `<label>${ex(r.name)}${e ? ` (${ex(e)})` : ""}<input type="number" id="${id}" inputmode="decimal" step="${w.schritt || (r.skala === "db" ? 0.5 : 1)}"${"von" in w ? ` min="${w.von}"` : ""}${"bis" in w ? ` max="${w.bis}"` : ""} value="${ex(v)}"></label>`;
+  }
+  const feldAnzeige = (r, v) => (!r ? String(v) : r.stufen ? ((r.anzeige || {})[v] || v) : r.skala === "hz" ? `${String(v).replace(".", ",")} Hz` : r.skala === "db" ? `${String(v).replace(".", ",")} dB` : String(v));
+  function stellungLesen() {
+    const s = {};
+    for (const r of felderRegler()) { const e = el(`sa-f-${rid(r)}`); if (!e || e.value === "") continue;
+      const einheit = r.stufen || r.skala === "uhr" ? "" : r.skala === "hz" ? " Hz" : r.skala === "db" ? " dB" : "";
+      const zahlText = (t) => { const x = parseFloat(String(t).replace(",", ".")); return Number.isFinite(x) ? String(Math.round(x * 10) / 10).replace(".", ",") : String(t); };
+      s[r.name] = r.stufen ? ((r.anzeige || {})[e.value] || e.value) : r.skala === "uhr" ? e.value : `${zahlText(e.value)}${einheit}`; st.zuletzt[rid(r)] = e.value; }
+    return s;
+  }
+  // Raster je Regler für K.vorschlag: Schalter (stufen), Uhr (halbe Stunden), Hz (Schritt 5), dB (Schritt 0,5)
+  function rasterRegler() {
+    const ord = (r) => (/phase|polaritaet/.test(r.rolle || "") ? (r.stufen ? 0 : 1) : /trennfrequenz|tiefpass|hochpass/.test(r.rolle || "") ? 2 : 3);
+    return felderRegler().slice().sort((a, b) => ord(a) - ord(b)).map((r) => {
+      const w = r.werte || {};
+      if (r.stufen) return { id: rid(r), werte: [...r.stufen], schritte: null };
+      const pg = /pegel/.test(r.rolle || "") ? { pegel: true } : {};
+      if (r.skala === "uhr") return { id: rid(r), werte: UHR.map((x) => `${x} Uhr`), schritte: [2, 1], ...pg };
+      if (r.skala === "hz") { const sch = w.schritt || 5, v = []; for (let x = ("von" in w ? w.von : 30); x <= ("bis" in w ? w.bis : 150) + 1e-9; x += sch) v.push(Math.round(x * 10) / 10);
+        return { id: rid(r), werte: v, schritte: [Math.max(1, Math.round(10 / sch)), Math.max(1, Math.round(5 / sch))] }; }
+      if (r.skala === "db") { const sch = w.schritt || 0.5, v = []; for (let x = ("von" in w ? w.von : -12); x <= ("bis" in w ? w.bis : 6) + 1e-9; x += sch) v.push(Math.round(x * 10) / 10);
+        return { id: rid(r), werte: v, schritte: [Math.max(1, Math.round(3 / sch)), Math.max(1, Math.floor(1.5 / sch + 1e-9))], ...pg }; }
+      if (r.skala === "grad") { const sch = w.schritt || 15, v = []; for (let x = ("von" in w ? w.von : 0); x <= ("bis" in w ? w.bis : 180) + 1e-9; x += sch) v.push(Math.round(x));
+        return { id: rid(r), werte: v, schritte: [Math.max(1, Math.round(90 / sch)), Math.max(1, Math.round(45 / sch))] }; }
+      return { id: rid(r), werte: [], schritte: null };
+    });
+  }
+  function rohLesen() {
+    const roh = {};
+    for (const r of felderRegler()) { const e = el(`sa-f-${rid(r)}`); if (!e || e.value === "") continue; const x = parseFloat(e.value.replace(",", "."));
+      if (r.stufen || r.skala === "uhr") roh[rid(r)] = e.value; else if (Number.isFinite(x)) roh[rid(r)] = x; }
+    return roh;
+  }
+  // „ ·“ mit geschütztem Leerzeichen davor: Beim Umbruch beginnt keine Zeile mit dem Punkt
+  const stellungKey = (s) => Object.entries(s).map(([k, v]) => `${k} ${v}`).join("\u00a0· ") || "ohne Angaben";
+  // eine Messung: Ruhe, Signal, Bilder sammeln, Signal aus. Ergebnis { kurve, w } oder { fehler }
+  async function einmal(text) {
+    for (let s = RUHE_S; s > 0; s--) { const h = el("sa-hinweis"); if (h) h.textContent = `${text} Ruhe … ${s}`; await warte(1000); if (!st) return { fehler: "abgebrochen" }; }
+    if (document.hidden) return { fehler: "Die App war im Hintergrund. Noch einmal „Messen“." };
+    if (quelleJetzt() === "extern") {  // ohne Box und App: der Nutzer startet die Datei selbst, erst dann messen
+      const h2 = el("sa-hinweis");
+      if (h2) { h2.innerHTML = `${ex(text)} Starte jetzt am anderen Gerät die Datei <a href="subabgleich.m4a" download>„subabgleich“</a>, dann „Datei läuft“. Stoppe sie, wenn die Messung fertig ist. <button type="button" class="zweit" id="sa-datei-laeuft">Datei läuft</button>`;
+        await new Promise((ok) => { const b = el("sa-datei-laeuft"); if (b) b.onclick = ok; else ok(); }); await warte(1500); }
+      if (!st) return { fehler: "abgebrochen" };
+    }
+    const h = el("sa-hinweis"); if (h) h.textContent = `${text} Ich messe, bitte still sein …`;
+    const f = await liveStart(); if (f) { if (st && st.live) { st.live.stopp(); st.live = null; } await signalAus(st); return { fehler: f }; }
+    const [nb, nv] = messBilder(), bilder = await sammeln(nb, nv, true); if (!st) return { fehler: "abgebrochen" };
+    if (st.live) { st.live.stopp(); st.live = null; } await signalAus(st); if (!st) return { fehler: "abgebrochen" };
+    if (!bilder) { const hg = st.abgebrochen || document.hidden; st.abgebrochen = false;
+      return { fehler: hg ? "Die App war im Hintergrund, die Messung zählt nicht. Noch einmal „Messen“." : "Vom Mikrofon kommt nichts an. Seite neu laden, einmal auf den Bildschirm tippen und noch einmal." }; }
+    const kurve = mittelKurve(bilder), w = kw(kurve);
+    if (w.snr_db !== null && w.snr_db < K.SNR_MIN_DB) return { fehler: `Zu leise gegen das Raumgeräusch (Abstand ${zahl(w.snr_db, 0)} dB). Etwas lauter stellen, dann noch einmal.` };
+    if (K.unruhig(bilder.map((k) => kw(k).guete))) return { fehler: "Zu unruhig, die Messung zählt nicht (Schritte, Stimmen, Tür?). Noch einmal, bitte still sein." };
+    return { kurve, w };
+  }
+  function handyHinlegen() {
+    zeige(`${kopf("Sub · Vorbereiten")}<h1 id="sa-h">Handy fest hinlegen</h1>
+      <p class="sa-lead">Leg das Handy an deinen Platz, auf Kopfhöhe, Mikrofon nach oben, zum Beispiel an die Sofalehne gelehnt. Dort bleibt es für alle Messungen.</p>
+      <p class="klein">Gemessen wird erst, wenn du wieder sitzt und „Messen“ tippst. Nie, während du am Sub drehst.</p>
+      <div class="sa-knoepfe eins"><button type="button" id="sa-liegt">Liegt fest</button></div>`);
+    el("sa-liegt").onclick = () => boxenAllein();
+  }
+  function boxenAllein() {
+    const aus = st.plan.fall === "misch" ? "Schalte den Sub aus (Netzschalter) oder stell den Sub-Pegel in der App der Boxen ganz zurück." : "Schalte den Sub aus (Netzschalter hinten) oder dreh seinen Pegel ganz zurück.";
+    messBild("Die Boxen allein", "Sub · 1 · ohne Sub", `${ex(aus)} Dann zurück an den Platz und „Messen“. So sieht die App, wo deine Boxen aufhören.`,
+      `<div class="sa-knoepfe"><button type="button" class="zweit" id="sa-ueber">Überspringen</button><button type="button" id="sa-messen">Messen</button></div>`);
+    el("sa-ueber").onclick = () => liste();
+    el("sa-messen").onclick = async () => { el("sa-messen").disabled = true; el("sa-ueber").disabled = true;
+      const m = await einmal(""); if (!st) return;
+      if (m.fehler) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(m.fehler)}</span>`; el("sa-messen").disabled = false; el("sa-ueber").disabled = false; return; }
+      st.haupt = { kurve: m.kurve }; st.f6Mess = K.bassende(m.kurve, st.modus); liste(); };
+  }
+  // Phasen-Vergleiche: Messungen mit gleicher übriger Stellung, aber anderer Phase (je Paar die letzten beiden)
+  function phaseVergleiche(rph) {
+    const ohne = (e) => stellungKey(Object.fromEntries(Object.entries(e.stellung).filter(([k]) => k !== rph.name))), je = {};
+    for (const e of st.messliste) { const g = (je[ohne(e)] = je[ohne(e)] || {}); g[e.stellung[rph.name]] = e; }
+    return Object.values(je).filter((g) => Object.keys(g).length >= 2).map((g) => Object.values(g).slice(0, 2).map((e) => [e.w.guete, K.waechter(e.w, st.phil)]));
+  }
+  function auswertung() {
+    const paare = []; const je = {}; for (const e of st.messliste) (je[e.key] = je[e.key] || []).push(e.w.guete);
+    for (const g of Object.values(je)) for (let i = 1; i < g.length; i++) paare.push([g[i - 1], g[i]]);
+    st.tol = K.toleranz(paare);
+    return K.empfehlen(st.messliste.map((e) => ({ key: e.key, guete: e.w.guete, pegel_db: e.w.pegel_db, oberbass_db: e.w.oberbass_db })), st.tol, st.phil);
+  }
+  function liste(meldung = "") {
+    const ein = st.messliste, letzte = ein[ein.length - 1], erg = auswertung(), rph = phaseRegler();
+    const rx = felderRegler().find((r) => r.rolle === "sub_trennfrequenz" || r.rolle === "sub_out_tiefpass"), rxw = rx && letzte ? parseFloat(String(letzte.stellung[rx.name] || "").replace(",", ".")) : NaN;
+    const tipp = letzte ? K.hinweis(letzte.w, st.phil, rph ? K.phaseStatus(phaseVergleiche(rph), st.tol) : "klar", st.haupt ? kw(st.haupt.kurve).pegel_db : null,
+      Number.isFinite(rxw) ? rxw : null, f6Von(st)) : null, wiederholt = ein.length > 0 && Object.values(ein.reduce((a, e) => ((a[e.key] = (a[e.key] || 0) + 1), a), {})).some((n) => n > 1);
+    const start = ein.length ? null : K.startstellung(st.plan, st.sub, st.ls, f6Von(st));
+    const raster = rasterRegler(), nach = ein.length > 1 ? K.vorschlag(raster, ein.map((e) => ({ roh: e.roh, guete: e.w.guete, pegel_db: e.w.pegel_db, oberbass_db: e.w.oberbass_db })), st.tol, st.phil) : null;
+    if (nach) for (const [k, v] of Object.entries(nach.roh)) st.zuletzt[k] = String(v);
+    const nachR = nach ? felderRegler().find((r) => rid(r) === nach.regler) : null;
+    const fehlt = letzte ? felderRegler().filter((r) => raster.find((x) => x.id === rid(r) && x.werte.length) && (letzte.roh[rid(r)] === undefined || Number.isNaN(letzte.roh[rid(r)]))) : [];
+    const vorschlagText = fehlt.length ? `Trag ${ex(fehlt.map((r) => r.name).join(" und "))} ein, dann kann die App die nächste Stellung vorschlagen.`
+      : !nach ? (ein.length > 2 ? "Alle Nachbarstellungen der Empfehlung sind gemessen: Die Empfehlung steht. Mehr messen geht trotzdem." : "")
+      : `Als Nächstes: ${nachR ? ex(nachR.name) : "Regler"} auf ${ex(feldAnzeige(nachR, nach.roh[nach.regler]))} stellen, der Rest bleibt. Erst stellen, dann „Messen“.`;
+    const brauchbar = erg.liste.some((x) => x.key === erg.beste && x.guete >= 30);  // erst dann gibt es eine Empfehlung
+    const zeilen = [...erg.liste].sort((a, b) => b.guete - a.guete).map((x) => `<li class="sa-mess${x.key === erg.beste && brauchbar ? " empfohlen" : ""}"><span>${ex(x.key)}${x.n > 1 ? ` <small>(${x.n}×)</small>` : ""}${x.warnung ? `<small>${ex(x.warnung)}</small>` : ""}</span><b>${zahl(x.guete, 0)}</b></li>`).join("");
+    zeige(`${kopf(`Sub · ${ein.length ? `${ein.length} ${ein.length === 1 ? "Messung" : "Messungen"}` : "Einstellen"}`)}<h1 id="sa-h">${ein.length ? "Stell ein, dann messen" : "Erste Stellung"}</h1>
+      <p class="sa-lead">${ein.length ? "Geh zum Sub, stell um, komm zurück, trag ein, was du gestellt hast, und tippe „Messen“. So oft du willst." : "Trag ein, wie der Sub jetzt steht, und miss. Das ist dein Vergleichspunkt."}</p>
+      ${start && start.length ? `<details class="klein"><summary>Vorschlag für den Anfang</summary><ul class="sa-liste">${start.map((t) => `<li>${ex(t)}</li>`).join("")}</ul></details>` : ""}
+      <div class="sa-felder">${felderRegler().map((r) => feldHtml(r, st.zuletzt[rid(r)] ?? (r.stufen ? r.neutral : ""))).join("")}</div>
+      <div class="sa-knoepfe${ein.length && !wiederholt ? "" : " eins"}">${ein.length && !wiederholt ? `<button type="button" class="zweit" id="sa-wiederholen">Gleiche Stellung noch einmal</button>` : ""}<button type="button" id="sa-messen">Messen</button></div>
+      ${vorschlagText && !meldung ? `<p class="sa-lead" id="sa-vorschlag">${vorschlagText}</p>` : ""}
+      <p class="klein" id="sa-hinweis" aria-live="polite">${meldung || (tipp && (!nach || ["nochmal", "raum"].includes(tipp.art)) ? ex(tipp.text) : "")}</p>
+      ${ein.length === 1 && !wiederholt ? `<p class="klein">Tipp: Miss diese Stellung einmal neu. Nimm das Handy dazwischen kurz hoch und leg es wieder hin. So lernt die App, wie genau deine Messungen sind.</p>` : ""}
+      ${ein.length ? `${kurveSvg(["zuletzt", "Empfohlen", "Boxen allein"])}<ul class="zh-ws-zeilen klein sa-messliste">${zeilen}</ul>
+        <p class="klein">${!brauchbar ? "Noch keine gute Stellung: dem Vorschlag folgen." : erg.sicher ? "Empfohlen ist die beste Stellung." : `${erg.gleich.length} ${erg.gleich.length === 1 ? "weitere ist" : "weitere sind"} gleich gut (Unterschied unter ${st.tol} Punkten). Empfohlen ist die, die näher am Ziel liegt.`} Güte 0–100, ${wiederholt ? `deine Messungen streuen um etwa ${st.tol} Punkte.` : "Streuung noch geschätzt."}</p>
+        ${brauchbar ? `<div class="sa-knoepfe eins"><button type="button" class="zweit" id="sa-fertig-liste">Fertig: Empfehlung zeigen</button></div>` : ""}` : ""}`);
+    if (ein.length) { const best = ein.filter((e) => e.key === erg.beste).pop();
+      const kv = el("sa-k-vorher"), kb = el("sa-k-best"), kj = el("sa-k-jetzt");
+      if (kv && st.haupt) kv.setAttribute("d", pfad(st.haupt.kurve, kw(st.haupt.kurve).ref_db || 0));
+      if (kb && best && best !== letzte) kb.setAttribute("d", pfad(best.kurve, best.w.ref_db || 0));
+      if (kj && letzte) kj.setAttribute("d", pfad(letzte.kurve, letzte.w.ref_db || 0));
+      const fl = el("sa-fertig-liste"); if (fl) fl.onclick = () => empfehlungZeigen(); }
+    const messen = async (gleich) => {
+      const roh = gleich ? letzte.roh : rohLesen(), s = gleich ? letzte.stellung : stellungLesen(), key = stellungKey(s);
+      document.querySelectorAll("#sa button").forEach((b) => { if (b.id !== "sa-zu") b.disabled = true; });
+      const m = await einmal(""); if (!st) return;
+      if (m.fehler) { liste(`<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
+      st.messliste.push({ key, stellung: s, roh, kurve: m.kurve, w: m.w, zeit: Date.now() });
+      liste();
+    };
+    el("sa-messen").onclick = () => messen(false);
+    const wd = el("sa-wiederholen"); if (wd) wd.onclick = () => messen(true);
+  }
+  function empfehlungZeigen() {
+    const erg = auswertung(), best = st.messliste.filter((e) => e.key === erg.beste).pop(), erste = st.messliste[0];
+    st.nachher = { kurve: best.kurve, w: best.w }; st.vorher = { kurve: erste.kurve, w: erste.w };
+    zeige(`${kopf("Sub · Empfehlung")}<h1 id="sa-h">So stellst du den Sub ein</h1>
+      <ul class="zh-ws-zeilen klein">${Object.entries(best.stellung).map(([k, v]) => `<li><span>${ex(k)}</span><b>${ex(v)}</b></li>`).join("") || `<li><span>Stellung</span><b>${ex(best.key)}</b></li>`}</ul>
+      <div class="sa-zwei"><div><span class="klein">erste Stellung</span><b>${zahl(erg.liste.find((x) => x.key === erste.key).guete, 0)}</b></div><div><span class="klein">empfohlen</span><b>${zahl(erg.liste.find((x) => x.key === best.key).guete, 0)}</b></div></div>
+      ${kurveSvg(["empfohlen", "", "erste Stellung"])}
+      ${erg.sicher ? "" : `<p class="klein">${erg.gleich.length} ${erg.gleich.length === 1 ? "weitere Stellung war" : "weitere Stellungen waren"} gleich gut. Die empfohlene liegt näher am Ziel. Was dir besser gefällt, darfst du nehmen.</p>`}
+      <div class="kasten"><b>Danach neu einmessen</b><p class="klein">Die Einmessung korrigiert, was Boxen und Sub zusammen ergeben. Stell den Sub so ein, dreh danach nichts mehr und miss jedes Profil, das du nutzt, neu ein.</p></div>
+      <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-zurueck-liste">Weiter messen</button><button type="button" id="sa-fertig">Speichern und fertig</button></div>`);
+    const kv = el("sa-k-vorher"), kn = el("sa-k-jetzt");
+    if (kv) kv.setAttribute("d", pfad(erste.kurve, erste.w.ref_db || 0)); if (kn) kn.setAttribute("d", pfad(best.kurve, best.w.ref_db || 0));
+    el("sa-zurueck-liste").onclick = () => liste();
+    el("sa-fertig").onclick = () => { speichern(false, best.stellung); schliessen(true); };
   }
   function snrOk(w) {
     if (w.snr_db !== null && w.snr_db < K.SNR_MIN_DB) {
       el("sa-hinweis").innerHTML = `<span class="sa-warn">Zu viel Störgeräusch oder zu leise (Abstand ${zahl(w.snr_db, 0)} dB). Lauter stellen, Fenster zu, dann noch einmal.</span>`;
       const h = el("sa-hinweis"); h.insertAdjacentHTML("afterend", `<div class="sa-knoepfe eins"><button type="button" id="sa-nochmal">Noch einmal</button></div>`);
-      el("sa-nochmal").onclick = () => vorherMessen(); return false;
+      el("sa-nochmal").onclick = () => autoVorher(); return false;
     }
     return true;
   }
-  // Die Hauptboxen allein (Sub aus): für den Oberbass-Wächter und das gemessene Bassende. Freiwillig.
-  function hauptMessen() {
-    const rp = (st.schritte.find((s) => s.schritt === "pegel") || {}).regler;
-    messBild("Die Boxen allein", "Sub · ohne Sub", `Dreh ${rp ? ex(rp.name) : "den Pegel am Sub"} ganz zurück oder schalte den Sub kurz aus. Dann tippe „Sub ist aus“. So sehe ich, wo deine Boxen aufhören, und merke, wenn der Sub später im Oberbass mitspielt.`,
-      `<div class="sa-knoepfe"><button type="button" class="zweit" id="sa-ueber">Überspringen</button><button type="button" id="sa-aus">Sub ist aus</button></div>`);
-    kurvenZeigen(st.letzte, st.vorher.w);
-    el("sa-hinweis").textContent = "";
-    el("sa-ueber").onclick = () => vorbereiten();
-    el("sa-aus").onclick = async () => { el("sa-aus").disabled = true; el("sa-hinweis").textContent = "Ich messe die Boxen allein…";
-      const k = await sammeln(); if (!st) return; st.haupt = { kurve: k }; st.f6Mess = K.bassende(k, st.modus); vorbereiten(); };
-  }
-  function vorbereiten() {
-    const f6 = f6Von(st), z = K.startstellung(st.plan, st.sub, st.ls, f6);
-    zeige(`${kopf("Sub · Startstellung")}<h1 id="sa-h">Regler auf Start</h1>
-      <p class="sa-lead">Stell die Regler so${st.sub ? ` (${ex(st.sub.name)})` : ""}. ${st.f6Kat ? `Deine Boxen enden bei etwa ${zahl(f6, 0)} Hz.` : st.f6Mess ? `Gemessen enden deine Boxen bei etwa ${zahl(f6, 0)} Hz.` : ""}</p>
-      <ul class="sa-liste">${z.map((t) => `<li>${ex(t)}</li>`).join("")}</ul>
-      <p class="klein">Der Sub soll nicht auffallen, nur fehlen, wenn er aus ist. Darum fangen wir tief und eher leise an.</p>
-      <div class="sa-knoepfe eins"><button type="button" id="sa-steht">Steht so – weiter</button></div>`);
-    el("sa-steht").onclick = () => naechsterSchritt();
-  }
-
-  // --- Ein Regler: suchen, dann zurück zum besten Punkt --------------------------------------------------------------
-  function naechsterSchritt() {
-    st.i++;
-    while (st.i < st.schritte.length && st.schritte[st.i].wer !== "regler") st.i++;
-    if (st.i >= st.schritte.length) return nachherMessen();
-    const s = st.schritte[st.i], b = K.suchbereich(s.schritt, s.regler, f6Von(st));
-    st.phase = b && b.art === "stufen" ? "stufen" : "suchen"; st.best = null; st.verlauf = []; st.stufen = {}; st.stufeJetzt = null; st.stufeBest = undefined; st.vorige = null; st.spur = []; st.bestI = null; st.bereich = b;
-    schrittZeigen();
-  }
-  function bereichText(s, b) {
-    const name = s.regler ? s.regler.name : { phase: "den Phasenregler", phase_fein: "den Phasenregler", trennfrequenz: "die Trennfrequenz", pegel: "den Pegel" }[s.schritt];
-    if (!b) return `Dreh ${name} langsam von einem Ende zum anderen.`;
-    if (b.art === "stufen") return `Stell ${name} nacheinander auf jede Stellung und tippe sie an. Ich messe je etwa 4 Sekunden.`;
-    const e = { hz: " Hz", grad: "°", db: " dB", uhr: "" }[b.art];
-    return `Dreh ${ex(name)} langsam von ${ex(b.von)}${e} bis ${ex(b.bis)}${e}, etwa 20 Sekunden lang. Ich merke mir den besten Punkt und sage „Stopp“, wenn es zu viel wird.`;
-  }
-  function schrittZeigen() {
-    const s = st.schritte[st.i], n = st.schritte.filter((x) => x.wer === "regler").length, nr = st.schritte.slice(0, st.i + 1).filter((x) => x.wer === "regler").length;
-    const titel = { phase: "Phase", phase_fein: "Phase fein", trennfrequenz: "Trennfrequenz", pegel: "Pegel" }[s.schritt];
-    const ziel = { phase: "Voller ist besser, aber ohne Dröhnen.", phase_fein: "Voller ist besser, aber ohne Dröhnen.", trennfrequenz: "So tief wie möglich, ohne Loch am Übergang.", pegel: "Der Sub soll nicht auffallen, nur fehlen, wenn er aus ist." }[s.schritt];
-    const skala = st.phase === "stufen" ? ["schlechter", "bester Punkt", ""] : { pegel: ["wärmer", "genau richtig", "zu viel"], trennfrequenz: ["höher", "bester Punkt", "tiefer"] }[s.schritt] || ["weiter", "bester Punkt", "zurück"];
-    const stufen = st.phase === "stufen" ? `<div class="sa-stufen" role="group" aria-label="Stellung jetzt">${st.bereich.stufen.map((x) => `<button type="button" class="zweit" data-sa-stufe="${ex(x)}" aria-pressed="false">${ex(((s.regler || {}).anzeige || {})[x] || x)}<small id="sa-stufe-${ex(x)}">noch nicht gemessen</small></button>`).join("")}</div>` : "";
-    zeige(`${kopf(`Sub · Schritt ${nr} von ${n}`)}<h1 id="sa-h">${ex(titel)}</h1>
-      <p class="sa-lead" id="sa-anleitung">${bereichText(s, st.bereich)} ${ex(ziel)}</p>${stufen}
-      <div class="sa-anzeige"><div class="sa-wort" id="sa-wort" aria-live="polite">Hör zu…</div>${uhrSvg()}
-        <div class="sa-skala" aria-hidden="true"><span>${skala[0]}</span><span>${skala[1]}</span><span>${skala[2]}</span></div>
-        <div class="sa-zahl"><b id="sa-guete">–</b><span id="sa-guete-text">Güte (0–100, höher ist besser)</span></div>
-        <div class="sa-haken" id="sa-haken" hidden aria-label="Passt">✓</div></div>
-      ${kurveSvg()}<p class="klein" id="sa-hinweis" aria-live="polite"></p>
-      <div class="sa-knoepfe${st.phase === "suchen" ? "" : " eins"}" id="sa-knoepfe">${st.phase === "suchen" ? `<button type="button" class="zweit" id="sa-ende">Ich bin am Ende</button>` : ""}<button type="button" class="zweit" id="sa-weiter">Überspringen</button></div>`);
-    if (st.phase === "suchen") el("sa-ende").onclick = () => zurueck();
-    el("sa-weiter").onclick = () => { if (s.schritt === "phase" && st.stufeBest) st.stufeBestPhase = st.stufeBest; st.ergebnisse = st.ergebnisse || {}; st.ergebnisse[s.schritt] = { best: st.best ? st.best.w.guete : null, stellung: st.stufeBest || null }; naechsterSchritt(); };
-    document.querySelectorAll("[data-sa-stufe]").forEach((b) => { b.onclick = () => stufeMessen(b.dataset.saStufe); });
-    let pause = 3;  // nach dem Bildwechsel: das Fenster vergisst den alten Zustand
-    st.beiKurve = (k) => { if (pause-- > 0) return; bild(k); };
-  }
-  function nadel(v) { const n = el("sa-nadel"); if (n) n.style.transform = `rotate(${Math.max(-1, Math.min(1, v)) * 75}deg)`; }
-  function bild(k) {
-    const s = st.schritte[st.i], w = kw(k);
-    if (st.phase === "stufen") { stufeBild(k, w); return; }
-    // bester Punkt nur aus einem ruhigen Bild (das vorige ähnlich): ein Bild mitten im Drehen mischt zwei Stellungen
-    const ruhig = st.vorige !== undefined && st.vorige !== null && w.guete !== null && Math.abs(w.guete - st.vorige) <= 3;
-    st.vorige = w.guete;
-    const leise = w.snr_db !== null && w.snr_db < K.SNR_MIN_DB;
-    if (st.phase === "suchen" && ruhig && !leise) { st.spur.push(k); if (!st.best || w.guete > st.best.w.guete) { st.best = { kurve: k, w }; st.bestI = st.spur.length - 1; } }
-    // Richtung beim Zurück: wo auf der Spur der Suche stehe ich gegen den besten Punkt?
-    let richtung = null;
-    if (st.phase === "zurueck" && st.spur.length > 1 && st.bestI !== null) { const j = K.naechster(st.spur, k); if (j !== null && j !== st.bestI) richtung = j < st.bestI ? -1 : 1; }
-    const b = K.bewerten(s.schritt, w, st.phil, st.best ? st.best.w.guete : null, st.phase === "stufen" ? "zurueck" : st.phase, st.best ? st.best.w.pegel_db : null, richtung);
-    st.verlauf.push(b);
-    anzeigen(b, w, k);
-    if (st.phase === "suchen" && b.zustand === "weniger") { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(b.text)}</span>`; zurueck(); }
-  }
-  function anzeigen(b, w, k) {
-    const sch = st.schritte[st.i].schritt, pegel = sch === "pegel", trenn = sch === "trennfrequenz";
-    const wort = st.phase === "suchen" ? (b.zustand === "weniger" ? "Stopp" : b.zustand === "unsicher" ? "Unruhig" : "Weiter drehen")
-      : { mehr: pegel ? "Wärmer" : trenn ? "Höher" : "Weiter", gut: pegel ? "Genau richtig" : "Bester Punkt", weniger: pegel ? "Zu viel" : trenn ? "Tiefer" : "Zurück", unsicher: "Unruhig" }[b.zustand];
-    const e = el("sa-wort"); if (!e) return;
-    e.textContent = wort; e.className = `sa-wort ${st.phase === "suchen" && b.zustand !== "weniger" ? "" : b.zustand}`;
-    nadel(b.nadel);
-    el("sa-guete").textContent = w.guete === null ? "–" : String(w.guete);
-    el("sa-guete-text").textContent = st.best ? `Güte · bester Punkt ${st.best.w.guete}` : "Güte (0–100, höher ist besser)";
-    if (st.phase !== "suchen" || b.zustand === "unsicher") el("sa-hinweis").textContent = b.text;
-    kurvenZeigen(k, w);
-    const amZiel = st.phase === "zurueck" || (st.phase === "stufen" && st.stufeBest !== undefined && st.stufeBest !== null && st.stufeJetzt === st.stufeBest);
-    const ok = amZiel && K.stabil(st.verlauf);
-    el("sa-haken").hidden = !ok;
-    if (ok && el("sa-weiter").classList.contains("zweit")) { el("sa-weiter").classList.remove("zweit"); el("sa-weiter").textContent = "Weiter"; }
-  }
-  function zurueck() {
-    if (!st || st.phase !== "suchen") return;
-    st.phase = "zurueck"; st.verlauf = [];
-    el("sa-anleitung").textContent = st.best ? "Jetzt zurück zum besten Punkt. Dreh langsam, bis die Nadel in der Mitte steht und das Häkchen kommt." : "Kein Messwert beim Drehen. Noch einmal langsam drehen.";
-    if (!st.best) { st.phase = "suchen"; return; }
-    const e = el("sa-ende"); if (e) e.remove();
-    const k = el("sa-knoepfe"); if (k) k.classList.add("eins");
-  }
-  // Schalter: jede Stellung messen, dann die beste wählen (unter 3 Punkten Unterschied: die neutrale lassen)
-  function stufeMessen(x) {
-    st.stufeJetzt = x; st.stufeListe = []; st.stufePause = 3;
-    document.querySelectorAll("[data-sa-stufe]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.saStufe === x)));
-    el("sa-hinweis").textContent = "Ich messe diese Stellung…";
-  }
-  function stufeBild(k, w) {
-    const s = st.schritte[st.i], r = s.regler || {};
-    if (st.stufeJetzt !== null && st.stufePause-- <= 0 && !(w.snr_db !== null && w.snr_db < K.SNR_MIN_DB)) {
-      st.stufeListe.push(w.guete);
-      if (st.stufeListe.length >= 3 && !(st.stufeJetzt in st.stufen)) {
-        st.stufen[st.stufeJetzt] = { guete: K.median(st.stufeListe), kurve: k, w };
-        const e = el(`sa-stufe-${st.stufeJetzt}`); if (e) e.textContent = `Güte ${st.stufen[st.stufeJetzt].guete}`;
-        const offen = st.bereich.stufen.filter((y) => !(y in st.stufen));
-        if (offen.length) el("sa-hinweis").textContent = `Jetzt auf ${(r.anzeige || {})[offen[0]] || offen[0]} stellen und antippen.`;
-        else stufeWaehlen();
-      }
-    }
-    if (st.stufeBest !== undefined && st.stufeBest !== null && st.best) {
-      const b = K.bewerten(s.schritt, w, st.phil, st.best.w.guete, "zurueck");
-      if (st.stufeJetzt === st.stufeBest) st.verlauf.push(b);
-      anzeigen(b, w, k);
-    } else { const e = el("sa-wort"); if (e) e.textContent = st.stufeJetzt === null ? "Stellung antippen" : "Ich messe…"; el("sa-guete").textContent = w.guete === null ? "–" : String(w.guete); kurvenZeigen(k, w); }
-  }
-  function stufeWaehlen() {
-    const s = st.schritte[st.i], r = s.regler || {}, neutral = r.neutral !== undefined ? r.neutral : st.bereich.stufen[0];
-    const bester = st.bereich.stufen.reduce((a, b) => (st.stufen[b].guete > st.stufen[a].guete ? b : a), neutral);
-    const wahl = st.stufen[bester].guete >= st.stufen[neutral].guete + K.PHASE_SCHALTER ? bester : neutral;
-    st.stufeBest = wahl; st.best = { kurve: st.stufen[wahl].kurve, w: st.stufen[wahl].w }; st.phase = "stufen"; st.verlauf = [];
-    const d = st.stufen[bester].guete - st.stufen[neutral].guete, name = (r.anzeige || {})[wahl] || wahl;
-    el("sa-anleitung").textContent = wahl === neutral && bester !== neutral ? `Beide Stellungen sind fast gleich gut: auf ${name} lassen.`
-      : wahl === neutral ? `${name} ist am besten: so lassen.` : `${name} ist besser (+${d} Punkte): stell auf ${name} und tippe es an.`;
-    if (st.stufeJetzt === wahl) { st.stufePause = 0; }
-  }
-
-  // --- Nachher, Ergebnis, Speichern ----------------------------------------------------------------------------------
-  async function nachherMessen() {
-    messBild("Nachmessen", "Sub · nachher", "Nichts mehr verstellen. Ich messe noch einmal (etwa 5 Sekunden).");
-    const k = await sammeln(); if (!st) return;
-    st.nachher = { kurve: k, w: kw(k) };
-    // vorher mit denselben Maßstäben neu bewerten (jetzt mit der Messung der Boxen allein)
-    st.vorher.w = kw(st.vorher.kurve);
-    if (st.live) { st.live.stopp(); st.live = null; } await signalAus(st);
-    ergebnis();
-  }
-  function ergebnis() {
-    const v = st.vorher.w.guete, n = st.nachher.w.guete, schlechter = v !== null && n !== null && n < v - K.SCORE_TOL;
-    const alt = letzteStellungen(st.sub ? st.sub.id : "sub");
-    const fz = (x) => (x === null || x === undefined ? "–" : String(x));
-    zeige(`${kopf("Sub · Ergebnis")}<h1 id="sa-h">${schlechter ? "Vorher war es besser" : n > v + K.SCORE_TOL ? "Besser abgestimmt" : "Passt"}</h1>
-      <div class="sa-zwei"><div><span class="klein">vorher</span><b>${fz(v)}</b></div><div><span class="klein">nachher</span><b class="${schlechter ? "sa-warn" : "sa-gut"}">${fz(n)}</b></div></div>
-      ${kurveSvg()}
-      ${schlechter ? `<p class="sa-warn">Nachgemessen ist es schlechter als vorher. Stell die Regler bitte wieder so wie vorher${alt ? ` (zuletzt gespeichert: ${ex(stellungText(alt.stellungen))})` : ""}. Nie schlechter machen gilt auch hier.</p>`
-        : `<p class="sa-lead">Damit du es wiederfindest: Wo stehen die Regler jetzt? Freiwillig, nur zum Merken.</p>${stellungFelder()}`}
-      <div class="kasten"><b>Gilt für alle Profile</b><p class="klein">Die Regler am Sub sind echte Knöpfe: Sie gelten für Stereo, Stereo-Kino und jedes Kino-Profil. Danach gleicht die Klång-Box je Profil fein nach. Miss darum jedes Profil, das du nutzt, einmal neu ein.</p></div>
-      <div class="sa-knoepfe eins"><button type="button" id="sa-fertig">${schlechter ? "Verstanden" : "Speichern und fertig"}</button></div>`);
-    const kv = el("sa-k-vorher"), kn = el("sa-k-jetzt");
-    if (kv) kv.setAttribute("d", pfad(st.vorher.kurve, st.vorher.w.ref_db || 0)); if (kn) kn.setAttribute("d", pfad(st.nachher.kurve, st.nachher.w.ref_db || 0));
-    el("sa-fertig").onclick = () => { speichern(schlechter); schliessen(true); };
-  }
-  function stellungFelder() {
-    const f = [], rph = (st.schritte.find((s) => s.schritt === "phase") || {}).regler, rx = (st.schritte.find((s) => s.schritt === "trennfrequenz") || {}).regler,
-      rp = (st.schritte.find((s) => s.schritt === "pegel") || {}).regler, rf = (st.schritte.find((s) => s.schritt === "phase_fein") || {}).regler;
-    if (rph && rph.stufen) f.push(`<label>${ex(rph.name)}<select id="sa-st-phase">${rph.stufen.map((x) => `<option value="${ex(x)}"${x === st.stufeBestPhase ? " selected" : ""}>${ex((rph.anzeige || {})[x] || x)}</option>`).join("")}</select></label>`);
-    if (rf || (rph && !rph.stufen)) f.push(`<label>${ex((rf || rph).name)} (°)<input type="number" id="sa-st-grad" inputmode="numeric" min="0" max="360" step="1" placeholder="z. B. 90"></label>`);
-    if (rx) f.push(`<label>${ex(rx.name)} (Hz)<input type="number" id="sa-st-hz" inputmode="numeric" min="20" max="250" step="1" placeholder="z. B. ${Math.round(0.9 * f6Von(st))}"></label>`);
-    if (rp) f.push(rp.skala === "uhr" ? `<label>${ex(rp.name)}<select id="sa-st-pegel"><option value="">weiß nicht</option>${["9", "9:30", "10", "10:30", "11", "11:30", "12", "12:30", "13", "13:30", "14", "14:30", "15"].map((x) => `<option value="${x} Uhr">${x} Uhr</option>`).join("")}</select></label>`
-      : `<label>${ex(rp.name)} (dB)<input type="number" id="sa-st-pegel" inputmode="decimal" step="0.5" placeholder="z. B. −3"></label>`);
-    return `<div class="sa-felder">${f.join("")}</div>`;
-  }
   function stellungText(s) {
-    const t = [];
-    if (s.phase) t.push(`Phase ${s.phase}`); if (s.phase_grad !== undefined && s.phase_grad !== null && s.phase_grad !== "") t.push(`Phase ${s.phase_grad}°`);
-    if (s.trennfrequenz_hz) t.push(`Trennfrequenz ${s.trennfrequenz_hz} Hz`); if (s.pegel) t.push(`Pegel ${s.pegel}`);
-    if (s.box) t.push(s.box);
+    const t = Object.entries(s || {}).filter(([k]) => k !== "box").map(([k, v]) => `${k} ${v}`);
+    if (s && s.box) t.push(s.box);
     return t.join(", ") || "ohne Angaben";
   }
-  function speichern(schlechter) {
-    const wert = (id) => { const e = el(id); return e && e.value !== "" ? e.value : null; };
-    const rph = (st.schritte.find((s) => s.schritt === "phase") || {}).regler;
-    const ph = wert("sa-st-phase"), stell = {};
-    if (ph) stell.phase = (rph && rph.anzeige && rph.anzeige[ph]) || ph;
-    if (wert("sa-st-grad") !== null) stell.phase_grad = +wert("sa-st-grad");
-    if (wert("sa-st-hz") !== null) stell.trennfrequenz_hz = +wert("sa-st-hz");
-    if (wert("sa-st-pegel") !== null) stell.pegel = /Uhr/.test(wert("sa-st-pegel")) ? wert("sa-st-pegel") : `${wert("sa-st-pegel")} dB`;
+  function speichern(schlechter, stellungen = {}) {
+    const stell = { ...stellungen };
     if (st.autoText) stell.box = st.autoText;
     const e = { datum: new Date().toISOString(), geraet: st.sub ? st.sub.id : "sub", geraet_name: st.sub ? st.sub.name : "Sub", fall: st.plan.fall, modus: st.modus,
       philosophie: st.phil, vorher: st.vorher ? st.vorher.w.guete : null, nachher: st.nachher ? st.nachher.w.guete : null, schlechter: !!schlechter, stellungen: stell,
-      profile_neu_einmessen: !schlechter && st.plan.fall !== "box" };
+      messungen: (st.messliste || []).length, profile_neu_einmessen: !schlechter && st.plan.fall !== "box" };
     let d; try { d = JSON.parse(lies(SPEICHER, "null")) || { v: 1, eintraege: [] }; } catch (x) { d = { v: 1, eintraege: [] }; }
     d.eintraege = [e].concat(d.eintraege || []).slice(0, 12); merke(SPEICHER, JSON.stringify(d));
   }
   function daten() { try { return JSON.parse(lies(SPEICHER, "null")) || { v: 1, eintraege: [] }; } catch (e) { return { v: 1, eintraege: [] }; } }
-  const letzteStellungen = (gid) => (daten().eintraege || []).find((e) => e.geraet === gid && !e.schlechter) || null;
 
   // --- Automatik: Sub an der Box -----------------------------------------------------------------------------------
   function autoStart() {
@@ -15614,9 +15642,11 @@ function saOberflaeche(K) {
     messBild("So klingt es jetzt", "Sub · vorher", "Ich messe, wie Sub und Boxen jetzt zusammen klingen (etwa 5 Sekunden).");
     const f = await liveStart(); if (f) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(f)}</span>`; return; }
     const k = await sammeln(); if (!st) return;
+    if (!k) { if (st.live) { st.live.stopp(); st.live = null; } await signalAus(st); if (!st) return; st.abgebrochen = false;
+      el("sa-hinweis").innerHTML = '<span class="sa-warn">Die Messung wurde unterbrochen. Noch einmal starten.</span>'; return; }
     st.vorher = { kurve: k, w: kw(k) }; kurvenZeigen(k, st.vorher.w);
-    if (!snrOk(st.vorher.w)) return;
-    st.live.stopp(); st.live = null; await signalAus(st);
+    if (!snrOk(st.vorher.w)) { if (st.live) { st.live.stopp(); st.live = null; } await signalAus(st); return; }
+    if (st.live) { st.live.stopp(); st.live = null; } await signalAus(st);
     st.plaetze = Math.max(1, Math.min(3, (st.r.e.sitzplaetze || []).length || 1)); st.messungen = [];
     autoSweeps(0);
   }
@@ -15667,8 +15697,8 @@ function saOberflaeche(K) {
     el("sa-nein").onclick = () => schliessen();
     el("sa-ja").onclick = () => autoSenden();
   }
-  async function senden(sub, bass, gedreht) {
-    const r = st.r, e = r.e.einstellungen;
+  async function senden(sub, bass, gedreht, zst = st) {
+    const r = zst.r, e = r.e.einstellungen;
     e.SUB = { gain_db: sub.gain_db, delay_ms: sub.delay_ms, eq: (e.SUB && e.SUB.eq) || [] };
     r.sub_bass = bass;
     if (typeof ein !== "undefined" && ein.zuordnung && ein.zuordnung.SUB && !!(ein.zuordnung.SUB.polaritaet === "gedreht") !== gedreht) {
@@ -15682,7 +15712,7 @@ function saOberflaeche(K) {
     return a;
   }
   async function autoSenden() {
-    const { jetzt, erg } = st.auto, alt = { sub: JSON.parse(JSON.stringify(st.r.e.einstellungen.SUB || { gain_db: 0, delay_ms: 0, eq: [] })), bass: st.r.sub_bass || null };
+    const zst = st, { jetzt, erg } = st.auto, alt = { sub: JSON.parse(JSON.stringify(st.r.e.einstellungen.SUB || { gain_db: 0, delay_ms: 0, eq: [] })), bass: st.r.sub_bass || null };
     el("sa-ja").disabled = true; el("sa-hinweis").textContent = "Sende an die Klång-Box…";
     const a = await senden({ gain_db: erg.gain_db, delay_ms: erg.delay_ms }, { trennfrequenz_hz: erg.trenn_hz }, erg.gedreht);
     if (!(a.ok && (a.geladen || a.geladen === undefined))) {
@@ -15692,8 +15722,12 @@ function saOberflaeche(K) {
     st.trenn = erg.trenn_hz;
     messBild("Nachmessen", "Sub · nachher", "Ich messe noch einmal, wie es jetzt klingt (etwa 5 Sekunden).");
     const f = await liveStart(); if (f) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(f)}</span>`; return; }
-    const k = await sammeln(); if (!st) return;
-    st.live.stopp(); st.live = null; await signalAus(st);
+    const k = await sammeln();
+    if (st && st.live) { st.live.stopp(); st.live = null; }
+    if (st) await signalAus(st);
+    if (!st || !k) { await senden(alt.sub, alt.bass, jetzt.gedreht, zst);  // nicht nachgemessen: nie schlechter, also zurück
+      if (st) { st.abgebrochen = false; el("sa-hinweis").innerHTML = '<span class="sa-warn">Die Nachmessung wurde unterbrochen. Ich habe alles zurückgestellt, die Box spielt wie vorher.</span>'; }
+      return; }
     st.nachher = { kurve: k, w: kw(k) }; st.trenn = jetzt.trenn_hz; st.vorher.w = kw(st.vorher.kurve); st.trenn = erg.trenn_hz;
     const schlechter = st.nachher.w.guete !== null && st.vorher.w.guete !== null && st.nachher.w.guete < st.vorher.w.guete - K.SCORE_TOL;
     if (schlechter) await senden(alt.sub, alt.bass, jetzt.gedreht);  // nie schlechter: alles zurück
@@ -15714,10 +15748,14 @@ function saOberflaeche(K) {
     const l = (daten().eintraege || [])[0];
     return `<div class="sa-zuhause" style="display:grid; gap:8px"><span class="marke">Sub</span>
       ${l ? `<span>${l.schlechter ? "Letzter Abgleich zurückgenommen" : `Abgeglichen: ${ex(stellungText(l.stellungen))}`}</span><span class="klein">${ex(new Date(l.datum).toLocaleDateString("de-DE"))}${l.vorher !== null && l.nachher !== null ? ` · ${l.vorher} → ${l.nachher}` : ""}${l.profile_neu_einmessen ? " · Profile danach neu einmessen" : ""}</span>`
-        : `<span class="klein">Noch nicht abgeglichen. Du drehst, ich messe live.</span>`}
+        : `<span class="klein">Noch nicht abgeglichen. Du stellst ein, die App misst danach.</span>`}
       <button type="button" class="zweit" data-sa-start="zuhause">Sub abgleichen</button></div>`;
   }
   document.addEventListener("click", (ev) => { const b = ev.target.closest("[data-sa-start]"); if (!b) return; if (typeof sheet !== "undefined" && sheet && sheet.zu && b.closest("#sheet")) sheet.zu(); oeffnen(typeof aktuelleRunde === "function" ? aktuelleRunde() : null); });
+  // App im Hintergrund, Seite weg: Rauschen sofort aus (die Box hört nach SIGNAL_S ohnehin von selbst auf)
+  const weg = () => { if (!st) return; if (st.sammelnAbbruch) st.sammelnAbbruch(); if (st.boxSignal || st.ton || st.live) { if (st.live) { st.live.stopp(); st.live = null; } signalAus(st); } };
+  document.addEventListener("visibilitychange", () => { if (document.hidden) weg(); });
+  window.addEventListener("pagehide", weg);
   window.SA_TEST = { get zustand() { return st; } };
   // Einstieg für andere Teile der Seite (z. B. Schritt 3 „Vorbereiten“): oeffnen({ zurueck: 3 })
   window.klangboxSubAbgleich = { oeffnen: (opts = {}) => oeffnen(typeof aktuelleRunde === "function" ? aktuelleRunde() : null, opts), daten };

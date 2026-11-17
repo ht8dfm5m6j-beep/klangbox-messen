@@ -2226,6 +2226,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
         <button type="button" class="kb-zeile" id="gt-oeffnen" hidden><span>Großer Test <span class="wert" id="gt-einstieg-text"></span></span></button>
         <button type="button" class="kb-zeile" id="zh-knacken"><span>Knacken gehört <span class="wert">· gleich danach tippen</span></span></button>
         <button type="button" class="kb-zeile" id="zh-diag-direkt"><span>Ton direkt testen <span class="wert">· drei leise Töne</span></span></button>
+        <button type="button" class="kb-zeile" id="zh-sub-nah"><span>Sub-Nahtest <span class="wert">· Box gegen Sub, aus 10 cm</span></span></button>
         <button type="button" class="kb-zeile" id="zh-takt-k" data-sheet-block="zh-takt" data-sheet-titel="Takt-Labor" hidden><span>Takt-Labor <span class="wert" id="zh-takt-wert"></span></span></button>
         <button type="button" class="kb-zeile" id="zh-kernel-k" data-sheet-block="zh-kernel" data-sheet-titel="Kernel-Test" hidden><span>Kernel-Test <span class="wert" id="zh-kernel-wert"></span></span></button>
         <p class="klein" id="zh-ws-ton-status" aria-live="polite"></p></section>
@@ -3881,7 +3882,7 @@ function score(plaetze, modus, raumM3, r, unsicherheit = true, eingemessen = fal
   const fg = bassCh.map((ch) => { const p = pmittel(ch, 0), mid = mean(imBand(dbArr(glaetten(p, 3)), 300, 3000)); return untereGrenze(p, mid); });
   const f6 = Math.exp(mean(fg.map(Math.log))), ank = kino ? [80, 35, 25] : [80, 45, 30];
   let pt = punkte(f6, ...ank, true);
-  if (f6 < F_LO) { pt = Math.min(pt, 70); setze("tiefgang", f6, pt, `< ${F_LO} Hz`, `Der Bass reicht tiefer als ${F_LO} Hz – genauer misst das Handy nicht.`); }
+  if (f6 < F_LO) { pt = Math.min(pt, 70); setze("tiefgang", f6, pt, `tiefer als ${F_LO} Hz`, `Der Bass reicht tiefer als ${F_LO} Hz – genauer misst das Handy nicht.`); }
   else setze("tiefgang", f6, pt, `${zahlText(f6, 0)} Hz`, `Der Bass reicht bis etwa ${zahlText(f6, 0)} Hz.` + (f6 <= ank[1] ? "" : " Für Film fehlt Tiefgang."));
 
   // 5 Sub-Integration: der Sub läuft hier über die Boxen mit
@@ -8667,6 +8668,7 @@ function subVorherZeigen() {
   $("sub-vorher").hidden = !(sa && hatSub(MA.layout) && !getan && (MA.sub_anschluss === "weiss" || /\bsub/i.test(hebel)));
 }
 $("sub-vorher-start").addEventListener("click", () => window.klangboxSubAbgleich.oeffnen({ zurueck: 3 }));
+$("zh-sub-nah").addEventListener("click", () => window.klangboxSubAbgleich && window.klangboxSubAbgleich.nahtest());
 // Wächter Vorbereitung: alles abgehakt und eine gültige Signalquelle
 $("vorb-weiter").addEventListener("click", () => {
   document.querySelectorAll(".pflicht").forEach((c) => { c.checked = true; });  // „Alles bereit“ bestätigt die Liste (ein Tipp)
@@ -14877,7 +14879,7 @@ if (typeof document !== "undefined" && typeof aktuelleRunde === "function") {
 // mit Präfix sa-, sonst die Klassen und Tokens der Seite.
 "use strict";
 const SA = (() => {
-  const FS = 48000, DEZ = 24, N_DEZ = 4096, PERIODE_S = N_DEZ * DEZ / FS, BIN_HZ = FS / DEZ / N_DEZ, ANREGUNG_HZ = [15, 300];
+  const FS = 48000, DEZ = 24, N_DEZ = 4096, PERIODE_S = N_DEZ * DEZ / FS, BIN_HZ = FS / DEZ / N_DEZ, ANREGUNG_HZ = [25, 245], DICHT_BIS_HZ = 120, KOH_RASTER_S = 1 / 2000;
   const RASTER = []; for (let i = 0; i < 44; i++) RASTER.push(20 * Math.pow(2, i / 12));
   const NEIGUNG = -0.8, HAUS_DB = { kino: 4, stereo: 2 }, REF_BAND = [130, 240];
   const SNR_GUT_DB = 15, SNR_MIN_DB = 8, UNRUHE_PUNKTE = 8, LUFT_HZ = 150;
@@ -14892,7 +14894,8 @@ const SA = (() => {
   const zielDb = (f, modus = "stereo") => { const h = modus in HAUS_DB ? HAUS_DB[modus] : 2; return NEIGUNG * Math.log2(f / 1000) + h / (1 + (f / 100) ** 2); };
 
   // --- Anregung: Bins (die Datei bzw. die Box spielt sie, siehe Python anregung) --------------------------------------
-  function bins() { const out = []; for (let k = 2; k < N_DEZ / 2; k++) if (k % 2 === 0 && ANREGUNG_HZ[0] <= k * BIN_HZ && k * BIN_HZ <= ANREGUNG_HZ[1]) out.push(k); return out; }
+  // 0.3.47: 25–120 Hz jeder 4. Bin, bis 245 Hz jeder 8. (Bezug), gleiche Spitze wie bisher – mehr Energie je Ton (Python)
+  function bins() { const out = []; for (let k = 4; k < N_DEZ / 2; k++) { const f = k * BIN_HZ; if (ANREGUNG_HZ[0] <= f && f <= ANREGUNG_HZ[1] && k % (f <= DICHT_BIS_HZ ? 4 : 8) === 0) out.push(k); } return out; }
   const BINS = bins();
 
   // --- Dezimierung (fortlaufend) und Spektrum ------------------------------------------------------------------------
@@ -14920,7 +14923,32 @@ const SA = (() => {
   }
   function frame(xd) {
     const x = xd.slice(xd.length - N_DEZ), X = fftReal(x), p = (k) => (X.re[k] ** 2 + X.im[k] ** 2) / (N_DEZ * N_DEZ);
-    return { f: BINS.map((k) => k * BIN_HZ), p: BINS.map(p), rausch: BINS.map((k) => 0.5 * (p(k - 1) + p(k + 1))) };
+    const xs = []; for (const k of BINS) for (const j of [k - 1, k, k + 1]) xs.push([X.re[j] / N_DEZ, X.im[j] / N_DEZ]);
+    return { f: BINS.map((k) => k * BIN_HZ), p: BINS.map(p), rausch: BINS.map((k) => 0.5 * (p(k - 1) + p(k + 1))), x: xs };
+  }
+  // Bilder zusammenrechnen (wie Python kohaerent): Versatz je Bild gegen das erste aus der Phase der Töne, zurückdrehen,
+  // komplex mitteln. Raumgeräusch mittelt sich weg, der Ton bleibt (8 Bilder ≈ +9 dB Abstand)
+  function kohaerent(frames) {
+    const kk = []; for (const k of BINS) kk.push(k - 1, k, k + 1);
+    const n = kk.length, mitte = []; for (let i = 1; i < n; i += 3) mitte.push(i);
+    const nt = Math.round(PERIODE_S / 4 / KOH_RASTER_S);  // Töne auf jedem 4. Bin: Versatz bis 1/4 Periode eindeutig (Python)
+    // zweiter Durchgang gegen den Mittelwert: ein gestörtes erstes Bild verdirbt nicht alles (Prüfer 0.3.47)
+    const r1 = ausrichten(frames[0].x), r2 = ausrichten(r1);
+    const p = r2.map((v) => v[0] * v[0] + v[1] * v[1]);
+    return { f: BINS.map((k) => k * BIN_HZ), p: BINS.map((_, i) => p[3 * i + 1]), rausch: BINS.map((_, i) => 0.5 * (p[3 * i] + p[3 * i + 2])) };
+    function ausrichten(ref) {
+    const accR = new Array(n).fill(0), accI = new Array(n).fill(0);
+    for (let b = 0; b < frames.length; b++) {
+      const X = frames[b].x, cR = [], cI = [];
+      for (const i of mitte) { cR.push(X[i][0] * ref[i][0] + X[i][1] * ref[i][1]); cI.push(X[i][1] * ref[i][0] - X[i][0] * ref[i][1]); }
+      let best = -1, tau = 0;
+      for (let t = 0; t < nt; t++) { const tt = t * KOH_RASTER_S; let sr = 0, si = 0;
+        for (let j = 0; j < mitte.length; j++) { const w = -2 * Math.PI * kk[mitte[j]] * BIN_HZ * tt, c = Math.cos(w), s = Math.sin(w); sr += c * cR[j] - s * cI[j]; si += s * cR[j] + c * cI[j]; }
+        const m = sr * sr + si * si; if (m > best) { best = m; tau = tt; } }
+      for (let i = 0; i < n; i++) { const w = -2 * Math.PI * kk[i] * BIN_HZ * tau, c = Math.cos(w), s = Math.sin(w); accR[i] += X[i][0] * c - X[i][1] * s; accI[i] += X[i][0] * s + X[i][1] * c; }
+    }
+    return accR.map((r, i) => [r / frames.length, accI[i] / frames.length]);
+    }
   }
   function kurve(fr, mikroDb = null) {
     const L = [], N = [];
@@ -15170,7 +15198,7 @@ const SA = (() => {
   }
 
   const kern = { FS, DEZ, N_DEZ, PERIODE_S, BIN_HZ, RASTER, BINS, ZIELE, PEGEL_WAECHTER_DB, SCORE_TOL, SNR_GUT_DB, SNR_MIN_DB, LUFT_HZ, UNRUHE_PUNKTE,
-    rund, median, zielDb, Dezimierer, frame, kurve, kurveAusH, bassende, kennwerte, score, waechter, unruhig, toleranz, empfehlen, vorschlag, phaseStatus, hinweis, plan, startstellung, lr4, auto };
+    rund, median, zielDb, Dezimierer, frame, kohaerent, kurve, kurveAusH, bassende, kennwerte, score, waechter, unruhig, toleranz, empfehlen, vorschlag, phaseStatus, hinweis, plan, startstellung, lr4, auto };
   if (typeof document === "undefined") return kern;
   return Object.defineProperties(kern, Object.getOwnPropertyDescriptors(saOberflaeche(kern)));
 })();
@@ -15278,9 +15306,12 @@ function saOberflaeche(K) {
   // Liefert laufend Bilder (eine Periode, alle 0,5 s). Quelle: Test-Haken window.__saMikro(n), die App (Stücke von 3 s,
   // sie nimmt nur am Stück auf) oder das Mikrofon im Browser (ohne Filter, wie bei der Messung).
   function Live(beiBild) {
-    const dz = K.Dezimierer(); let buf = [], seit = 0, aus = false, schliessen = () => {};
-    const schieben = (x) => { const d = dz.schieben(x); buf = buf.concat(d); if (buf.length > 3 * K.N_DEZ) buf = buf.slice(buf.length - 3 * K.N_DEZ); seit += d.length;
-      if (buf.length >= K.N_DEZ && seit >= 1000) { seit = 0; try { beiBild(K.frame(buf)); } catch (e) {} } };
+    const dz = K.Dezimierer(); let buf = [], seit = 0, aus = false, schliessen = () => {}, sp = 0;
+    const spitze = (x) => { for (let i = 0; i < x.length; i += 4) { const v = Math.abs(x[i]); if (v > sp) sp = v; } };  // Übersteuerung (Prüfer 0.3.47)
+    const schieben = (x) => { spitze(x); const d = dz.schieben(x); buf = buf.concat(d); if (buf.length > 3 * K.N_DEZ) buf = buf.slice(buf.length - 3 * K.N_DEZ); seit += d.length;
+      // ein Bild je Periode, ohne Überlappung (Prüfer 0.3.47: überlappende Bilder täuschen beim Zusammenrechnen
+      // weniger Rauschen in den Nachbar-Bins vor, als im Ton-Bin liegt)
+      if (buf.length >= K.N_DEZ && seit >= K.N_DEZ) { seit = 0; try { beiBild(K.frame(buf)); } catch (e) {} } };
     const start = async () => {
       if (typeof window.__saMikro === "function") {
         const t = setInterval(() => { if (aus) return; const n = Math.round(0.25 * K.FS * (window.__saTempo || 1)); schieben(window.__saMikro(n)); }, 250);
@@ -15288,7 +15319,7 @@ function saOberflaeche(K) {
       }
       if (typeof nativ !== "undefined" && nativ && nativ.kannAufnehmen) {
         (async () => { while (!aus) { const a = nativ.aufnahme(typeof mikroWahl === "function" && mikroWahl().messmikro ? "extern" : "intern"); await warte(3000); a.stopp();
-          try { const r = await Promise.race([a.ergebnis, warte(8000).then(() => null)]); if (r && r.daten && r.rate === K.FS && !aus) { const neu = K.Dezimierer(); buf = neu.schieben(r.daten.slice(Math.floor(0.4 * K.FS))); if (buf.length >= K.N_DEZ) beiBild(K.frame(buf)); } } catch (e) {} } })();
+          try { const r = await Promise.race([a.ergebnis, warte(8000).then(() => null)]); if (r && r.daten && r.rate === K.FS && !aus) { spitze(r.daten); const neu = K.Dezimierer(); buf = neu.schieben(r.daten.slice(Math.floor(0.4 * K.FS))); if (buf.length >= K.N_DEZ) beiBild(K.frame(buf)); } } catch (e) {} } })();
         schliessen = () => {}; return null;
       }
       if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return "Hier kann ich das Mikrofon nicht öffnen.";
@@ -15304,11 +15335,11 @@ function saOberflaeche(K) {
       schliessen = () => { try { knoten.disconnect(); q.disconnect(); stumm.disconnect(); stream.getTracks().forEach((t) => t.stop()); if (typeof audioKontext !== "function") ctx.close(); } catch (e) {} };
       return ctx.sampleRate === K.FS ? null : `Abtastrate ${ctx.sampleRate} Hz statt 48000 Hz.`;
     };
-    return { start, stopp: () => { aus = true; schliessen(); } };
+    return { start, stopp: () => { aus = true; schliessen(); }, spitze: () => sp };
   }
 
   // --- Signal: über die Klång-Box (Folge „sub_abgleich“) oder als Datei --------------------------------------------
-  const SIGNAL_S = 30;  // je Messung höchstens so lange Rauschen, auch wenn die App unterwegs abbricht (nie Dauerrauschen)
+  const SIGNAL_S = 45;  // je Messung höchstens so lange Rauschen, auch wenn die App unterwegs abbricht (nie Dauerrauschen)
   const quelleJetzt = () => (boxDa() ? "box" : typeof nativ !== "undefined" && nativ ? "airplay" : "extern");
   async function signalAn(st) {
     st.quelle = quelleJetzt();
@@ -15427,7 +15458,7 @@ function saOberflaeche(K) {
     if (st.live) return null;
     if (mitSignal) { const fehler = await signalAn(st); if (fehler) return fehler; }
     st.korr = mikroDb();
-    st.live = Live((fr) => { if (!st) return; const k = K.kurve(fr, st.korr); st.letzte = k; st.n = (st.n || 0) + 1; if (st.beiKurve) st.beiKurve(k); });
+    st.live = Live((fr) => { if (!st) return; const k = K.kurve(fr, st.korr); st.letzte = k; st.n = (st.n || 0) + 1; if (st.beiKurve) st.beiKurve(k, fr); });
     const f2 = await st.live.start(); if (f2) { st.live = null; return f2; }
     return null;
   }
@@ -15443,8 +15474,9 @@ function saOberflaeche(K) {
         ende(null); }, 20000); };
       meinSt.sammelnAbbruch = () => { meinSt.abgebrochen = true; ende(null); };
       wache();
-      meinSt.beiKurve = (k) => { wache(); z++; if (z <= vorlauf) return; liste.push(k); const b = el("sa-fort"); if (b) b.style.width = `${Math.min(100, liste.length / n * 100)}%`;
-        if (liste.length >= n) ende(roh ? liste : mittelKurve(liste)); }; });
+      const bilder = [];
+      meinSt.beiKurve = (k, fr) => { wache(); z++; if (z <= vorlauf) return; liste.push(k); if (fr) bilder.push(fr); const b = el("sa-fort"); if (b) b.style.width = `${Math.min(100, liste.length / n * 100)}%`;
+        if (liste.length >= n) ende(roh ? { kurven: liste, bilder } : bilder.length === liste.length ? K.kurve(K.kohaerent(bilder), meinSt.korr) : mittelKurve(liste)); }; });
   }
   function mittelKurve(ls) { return { f: ls[0].f, db: ls[0].f.map((_, i) => { const v = ls.map((k) => k.db[i]).filter((x) => x !== null); return v.length ? 10 * Math.log10(v.reduce((s, x) => s + Math.pow(10, x / 10), 0) / v.length) : null; }),
     rausch_db: ls[0].f.map((_, i) => { const v = ls.map((k) => k.rausch_db[i]).filter((x) => x !== null); return v.length ? 10 * Math.log10(v.reduce((s, x) => s + Math.pow(10, x / 10), 0) / v.length) : null; }) }; }
@@ -15456,9 +15488,10 @@ function saOberflaeche(K) {
   // --- Messliste: einstellen, zurück an den Platz, messen. Nie messen, während jemand dreht ------------------------
   // Das Handy liegt fest am Platz. Jede Messung: 3 s Ruhe, dann messBilder() ruhige Bilder, danach Stille.
   // Gestört (Störabstand, Bilder streuen: K.unruhig) zählt nicht. Gleiche Stellungen werden gemittelt (K.empfehlen).
-  // Die App nimmt in Stücken von 3 s auf (ein Bild je Stück): dort 1 + 3 Bilder (etwa 13 s), sonst 1 + 8 halbe Sekunden
+  // Die App nimmt in Stücken von 3 s auf (ein Bild je Stück): dort 1 + 8 Bilder (etwa 30 s), im Browser 1 + 8 Perioden (etwa 18 s).
+  // 0.3.47: mehr Bilder, kohärent zusammengerechnet (Tonlabor: am Platz +9 dB Abstand zum Raumgeräusch)
   const appStuecke = () => typeof window.__saMikro !== "function" && typeof nativ !== "undefined" && !!nativ && !!nativ.kannAufnehmen;
-  const messBilder = () => (appStuecke() ? [3, 1] : [8, 1]), RUHE_S = 3;
+  const messBilder = () => (appStuecke() ? [8, 1] : [8, 1]), RUHE_S = 3;
   const UHR = ["7", "7:30", "8", "8:30", "9", "9:30", "10", "10:30", "11", "11:30", "12", "12:30", "13", "13:30", "14", "14:30", "15", "15:30", "16", "16:30", "17"];
   function felderRegler() {  // was der Nutzer stellt: die Regler des Plans, bei „misch“ dazu der Hochpass der Boxen
     const r = st.schritte.map((s) => s.regler).filter((x) => x);
@@ -15528,14 +15561,18 @@ function saOberflaeche(K) {
     const f = await signalAn(st); if (f) { if (st && st.live) { st.live.stopp(); st.live = null; } await signalAus(st); return { fehler: f }; }
     const bis = (st.signalAb || Date.now() + 2500) + vorlaufMs; while (st && Date.now() < bis) await warte(100); if (!st) return { fehler: "abgebrochen" };
     const [nb, nv] = messBilder(), bilder = await sammeln(nb, nv, true); if (!st) return { fehler: "abgebrochen" };
+    const uebersteuert = st.live && st.live.spitze && st.live.spitze() > 0.89;  // −1 dBFS am Mikrofon
     if (st.live) { st.live.stopp(); st.live = null; } await signalAus(st); if (!st) return { fehler: "abgebrochen" };
     if (!bilder) { const hg = st.abgebrochen || document.hidden; st.abgebrochen = false;
       return { fehler: hg ? "Die App war im Hintergrund, die Messung zählt nicht. Noch einmal „Messen“." : "Vom Mikrofon kommt nichts an. Seite neu laden, einmal auf den Bildschirm tippen und noch einmal." }; }
-    const kurve = mittelKurve(bilder), w = kw(kurve);
+    // kohärent zusammengerechnet (0.3.47); Unruhe: erste gegen zweite Hälfte (einzelne Bilder sind am Platz zu verrauscht)
+    const B = bilder.bilder, hl = Math.floor(B.length / 2), kok = (b) => K.kurve(K.kohaerent(b), st.korr);
+    const kurve = B.length === bilder.kurven.length && B.length ? kok(B) : mittelKurve(bilder.kurven), w = kw(kurve);
     const roh = Math.max(-999, ...kurve.db.concat(kurve.rausch_db).filter((x) => x !== null && Number.isFinite(x)));
+    if (uebersteuert) return { fehler: "Das Mikrofon übersteuert, so nah ist es zu laut. Leg das Handy etwas weiter weg (30 cm) oder dreh den Level am Sub zurück, dann noch einmal." };
     if (roh < -160) return { fehler: "Das Mikrofon liefert nichts (nur Stille). Seite neu laden oder die App nutzen, Mikrofon erlauben, dann noch einmal." };
     if (w.snr_db !== null && w.snr_db < K.SNR_MIN_DB) return { fehler: `Zu leise gegen das Raumgeräusch (Abstand ${zahl(w.snr_db, 0)} dB). Etwas lauter stellen, dann noch einmal.`, leise: true, kurve, w, db: pegelJetzt() };
-    if (K.unruhig(bilder.map((k) => kw(k).guete))) return { fehler: "Zu unruhig, die Messung zählt nicht (Schritte, Stimmen, Tür?). Noch einmal, bitte still sein." };
+    if (K.unruhig(hl >= 2 ? [kw(kok(B.slice(0, hl))).guete, kw(kok(B.slice(hl))).guete] : bilder.kurven.map((k) => kw(k).guete))) return { fehler: "Zu unruhig, die Messung zählt nicht (Schritte, Stimmen, Tür?). Noch einmal, bitte still sein." };
     return { kurve, w, db: pegelJetzt() };
   }
   // Pegel dieser Messung für den Vergleich mit echten Pegeln: nur über die Box, sicher neutral, mit pegel_db gespielt
@@ -15595,10 +15632,11 @@ function saOberflaeche(K) {
     const a = kw(k).ref_db, b = kw(st.haupt.kurve).ref_db, d = [], s = [], tief = [], mitte = [];
     const mittel = (w) => (w.length ? w.reduce((q, x) => q + x, 0) / w.length : null);
     k.f.forEach((f, i) => { if (f < 25 || f > 80) return; const x = k.db[i], n = (k.rausch_db || [])[i];
-      const u = subDiff(k, a, b, i, dbJetzt); if (u !== null) { d.push(Math.abs(u)); (f < 40 ? tief : mitte).push(u); }
+      const u = subDiff(k, a, b, i, dbJetzt); if (u !== null) { d.push(u); (f < 40 ? tief : mitte).push(u); }
       if (x !== null && n !== null && n !== undefined) s.push(x - n); });
     // je Bereich mit Vorzeichen: was der Sub dazubringt (unter 40 Hz: misst das Handy dort noch? 40–80 Hz: spielt er?)
-    return { mehr_db: mittel(d), abstand_db: s.length ? K.median(s) : null, unter40_db: mittel(tief), bis80_db: mittel(mitte) };
+    // mit Vorzeichen: „bringt der Sub etwas dazu?“ (Tonlabor: kaum Fehlalarme), mindestens 3 Punkte, sonst nicht beurteilbar
+    return { mehr_db: d.length >= 3 ? mittel(d) : null, abstand_db: s.length ? K.median(s) : null, unter40_db: mittel(tief), bis80_db: mittel(mitte) };
   }
   function subCheck(meldung = "") {
     messBild("Sub an · spielt er?", "Sub · Schritt 2 von 5", `Schalte den Sub ein, so wie er steht, nichts verstellen. Dann zurück an den Platz. Die App spielt das Signal erst leise und wird lauter, bis sie deinen Sub sicher hört.`,
@@ -15613,7 +15651,7 @@ function saOberflaeche(K) {
         const m = await einmal(db === null ? "" : `Prüfton ${zahl(db, 0)} dB.`, db === stufen[0] ? 6000 : 0); if (!st) return;
         if (m.fehler && !m.leise) { subCheck(`<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
         const b = subBefund(m.kurve, m.db); letzter = { db, ...b };
-        const gefunden = b.mehr_db !== null && b.mehr_db >= SUB_SPIELT_DB && !m.leise;
+        const gefunden = b.mehr_db !== null && b.mehr_db >= CHECK_MEHR_DB && !m.leise;
         if (gefunden && (b.abstand_db === null || b.abstand_db >= CHECK_ABSTAND_DB || db === stufen[stufen.length - 1])) { st.subCheck = letzter; subGefunden(); return; }
       }
       st.subCheck = null; subNichtGefunden(letzter);  // der zuletzt probierte (lauteste) Pegel bleibt für „Trotzdem weiter“
@@ -15638,7 +15676,7 @@ function saOberflaeche(K) {
     }
     zeige(`${kopf("Sub · Schritt 2 von 5")}<h1 id="sa-h">Ich höre deinen Sub nicht</h1>
       <p class="sa-lead" id="sa-check-nein">${leise ? (c.db === null ? "Unter 80 Hz kommt kaum etwas über das Raumgeräusch: Stell die Anlage lauter." : "Auch ganz laut kommt unter 80 Hz kaum etwas über das Raumgeräusch.") : "Mit Sub klingt es fast gleich wie ohne."} Ist er an (Netzschalter, Lampe)? Sitzt das Kabel zum Sub fest, auch die blanken Drähte? Dreh zum Prüfen den Level am Sub weiter auf.</p>
-      ${c ? `<p class="klein">Zuletzt: unter 80 Hz ${zahl(c.mehr_db ?? 0, 1)} dB Unterschied, ${c.abstand_db === null ? "Abstand unbekannt" : `${zahl(c.abstand_db, 0)} dB über dem Raumgeräusch`}${c.db === null ? "" : `, bei ${zahl(c.db, 0)} dB an der Box`}.</p>${bereiche(c)}` : ""}
+      ${c ? `<p class="klein">Zuletzt: unter 80 Hz ${c.mehr_db === null ? "nicht beurteilbar" : `${vz(c.mehr_db)} dB mit Sub`}, ${c.abstand_db === null ? "Abstand unbekannt" : `${zahl(c.abstand_db, 0)} dB über dem Raumgeräusch`}${c.db === null ? "" : `, bei ${zahl(c.db, 0)} dB an der Box`}.</p>${bereiche(c)}` : ""}
       <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-check-trotzdem">Trotzdem weiter</button><button type="button" id="sa-check-nochmal">Noch einmal prüfen</button></div>`);
     el("sa-check-nochmal").onclick = () => subCheck();
     el("sa-check-trotzdem").onclick = () => liste();
@@ -15735,7 +15773,7 @@ function saOberflaeche(K) {
     const d = []; e.kurve.f.forEach((f, i) => { if (f < 25 || f > 80) return; const u = subDiff(e.kurve, a, b, i, e.db ?? null); if (u !== null) d.push(Math.abs(u)); });
     return !d.length || d.reduce((s, x) => s + x, 0) / d.length >= SUB_SPIELT_DB;
   }
-  const SUB_SPIELT_DB = 1.5;  // weniger Unterschied zum Sub aus: er spielt nicht (aus, Standby, Kabel)
+  const SUB_SPIELT_DB = 1.5, CHECK_MEHR_DB = 2;  // weniger Unterschied zum Sub aus: er spielt nicht (aus, Standby, Kabel)
   function liste(meldung = "") {
     const ein = st.messliste, letzte = ein[ein.length - 1], erg = auswertung(), rph = phaseRegler(), regler = felderRegler();
     const rx = regler.find((r) => r.rolle === "sub_trennfrequenz" || r.rolle === "sub_out_tiefpass"), rxw = rx && letzte ? parseFloat(String(letzte.roh[rid(rx)] ?? "")) : NaN;
@@ -15967,6 +16005,70 @@ function saOberflaeche(K) {
     el("sa-fertig").onclick = () => { speichern(schlechter); schliessen(true); };
   }
 
+  // --- Sub-Nahtest (Testlabor, Besitzer 17.11.2026: „ist der REL wirklich gut? einpegeln nur Sub bis 120 Hz und sehen,
+  // was gemessen wird“): Box und Sub bekommen denselben Sub-Ton gleich laut; das Handy liegt je 10 cm vor dem Tieftöner
+  // der Box (Sub aus) und vor dem Sub (aus, dann an). Sub allein = Leistung „an“ minus „aus“ (die Boxen spielen mit, kein
+  // Kabelziehen). Voll aufgedreht muss ein gesunder Sub aus der Nähe mindestens so laut sein wie der Tieftöner der Box.
+  const NAH_BAENDER = [[25, 40], [40, 80], [80, 120]];
+  function bandDb(k, lo, hi) { const w = []; k.f.forEach((f, i) => { if (f >= lo && f < hi && k.db[i] !== null) w.push(Math.pow(10, k.db[i] / 10)); }); return w.length ? 10 * Math.log10(w.reduce((s, x) => s + x, 0) / w.length) : null; }
+  function nahtest() {
+    if (subAnBox()) {  // Prüfer: mit Sub am Ausgang der Box bekommen die Boxen einen Hochpass, der Vergleich stimmt nicht
+      st = { extra: {} };
+      zeige(`${kopf("Testlabor · Sub-Nahtest")}<h1 id="sa-h">Nicht für diese Anlage</h1><p class="sa-lead">Dein Sub hängt an der Klång-Box. Dann trennt die Box selbst Sub und Boxen, und dieser Vergleich sagt nichts. Nutze „Sub abgleichen“, das misst Sub und Boxen dort einzeln.</p>
+        <div class="sa-knoepfe eins"><button type="button" id="sa-nah-fertig">Verstanden</button></div>`);
+      el("sa-nah-fertig").onclick = () => schliessen(); return;
+    }
+    st = { r: null, modus: "stereo", plan: { fall: "regler", schritte: [] }, phil: "erweiterung", schritte: [], messliste: [], zuletzt: {}, extra: {}, nah: {} };
+    zeige(`${kopf("Testlabor · Sub-Nahtest")}<h1 id="sa-h">Box gegen Sub</h1>
+      <p class="sa-lead">Die Box spielt einen tiefen Prüfton (25–120 Hz), gleich laut für deine Box und für den Sub. Du legst das Handy dreimal aus der Nähe hin. Danach siehst du, ob der Sub so kräftig spielt, wie er sollte.</p>
+      <ol class="sa-liste klein"><li>Handy 10 cm vor den Tieftöner einer Box, Sub aus</li><li>Handy 10 cm vor den Sub, Sub aus</li><li>Gleiche Stelle, Sub an: Level und Crossover ganz auf</li></ol>
+      <p class="klein">Je Messung etwa 30 Sekunden, das Handy liegt dabei, du bist still. Kein Kabel umstecken. Für einen Sub an den Lautsprecherklemmen deines Verstärkers.</p>
+      <div class="sa-knoepfe eins"><button type="button" id="sa-nah-los">Los geht's</button></div>`);
+    el("sa-nah-los").onclick = () => nahSchritt(0);
+  }
+  const NAH_SCHRITTE = [
+    { key: "box", titel: "Vor die Box", text: "Schalte den Sub aus. Leg das Handy 10 cm vor den Tieftöner einer Box, auf etwas Festes, Mikrofon zur Box. Dann still sein.", knopf: "Liegt · Messen" },
+    { key: "aus", titel: "Vor den Sub, Sub aus", text: "Sub bleibt aus. Leg das Handy 10 cm vor den Sub (bei einem Sub, der nach unten abstrahlt: auf den Boden direkt davor), Mikrofon zum Sub.", knopf: "Liegt · Messen" },
+    { key: "an", titel: "Sub an, ganz auf", text: "Handy liegen lassen. Sub einschalten, Level und Crossover ganz auf, Phase egal. Dann still sein.", knopf: "Sub ist an · Messen" },
+  ];
+  function nahSchritt(i, meldung = "") {
+    const s = NAH_SCHRITTE[i];
+    messBild(s.titel, `Testlabor · Sub-Nahtest · ${i + 1} von 3`, ex(s.text), `<div class="sa-knoepfe eins"><button type="button" id="sa-nah-m">${s.knopf}</button></div>`);
+    el("sa-hinweis").innerHTML = meldung;
+    el("sa-nah-m").onclick = async () => { el("sa-nah-m").disabled = true;
+      // erste Messung pegelt ein (−12, −6, 0 dB, bis 20 dB über dem Raumgeräusch); die anderen bei demselben Pegel
+      const stufen = i === 0 && quelleJetzt() === "box" ? CHECK_DB : [i === 0 ? null : st.nah.db]; let m = null;
+      for (const db of stufen) { st.subPegelDb = db === null || db === undefined ? undefined : db;
+        m = await einmal(db === null || db === undefined ? "" : `Prüfton ${zahl(db, 0)} dB.`, i === 2 ? 6000 : 0); if (!st) return;
+        if (m.fehler && !m.leise) break; if (!m.leise && (m.w.snr_db === null || m.w.snr_db >= CHECK_ABSTAND_DB)) break; }
+      if (m.fehler && !(m.leise && i > 0)) { nahSchritt(i, `<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
+      if (i === 0) st.nah.db = st.subPegelDb;
+      st.nah[s.key] = m.kurve;
+      if (i < 2) nahSchritt(i + 1); else nahErgebnis(); };
+  }
+  function nahErgebnis() {
+    const n = st.nah, zeilen = NAH_BAENDER.map(([lo, hi]) => {
+      const b = bandDb(n.box, lo, hi), a = bandDb(n.aus, lo, hi), s = bandDb(n.an, lo, hi);
+      const sub = a !== null && s !== null && s > a + 1 ? 10 * Math.log10(Math.pow(10, s / 10) - Math.pow(10, a / 10)) : null;
+      return { lo, hi, box: b, sub, diff: sub !== null && b !== null ? sub - b : null, mehr: a !== null && s !== null ? s - a : null };
+    });
+    const haupt = zeilen.filter((z) => z.hi <= 80 && z.diff !== null), schnitt = haupt.length ? haupt.reduce((q, z) => q + z.diff, 0) / haupt.length : null;
+    const urteil = schnitt === null ? ["Nicht zu beurteilen", "Der Sub hat die Messung vor ihm kaum verändert. Ist er wirklich an (Lampe), Level ganz auf? Steckt das Kabel zum Sub fest?"]
+      // Schwellen mit Spielraum für die Bauart (Prüfer: nach unten strahlender Sub, Handy am Boden, misst ~25–35 cm
+      // von der Membranmitte, der Boden gibt ~+6 dB; gesund liegt er dann etwa −2 bis −4 dB unter dem Tieftöner)
+      : schnitt >= -8 ? ["Der Sub spielt kräftig", "Aus der Nähe ist er etwa so laut wie der Tieftöner deiner Box, wie es sein soll. Am Sub liegt es nicht."]
+      : schnitt >= -15 ? ["Der Sub spielt etwas schwach", "Aus der Nähe ist er deutlich leiser als der Tieftöner deiner Box, obwohl er ganz aufgedreht ist. Prüf Level und den Anschluss am Sub."]
+      : ["Der Sub spielt viel zu schwach", "Ganz aufgedreht ist er aus der Nähe weit leiser als der Tieftöner deiner Box. Am Sub oder seinem Anschluss stimmt etwas nicht: Kabel am Hochpegeleingang, Level, oder das Gerät selbst."];
+    const z = (v) => (v === null ? "–" : `${zahl(v, 0)} dB`);
+    zeige(`${kopf("Testlabor · Sub-Nahtest")}<h1 id="sa-h">${ex(urteil[0])}</h1>
+      <p class="sa-lead" id="sa-nah-urteil">${ex(urteil[1])}</p>
+      <ul class="zh-ws-zeilen klein sa-messliste" id="sa-nah-werte">${zeilen.map((r) => `<li class="sa-mess"><span>${r.lo}–${r.hi}&nbsp;Hz<small>Box ${z(r.box)} · Sub ${z(r.sub)}</small></span><b>${r.diff === null ? "–" : `${r.diff >= 0 ? "+" : ""}${zahl(r.diff, 0)} dB`}</b></li>`).join("")}</ul>
+      <p class="klein">Sub gegenüber Box, aus 10 cm, bei ${n.db === undefined || n.db === null ? "der Lautstärke deiner Anlage" : `${zahl(n.db, 0)} dB an der Box`}. Pegel des Handys, nicht geeicht: Es zählt der Unterschied.</p>
+      <div class="sa-knoepfe eins"><button type="button" id="sa-nah-fertig">Fertig</button></div>`);
+    el("sa-nah-fertig").onclick = () => schliessen();
+    try { if (typeof nativ !== "undefined" && nativ) nativ.box("protokoll", { text: `Sub-Nahtest: ${zeilen.map((r) => `${r.lo}-${r.hi} Hz Box ${r.box === null ? "-" : r.box.toFixed(1)} Sub ${r.sub === null ? "-" : r.sub.toFixed(1)} (an-aus ${r.mehr === null ? "-" : r.mehr.toFixed(1)})`).join(", ")}, Pegel ${n.db ?? "Anlage"}` }).catch(() => {}); } catch (e) {}
+  }
+
   // --- Karten für die Seite ------------------------------------------------------------------------------------------
   function zuhauseKarte() {
     if (!hatSubJetzt()) return "";
@@ -15983,7 +16085,7 @@ function saOberflaeche(K) {
   window.addEventListener("pagehide", weg);
   window.SA_TEST = { get zustand() { return st; } };
   // Einstieg für andere Teile der Seite (z. B. Schritt 3 „Vorbereiten“): oeffnen({ zurueck: 3 })
-  window.klangboxSubAbgleich = { oeffnen: (opts = {}) => oeffnen(typeof aktuelleRunde === "function" ? aktuelleRunde() : null, opts), daten };
+  window.klangboxSubAbgleich = { oeffnen: (opts = {}) => oeffnen(typeof aktuelleRunde === "function" ? aktuelleRunde() : null, opts), daten, nahtest: () => { stilEinmal(); nahtest(); } };
   return { oeffnen, schliessen, zuhauseKarte, daten, get zustand() { return st; } };
 }
 </script>

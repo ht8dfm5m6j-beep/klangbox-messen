@@ -2205,9 +2205,9 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
         <div id="zh-takt-varianten" style="display: grid; gap: 8px"></div>
         <div id="zh-takt-ergebnisse" style="display: grid; gap: 8px"></div>
         <p class="klein" id="zh-takt-status" aria-live="polite"></p></div>
-      <!-- Stereo bitgenau (Nutzer 14.11.2026): Streamer ohne Umrechnung, ab Werk an, Rückschaltung nach Aussetzern -->
+      <!-- Stereo bitgenau (Nutzer 14.11.2026): Streamer ohne Umrechnung, ab Werk an; seit 0.3.41 koppelt der Schalter nur die Taktfolge -->
       <div class="sheet-block" hidden data-block="zh-bitgenau" id="zh-bitgenau-block">
-        <p class="klein">Musik aus dem Netz läuft ohne Umrechnung durch die Box, nur die Raumkorrektur rechnet. Hat die Box dabei Aussetzer, schaltet sie das selbst ab.</p>
+        <p class="klein">Musik aus dem Netz läuft bei gleicher Rate ohne Umrechnung durch die Box, nur die Raumkorrektur rechnet. Der Schalter lässt dabei „Streamer-Takt folgen“ mitlaufen; hilft das nicht, schaltet die Box ihn selbst ab.</p>
         <div class="seg" role="group" aria-label="Stereo bitgenau"><button type="button" data-bitgenau="0" aria-pressed="false">Aus</button><button type="button" data-bitgenau="1" aria-pressed="true">An</button></div>
         <p class="klein" id="zh-bitgenau-wirkt" hidden></p>
         <p class="klein" id="zh-bitgenau-status" aria-live="polite"></p></div>
@@ -3285,6 +3285,7 @@ function hoerVariante(cals, s) {  // wie feinabstimmung.anwenden für mitte/bere
     let eq = cals[ch].eq.map((q) => ({ freq: q.freq, gain: q.gain, q: q.q }));
     if (s.bereich) eq = eq.filter((q) => q.freq <= s.bereich);
     if (s.bass === "maessig") eq = eq.map((q) => (q.freq <= 120 ? { ...q, gain: Math.max(q.gain, -6) } : q));
+    eq = einpassenKanal(eq).eq;
     c[ch] = { gain_db: r2(cals[ch].gain_db), delay_ms: r3(cals[ch].delay_ms), eq };
   }
   if (s.mitte === "raum") { const g = r2((c.FL.gain_db + c.FR.gain_db) / 2), d = Math.min(c.FL.delay_ms, c.FR.delay_ms); for (const ch of ["FL", "FR"]) { c[ch].gain_db = g; c[ch].delay_ms = d; } }
@@ -3797,6 +3798,24 @@ function anhebungBegrenzen(eq) {
   }
   return eq;
 }
+// Leitplanke „Summe“ für eine Hör-Schalter-Variante (wie feinabstimmung.anhebung_einpassen, ohne Klangprofil): Heben die
+// Filter zusammen mehr als +3,05 dB an (eine Absenkung neben einer Anhebung fällt weg oder wird flacher), alle Anhebungen
+// gleichmäßig in 1-%-Schritten senken (auf 0,01 dB), bis die Summe höchstens +3 dB ist; Filter unter 0,05 dB fallen weg.
+// Geht es auch mit 0 % nicht: unverändert. Rückgabe { eq, skala } (1 = unverändert)
+function anhebungEinpassen(eq) {
+  if (!eq.length || !eq.some((q) => q.gain > 0) || Math.max(...summeDb(eq)) <= 3.05) return { eq, skala: 1 };
+  for (let k = 99; k >= 0; k--) {
+    const skala = k / 100, fl = [];
+    for (const q of eq) { const g = q.gain > 0 ? Math.floor(q.gain * skala * 100 + 0.5) / 100 : q.gain; if (Math.abs(g) >= 0.05) fl.push({ ...q, gain: g }); }
+    if (Math.max(...summeDb(fl)) <= 3) return { eq: fl, skala };
+  }
+  return { eq, skala: 1 };
+}
+// Ein Kanal (kein Sub) wie feinabstimmung.einpassen: nur wenn jeder Filter einzeln in den Leitplanken liegt (sonst
+// entscheiden die Wächter). Für Hör-Schalter-Varianten und den Export mit Korrekturbereich (exportObjekt, wie die Box beim Laden)
+function einpassenKanal(eq) {
+  return eq.every((q) => { const p = sicherPeq(q); return p && p.gain === q.gain && p.q === q.q; }) ? anhebungEinpassen(eq) : { eq, skala: 1 };
+}
 // Wächter: Kein Platz darf im Bass schlechter werden, und an keinem Platz darf eine Raummode deutlich stärker
 // steigen als der übrige Bass. Solange eins davon verletzt ist, fliegt der Filter raus, dessen Wegfall am
 // meisten hilft (erst gegen die Spitze, als Summe über alle Plätze und beide Boxen, dann gegen den Bass).
@@ -4170,7 +4189,8 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
   // Nur fürs Anzeigen und die Wahl des Nutzers; geladen wird immer aus erg.einstellungen (die Seite lässt Filter weg).
   const varianten = {};
   for (const grenze of [90, 150]) {
-    const c = {}; for (const ch of ["FL", "FR"]) c[ch] = { ...ein.cals[ch], eq: ein.cals[ch].eq.filter((q) => q.freq <= grenze) };
+    // wie geladen: mit der Leitplanke „Summe“ (exportObjekt, feinabstimmung.einpassen auf der Box)
+    const c = {}; for (const ch of ["FL", "FR"]) c[ch] = { ...ein.cals[ch], eq: einpassenKanal(ein.cals[ch].eq.filter((q) => q.freq <= grenze)).eq };
     varianten[grenze] = score(nachherAus(punkte, c), modus, raumM3, null, true, true, buehneMit, false, sh).gesamt;
   }
   const kh = kurve(vorher[0].C), kn = kurve(nachher[0].C), vh = kurveVoll(vorher[0].C), vn = kurveVoll(nachher[0].C);
@@ -5434,7 +5454,7 @@ function kanalCheckAufnahme(daten, kanaele, layout, opt = {}, mikrofon = null, b
 if (typeof module !== "undefined") module.exports = { raumcheck, kinoLinieAus, lrPegelVorsichtig, messampel, kalibrierdateiLesen, mikroKalibrierung, messgenauigkeit, MESSGENAUIGKEIT, geraetVonKennung, geraetVonUa, androidModellAusUa, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilDbAn, profilFilterDb, zahlText, zahlKurz,
   FILTER_ENTWURF, modenVersetzt, fitEqFuerTest: fitEq, nachpruefen, pruefungRechnen, wiederholStreuung, bandName, PR, praesenzAusLeistung, praesenzAnhebung, raumUeberhoehung, direktschall, direktFenster, absenkungPruefen, reflexion, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
   baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort, kanalCheck, kanalCheckAufnahme, bewegtProben, KC,
-  rueckPruefen, rueckUrteil, direktDb, gleichmaessigkeit, gleichmaessigWaehlen, hoerVariante, gleichName, GLEICH_VARIANTEN, RUECK_ECHO_MS, RUECK_VERDECKT_DB, RUECK_VERDECKT_GEGEN_VORNE_DB, RUECK_WEG_MAX_MS, FUNK_MS, GLEICH_SPANNE_DB, GLEICH_STREUUNG_DB };
+  rueckPruefen, rueckUrteil, direktDb, gleichmaessigkeit, gleichmaessigWaehlen, hoerVariante, anhebungEinpassen, einpassenKanal, gleichName, GLEICH_VARIANTEN, RUECK_ECHO_MS, RUECK_VERDECKT_DB, RUECK_VERDECKT_GEGEN_VORNE_DB, RUECK_WEG_MAX_MS, FUNK_MS, GLEICH_SPANNE_DB, GLEICH_STREUUNG_DB };
 </script>
 <script type="application/json" id="klangprofile-daten">{
   "schema_version": 1,
@@ -10629,7 +10649,7 @@ window.addEventListener("klangboxraum", (ev) => {
 })();
 // --- Ab dem Ergebnis: Klangprofil, Einstellungen anwenden, Nachmessung mit Rücknahme, „Ohne Box“ ---------
 // Rechnungen wie die Box (analyse.js, im Hauptfaden für die schnellen Dinge, sonst im Worker)
-const AJ = new Function($("analyse-src").textContent + "\nreturn { profilAnwenden, profilDbAn, zahlText, zahlKurz, reglerText, reglerWerte, reglerZusammensetzen, biquad, peqDbAuf, PROFIL_ARTEN, FS,\n"
+const AJ = new Function($("analyse-src").textContent + "\nreturn { profilAnwenden, profilDbAn, einpassenKanal, zahlText, zahlKurz, reglerText, reglerWerte, reglerZusammensetzen, biquad, peqDbAuf, PROFIL_ARTEN, FS,\n"
   // Ziel der Kurve auf Einmessen (Raster der Kurve): zielkurve wie die Bewertung, Stereo bzw. Kino (Kino-Linie)
   + "  zielAn: (fs, m) => { const z = zielkurve(HAUSKURVE[m] ?? HAUSKURVE.stereo); return fs.map((f) => { let b = 0; for (let i = 1; i < F.length; i++) if (Math.abs(F[i] - f) < Math.abs(F[b] - f)) b = i; return z[b]; }); } };")();
 // Vorher/Nachher anhören (weiter unten): früh angelegt, weil das Fenster unter Einmessen › Mehr sie braucht
@@ -10715,12 +10735,22 @@ $("p-weiter").addEventListener("click", () => { anwendenArt = "box"; zeigeSchrit
 // Korrekturbereich (Nutzer 06.11.2026: „die vertraute Stimmfarbe hat sich geändert“): r.bereich = 90 oder 150 Hz
 // lässt alle Raum-Filter darüber weg; null = voll (bis 300 Hz). Gleiche Messung, nur weniger Eingriff.
 const imBereich = (r, q) => !(r && r.bereich) || q.freq <= r.bereich;
+// Leitplanke „Summe“ (wie die Box beim Laden, feinabstimmung.einpassen): fällt im Korrekturbereich eine Absenkung neben einer
+// Anhebung weg, heben die übrigen zusammen evtl. über +3 dB; dann die Anhebungen gleichmäßig senken, statt dass die Box die
+// ganze Einmessung ablehnt (Besitzer 16.11.2026). Nicht der Sub (+6 dB, kaum Filter über 90 Hz).
+const bereichKanal = (r, ch, eq) => (r && r.bereich && ch !== "SUB" ? AJ.einpassenKanal(eq) : { eq, skala: 1 });
+function bereichLeitplanke(r) {  // Hinweise wie die Box: „FR: Anhebungen auf 96 % (Leitplanke +3 dB zusammen)“
+  const e = (r && r.e && r.e.einstellungen) || {};
+  return Object.entries(e).filter(([ch, c]) => c && Array.isArray(c.eq)).map(([ch, c]) => [ch, bereichKanal(r, ch, c.eq.filter((q) => imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q }))).skala])
+    .filter(([, k]) => k < 1).map(([ch, k]) => `${ch}: Anhebungen auf ${Math.round(k * 100)} % (Leitplanke +3 dB zusammen)`);
+}
 function exportObjekt(r, stand, einst, profil, geraet) {
-  const kanal = (c) => ({ gain_db: c.gain_db, delay_ms: c.delay_ms, eq: c.eq.filter((q) => einst !== r.e.einstellungen || imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q })) });
+  const kanal = (c, ch) => { const eq = c.eq.filter((q) => einst !== r.e.einstellungen || imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q }));
+    return { gain_db: c.gain_db, delay_ms: c.delay_ms, eq: einst === r.e.einstellungen ? bereichKanal(r, ch, eq).eq : eq }; };
   const kanalVoll = (c) => ({ gain_db: c.gain_db, delay_ms: c.delay_ms, eq: c.eq.filter((q) => imBereich(r, q)).map((q) => ({ freq: q.freq, gain: q.gain, q: q.q })) });
   return { art: "klangbox-einstellungen", version: 1, stand, status: r.status || "vorhergesagt", modus: r.modus, anlage: r.anlage, runde: r.id, erstellt: new Date().toISOString(),
-    einstellungen: { FL: kanal(einst.FL), FR: kanal(einst.FR), ...(einst.C ? { C: kanal(einst.C) } : {}), ...(einst.SL && einst.SR ? { SL: kanal(einst.SL), SR: kanal(einst.SR) } : {}),
-      ...(einst.BL && einst.BR ? { BL: kanal(einst.BL), BR: kanal(einst.BR) } : {}), ...(einst.SUB ? { SUB: kanal(einst.SUB) } : {}), profil: profil || { ...NEUTRAL } },
+    einstellungen: { FL: kanal(einst.FL, "FL"), FR: kanal(einst.FR, "FR"), ...(einst.C ? { C: kanal(einst.C, "C") } : {}), ...(einst.SL && einst.SR ? { SL: kanal(einst.SL, "SL"), SR: kanal(einst.SR, "SR") } : {}),
+      ...(einst.BL && einst.BR ? { BL: kanal(einst.BL, "BL"), BR: kanal(einst.BR, "BR") } : {}), ...(einst.SUB ? { SUB: kanal(einst.SUB, "SUB") } : {}), profil: profil || { ...NEUTRAL } },
     geraet_einstellungen: geraet || null, ...(r.e && r.e.rechen_modus ? { rechen_modus: r.e.rechen_modus } : {}), ...(r.sub_bass ? { bass: { trennfrequenz_hz: r.sub_bass.trennfrequenz_hz } } : {}),
     // die ursprünglichen Filter über 120 Hz, die die Einmessung abgeschwächt hat (Hör-Schalter „Je Seite voll“)
     // im gewählten Korrekturbereich (bis 90/150 Hz): nur was darin liegt (Prüfer 06.11.2026)
@@ -11048,10 +11078,12 @@ $("a-box-senden").addEventListener("click", async () => {
   if (!a.ok && !Array.isArray(a.abgelehnt)) { ziel.innerHTML = `<span class="warn">Das ging nicht: ${esc(a.fehler || a.grund)} Es bleibt der bisherige Stand.</span>`; return; }
   const abgelehnt = (a.abgelehnt || []).map((x) => `<li><b>${esc(REGEL_NAME[x.regel] || x.regel || "Wächter")}:</b> ${esc(x.text)}</li>`).join("");
   a.geladen = !!(a.ok && a.geladen);
-  meldeBox("laden", { geladen: a.geladen, grund: (a.abgelehnt || []).map((x) => x.text).join(" ") || a.fehler || null, runde: r.id });
+  // Korrekturbereich etwas abgeschwächt (Leitplanke): die Seite hat es im Export schon getan, die Box sieht es nicht mehr
+  const lp = r.bereich ? bereichLeitplanke(r) : [], lpText = lp.length ? `Korrekturbereich bis ${r.bereich} Hz etwas abgeschwächt (Leitplanke): ${lp.join("; ")}` : null;
+  meldeBox("laden", { geladen: a.geladen, ...(lpText ? { leitplanke: lpText } : {}), grund: (a.abgelehnt || []).map((x) => x.text).join(" ") || a.fehler || null, runde: r.id });
   const html = (a.geladen ? `<span class="ok">✓ Die Klång-Box spielt die neuen Einstellungen (vorhergesagt).</span>` : `<span class="warn">Die Klång-Box hat nichts davon geladen. Es bleibt der bisherige Stand.</span>`)
     + (abgelehnt ? `<p class="klein warn" style="margin-top:8px">Nicht übernommen – die Wächter der Box schützen vor dem Verschlimmbessern:</p><ul class="klein" style="margin:0; padding-left:16px" id="a-box-abgelehnt">${abgelehnt}</ul>` : "")
-    + (a.hinweise || []).map((h) => `<p class="klein">${esc(h)}</p>`).join("");
+    + [...(a.geladen && lpText && !(a.hinweise || []).includes(lpText) ? [lpText] : []), ...(a.hinweise || [])].map((h) => `<p class="klein">${esc(h)}</p>`).join("");
   if (a.geladen) { r.box_geladen = r.id; r.status = "vorhergesagt"; r.urteil = null; rundeSpeichern(); anwendenZeigen();
     messdatenHochladen(r);  // im Hintergrund: Aufnahmen und Runde auf die Box (neu rechnen, nach Neuinstallation zurückholen)
     schreiben("klangbox-tab", "hoeren"); const zs = document.querySelector('.schritt[data-s="18"]'); if (zs) zs.dataset.tab = "";  // danach: hören, was es bringt
@@ -13435,7 +13467,8 @@ async function hsSetzen(neu) {
   if (!a.ok) { st(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return; }
   zh.st = { ...(zh.st || {}), hoerschalter: a.hoerschalter };
   meldeBox("ergebnis", { hoerschalter: a.hoerschalter, wirkt: a.wirkt });
-  st(a.wirkt ? `<span class="ok">✓ ${esc(hsKurz())}</span>` : `<span class="warn">${esc(a.hinweis || (hsGleich() && hsGleich().variante ? "Die Wächter lassen diese Variante nicht zu, es spielt die geladene Variante (für alle Plätze)." : "Die Wächter lassen diese Variante nicht zu, es spielt die Einmessung wie gemessen."))}</span>`);
+  // abgeschwaecht: die Box hat die Anhebungen der Variante etwas gesenkt (Leitplanke „Summe“, feinabstimmung.einpassen)
+  st(a.wirkt ? `<span class="ok">✓ ${esc(hsKurz())}${a.abgeschwaecht ? " · etwas abgeschwächt (Leitplanke)" : ""}</span>` : `<span class="warn">${esc(a.hinweis || (hsGleich() && hsGleich().variante ? "Die Wächter lassen diese Variante nicht zu, es spielt die geladene Variante (für alle Plätze)." : "Die Wächter lassen diese Variante nicht zu, es spielt die Einmessung wie gemessen."))}</span>`);
   hsZeigen(); zuhauseZeigen(false);
 }
 document.addEventListener("click", (ev) => {
@@ -13515,7 +13548,7 @@ function schalterGrund(r) {
 }
 function wirktZeigen(id, r) { const t = schalterGrund(r); $(id).textContent = t; $(id).hidden = !t; }
 // Streamer-Takt folgen läuft mit, solange Stereo bitgenau wirkt (auch mit eigenem Schalter aus)
-function stfWirktText(r) { return r && r.wegen_bitgenau ? "Wirkt gerade mit, weil Stereo bitgenau wirkt (Musik ohne Umrechnung braucht den gemeinsamen Takt)." : schalterGrund(r); }
+function stfWirktText(r) { return r && r.wegen_bitgenau ? "Wirkt gerade mit, weil Stereo bitgenau wirkt." : schalterGrund(r); }
 // Testlabor › Stereo bitgenau (POST /api/stereo_bitgenau)
 function bitgenauZeigen() {
   const r = boxBereit() && zh.st ? zh.st.stereo_bitgenau : null;
@@ -13523,7 +13556,6 @@ function bitgenauZeigen() {
   $("zh-bitgenau-wert").textContent = `· ${r.an ? (r.wirkt ? "an" : "an, wirkt gerade nicht") : "aus"}`;
   document.querySelectorAll("[data-bitgenau]").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.bitgenau === "1") === !!r.an)));
   wirktZeigen("zh-bitgenau-wirkt", r);
-  if (r.aus_vorgemerkt) { $("zh-bitgenau-wirkt").textContent = `Schaltet sich beim nächsten Titelwechsel oder in der nächsten Pause aus: ${r.aus_vorgemerkt}.`; $("zh-bitgenau-wirkt").hidden = false; }
   if (r.aus_grund && !$("zh-bitgenau-status").textContent) $("zh-bitgenau-status").innerHTML = `<span class="warn">Die Box hat es ausgeschaltet: ${esc(r.aus_grund)}.</span>`;
 }
 // Testlabor › Streamer-Takt folgen (POST /api/streamer_takt_folgen): ohne Umbau, kein „kurz still“. Im Fenster dazu die
@@ -13552,7 +13584,6 @@ document.addEventListener("click", async (ev) => {
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-bitgenau]"); if (!b || !nativ || !boxBereit()) return;
   const an = b.dataset.bitgenau === "1"; if (zh.st && zh.st.stereo_bitgenau && zh.st.stereo_bitgenau.an === an) return;
-  $("zh-bitgenau-status").innerHTML = `<span class="laeuft">Die Box stellt um, kurz still…</span>`;
   const a = await nativ.box("stereo_bitgenau", { an }, { zeitMs: 8000 });
   if (a.ok && a.stereo_bitgenau) { zh.st = { ...(zh.st || {}), stereo_bitgenau: a.stereo_bitgenau }; $("zh-bitgenau-status").textContent = ""; bitgenauZeigen(); }
   else $("zh-bitgenau-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
@@ -17537,8 +17568,9 @@ body.gt-offen { overflow: hidden; }
 // - Neben dem Titel keine Lautstärke (Nutzer 09.11.2026, Variante B): die Zahl steht am Ende der Linie in der Leiste.
 // - Bedienen nur über eine eigene Leiste unter Cover und Titelzeile (Nutzer: „wie bei Linn eine Bedienung darunter,
 //   nicht dass man aus Versehen wischt“): „−“ und „+“ als große Tippflächen (56 px), dazwischen die Zahl über einer
-//   schlanken Skala (Tippen darauf = stumm). Gehalten wiederholt „−/+“ mit Beschleunigung. Dazu die iPhone-Tasten (App,
-//   VolumeTasten.swift) und die Fernbedienung (Box). Keine Gesten auf dem Cover.
+//   schlanken Skala (Tippen darauf = stumm). Gehalten wiederholt „−/+“, erst langsam, dann etwas schneller (Tastatur:
+//   Enter bzw. Leertaste gehalten). Dazu die iPhone-Tasten (App, VolumeTasten.swift) und die Fernbedienung (Box). Keine
+//   Gesten auf dem Cover.
 // - Beim Bedienen dunkelt das Cover ab (≈ 72 %, 200 ms), groß die Zahl mit Etikett und Skala (Nadel in Signalfarbe;
 //   1,5 s nach der letzten Änderung blendet alles zurück.
 // - Verstärker regelt (Standard): auf Hören gar keine Lautstärke-Anzeige, keine Abfrage des Ausgangspegels (Nutzer
@@ -17761,49 +17793,87 @@ const LAUT = (() => {
   }
   function tastenMelden() {  // die App fängt die Tasten nur ab, solange Hören offen ist und die Klång-Box regelt
     const an = z.art === "regler" && hoerenOffen();
+    if (!an) haltenEnde();  // Hören verlassen oder Verstärker regelt: ein gehaltenes „−/+“ hört sofort auf
     if (an === z.tasten || !nativDa()) return;
     z.tasten = an; nativ.ereignis({ art: "volumeTasten", an });
   }
 
   // --- Bedienen: Leiste unter Cover und Titelzeile (keine Gesten auf dem Cover) ----------------------------------------
-  // „−/+“: ein Druck = eine Stufe (0,5 dB im Hörbereich). Gehalten: nach 400 ms wiederholen, erst alle 160 ms, dann
-  // immer schneller bis alle 40 ms (40 → 80 dauert so gut 2 s, ohne Überschießen beim Loslassen).
-  const WIEDER_START_MS = 400, WIEDER_LANGSAM_MS = 160, WIEDER_SCHNELL_MS = 40;
-  function schrittKnopf(n) {
-    if (z.art !== "regler" || z.wert == null) return;
+  // „−/+“: ein Druck = eine Stufe (0,5 dB im Hörbereich). Gehalten (Besitzer 16.11.2026: „erst langsam, dann etwas
+  // schneller“): nach 400 ms wiederholen, viermal alle 200 ms, danach alle 80 ms. 12,5 Stufen je Sekunde sind im
+  // Hörbereich gut 6 dB/s, so schnell wie die Rampe der Box: Was die Zahl zeigt, ist zu hören, nach dem Loslassen läuft
+  // nichts nach (40 → 80 in knapp 4 s). Halten endet sofort mit Loslassen, Finger vom Knopf ziehen, pointercancel, Seite
+  // unsichtbar (visibilitychange, pagehide), Fenster ohne Fokus (blur), Wechsel weg von Hören und an der Grenze bzw. bei 0.
+  // Die Grenzen nach oben (max_db, Rampe, nie lauter nach einem Start) setzt die Box durch; hier geht nur die Stufe hin,
+  // gebündelt über senden (höchstens eine Anfrage unterwegs).
+  const WIEDER_START_MS = 400, WIEDER_LANGSAM_MS = 200, WIEDER_LANGSAM_N = 4, WIEDER_SCHNELL_MS = 80;
+  let halt = null, tasteWdh = 0;  // halt: {knopf, id, uhr}, solange „−/+“ gehalten wird; tasteWdh: letzte Tasten-Wiederholung
+  function schrittKnopf(n) {  // true: in diese Richtung geht es weiter (nicht an der Grenze bzw. bei 0)
+    if (z.art !== "regler" || z.wert == null) return false;
     setzen(Math.round(z.wert) + n);
     anzeigen();
+    return n > 0 ? z.wert < z.grenze - 1e-9 : z.wert > 0;
   }
-  function halten(knopf, n) {
-    let takt = WIEDER_LANGSAM_MS, uhr = 0;
-    z.ziehen = { halten: true };
+  function haltenEnde() {
+    if (!halt) return;
+    clearTimeout(halt.uhr); halt = null;
+    z.ziehen = null; z.bedient = Date.now(); anzeigen();
+  }
+  function halten(knopf, n, id) {
+    haltenEnde();
+    halt = { knopf, id, uhr: 0 }; z.ziehen = { halten: true };
     haptik("bereit");
-    schrittKnopf(n);
-    const weiter = () => { schrittKnopf(n); takt = Math.max(WIEDER_SCHNELL_MS, takt * 0.85); uhr = setTimeout(weiter, takt); };
-    uhr = setTimeout(weiter, WIEDER_START_MS);
-    const los = () => { clearTimeout(uhr); z.ziehen = null; z.bedient = Date.now(); anzeigen();
-      ["pointerup", "pointercancel", "pointerleave"].forEach((a) => knopf.removeEventListener(a, los)); };
-    ["pointerup", "pointercancel", "pointerleave"].forEach((a) => knopf.addEventListener(a, los));
+    let schritte = 0;
+    const weiter = () => {
+      if (!halt || !schrittKnopf(n)) { haltenEnde(); return; }
+      schritte++; halt.uhr = setTimeout(weiter, schritte < WIEDER_LANGSAM_N ? WIEDER_LANGSAM_MS : WIEDER_SCHNELL_MS);
+    };
+    if (schrittKnopf(n)) halt.uhr = setTimeout(weiter, WIEDER_START_MS);
+    else haltenEnde();
   }
   function anbinden(l) {
     l.addEventListener("pointerdown", (ev) => {
-      const k = ev.target.closest("[data-laut-schritt]"); if (!k || k.disabled || ev.button > 0) return;
+      const k = ev.target.closest("[data-laut-schritt]"); if (!k || k.disabled || ev.button > 0 || !ev.isPrimary) return;
       ev.preventDefault();  // kein Markieren, kein Doppeltipp-Zoom
-      halten(k, +k.dataset.lautSchritt);
+      halten(k, +k.dataset.lautSchritt, ev.pointerId);
     });
+    // iPhone: solange gehalten wird, nicht scrollen (sonst bricht WebKit die Berührung beim kleinsten Verrutschen ab)
+    l.addEventListener("touchmove", (ev) => { if (halt) ev.preventDefault(); }, { passive: false });
     l.addEventListener("click", (ev) => {
       const k = ev.target.closest("[data-laut-schritt]");
-      if (k) { if (ev.detail === 0) schrittKnopf(+k.dataset.lautSchritt); return; }  // Tastatur, VoiceOver; Zeiger: pointerdown
+      if (k) { if (ev.detail === 0 && !tasteWdh) schrittKnopf(+k.dataset.lautSchritt); return; }  // Tastatur, VoiceOver; Zeiger: pointerdown
       if (ev.target.closest("#zh-vol-stumm") && z.art === "regler") { stummUmschalten(); anzeigen(); }
     });
+    // Tastatur: Enter bzw. Leertaste gehalten wiederholt im Takt der Tastatur, höchstens alle 80 ms (der erste Druck
+    // kommt wie bisher als click; nach einer Wiederholung zählt das click beim Loslassen der Leertaste nicht mehr)
+    l.addEventListener("keydown", (ev) => {
+      const k = ev.target.closest("[data-laut-schritt]");
+      if (!k || !ev.repeat || (ev.key !== "Enter" && ev.key !== " ")) return;
+      ev.preventDefault();
+      if (Date.now() - tasteWdh < WIEDER_SCHNELL_MS) return;
+      tasteWdh = Date.now(); schrittKnopf(+k.dataset.lautSchritt);
+    });
+    l.addEventListener("keyup", () => { if (tasteWdh) setTimeout(() => { tasteWdh = 0; }); });
     l.addEventListener("contextmenu", (ev) => ev.preventDefault());  // langes Drücken: kein Menü
   }
+  // Halten endet mit Loslassen und Abbruch, auch außerhalb des Knopfs, und sobald der Finger den Knopf verlässt (mehr als
+  // RAND_PX daneben: ein ruhender Daumen am Rand des 44-px-Knopfs zittert, das zählt nicht als Wegziehen)
+  const RAND_PX = 12;
+  const haltenLos = (ev) => { if (halt && ev.pointerId === halt.id) haltenEnde(); };
+  window.addEventListener("pointerup", haltenLos);
+  window.addEventListener("pointercancel", haltenLos);
+  window.addEventListener("pointermove", (ev) => {
+    if (!halt || ev.pointerId !== halt.id) return;
+    const r = halt.knopf.getBoundingClientRect();
+    if (ev.clientX < r.left - RAND_PX || ev.clientX > r.right + RAND_PX || ev.clientY < r.top - RAND_PX || ev.clientY > r.bottom + RAND_PX) haltenEnde();
+  });
+  window.addEventListener("blur", haltenEnde);
 
-  document.addEventListener("visibilitychange", () => { zeigen(); });
+  document.addEventListener("visibilitychange", () => { haltenEnde(); zeigen(); });
   // Bereich gewechselt (Hören, Einmessen, Box): Tasten der App nur auf Hören
   try { const sec = document.querySelector('.schritt[data-s="18"]');
     if (sec && typeof MutationObserver === "function") new MutationObserver(() => zeigen()).observe(sec, { attributes: true, attributeFilter: ["data-tab", "hidden"] }); } catch (e) {}
-  window.addEventListener("pagehide", () => { if (z.tasten && nativDa()) { z.tasten = false; nativ.ereignis({ art: "volumeTasten", an: false }); } });
+  window.addEventListener("pagehide", () => { haltenEnde(); if (z.tasten && nativDa()) { z.tasten = false; nativ.ereignis({ art: "volumeTasten", an: false }); } });
   if (window.klangboxNativ && typeof window.klangboxNativ === "object") window.klangboxNativ.volumeTaste = (n) => taste(n);
 
   // --- Sheet „Lautstärke“ unter Box: wer regelt, Vorstufe einstellen, Höchstwert, ≈ dB ----------------------------------

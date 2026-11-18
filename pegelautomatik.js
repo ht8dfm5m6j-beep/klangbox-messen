@@ -6,7 +6,8 @@
 //   setzeLautstaerke(v) → Promise<Zahl | {wert}>  (die App meldet den Wert, der wirklich in der Box steht)
 //   messe()             → Promise<{pegel_db, stoer_db, clip, spitze_db?}>  (eine Aufnahme mit Prüfsignal)
 //   start, max, ziel, ursprung | leseLautstaerke(), ursache?(befund), abbruch?(), melde?(info),
-//   zurueckstellen?(ursprung) → Promise<bool>, maxVersuche
+//   zurueckstellen?(ursprung) → Promise<bool>, maxVersuche, vorhersage? (Standard true: schon vor der Obergrenze mit
+//   „zu leise“ abbrechen, wenn sie rechnerisch nicht reicht; false: erst an der Obergrenze messen und dann entscheiden)
 // }) → Promise<{ok, lautstaerke, pegel_db, abstand_db, grund, text, ursprung, wiederhergestellt, versuche, verlauf, db_je_schritt}>
 //
 // Wächter:
@@ -19,6 +20,7 @@
 //   nicht messbar; dann höchstens 3 Stufen je Schritt und insgesamt höchstens 6 Stufen „blind“,
 // - Übersteuerung: sofort zwei Stufen zurück (eine Stufe = ein Schritt der Automatik, ≈ 3 dB),
 // - Start: `start` (leise), aber höchstens 6 Lautstärke-Stufen über der Ursprungslautstärke,
+// - zu laut gestartet (nur bei bekannter Steigung): einmal zurück auf knapp über das Ziel, dann neu messen,
 // - kommt nichts an (Box aus, falsche Quelle, AirPlay nicht verbunden): mit genauer Ursache abbrechen statt messen,
 // - feste Höchstzahl an Versuchen, Zeitlimit je Befehl und je Messung,
 // - bei jedem Abbruch und Fehler die Ursprungslautstärke wiederherstellen. Bei Erfolg bleibt der gefundene
@@ -32,6 +34,10 @@
   const STANDARD = {
     start: 20, max: 60, maxVersuche: 16, schrittDbMax: 3, schrittMax: 6, blindSchritt: 3, blindGesamt: 6, mindestHoerbar: 15,
     keinSignalDb: 6, messunsicherheitDb: 0.6, zeitSetzenMs: 12000, zeitMessenMs: 45000, maxUebersteuerungen: 3,
+    // Zu laut gestartet (gemerkter Startwert): Liegt der Ton mehr als zielDb + reserveDb + leiserUeberDb über dem
+    // Raum, einmal zurückdrehen auf zielDb + reserveDb + leiserPolsterDb. Nur bei bekannter Steigung (Klång-Box).
+    // Lauter Bass regt Schnarren im Raum an (18.11.2026: Sub kräftig, jede Messung „Ein Geräusch“).
+    leiserUeberDb: 7, leiserPolsterDb: 2,
   };
   const HARTES_MAXIMUM = 100;
 
@@ -119,7 +125,7 @@
     // steigungBekannt: dB je Stufe, wenn das Gerät es genau weiß (Klång-Box: 1 Stufe = 1 dB). Dann springt die
     // Automatik gleich auf den nötigen Wert statt sich vorzutasten (vorher 16 Prüftöne, 05.11.2026).
     const bekannt = endlich(o.steigungBekannt) && o.steigungBekannt > 0 ? o.steigungBekannt : null;
-    let blindAb = null, ohneWirkung = 0, letzte = null, steigung = bekannt;
+    let blindAb = null, ohneWirkung = 0, letzte = null, steigung = bekannt, leiserGedreht = false;
 
     const ergebnis = (ok, grund, extra) => {
       const e = {
@@ -246,13 +252,19 @@
         }
 
         const fehlt = ziel.abstand_db + ziel.reserve_db - eintrag.abstand_db;
+        const zuviel = -fehlt - p.leiserPolsterDb;
+        if (bekannt && !leiserGedreht && -fehlt > p.leiserUeberDb && Math.floor(zuviel / bekannt) >= 1 && ist > 0) {
+          leiserGedreht = true;  // nur einmal: danach gilt wieder „nur lauter“
+          soll = Math.max(0, ist - Math.floor(zuviel / bekannt));
+          continue;
+        }
         if (fehlt <= 0) return ergebnis(true, "ok");
         if (ist >= obergrenze) {
           if (eintrag.abstand_db >= ziel.abstand_db) return ergebnis(true, "ok", { textArt: "knapp" });
           return await scheitern(eintrag.stoer_db > ziel.rausch_laut_db ? "raum_zu_laut" : "zu_leise_bei_max");
         }
         // Vorhersage: auch bei der Obergrenze klar unerreichbar? Dann gleich mit Grund abbrechen.
-        if (punkte.length >= 3 && steigung !== null) {
+        if (p.vorhersage !== false && punkte.length >= 3 && steigung !== null) {
           const s = steigung - p.messunsicherheitDb / Math.max(1, spannweite());
           if (ziel.abstand_db - eintrag.abstand_db > (obergrenze - ist) * Math.max(s, 0.05) * 1.5 + 3) {
             return await scheitern(eintrag.stoer_db > ziel.rausch_laut_db ? "raum_zu_laut" : "zu_leise_bei_max");

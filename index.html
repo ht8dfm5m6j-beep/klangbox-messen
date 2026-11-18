@@ -2808,11 +2808,12 @@ function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE, roh = rec) {
 }
 
 // Wächter gegen Störgeräusche während der Messung (Klopfen, Husten, Tür, Lüfter)
-function stoerProbleme(stoer) {
+// schnarren: Kanäle, deren Fund als Schnarren im Raum gilt: nur die feste Grenze, nicht der Unterschied zu den anderen
+function stoerProbleme(stoer, schnarren = []) {
   const werte = Object.values(stoer), min = Math.min(...werte), out = [];
   for (const [ch, v] of Object.entries(stoer)) {
     if (v > -45) out.push(`Zu viel Störgeräusch während der Messung von ${ch}. Bitte ruhig sein und wiederholen.`);
-    else if (werte.length > 1 && v - min > 12 && v > -60) out.push(`Ein Geräusch (Klopfen, Husten?) während der Messung von ${ch}. Bitte wiederholen.`);
+    else if (!schnarren.includes(ch) && werte.length > 1 && v - min > 12 && v > -60) out.push(`Ein Geräusch (Klopfen, Husten?) während der Messung von ${ch}. Bitte wiederholen.`);
   }
   return out;
 }
@@ -2837,7 +2838,28 @@ function restAusreisser(S, W, X, ir, pre, n, sweepS) {
     er.push(10 * Math.log10(a / k + 1e-30)); es.push(10 * Math.log10(b / k + 1e-30));
   }
   const mx = Math.max(...er), imSweep = es.slice(Math.floor(pre / k), Math.floor((pre + Math.floor(sweepS * FS)) / k));
-  return [mx - medianWert(er), mx - medianWert(imSweep)];
+  return [mx - medianWert(er), mx - medianWert(imSweep), sweepHz(er.indexOf(mx), k, pre, sweepS)];
+}
+// Bei welcher Frequenz lief der Sweep (20 Hz–20 kHz, logarithmisch), als das lauteste Rest-Stück kam? null außerhalb des Sweeps.
+// Ein Schnarren im Raum (Bilderrahmen, Regal) kommt bei jeder Messung an derselben Stelle, ein Husten nie zweimal gleich.
+const SCHNARREN_OKTAVEN = 1 / 3, SCHNARREN_PARTNER_DB = 30, SCHNARREN_PARTNER_REL_DB = -20, SCHNARREN_MAX_DB = 10;
+// Schnarren statt Geräusch: Der Messton regt etwas im Raum an (Bilderrahmen, Regal, Lampe), bei jedem Sweep an derselben
+// Frequenz. Alle Funde liegen höchstens 1/3 Oktave auseinander, und mindestens ein weiterer Kanal hat dort auch einen
+// spitzen Rest (über 30 dB und über −20 dB zum Sweep, auch unter der Knall-Grenze: die Box weiter weg regt es leiser an). Ein Husten trifft nie
+// zwei Sweeps an derselben Frequenz. Sehr laute Funde (über +10 dB zum Sweep) bleiben ein Geräusch.
+function schnarrenHz(rest, knall) {
+  if (!knall.length) return null;
+  const hz = knall.map((k) => rest[k][2]);
+  if (!hz.every((f) => f) || knall.some((k) => rest[k][1] > SCHNARREN_MAX_DB)) return null;
+  if (Math.log2(Math.max(...hz) / Math.min(...hz)) > SCHNARREN_OKTAVEN + 1e-9) return null;
+  const mitte = Math.exp(hz.reduce((s, f) => s + Math.log(f), 0) / hz.length);
+  const dabei = Object.keys(rest).filter((k) => knall.includes(k) || (rest[k][2] && rest[k][0] > SCHNARREN_PARTNER_DB && rest[k][1] > SCHNARREN_PARTNER_REL_DB
+    && Math.abs(Math.log2(rest[k][2] / mitte)) <= SCHNARREN_OKTAVEN + 1e-9));
+  return dabei.length >= 2 ? Math.round(mitte) : null;
+}
+function sweepHz(j, k, pre, sweepS) {
+  const t = ((j + 0.5) * k - pre) / FS;
+  return t < 0 || t > sweepS ? null : Math.round(20 * Math.pow(1000, t / sweepS));
 }
 function stoerEinzeln(stoer) {
   const werte = Object.values(stoer).sort((a, b) => a - b), mitte = werte[Math.floor(werte.length / 2)];
@@ -3002,11 +3024,15 @@ function analysiere(rec0, fo = FOLGE, mikro = null) {
   const pruefung = pruefeAufnahme(rec, a, markerPegel, fo, rec0);
   pruefung.beginn_s = Math.round(a0 / FS * 1e4) / 1e4;  // wo in der Aufnahme die Messfolge beginnt (für die bewegte Messung)
   pruefung.stoer_db = Object.fromEntries(Object.entries(stoer).map(([k, v]) => [k, Math.round(v * 10) / 10]));
-  pruefung.rest_db = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.map((x) => Math.round(x * 10) / 10)]));
-  const knall = Object.keys(rest).filter((k) => rest[k][1] > REST_GRENZE_DB && rest[k][0] > REST_SPITZE_DB);
+  pruefung.rest_db = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.slice(0, 2).map((x) => Math.round(x * 10) / 10)]));
+  let knall = Object.keys(rest).filter((k) => rest[k][1] > REST_GRENZE_DB && rest[k][0] > REST_SPITZE_DB);
+  pruefung.knall_hz = Object.fromEntries(knall.map((k) => [k, rest[k][2]]));
+  const sh = fo.bewegt ? null : schnarrenHz(rest, knall);
+  const schnarren = sh ? knall : [];
+  if (sh) { pruefung.schnarren_hz = sh; knall = []; }
   if (fo.bewegt) pruefung.gestoert = [...new Set([...stoerEinzeln(stoer), ...knall])].sort();
   else {
-    const texte = stoerProbleme(stoer);
+    const texte = stoerProbleme(stoer, schnarren);
     for (const ch of knall.sort()) if (!texte.some((t) => t.includes(` ${ch}.`))) texte.push(`Ein Geräusch (Klopfen, Husten?) während der Messung von ${ch}. Bitte wiederholen.`);
     for (const t of texte) { pruefung.probleme.push(t); pruefung.sauber = false; }
   }
@@ -4374,7 +4400,7 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
     let a;
     try { a = analysiere(daten, folge, mikro); }
     catch (e) { erg.aufnahmen.push({ platz: name, sauber: false, probleme: [`Messsignal nicht gefunden (${e.message}). Lief es während der Aufnahme?`] }); continue; }
-    erg.aufnahmen.push({ platz: name, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme, drift_ppm: Math.round(a.drift_ppm * 10) / 10, pruefton: a.pruefung.treppe_stufen_db });
+    erg.aufnahmen.push({ platz: name, sauber: a.pruefung.sauber, probleme: a.pruefung.probleme, schnarren_hz: a.pruefung.schnarren_hz ?? null, drift_ppm: Math.round(a.drift_ppm * 10) / 10, pruefton: a.pruefung.treppe_stufen_db });
     if (a.pruefung.sauber) punkte.push({ name, messungen: a.messungen });
   }
   if (!punkte.length) { erg.fehler = "Keine saubere Aufnahme dabei. Bitte ohne Filter aufnehmen (Sprachmemos „Verlustfrei“) und wiederholen."; return erg; }
@@ -9561,6 +9587,8 @@ function mitteNochmal() {
   hauptDaten = dateien[0].daten; platzNr = FESTE_PLAETZE.length - 1; zeigeDateien(); zeigeSchritt(6);
 }
 
+// Der Messton regt etwas im Raum zum Mitschnarren an (bei allen Boxen an derselben Stelle): kein Geräusch, die Aufnahme zählt
+const schnarrText = (hz) => `Aufnahme verwendet. Bei etwa ${hz} Hz schnarrt etwas im Raum mit (Bilderrahmen, Regal, Lampe?).`;
 // Jede Aufnahme sofort prüfen (Wächter): nur saubere Aufnahmen zählen
 async function neueAufnahme(name, daten, kanaele = K2, statusId = "status") {
   const st = (h) => { $(statusId).innerHTML = h; };
@@ -9568,12 +9596,12 @@ async function neueAufnahme(name, daten, kanaele = K2, statusId = "status") {
   const p = await imWorker({ art: "pruefen", daten, kanaele });
   if (!p.ok) { st(`<span class="warn">${esc(name)}: Prüfung fehlgeschlagen (${esc(p.fehler)}).</span>`); return false; }
   const pr = p.ergebnis;
-  meldeBox("aufnahme", { platz: name, sauber: !!pr.sauber, probleme: pr.probleme || [], treppe_db: pr.treppe_stufen_db || null, marker_schwankung_db: pr.marker_schwankung_db ?? null });
+  meldeBox("aufnahme", { platz: name, sauber: !!pr.sauber, probleme: pr.probleme || [], schnarren_hz: pr.schnarren_hz ?? null, treppe_db: pr.treppe_stufen_db || null, marker_schwankung_db: pr.marker_schwankung_db ?? null });
   if (!pr.sauber) { st(`<span class="warn"><b>${esc(nutzerFehler(pr.probleme.join(" ")).titel)}</b> · ${esc(name)} nicht verwendet: ${esc(pr.probleme.join(" "))} Bitte noch einmal messen.</span>`); return false; }
   if (name === "Hörplatz") { dateien = []; platzNr = 0; }
   dateien.push({ name, daten, kanaele });
   zeigeDateien();
-  st(`<span class="ok">✓ ${esc(name)}: Aufnahme sauber.</span>`);
+  st(`<span class="ok">✓ ${esc(name)}: ${pr.schnarren_hz ? schnarrText(pr.schnarren_hz) : "Aufnahme sauber."}</span>`);
   return true;
 }
 
@@ -11751,7 +11779,7 @@ async function kanalCheckNachMessung(d, kanaele) {
     $("status").innerHTML = `<span class="ok">✓ Alle Lautsprecher spielen, wo sie sollen. Aufnahme sauber.</span>`;
     await warte(1500); $("platz-bild").innerHTML = plaetzeBild(0); zeigeSchritt(6); return;
   }
-  $("status").innerHTML = kcStand.pruefung && kcStand.pruefung.sauber ? `<span class="ok">✓ Hörplatz: Aufnahme sauber.</span>` : "";
+  $("status").innerHTML = kcStand.pruefung && kcStand.pruefung.sauber ? `<span class="ok">✓ Hörplatz: ${kcStand.pruefung.schnarren_hz ? schnarrText(kcStand.pruefung.schnarren_hz) : "Aufnahme sauber."}</span>` : "";
   zeigeSchritt(17); kcZeigen();
 }
 // Nach der bewegten Messung: war links/rechts offen, mit der Bewegung nachprüfen. false = erst den Kanal-Check zeigen.

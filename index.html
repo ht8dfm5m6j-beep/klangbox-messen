@@ -597,6 +597,14 @@ details.mehr > :not(summary) { animation: aufklappen var(--kb-zeit) var(--kb-kur
 .zh-vol-extra { display: grid; gap: 2px; justify-items: center; }
 .zh-vol-spl { font: var(--kb-t-klein); color: var(--vol-over-leise); }
 .zh-vol-spl:empty { display: none; }
+/* Echte dB (lautstaerke.js): „≈“ und Einheit kleiner neben der großen Zahl; ohne Bezug unter der Leiste eine ruhige Zeile
+   mit dem Weg zu Pegel einmessen */
+.zh-vol-ca, .zh-vol-einheit { font: var(--kb-t-anzeige-m); }
+.zh-vol-ca { margin-right: 4px; color: var(--vol-over-leise); }
+.zh-vol-einheit { margin-left: 4px; }
+.zh-vol-pe { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; column-gap: 8px; margin: -8px 0 0; color: var(--kb-text-leise); }
+.zh-vol-pe[hidden] { display: none; }
+.zh-vol-pe .kb-link { min-height: 44px; font: var(--kb-t-klein); color: var(--kb-text); }
 .zh-vol { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }  /* nur der Zugang, ohne Platz im Raster */
 .zh-vol-zugang { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; white-space: nowrap; }
 
@@ -2331,7 +2339,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
         <button type="button" class="leise klein" id="zh-lr-ohne">Ohne Einstellen umschalten</button></div>
       <div class="kasten" id="zh-lr-max" hidden><div class="regler"><label for="zh-lr-max-r"><span>Höchstens</span><span class="wert" id="zh-lr-max-wert">100</span></label><input type="range" id="zh-lr-max-r" min="30" max="100" step="1" value="100"></div>
         <span class="klein">Lauter geht es nicht, auch nicht mit Fernbedienung oder Handy.</span></div>
-      <!-- Pegel einmessen (pegelecht.js): nur, wenn die Klång-Box regelt; danach „≈ dB“ auf Hören und „Wie echt“ im Fenster Klang -->
+      <!-- Pegel einmessen (pegelecht.js): nur, wenn die Klång-Box regelt; danach echte dB auf Hören und „Wie echt“ im Fenster Klang -->
       <div id="zh-pe-platz"></div>
       <!-- Musik ↔ Film (0.3.42 aus dem Fenster Klang hierher): einmal einstellen, kein Hörgeschmack -->
       <div id="zh-ma-platz"></div>
@@ -15627,8 +15635,8 @@ function saOberflaeche(K) {
   // Unterschied also mindestens so groß; zählt nur, wenn er positiv ist (Prüfer: sonst fällt ein tief getrennter Sub
   // unter 40 Hz ganz aus dem Vergleich bzw. erzeugt das Rauschen ein falsches Minus)
   // Spielt die Box beide Messungen neutral mit bekanntem Pegel (pegel_db, pegelJetzt), zählt der echte Unterschied:
-  // x − y − (Pegel jetzt − Pegel „Sub aus“). Der Bezug 130–240 Hz taugt dann nicht (Besitzer 17.11.2026, Handy 10 cm vor dem REL: nur +3 dB,
-  // weil der REL aus der Nähe auch 130–240 Hz anhebt und der Bezug ihn wieder herausrechnet). Sonst (AirPlay, Datei):
+  // x − y − (Pegel jetzt − Pegel „Sub aus“). Der Bezug 130–240 Hz taugt dann nicht (Besitzer 17.11.2026, Handy 10 cm vor dem Sub: nur +3 dB,
+  // weil der Sub aus der Nähe auch 130–240 Hz anhebt und der Bezug ihn wieder herausrechnet). Sonst (AirPlay, Datei):
   // beide auf ihren Bezug bezogen.
   function subDiff(k, a, b, i, dbJetzt = null) {
     const echt = Number.isFinite(dbJetzt) && Number.isFinite(st.hauptVergleichDb);
@@ -15648,7 +15656,7 @@ function saOberflaeche(K) {
       if (x !== null && n !== null && n !== undefined) { s.push(x - n); if (f < 40) s40.push(x - n); } });
     // je Bereich mit Vorzeichen: was der Sub dazubringt (unter 40 Hz: misst das Handy dort noch? 40–80 Hz: spielt er?)
     // mit Vorzeichen: „bringt der Sub etwas dazu?“ (Tonlabor: kaum Fehlalarme), mindestens 3 Punkte, sonst nicht beurteilbar
-    // je Bereich (0.3.48, Besitzer 17.11.2026: REL bei 55 Hz bringt nur unter ~50 Hz etwas, über 25–80 Hz gemittelt ging das
+    // je Bereich (0.3.48, Besitzer 17.11.2026: Sub bei 55 Hz bringt nur unter ~50 Hz etwas, über 25–80 Hz gemittelt ging das
     // unter): erkannt, wenn er in einem Bereich mit mindestens 2 Punkten klar etwas dazubringt
     // mindestens 3 Punkte, an denen beide Messungen sauber sind (Prüfer: Untergrenzen heben den Mittelwert, Fehlalarm)
     const bereich = (w) => (w.length >= 3 ? mittel(w) : null), b40 = bereich(tiefS), b80 = bereich(mitteS);
@@ -16031,7 +16039,7 @@ function saOberflaeche(K) {
     el("sa-fertig").onclick = () => { speichern(schlechter); schliessen(true); };
   }
 
-  // --- Sub-Nahtest (Testlabor, Besitzer 17.11.2026: „ist der REL wirklich gut? einpegeln nur Sub bis 120 Hz und sehen,
+  // --- Sub-Nahtest (Testlabor, Besitzer 17.11.2026: „ist der Sub wirklich gut? einpegeln nur Sub bis 120 Hz und sehen,
   // was gemessen wird“): Box und Sub bekommen denselben Sub-Ton gleich laut; das Handy liegt je 10 cm vor dem Tieftöner
   // der Box (Sub aus) und vor dem Sub (aus, dann an). Sub allein = Leistung „an“ minus „aus“ (die Boxen spielen mit, kein
   // Kabelziehen). Voll aufgedreht muss ein gesunder Sub aus der Nähe mindestens so laut sein wie der Tieftöner der Box.
@@ -17815,6 +17823,11 @@ body.gt-offen { overflow: hidden; }
 // - Beim Bedienen dunkelt das Cover ab (≈ 72 %, 200 ms), groß die Zahl, darunter eine feine Linie mit Füllung und
 //   Strichen an den Grenzen, an denen Loudness bzw. Couch-Auto umschalten, und eine Zeile, was bei dieser Stellung wirkt
 //   (Mockup laut3, 0.3.42); 1,5 s nach der letzten Änderung blendet alles zurück. In Ruhe ändert sich auf Hören nichts.
+// - Echte dB (Besitzer 17.11.2026, docs/PEGEL_ECHT.md „Hören“): Mit gültigem Bezug (Pegel einmessen) zeigt die große Zahl,
+//   wie laut das laufende Lied am Platz ist (regler.lied_db, „≈“ am Anfang des Lieds), darunter klein die Stufe; im
+//   Hintergrund den Sollwert (regler.hintergrund_soll_db) und klein „gerade ≈ 44 dB“. Regler und Tasten bleiben in Stufen.
+//   Ohne Bezug wie bisher die Stufe, dazu unter Cover und Leiste eine ruhige Zeile „Echte dB: noch nicht eingepegelt“ mit
+//   dem Weg zu Pegel einmessen (dauerhaft erreichbar, nur solange die Klång-Box regelt und kein gültiger Bezug da ist).
 // - Verstärker regelt (Standard): auf Hören gar keine Lautstärke-Anzeige, keine Abfrage des Ausgangspegels (Nutzer
 //   09.11.2026: „das springt mit jeder Sekunde“). Wer regelt, steht nur unter Box › Lautstärke.
 // - Die Zahl folgt jedem Druck sofort; zur Box geht höchstens alle 40 ms der letzte Wert, nie zwei Anfragen zugleich
@@ -17835,6 +17848,7 @@ const LAUT = (() => {
     for (let i = 1; i < KNOTEN.length; i++) { const [s0, d0] = KNOTEN[i - 1], [s1, d1] = KNOTEN[i]; if (d <= d1 + 1e-9) return Math.round((s0 + (s1 - s0) * (d - d0) / (d1 - d0)) * 100) / 100; }
     return 100; };
   const z = { art: "leer", wert: null, grenze: 100, stumm: false, regelt: null, fuehrt: false, spl: null, splBei: null,
+    lied: null, liedSicher: false, soll: null,  // echte dB (regler.lied_db, lied_db_sicher, hintergrund_soll_db)
     inFlug: false, offen: null, zuletztGesendet: 0, bedient: 0, ziehen: null, takt: 0, hapGrenze: false, sichtbar: false,
     zeigenBis: 0, zeigenUhr: 0, nachholen: false, tasten: false };  // tasten: der App gemeldet, dass sie die iPhone-Tasten abfangen soll (nur auf Hören, nur wenn die Box regelt)
   const da = () => typeof boxBereit === "function" && boxBereit() && typeof nativ !== "undefined" && !!nativ;
@@ -17860,7 +17874,7 @@ const LAUT = (() => {
   }
   // Große Anzeige über dem Cover (bzw. über der Karte, wenn nichts läuft)
   // Aufbau: Zahl, feine Linie (Füllung, Striche an den Auto-Grenzen, die Grenze „höchstens“), was wirkt (zwei Zeilen), dann
-  // ein Platz für weitere Zeilen (zh-vol-extra: „≈ 82 dB“, dazu „Klavier wie echt: 85 dB“ aus pegelecht.js)
+  // ein Platz für weitere Zeilen (zh-vol-extra: „Stufe 73“ bzw. „≈ 82 dB“, „Klavier wie echt: 85 dB“ aus pegelecht.js)
   function overlayHtml() {
     return `<div class="zh-vol-over" id="zh-vol-over" aria-hidden="true"><div class="zh-vol-over-innen">
       <span class="zh-vol-zahl" id="zh-vol-zahl">–</span>
@@ -17929,14 +17943,34 @@ const LAUT = (() => {
     if (au.stimme && au.stimme.wirkt) return { striche, was: "Stimme vorn", wie: `Sprachband +${zahlDe(+au.stimme.mitte_db || 0)} dB` };
     return { striche, was: "Wie eingemessen", wie: "" };
   }
+  // Werte der Box gelten für ihre Stufe (splBei); bis zur Antwort verschiebt die Stellung der Anzeige sie (Regelweg wie die Box)
   function texte() {
     if (z.art === "regler") {
       const w = z.wert == null ? null : Math.round(z.wert);
-      const spl = z.spl != null && !z.stumm && z.wert > 0 ? Math.round(z.spl + dbAus(z.wert) - dbAus(z.splBei)) : null;
+      const d = z.wert != null && z.splBei != null ? dbAus(z.wert) - dbAus(z.splBei) : 0;
+      const spl = z.spl != null && !z.stumm && z.wert > 0 ? Math.round(z.spl + d) : null;
       const zahl = z.stumm ? "Stumm" : w == null ? "–" : String(w);
-      return { zahl, w, spl, klein: zahl };
+      let echt = null;  // echte dB: das Lied am Platz bzw. im Hintergrund der Sollwert
+      if (z.lied != null && !z.stumm && w != null && z.wert > 0) {
+        const lied = Math.round(z.lied + d);
+        echt = z.soll != null ? { db: Math.round(z.soll + d), ca: false, unter: `gerade ≈ ${lied} dB · Stufe ${w}` }
+          : { db: lied, ca: !z.liedSicher, unter: `Stufe ${w}` };
+      }
+      return { zahl, w, spl, klein: zahl, echt };
     }
     return { zahl: "–", klein: "" };
+  }
+  // Ohne gültigen Bezug: ruhige Zeile unter der Leiste, warum keine echten dB, und der Weg zu Pegel einmessen (Box › Lautstärke)
+  function peZeile() {
+    const l = $("zh-vol-leiste"); if (!l) return;
+    const st = (typeof zh !== "undefined" && zh && zh.st) || {}, pe = st.pegel_echt;
+    const text = z.art !== "regler" || !pe || pe.gilt ? "" : pe.an ? "Echte dB: gilt gerade nicht" : "Echte dB: noch nicht eingepegelt";
+    let e = $("zh-vol-pe");
+    if (!text) { if (e) e.hidden = true; return; }
+    if (!e) { e = document.createElement("p"); e.id = "zh-vol-pe"; e.className = "klein zh-vol-pe"; l.after(e); }
+    e.hidden = false;
+    const html = `<span>${text}</span> <button type="button" class="kb-link" data-sheet-block="zh-lautstaerke" data-sheet-titel="Lautstärke &amp; Verstärker">${pe.an ? "Neu einmessen" : "Pegel einmessen"}</button>`;
+    if (e.innerHTML !== html) e.innerHTML = html;
   }
   function zeichnen() {
     const t = texte(), k = $("zh-vol-klein"), r = $("zh-vol-regler"), karte = $("zh-jetzt-karte");
@@ -17944,6 +17978,7 @@ const LAUT = (() => {
       k.textContent = t.klein; }
     if (karte) { karte.dataset.laut = z.sichtbar ? "1" : "0"; karte.dataset.lautArt = z.art; karte.dataset.lautStumm = z.stumm && z.art === "regler" ? "1" : "0"; }
     const l = $("zh-vol-leiste");
+    peZeile();
     if (l) {
       // Bedienleiste nur, wenn die Box regelt (regelt der Verstärker, steht auf Hören keine Lautstärke)
       l.hidden = z.art !== "regler";
@@ -17962,21 +17997,25 @@ const LAUT = (() => {
       }
     }
     if ($("zh-vol-zahl") && z.art === "regler") {
-      $("zh-vol-zahl").textContent = t.zahl;
+      const zahlEl = $("zh-vol-zahl");
+      if (t.echt) zahlEl.innerHTML = `${t.echt.ca ? '<span class="zh-vol-ca">≈</span>' : ""}${t.echt.db}<span class="zh-vol-einheit">dB</span>`;
+      else zahlEl.textContent = t.zahl;
+      zahlEl.dataset.echt = t.echt ? (t.echt.ca ? "ca" : "1") : "";
       const n = z.wert == null || z.stumm ? 0 : Math.max(0, Math.min(100, z.wert));
       $("zh-vol-feinfuellung").style.width = `${n}%`;
       $("zh-vol-grenze").style.left = `${z.grenze}%`; $("zh-vol-grenze").hidden = z.grenze >= 100;
       const wk = wirkung(z.wert == null ? 0 : z.wert);
       $("zh-vol-auto-striche").innerHTML = wk.striche.filter((s) => s > 0 && s < 100).map((s) => `<s style="left:${Math.round(s * 10) / 10}%"></s>`).join("");
       $("zh-vol-was").textContent = z.stumm ? "" : wk.was; $("zh-vol-wie").textContent = z.stumm ? "" : wk.wie;
-      $("zh-vol-spl").textContent = t.spl != null ? `≈ ${t.spl} dB` : "";
+      $("zh-vol-spl").textContent = t.echt ? t.echt.unter : t.spl != null ? `≈ ${t.spl} dB` : "";
       if (typeof PEGELECHT !== "undefined") PEGELECHT.overlay();  // Ergänzung „Wie echt“ (pegelecht.js), eigener Teil
     }
     if (r) {
       if (z.art === "regler") {
         r.disabled = false; r.removeAttribute("aria-disabled"); r.setAttribute("aria-label", "Lautstärke");
         if (t.w != null && document.activeElement !== r) r.value = String(t.w);
-        r.setAttribute("aria-valuetext", z.stumm ? "Stumm" : t.w == null ? "unbekannt" : `${t.w}${t.spl != null ? `, etwa ${t.spl} Dezibel` : ""}`);
+        const db = t.echt ? `, ${t.echt.ca ? "etwa " : ""}${t.echt.db} Dezibel${z.soll != null ? " eingestellt" : ""}` : t.spl != null ? `, etwa ${t.spl} Dezibel` : "";
+        r.setAttribute("aria-valuetext", z.stumm ? "Stumm" : t.w == null ? "unbekannt" : `${t.w}${db}`);
       } else {
         r.disabled = true; r.setAttribute("aria-disabled", "true");
         r.setAttribute("aria-label", z.art === "verstaerker" ? "Lautstärke, regelt der Verstärker" : "Lautstärke");
@@ -18011,17 +18050,22 @@ const LAUT = (() => {
     if (!$("zh-lautstaerke-block") || !$("zh-lautstaerke-block").hidden) sheetZeigen();
     if (art === "regler") {
       const ruhig = !z.ziehen && !z.inFlug && z.offen == null && Date.now() - z.bedient > RUHE_MS;
+      const soll = r && r.hintergrund_soll_db != null ? +r.hintergrund_soll_db : null;
       if (ruhig || z.wert == null) {
         const neu = r && r.stufe != null ? +r.stufe : stufeAus(lz.db), stumm = r ? !!r.stumm : !!(st.fernbedienung && st.fernbedienung.stumm);
         const fremd = z.wert != null && (Math.abs(neu - z.wert) >= 1 || stumm !== z.stumm);  // IR, Fernseher, AirPlay
+        const angleich = soll != null && soll === z.soll && stumm === z.stumm;  // Hintergrund: die Box hält den Sollwert
         z.wert = neu; z.stumm = stumm;
-        if (fremd && hoerenOffen()) anzeigen();
+        if (fremd && !angleich && hoerenOffen()) anzeigen();
       }
       z.grenze = r && r.grenze_stufe != null ? +r.grenze_stufe : 100;
       z.spl = r && r.spl_db != null ? +r.spl_db : null; z.splBei = r ? +r.stufe : null;
+      lied(r, soll);
     }
     tastenMelden(); zeichnen();
   }
+
+  function lied(r, soll) { z.lied = r && r.lied_db != null ? +r.lied_db : null; z.liedSicher = !!(r && r.lied_db_sicher); z.soll = soll; }
 
   // --- Senden: höchstens alle 40 ms, immer der letzte Wert, nie zwei zugleich -----------------------------------------
   function senden(daten) {
@@ -18040,6 +18084,7 @@ const LAUT = (() => {
       zh.st = { ...(zh.st || {}), lautstaerke: a.lautstaerke };
       const r = a.lautstaerke.regler;
       if (r) { z.grenze = r.grenze_stufe != null ? +r.grenze_stufe : z.grenze; z.spl = r.spl_db != null ? +r.spl_db : null; z.splBei = +r.stufe;
+        lied(r, r.hintergrund_soll_db != null ? +r.hintergrund_soll_db : null);
         if (z.offen == null && !z.ziehen) { if (Math.abs(+r.stufe - (z.wert ?? 0)) > 0.6) z.wert = +r.stufe; z.stumm = !!r.stumm; } }
       zeichnen();
     } else if (a && a.grund === "lautstaerke_quelle" && typeof zhLaden === "function") zhLaden();
@@ -18238,8 +18283,8 @@ const LAUT = (() => {
 // - Oberfläche (nur im Browser): „Pegel einmessen“ unter Box › Lautstärke (nur, wenn die Klång-Box regelt), Fenster
 //   „Pegel einmessen“ (Rauschen nur nach Bestätigung), Zeile „Wie echt“ im Fenster Klang › Für jetzt (erst nach dem
 //   Einmessen), Fenster „Wie echt“ (Art, Ziel in 1-dB-Schritten, „So laut stellen“), und auf Hören beim Drehen der
-//   Strich „echt“ auf der Linie und „Klavier wie echt: 85 dB“ (overlay, von lautstaerke.js gerufen). „≈ dB“ selbst kommt
-//   wie bisher aus regler.spl_db (die Box rechnet ihn mit dem Bezug).
+//   Strich „echt“ auf der Linie und „Klavier wie echt: 85 dB“ (overlay, von lautstaerke.js gerufen). Die große Zahl in
+//   echten dB kommt aus regler.lied_db (lautstaerke.js; die Box rechnet sie mit dem Bezug).
 // Nutzt von der Seite: nativ, zh, zhLaden, boxBereit, sheet, mikrofonOeffnen, mikroWahl, mikroProfil, warte, esc, $.
 (function (wurzel) {
   "use strict";
@@ -18296,7 +18341,7 @@ const LAUT = (() => {
     const b = p.bezug;
     const gilt = "Gilt, solange die Klång-Box regelt und der Verstärker nicht verstellt wird.";
     platz.innerHTML = !b ? `<div class="kasten" id="zh-pe"><h3>Pegel einmessen</h3>
-        <span class="klein">Einmal, etwa 1 Minute: Die Box spielt 20 s Rauschen, so laut wie jetzt, nie lauter. Die App misst am Hörplatz, wie laut das bei dir ankommt. Danach zeigt Hören „≈ dB“, und im Fenster Klang gibt es „Wie echt“.</span>
+        <span class="klein">Einmal, etwa 1 Minute: Die Box spielt 20 s Rauschen, so laut wie jetzt, nie lauter. Die App misst am Hörplatz, wie laut das bei dir ankommt. Danach zeigt Hören echte dB am Platz, und im Fenster Klang gibt es „Wie echt“.</span>
         <span class="klein">${gilt}</span>
         <button type="button" id="zh-pe-los" data-sheet-block="zh-pe-mess" data-sheet-titel="Pegel einmessen">Pegel einmessen …</button></div>`
       : `<div class="kasten" id="zh-pe"><h3>Pegel einmessen</h3>
@@ -18304,7 +18349,7 @@ const LAUT = (() => {
           ${p.gilt ? `<span>Jetzt</span><span>${p.jetzt_db == null ? "nichts zu hören" : `≈ ${zahl(p.jetzt_db)} dB am Platz`}</span>` : ""}</div>
         ${p.gilt ? `<span class="klein">${p.hinweis ? h(p.hinweis) : gilt}</span>` : `<span class="klein warn">${h(p.grund_text || "Der Bezug gilt gerade nicht.")}</span>`}
         <button type="button" class="zweit" id="zh-pe-neu" data-sheet-block="zh-pe-mess" data-sheet-titel="Pegel einmessen">Neu einmessen</button></div>`;
-    const kal = $$("zh-lr-kal"); if (kal && b) kal.hidden = true;  // „≈ dB“ kommt jetzt aus dem Einmessen
+    const kal = $$("zh-lr-kal"); if (kal && b) kal.hidden = true;  // echte dB kommen jetzt aus dem Einmessen
   }
 
   // Fenster „Pegel einmessen“: Mikrofon wählen, Rauschen nur nach Bestätigung, Ergebnis
@@ -18422,7 +18467,7 @@ const LAUT = (() => {
   // Hören: Ergänzung der Lautstärke-Überblendung (Grundform in lautstaerke.js). Strich „echt“ auf der Linie und die Zeile
   // „Klavier wie echt: 85 dB“; nur mit gültigem Bezug und gewählter Art für die laufende Quelle. Sonst nichts.
   function overlay() {
-    // Zeile unter „≈ dB“ im Platz für weitere Zeilen, Strich auf der feinen Linie (Grundform seit 0.3.42)
+    // Zeile unter „Stufe 73“ im Platz für weitere Zeilen, Strich auf der feinen Linie (Grundform seit 0.3.42)
     const innen = $$("zh-vol-extra"), striche = $$("zh-vol-feinlinie");
     if (!innen || !striche) return;
     let zeile = $$("zh-vol-echt"), strich = $$("zh-vol-echt-strich");

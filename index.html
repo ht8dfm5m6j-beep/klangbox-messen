@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="klangbox-stand" content="bb746ab17b7b">
 <title>Klång-Box Raum-Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" href="favicon.svg?v=dp1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=dp1" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=dp1">
@@ -142,6 +143,7 @@ details summary { cursor: pointer; color: var(--kb-text-leise); font-size: 14px;
 .haken label { display: flex; gap: 8px; align-items: flex-start; background: var(--kb-flaeche); border-radius: var(--kb-r); padding: 12px; font-size: 15px; cursor: pointer; }
 .haken input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--kb-signal); }
 .felder { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 8px; }
+#e-adresse .felder { margin-top: 8px; } #e-adresse > button { margin-top: 12px; }
 .felder label { display: grid; gap: 4px; font-size: 12.5px; color: var(--kb-text-leise); min-width: 0; }
 .felder input { min-height: 44px; border-radius: var(--kb-r); border: 0; background: var(--kb-flaeche); color: var(--kb-text); padding: 0 8px; width: 100%; font-size: 16px; }
 .vorschlag { background: var(--kb-flaeche); border-radius: var(--kb-r); padding: 16px; display: grid; gap: 8px; }
@@ -1812,6 +1814,8 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
     </div>
     <!-- Einmessen mit Sub (subabgleich.js): Stand des Ablaufs (Schritt 1 bzw. 4) oder das Angebot, mit Sub einzumessen -->
     <div class="reihe" id="mess-weiter" hidden><span class="klein" id="mess-weiter-text"></span><button type="button" class="leise" id="mess-weiter-neu">Neu anfangen</button></div>
+    <!-- Verbindungstest Satellit (verbindungstest.js): mit Satellit empfohlen, solange er nie oder zuletzt nicht grün lief -->
+    <div class="reihe" id="vt-vorher" hidden><span class="klein" id="vt-vorher-text"></span><button type="button" class="leise" id="vt-vorher-start">Verbindungstest</button></div>
     <div class="reihe" id="sub-vorher" hidden><span class="klein" id="sub-vorher-text"></span><button type="button" class="leise" id="sub-vorher-start">Einmessen mit Sub</button></div>
     <p class="kb-mess-satz">Ruhe im Raum, alles wie beim Hören.</p>
     <ul class="haken bereit" hidden>
@@ -2085,10 +2089,18 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
     <p id="e-such-text" hidden></p>
     <div class="zeilen" id="e-boxen" aria-live="polite"></div>
     <div id="e-such-status" class="klein" aria-live="polite"></div>
+    <!-- Rear-Box hinter einem anderen Zugangspunkt (Repeater): mDNS sieht sie nicht, die Hauptbox koppelt sie über die
+         Adresse (Bedienseite ohne App; Entwurf sat_entwurf/web/adresse-eingeben, freigegeben 20.11.2026) -->
+    <div class="kasten" id="e-adresse" hidden><h3>Rear-Box nicht gefunden?</h3>
+      <span class="klein">Hängt sie an einem anderen WLAN-Zugang (Repeater), sieht die Suche sie manchmal nicht. Ihre Adresse steht im Router unter „klangbox-…“, etwa 192.168.178.79.</span>
+      <div class="felder"><label>Adresse der Rear-Box<input type="text" id="e-adresse-feld" inputmode="decimal" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.178.79"></label></div>
+      <button type="button" class="zweit" id="e-adresse-los">Mit dieser Adresse koppeln</button>
+      <span class="klein" id="e-adresse-status" aria-live="polite"></span></div>
     <details class="kasten" id="e-hilfe"><summary>Klappt nicht?</summary>
       <ul class="klein verb-hilfe">
-        <li><b>Die App findet keine Box.</b> Nach dem Einstecken 3 Minuten warten. Lampe am Pi grün? WLAN-Name und Passwort beim Beschreiben der Karte richtig? Mit LAN-Kabel: Leuchtet das Lämpchen an der Buchse?</li>
+        <li><b>Keine Box gefunden.</b> Nach dem Einstecken 3 Minuten warten. Lampe am Pi grün? WLAN-Name und Passwort beim Beschreiben der Karte richtig? Mit LAN-Kabel: Leuchtet das Lämpchen an der Buchse?</li>
         <li><b>Kopplungsfenster verpasst</b> („schon gekoppelt“, „abgelehnt“). Stecker der Box kurz ziehen, wieder einstecken, dann in den nächsten 2 Minuten „Noch einmal suchen“.</li>
+        <li><b>Rear-Box hat eine neue Adresse</b> (vom Router, nach einem Neustart). Dann unter „Rear-Box nicht gefunden?“ die neue Adresse eingeben, in den 2 Minuten nach dem Einstecken der Rear-Box.</li>
         <li><b>Falsches WLAN.</b> Das iPhone muss im WLAN deines Routers sein, nicht im Gäste-WLAN und nicht nur im Mobilfunk.</li>
       </ul>
     </details>
@@ -2770,7 +2782,7 @@ function laufzeit(ir, zero) {
   return (g + parabel(env, g) - zero) / FS;
 }
 
-function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE, roh = rec) {
+function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE, roh = rec, lueckeMs = null) {
   const erg = { marker_schwankung_db: Math.max(...markerPegel) - Math.min(...markerPegel) };
   const start = a + fo.lead * FS;
   const pegel = (t0, t1) => {
@@ -2794,6 +2806,10 @@ function pruefeAufnahme(rec, a, markerPegel, fo = FOLGE, roh = rec) {
     erg.leise_verschluckt = abw.some((x) => x < -6);
   } else erg.treppe_vorhanden = false;
   const probleme = [];
+  if (lueckeMs !== null) {  // Lücken in der Aufnahme (wie messung.LUECKE_MS)
+    erg.luecke_ms = Math.round(lueckeMs * 100) / 100;
+    if (lueckeMs > LUECKE_MS) probleme.push(`Die Aufnahme hat Lücken: Die Zeitmarker springen um ${zahlText(lueckeMs)} ms (das Gerät hat Teile der Aufnahme verloren).`);
+  }
   if (erg.marker_schwankung_db > 1.0 && !fo.bewegt) probleme.push(`Gleich laute Zeitmarker schwanken um ${zahlText(erg.marker_schwankung_db)} dB: das Handy regelt die Lautstärke automatisch nach.`);
   if (erg.leise_verschluckt) probleme.push("Leise Prüftöne fehlen: ein Störgeräuschfilter ist aktiv.");
   else if ((erg.treppe_fehler_db || 0) > 1.0) probleme.push(`Die 10-dB-Stufen des Prüftons weichen bis ${zahlText(erg.treppe_fehler_db)} dB ab: die Aufnahme wird komprimiert oder nachgeregelt.`);
@@ -2827,6 +2843,8 @@ function stoerProbleme(stoer, schnarren = []) {
 // Unerklärter Rest (Aufnahme minus Impulsantwort ⊛ Sweep) in 20-ms-Stücken: ein Knall spät im Sweep oder im
 // Nachhall landet sonst mitten in der Impulsantwort. Sauber höchstens etwa −14 dB, ein Knall ab etwa +5 dB.
 const REST_GRENZE_DB = -5;
+const LUECKE_MS = 0.5;  // wie messung.LUECKE_MS: Zeitmarker mehr als 0,5 ms neben der Geraden heißt Lücke in der Aufnahme
+const LUECKE_DRIFT_PPM = 200;  // wie messung.LUECKE_DRIFT_PPM: zwei Marker, Taktabweichung darüber heißt Lücke
 const REST_SPITZE_DB = 35;  // und spitz: ein Knall ab ~40 dB über dem Median des Rests, langer Nachhall bis ~32 dB
 function restAusreisser(S, W, X, ir, pre, n, sweepS) {
   const nfft = ir.length, irw = new Float64Array(nfft);
@@ -2986,6 +3004,9 @@ function analysiere(rec0, fo = FOLGE, mikro = null) {
   const mx = sched.reduce((s, v) => s + v, 0) / sched.length, my = zeiten.reduce((s, v) => s + v, 0) / zeiten.length;
   let sxy = 0, sxx = 0; for (let i = 0; i < sched.length; i++) { sxy += (sched[i] - mx) * (zeiten[i] - my); sxx += (sched[i] - mx) ** 2; }
   const b = sched.length > 1 ? sxy / sxx : 1, a0 = my - b * mx;
+  // größte Abweichung eines Markers von der Geraden (ms): Lücken in der Aufnahme (pruefeAufnahme, LUECKE_MS)
+  let lueckeMs = zeiten.length >= 3 && !fo.bewegt ? Math.max(...zeiten.map((t, i) => Math.abs(t - (b * sched[i] + a0)))) / FS * 1000 : null;
+  if (zeiten.length === 2 && !fo.bewegt && Math.abs(b - 1) * 1e6 > LUECKE_DRIFT_PPM) lueckeMs = Math.abs(b - 1) * (sched[1] - sched[0]) / FS * 1000;  // zwei Marker: über die Taktabweichung
   const rec = Math.abs(b - 1) > 1e-7 ? interpoliert(rec0, b) : rec0;
   const a = a0 / b;
   const markerPegel = zeiten.map((t) => 20 * Math.log10(corr[Math.round(t)] + 1e-12));
@@ -3026,7 +3047,7 @@ function analysiere(rec0, fo = FOLGE, mikro = null) {
     const ir = re.slice(0, pre + Math.floor(1.2 * FS));
     messungen[key] = { ir, zero: pre, delay: laufzeit(ir.slice(0, pre + Math.floor(0.6 * FS)), pre) };
   });
-  const pruefung = pruefeAufnahme(rec, a, markerPegel, fo, rec0);
+  const pruefung = pruefeAufnahme(rec, a, markerPegel, fo, rec0, lueckeMs);
   pruefung.beginn_s = Math.round(a0 / FS * 1e4) / 1e4;  // wo in der Aufnahme die Messfolge beginnt (für die bewegte Messung)
   pruefung.stoer_db = Object.fromEntries(Object.entries(stoer).map(([k, v]) => [k, Math.round(v * 10) / 10]));
   pruefung.rest_db = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, v.slice(0, 2).map((x) => Math.round(x * 10) / 10)]));
@@ -5988,7 +6009,370 @@ function kanalCheckAufnahme(daten, kanaele, layout, opt = {}, mikrofon = null, b
   return kanalCheck(aw, kanaele, layout, o);
 }
 
-if (typeof module !== "undefined") module.exports = { raumcheck, nbKandidaten, nbSaetze, nachbesserungEntscheiden, nachbesserung, NB, F, kinoLinieAus, lrPegelVorsichtig, messampel, kalibrierdateiLesen, mikroKalibrierung, messgenauigkeit, MESSGENAUIGKEIT, geraetVonKennung, geraetVonUa, androidModellAusUa, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilEingepasst, PROFIL_EINPASSEN, profilDbAn, profilFilterDb, profilNeueId, zusatzTonDb, profilLautheitDb, profilVorverstaerkung, zusatzFehler, zahlText, zahlKurz,
+
+// --- Verbindungstest Satellit (wie klangbox/verbindungstest.py): Box bis Membran, vorne gegen hinten, ohne gemeinsame
+// Uhr. Handy eine Handbreit vor jeder Box; je Platz spielen alle Kanäle zweimal. Aus zwei Plätzen je Paar folgen
+// Laufzeit (Differenz) und Abstand (Summe); dazu Zuordnung, Polarität, Pegel, Aufwachen, Funk. Schwellen: siehe Python.
+const VT = { C: 343.0, KANAELE: ["FL", "FR", "SL", "SR"], VORNE: ["FL", "FR"], HINTEN: ["SL", "SR"],
+  NAMEN: { FL: "vorne links", FR: "vorne rechts", SL: "hinten links", SR: "hinten rechts" },
+  GEGENUEBER: { FL: "SL", SL: "FL", FR: "SR", SR: "FR" }, KURZ: { FL: "VL", FR: "VR", SL: "HL", SR: "HR" },
+  OK: "✓", WARN: "!", NEIN: "✗", UNKLAR: "?", INFO: "–",
+  WDH: 2, SWEEP_S: 2.0, TAIL_S: 1.0, LEAD_S: 5.0, WECK_START_S: 0.2, WECK_ABSTAND_S: 0.1, WECK_ANZAHL: 30, WECK_TON_S: 0.03,
+  WECK_F: [250.0, 1200.0], WECK_SUCHE_S: 0.01, WECK_RUHE_S: [0.04, 0.09, 0.14], WECK_ABSTAND_DB: 12.0, WECK_VOLL_DB: 25.0,
+  WECK_GUT_S: 0.5, H_M: 0.10, H_FAKTOR: 1.5, NAH_MIN_DB: 10.0, SNR_MAX_DB: 60.0, STUMM_DB: 25.0, POL_RHO_SICHER: 0.8, SPITZE_HP_HZ: 400.0,
+  RUECK_SPAETER_MAX_MS: 35.0, STREUUNG_GUT_MS: 0.5, WECK_RUHE_MIN_S: 1800.0, RUECK_ECHO_MS: 45.0, MIN_PUFFER_MS: 18.0, LR_GUT_MS: 0.5,
+  REST_MIN_MS: -2.0, REST_MAX_MS: 15.0, PEGEL_LEISE_DB: -6.0, PEGEL_ZU_LEISE_DB: -12.0, PEGEL_LAUT_DB: 15.0, HANDY_UNSICHER_MS: 0.5,
+  H_STREU_MAX: 1.5, H_K_REIHE: 0.6, H_K_QUER: 0.9 };
+function verbindungFolge(kanaele = null, wdh = VT.WDH) {  // wdh 1: „Aufwachen prüfen“ (wie Python folge)
+  const k = VT.KANAELE.filter((c) => !kanaele || kanaele.includes(c)), alle = [];
+  for (let r = 0; r < wdh; r++) alle.push(...k);
+  return folgeAus({ lead: VT.LEAD_S, sweepS: VT.SWEEP_S, tail: VT.TAIL_S, kanaele: alle, verbindung: true });
+}
+const vtWeckZeit = (k) => VT.WECK_START_S + k * VT.WECK_ABSTAND_S;
+const vtWeckKanal = (k, da) => { const w = VT.HINTEN.filter((c) => da.includes(c)); return w.length ? w[k % w.length] : null; };
+function vtWeckTon() {
+  const n = Math.round(VT.WECK_TON_S * FS), [f0, f1] = VT.WECK_F, x = new Float64Array(n);
+  for (let i = 0; i < n; i++) { const t = i / FS; x[i] = Math.sin(2 * Math.PI * (f0 * t + (f1 - f0) * t * t / (2 * VT.WECK_TON_S))) * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1))); }
+  return x;
+}
+const vtDb = (e) => 10 * Math.log10(e + 1e-30);
+function vtWeckPegel(rec, mitte, ton) {
+  const s = Math.round(VT.WECK_SUCHE_S * FS), m = Math.floor(mitte + 0.5); let best = 0;
+  for (let lag = m - s; lag <= m + s; lag++) {
+    if (lag < 0 || lag + ton.length > rec.length) continue;
+    let v = 0; for (let i = 0; i < ton.length; i++) v += rec[lag + i] * ton[i];
+    v = Math.abs(v); if (v > best) best = v;
+  }
+  return vtDb(best * best);
+}
+// Höhe des Direktschalls (Hüllkurve über 400 Hz wie die Laufzeit-Suche) an der Ankunft, ±2 Abtastwerte (wie Python)
+function vtSpitzeDb(m) {
+  const env = huellkurve(filtfilt(m.ir.slice(0, m.zero + Math.floor(0.6 * FS)), hochpass(VT.SPITZE_HP_HZ, 4)));
+  const i = m.zero + Math.floor(m.delay * FS + 0.5); let mx = 0;
+  for (let j = Math.max(0, i - 2); j < Math.min(env.length, i + 3); j++) mx = Math.max(mx, env[j]);
+  return vtDb(mx * mx);
+}
+const vtMittel = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+// Ein Platz (Handy vor einer Box): Laufzeit, Pegel, Spitze je Kanal und Wiederholung, der nahe Kanal, Weck-Töne.
+// mess_db (Lautstärke der Box an diesem Platz) trägt die Seite aus der Antwort des Messsignals nach.
+function verbindungPlatz(rec, aw, fo) {
+  const kan = [...new Set(fo.kanaele)], k = {};
+  for (const c of kan) k[c] = { laufzeit_ms: [], pegel_db: [], spitze_db: [], snr_db: [] };
+  fo.kanaele.forEach((ch, i) => {
+    const m = aw.messungen[kanalSchluessel(fo.kanaele, i)];
+    k[ch].laufzeit_ms.push(kcRund(m.delay * 1000, 4));
+    const d = kcDirekt(m, 0.5, 1.5); let e = 0; for (const v of d) e += v * v;
+    k[ch].pegel_db.push(kcRund(vtDb(e), 2));
+    k[ch].spitze_db.push(kcRund(vtSpitzeDb(m), 2));
+    const nv = Math.max(1, m.zero - Math.floor(0.01 * FS)); let mx = 0, sv = 0;
+    for (let j = 0; j < m.ir.length; j++) mx = Math.max(mx, m.ir[j] * m.ir[j]);
+    for (let j = 0; j < nv; j++) sv += m.ir[j] * m.ir[j];
+    k[ch].snr_db.push(kcRund(Math.min(VT.SNR_MAX_DB, vtDb(mx) - vtDb(sv / nv)), 1));  // darüber nur Numerik: gekappt
+  });
+  for (const z of Object.values(k)) { z.laufzeit = kcRund(vtMittel(z.laufzeit_ms), 4); z.pegel = kcRund(vtMittel(z.pegel_db), 2); z.spitze = kcRund(vtMittel(z.spitze_db), 2); z.snr = kcRund(Math.min(...z.snr_db), 1); }
+  const nachPegel = [...kan].sort((a, b) => k[b].pegel - k[a].pegel), nah = nachPegel[0];
+  const abstand = nachPegel.length > 1 ? k[nah].pegel - k[nachPegel[1]].pegel : 99.0;
+  const direkt = Array.from(kcDirekt(aw.messungen[kanalSchluessel(fo.kanaele, fo.kanaele.indexOf(nah))], 0.5, 1.5));
+  const ton = vtWeckTon(), b = 1 + aw.drift_ppm * 1e-6, beginn = aw.pruefung.beginn_s * FS;
+  const ruhe = Math.max(...VT.WECK_RUHE_S.map((t) => vtWeckPegel(rec, beginn + t * FS * b, ton))), toene = [];
+  for (let i = 0; i < VT.WECK_ANZAHL; i++) {
+    const ch = vtWeckKanal(i, kan); if (ch === null) break;
+    const mitte = beginn + vtWeckZeit(i) * FS * b + k[ch].laufzeit / 1000 * FS;
+    toene.push({ kanal: ch, t_s: kcRund(vtWeckZeit(i), 2), db: kcRund(vtWeckPegel(rec, mitte, ton) - ruhe, 1) });
+  }
+  return { kanaele: k, nah, nah_abstand_db: kcRund(abstand, 1), direkt, wecken: toene, drift_ppm: kcRund(aw.drift_ppm, 1),
+    sauber: !!aw.pruefung.sauber, probleme: [...(aw.pruefung.probleme || [])] };
+}
+function verbindungWecken(toene) {
+  const out = {};
+  for (const ch of [...new Set(toene.map((t) => t.kanal))]) {
+    const t = toene.filter((x) => x.kanal === ch), voll = medianEcht(t.slice(-5).map((x) => x.db));
+    if (voll < VT.WECK_ABSTAND_DB) { out[ch] = { erster_s: null, voll_s: null, voll_db: kcRund(voll, 1) }; continue; }
+    const grenze = Math.max(VT.WECK_ABSTAND_DB, voll - VT.WECK_VOLL_DB);
+    const erst = t.find((x) => x.db >= grenze), ganz = t.find((x) => x.db >= voll - 3.0);
+    out[ch] = { erster_s: erst.t_s, voll_s: ganz.t_s, voll_db: kcRund(voll, 1), sofort: erst.t_s <= t[0].t_s + 1e-9 };
+  }
+  return out;
+}
+// Ausgleichsrechnung e_j − e_i = Δ_ij mit e_FL = 0 (Normalgleichungen, Gauß; wie Python)
+function vtLoesen(paare) {
+  let frei = []; for (const p of paare) for (const c of [p.i, p.j]) if (c !== "FL" && !frei.includes(c)) frei.push(c);
+  frei = VT.KANAELE.filter((c) => frei.includes(c));
+  const verbunden = new Set(["FL"]); let neu = true;
+  while (neu) { neu = false; for (const p of paare) if (verbunden.has(p.i) !== verbunden.has(p.j)) { verbunden.add(p.i); verbunden.add(p.j); neu = true; } }
+  frei = frei.filter((c) => verbunden.has(c));
+  const n = frei.length; if (!n) return { e: { FL: 0.0 }, rms: null };
+  const A = frei.map(() => frei.map(() => 0.0)), y = frei.map(() => 0.0), nutz = paare.filter((p) => verbunden.has(p.i) && verbunden.has(p.j));
+  for (const p of nutz) {
+    const zeile = frei.map(() => 0.0);
+    if (p.j !== "FL") zeile[frei.indexOf(p.j)] += 1.0;
+    if (p.i !== "FL") zeile[frei.indexOf(p.i)] -= 1.0;
+    for (let r = 0; r < n; r++) { y[r] += zeile[r] * p.delta_ms; for (let s = 0; s < n; s++) A[r][s] += zeile[r] * zeile[s]; }
+  }
+  for (let c = 0; c < n; c++) {
+    let piv = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    [A[c], A[piv]] = [A[piv], A[c]]; [y[c], y[piv]] = [y[piv], y[c]];
+    for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; for (let s = c; s < n; s++) A[r][s] -= f * A[c][s]; y[r] -= f * y[c]; }
+  }
+  const x = frei.map(() => 0.0);
+  for (let c = n - 1; c >= 0; c--) { let s = 0; for (let q = c + 1; q < n; q++) s += A[c][q] * x[q]; x[c] = (y[c] - s) / A[c][c]; }
+  const e = { FL: 0.0 }; frei.forEach((c, i) => { e[c] = x[i]; });
+  const rest = nutz.map((p) => p.delta_ms - (e[p.j] - e[p.i]));
+  return { e, rms: rest.length > n ? Math.sqrt(rest.reduce((s, r) => s + r * r, 0) / rest.length) : null };
+}
+const vtStd = (x) => { const m = vtMittel(x); return Math.sqrt(x.reduce((s, v) => s + (v - m) ** 2, 0) / x.length); };
+const vtVz = (x) => { const s = kcZ(x, 1); return s.startsWith("-") ? s : "+" + s; };
+const vtSeite = (r) => (r === "SL" ? "links" : "rechts");
+const vtZahl = (x) => typeof x === "number" && isFinite(x);
+// plaetze: {Box, vor der das Handy lag: verbindungPlatz(...) mit mess_db}; box: was die Box rechnet und weiß (mit
+// weck_platz); funk: Punkte des Funk-Protokolls. Wie Python auswerten.
+function verbindungAuswerten(plaetze, box = null, funk = null) {
+  box = box || {}; const punkte = [], N = VT.NAMEN, entwickler = [];  // entwickler: nur im Bericht
+  const punkt = (z, name, wert, bedeutung, tun = null) => punkte.push({ z, punkt: name, wert, bedeutung, tun });
+  const P = Object.values(plaetze), da = VT.KANAELE.filter((c) => c in plaetze);
+  const alle = [...new Set(P.flatMap((p) => Object.keys(p.kanaele)))];
+  const stumm = VT.KANAELE.filter((c) => alle.includes(c) && Math.max(...P.map((p) => p.kanaele[c].snr)) < VT.STUMM_DB);
+  // Funk weg: hinten an einem Platz still, an anderen gehört
+  const weg = {};
+  for (const c of da) { const r = VT.HINTEN.filter((x) => x in plaetze[c].kanaele && !stumm.includes(x) && plaetze[c].kanaele[x].snr < VT.STUMM_DB); if (r.length) weg[c] = r; }
+  for (const c of stumm) punkt(VT.NEIN, `Kanal ${N[c]}`, "spielt nicht", `Von ${N[c]} kommt nichts an.`,
+    VT.HINTEN.includes(c) ? "Ist die Box an, das Kabel gesteckt? Hinten: Eingang der aktiven Box auf USB." : "Ist der Verstärker an, das Kabel gesteckt?");
+  for (const [c, r] of Object.entries(weg)) punkt(VT.NEIN, "Funk während der Messung", `weg vor ${N[c]}`,
+    `Während dieses Platzes kam von ${r.map((x) => N[x]).join(" und ")} nichts an, an den anderen Plätzen schon: Der Funk war kurz weg.`,
+    "Funk-Protokoll ansehen, dann diesen Platz wiederholen.");
+  const nah = Object.fromEntries(da.map((c) => [c, plaetze[c].nah]));
+  const unklar = da.filter((c) => !(c in weg) && plaetze[c].nah_abstand_db < VT.NAH_MIN_DB);
+  const falsch = Object.fromEntries(da.filter((c) => !(c in weg) && !unklar.includes(c) && nah[c] !== c && !stumm.includes(nah[c])).map((c) => [c, nah[c]]));
+  if (unklar.length) punkt(VT.UNKLAR, "Zuordnung", unklar.map((c) => N[c]).join(", "), "Das Handy lag nicht nah genug an der Box.",
+    "Handy eine Handbreit vor die Box halten und den Platz wiederholen.");
+  const tausch = [];
+  for (const [a, b] of [["FL", "FR"], ["SL", "SR"], ["FL", "SL"], ["FR", "SR"]]) if (falsch[a] === b && (falsch[b] === a || !da.includes(b))) tausch.push([a, b]);
+  const erklaert = new Set(tausch.flat());
+  for (const [a, b] of tausch) {
+    const seite = VT.VORNE.includes(a) && VT.VORNE.includes(b) ? "vorne" : VT.HINTEN.includes(a) && VT.HINTEN.includes(b) ? "hinten" : null;
+    const name = seite ? `${seite} links und rechts` : `${N[a]} und ${N[b]}`;
+    const tun = seite !== "hinten" ? "In der App mit einem Tipp tauschen (Kanal-Zuordnung) oder die Kabel tauschen."
+      : "In der App mit einem Tipp tauschen (Kanal-Zuordnung) oder an den Boxen hinten links und rechts tauschen.";
+    punkt(VT.NEIN, "Zuordnung", `${name} vertauscht`, `Vor ${N[a]} spielt ${N[b]}.`, tun);
+  }
+  for (const [c, n] of Object.entries(falsch)) if (!erklaert.has(c)) punkt(VT.NEIN, "Zuordnung", `vor ${N[c]} spielt ${N[n]}`, "Das passt zu keinem einfachen Tausch.",
+    "Lag das Handy vor der richtigen Box? Sonst Kabel prüfen und den Bericht teilen.");
+  if (!stumm.length && !Object.keys(weg).length && !unklar.length && !Object.keys(falsch).length) punkt(VT.OK, "Zuordnung", `${da.length} von ${da.length} Boxen`, "Jede Box spielt ihren Kanal.");
+  const gut = da.filter((c) => !(c in weg) && !unklar.includes(c) && nah[c] === c && !stumm.includes(c));
+  // Lautstärke der Box je Platz: Pegel verschiedener Plätze nur damit vergleichbar
+  const mess = Object.fromEntries(da.map((c) => [c, vtZahl(plaetze[c].mess_db) ? plaetze[c].mess_db : null]));
+  const zahlen = Object.values(mess).filter((v) => v !== null), pegelOk = zahlen.length === 0 || zahlen.length === da.length;
+  const lz = (c) => (mess[c] !== null ? mess[c] : 0.0), pg = (c, k, art = "pegel") => plaetze[c].kanaele[k][art] - lz(c);
+  const paare = [];
+  VT.KANAELE.forEach((i, ii) => { for (const j of VT.KANAELE.slice(ii + 1)) {
+    if (!gut.includes(i) || !gut.includes(j)) continue;
+    const ki = plaetze[i].kanaele, kj = plaetze[j].kanaele;
+    const xij = ki[i].laufzeit_ms.map((a, r) => ki[j].laufzeit_ms[r] - a), xji = kj[i].laufzeit_ms.map((a, r) => a - kj[j].laufzeit_ms[r]);
+    const mi = vtMittel(xij), mj = vtMittel(xji), einzeln = xij.flatMap((a) => xji.map((b) => (a - b) / 2)), d = VT.C * (mi + mj) / 2000 + VT.H_FAKTOR * VT.H_M;
+    paare.push({ i, j, delta_roh_ms: (mi - mj) / 2, delta_ms: (mi - mj) / 2, streuung_ms: vtStd(einzeln), abstand_roh_m: d, abstand_m: d, handy_ms: 0.0 });
+  } });
+  // Handy-Abstand je Platz (Spitze nah gegen fern, 1/r); nachgerechnet nur, wenn die Schätzungen jedes Platzes passen
+  const dPaar = {}; for (const p of paare) { dPaar[p.i + p.j] = p.abstand_roh_m; dPaar[p.j + p.i] = p.abstand_roh_m; }
+  const handy = {}; let handySicher = paare.length > 0 && pegelOk;
+  for (const s of gut) {
+    const hs = gut.filter((k) => k !== s && (s + k) in dPaar).map((k) => dPaar[s + k] * Math.pow(10, -(pg(s, s, "spitze") - pg(k, s, "spitze")) / 20));
+    if (!hs.length) continue;
+    handy[s] = Math.min(Math.max(medianEcht(hs), 0.02), 0.5);
+    if (hs.length < 2 || Math.max(...hs) > VT.H_STREU_MAX * Math.min(...hs)) handySicher = false;
+  }
+  handySicher = handySicher && Object.keys(handy).length === gut.length;
+  if (handySicher) for (const p of paare) {
+    p.abstand_m += VT.H_FAKTOR * ((handy[p.i] + handy[p.j]) / 2 - VT.H_M);
+    const reihe = (p.i === "FL" && p.j === "FR") || (p.i === "SL" && p.j === "SR");
+    p.handy_ms = (handy[p.j] - handy[p.i]) / VT.C * 1000 * (reihe ? VT.H_K_REIHE : VT.H_K_QUER);
+    p.delta_ms -= p.handy_ms;
+  }
+  const { e, rms } = vtLoesen(paare), sw = [...paare.map((p) => p.streuung_ms), ...(rms !== null ? [rms] : [])];
+  const streuung = sw.length ? Math.max(...sw) : null;
+  const werte = { e_ms: Object.fromEntries(Object.entries(e).map(([c, v]) => [c, kcRund(v, 3)])),
+    paare: paare.map((p) => ({ ...p, ...Object.fromEntries(["delta_roh_ms", "delta_ms", "streuung_ms", "abstand_roh_m", "abstand_m", "handy_ms"].map((k) => [k, kcRund(p[k], 3)])) })),
+    rest_ms: rms === null ? null : kcRund(rms, 3), streuung_ms: streuung === null ? null : kcRund(streuung, 3),
+    handy_m: Object.fromEntries(Object.entries(handy).map(([c, v]) => [c, kcRund(v, 3)])), handy_sicher: handySicher,
+    mess_db: Object.fromEntries(Object.entries(mess).map(([c, v]) => [c, v === null ? null : kcRund(v, 1)])) };
+  const ausgleich = paare.length ? Math.max(...paare.map((p) => Math.abs(p.handy_ms))) : 0.0;
+  const dl = {}; for (const r of VT.HINTEN) { const v = VT.GEGENUEBER[r]; if (r in e && v in e) dl[r] = e[r] - e[v]; }
+  werte.hinten_ms = Object.fromEntries(Object.entries(dl).map(([r, v]) => [r, kcRund(v, 3)]));
+  const dv = Object.values(dl);
+  if (dv.length) {
+    let wert = Object.entries(dl).map(([r, v]) => `${vtSeite(r)} ${kcZ(v, 1)} ms`).join(" · ");
+    if (streuung !== null) wert += ` (± ${kcZ(Math.max(streuung, 0.05), 1)})`;
+    const spaet = Math.max(...dv);
+    if (spaet > VT.RUECK_ECHO_MS) punkt(VT.WARN, "Laufzeit hinten", wert, `Hinten so spät (über ${VT.RUECK_ECHO_MS.toFixed(0)} ms), dass man es als Echo hören kann. Vorne wartet nie, das gleicht die Box nicht aus.`, "Bericht teilen.");
+    else if (Math.min(...dv) < -0.5) {
+      punkt(VT.OK, "Laufzeit hinten", wert, "Hinten kommt früher als vorne: Die Einmessung lässt hinten warten.");
+      entwickler.push(`Hinten früher als vorne (${kcZ(Math.min(...dv), 1)} ms): mit Funk unerwartet, bitte ansehen.`);
+    } else punkt(VT.OK, "Laufzeit hinten", wert, "Später als vorne, wie gewollt: Der Ton bleibt vorne. Den Rest gleicht die Einmessung am Hörplatz aus.");
+    if (spaet > VT.RUECK_SPAETER_MAX_MS) {
+      const zuViel = spaet - VT.RUECK_SPAETER_MAX_MS;
+      let t = `Hinten ${kcZ(spaet, 1)} ms nach vorne, gewollt bis ${VT.RUECK_SPAETER_MAX_MS.toFixed(0)} ms (Regel 4.0): ${kcZ(zuViel, 1)} ms zu viel.`;
+      const puffer = box.puffer_ms;
+      if (typeof puffer === "number") {
+        const neu = puffer - zuViel;
+        t += neu >= VT.MIN_PUFFER_MS ? ` Vorschlag: Empfangspuffer ${kcZ(puffer, 1)} → ${kcZ(neu, 1)} ms (FUNK_MS −${kcZ(zuViel, 1)}).`
+          : ` Der Empfangspuffer (${kcZ(puffer, 1)} ms) kann nur bis ${VT.MIN_PUFFER_MS.toFixed(0)} ms kürzer werden, das reicht nicht: Paketlänge oder Ausgabe kürzen (FUNK_TEMPO_RECHERCHE).`;
+      }
+      entwickler.push(t);
+    }
+    if (handySicher && ausgleich > VT.HANDY_UNSICHER_MS) punkt(VT.WARN, "Handy-Abstand", Object.entries(handy).map(([c, v]) => `vor ${VT.KURZ[c]} ${kcZ(v * 100, 0)} cm`).join(" · "),
+      `Nicht überall gleich nah: ${kcZ(ausgleich, 1)} ms herausgerechnet, auf etwa ±${kcZ(ausgleich / 4, 1)} ms.`, "Für ein genaues Ergebnis: Handy überall eine Handbreit vor die Box halten und wiederholen.");
+    const rueck = box.rueck_ms;
+    if (typeof rueck === "number") {
+      const mittel = vtMittel(dv), rest = mittel - rueck;
+      werte.gerechnet_ms = rueck; werte.rest_ms_box = kcRund(rest, 3);
+      punkt(VT.INFO, "Gerechnet gegen gemessen", `Funk gerechnet ${kcZ(rueck, 1)} ms, gemessen ${kcZ(mittel, 1)} ms`,
+        `Rest ${kcZ(rest, 1)} ms: aktive Box hinten (DSP, USB-Wandler) minus Verstärker vorne, nicht trennbar.`);
+      if (!(rest >= VT.REST_MIN_MS && rest <= VT.REST_MAX_MS)) entwickler.push(`Gemessen minus gerechnet ${kcZ(rest, 1)} ms (erwartet ${kcZ(VT.REST_MIN_MS, 0)} bis ${kcZ(VT.REST_MAX_MS, 0)} ms): die Rechnung der Box passt nicht zur Messung.`);
+    }
+    if (streuung !== null) {
+      if (streuung <= VT.STREUUNG_GUT_MS) punkt(VT.OK, "Gleichlauf", `± ${kcZ(Math.max(streuung, 0.05), 1)} ms`, "Die Laufzeit hinten ist ruhig.");
+      else punkt(VT.WARN, "Gleichlauf", `± ${kcZ(streuung, 1)} ms`, "Die Laufzeit hinten schwankt.", "Funk-Protokoll ansehen, Bericht teilen.");
+    }
+    if ("SL" in e && "SR" in e) {
+      const lr = e.SR - e.SL; werte.hinten_lr_ms = kcRund(lr, 3);
+      if (Math.abs(lr) > VT.LR_GUT_MS) entwickler.push(`Hinten rechts gegen links ${kcZ(lr, 1)} ms: die Boxen hinten laufen nicht gleich.`);
+    }
+    if ("FR" in e) {
+      werte.vorne_lr_ms = kcRund(e.FR, 3);
+      if (Math.abs(e.FR) > VT.LR_GUT_MS) entwickler.push(`Vorne rechts gegen links ${kcZ(e.FR, 1)} ms: passt nicht zu einem Verstärker (Handy ungleich nah?).`);
+    }
+  } else if (Object.keys(falsch).length || unklar.length || Object.keys(weg).length) punkt(VT.UNKLAR, "Laufzeit hinten", "nicht gemessen", "Erst die Zuordnung bzw. den Funk richten, dann den Test wiederholen.");
+  else if (!stumm.length) punkt(VT.UNKLAR, "Laufzeit hinten", "nicht gemessen", "Dafür braucht es das Handy vor einer Box vorne und hinten.", "Beide Plätze messen.");
+  const abst = paare.filter((p) => [["FL", "SL"], ["FR", "SR"], ["FL", "FR"], ["SL", "SR"]].some(([a, b]) => p.i === a && p.j === b));
+  if (abst.length) punkt(VT.INFO, "Abstände", abst.map((p) => `${VT.KURZ[p.i]}–${VT.KURZ[p.j]} ${kcZ(p.abstand_m, 2)} m`).join(" · "), "Aus derselben Messung, auf etwa 10 cm.");
+  // Polarität: Vorschlag nur bei klarem Befund und nur für den einen abweichenden Kanal (weichen alle ab: vorne links)
+  werte.polaritaet = {};
+  if (gut.includes("FL") && gut.length > 1) {
+    const rho = {}; for (const c of gut) if (c !== "FL") rho[c] = kcKorrelation(plaetze.FL.direkt, plaetze[c].direkt);
+    werte.polaritaet = Object.fromEntries(Object.entries(rho).map(([c, v]) => [c, kcRund(v, 3)]));
+    const R = Object.entries(rho), unsicher = R.filter(([, v]) => Math.abs(v) < VT.POL_RHO_SICHER).map(([c]) => c);
+    const neg = R.filter(([, v]) => v <= -VT.POL_RHO_SICHER).map(([c]) => c), pos = R.filter(([, v]) => v >= VT.POL_RHO_SICHER).map(([c]) => c);
+    // klar nur mit Korrelation |r| ≥ 0,8 überall (Begründung in Python); die kleinere Gruppe drehen, bei Gleichstand nur vermutlich die ohne vorne links
+    const gruppe = ["FL", ...pos], gedreht = unsicher.length || !neg.length ? [] : neg.length <= gruppe.length ? neg : gruppe;
+    const verweis = "Die Polarität prüft die Einmessung am Hörplatz noch einmal (Kanal-Check).";
+    if (gedreht.length && neg.length === gruppe.length) {  // Gleichstand: nur eine Vermutung (Prüfer 53c/N-a, 53d/N-h)
+      const namen = gedreht.map((c) => N[c]).join(", ");
+      punkt(VT.WARN, "Polarität", "vermutlich gedreht: " + namen, gruppe.length === 1
+        ? `Vorne links und ${namen} laufen andersherum zueinander – bitte beim Einmessen prüfen (Kanal-Check). Welche der beiden falsch ist, zeigt die Messung ganz nah nicht.`
+        : (gedreht.every((c) => VT.HINTEN.includes(c)) ? "Hinten vermutlich verpolt" : "Zwei Boxen laufen andersherum als die anderen zwei") +
+          " – bitte beim Einmessen prüfen (Kanal-Check). Welche zwei falsch sind, zeigt die Messung ganz nah nicht.", "Beim Einmessen prüfen. Wer sicher ist: in der App drehen.");
+    } else if (gedreht.length) punkt(VT.NEIN, "Polarität", "gedreht: " + gedreht.map((c) => N[c]).join(", "), "Die Membran läuft andersherum als bei den anderen Boxen.",
+      gedreht.every((c) => VT.HINTEN.includes(c)) ? "In der App mit einem Tipp drehen (Kanal-Zuordnung, Polarität)." : "Am Verstärker oder an der Box Plus und Minus tauschen, oder in der App drehen.");
+    else if (neg.length || unsicher.length) punkt(VT.UNKLAR, "Polarität", "unsicher: " + [...neg, ...unsicher].map((c) => N[c]).join(", "), "Ganz nah nicht eindeutig (vorne und hinten sind verschiedene Bauarten). " + verweis);
+    else if (gut.length === VT.KANAELE.filter((c) => alle.includes(c)).length) punkt(VT.OK, "Polarität", "alle gleich", "Alle Membranen laufen gleich herum.");
+    else punkt(VT.INFO, "Polarität", "nicht alle verglichen", "Erst die Zuordnung richten. " + verweis);
+  }
+  werte.pegel_db = {};
+  for (const r of VT.HINTEN) {
+    const v = VT.GEGENUEBER[r];
+    if (gut.includes(r) && gut.includes(v) && pegelOk) werte.pegel_db[r] = { nah: kcRund(pg(r, r) - pg(v, v), 2), weit: kcRund(pg(v, r) - pg(r, v), 2) };
+  }
+  const pm = Object.entries(werte.pegel_db).map(([r, w]) => [r, w.weit]);
+  if (!pegelOk && VT.HINTEN.some((r) => gut.includes(r) && gut.includes(VT.GEGENUEBER[r]))) punkt(VT.UNKLAR, "Pegel hinten", "nicht vergleichbar", "Die Lautstärke der Box war nicht an allen Plätzen bekannt.", "Den Test noch einmal ganz machen.");
+  else if (pm.length) {
+    const wert = pm.map(([r, v]) => `${vtSeite(r)} ${vtVz(v)} dB`).join(" · "), leise = Math.min(...pm.map((x) => x[1])), laut = Math.max(...pm.map((x) => x[1]));
+    if (leise < VT.PEGEL_ZU_LEISE_DB) punkt(VT.NEIN, "Pegel hinten", wert, "Hinten viel leiser als vorne. Die Box hebt nie an.", "Lautstärke an den Boxen hinten höher stellen, dann den Test wiederholen.");
+    else if (leise < VT.PEGEL_LEISE_DB) punkt(VT.WARN, "Pegel hinten", wert, "Hinten leiser als vorne. Die Box hebt nie an.", "Lautstärke an den Boxen hinten etwas höher stellen.");
+    else if (laut > VT.PEGEL_LAUT_DB) punkt(VT.WARN, "Pegel hinten", wert, "Hinten viel lauter als vorne: Die Einmessung senkt, dabei geht Reserve verloren.", "Lautstärke an den Boxen hinten etwas zurückdrehen.");
+    else punkt(VT.OK, "Pegel hinten", wert, "Passt. Den Feinabgleich am Hörplatz macht die Einmessung (grob ±3 dB).");
+  }
+  // Aufwachen: nur aus der zeitlich ersten Aufnahme nach Ruhe (box.weck_platz; null = in diesem Durchgang keine)
+  if (VT.HINTEN.some((r) => alle.includes(r))) {
+    const explizit = "weck_platz" in box;
+    const erster = explizit ? (box.weck_platz ? plaetze[box.weck_platz] || null : null) : VT.KANAELE.filter((c) => c in plaetze).map((c) => plaetze[c])[0] || null;
+    if (erster && erster.wecken && erster.wecken.length) { werte.wecken = verbindungWecken(erster.wecken); werte.weck_toene = erster.wecken; }
+    const ruhte = box.ruhte_s;
+    if (werte.wecken && typeof ruhte === "number" && ruhte >= VT.WECK_RUHE_MIN_S) vtWeckPunkt(werte.wecken, stumm, punkt);
+    else punkt(VT.INFO, "Aufwachen hinten", "nicht gewertet", (explizit && !erster ? "Hinten war schon wach (nicht der erste Versuch)." : typeof ruhte === "number" ? `Hinten war vorher nur ${kcZ(ruhte / 60, 0)} min Ruhe.` : "Ob hinten vorher Ruhe war, weiß die Box nicht.") + " Nach 30 min Ruhe: „Aufwachen prüfen“.");
+  }
+  if (funk && funk.length) {
+    const schlecht = funk.filter((p) => p.z === VT.NEIN), knapp = funk.filter((p) => p.z === VT.WARN);
+    if (schlecht.length) punkt(VT.NEIN, "Funk", `${schlecht[0].punkt}: ${schlecht[0].wert}`, schlecht[0].bedeutung || "", schlecht[0].tun || null);
+    else if (knapp.length) punkt(VT.WARN, "Funk", `${knapp[0].punkt}: ${knapp[0].wert}`, knapp[0].bedeutung || "", knapp[0].tun || null);
+    else punkt(VT.OK, "Funk", "in Ordnung", `${funk.length} ${funk.length === 1 ? "Punkt" : "Punkte"} des Funk-Protokolls geprüft.`);
+    werte.funk = { gut: funk.filter((p) => p.z === VT.OK).length, knapp: knapp.length, schlecht: schlecht.length };
+  }
+  werte.aufnahmen = Object.fromEntries(Object.entries(plaetze).map(([c, p]) => [c, { drift_ppm: p.drift_ppm, sauber: p.sauber, nah: p.nah, nah_abstand_db: p.nah_abstand_db, probleme: p.probleme }]));
+  for (const [c, p] of Object.entries(plaetze)) if (!p.sauber) punkt(VT.WARN, "Aufnahme", N[c], p.probleme.join("; ") || "Aufnahme nicht sauber.", "Platz wiederholen.");
+  werte.entwickler = entwickler;
+  return { gesamt: vtGesamt(punkte), punkte, werte };
+}
+const vtGesamt = (punkte) => (punkte.some((p) => p.z === VT.NEIN) ? VT.NEIN : punkte.some((p) => p.z === VT.WARN || p.z === VT.UNKLAR) ? VT.WARN : VT.OK);
+function vtWeckPunkt(w, stumm, punkt) {
+  const nie = Object.entries(w).filter(([c, x]) => x.erster_s === null && !stumm.includes(c)).map(([c]) => c);
+  const spaet = Object.values(w).filter((x) => x.erster_s !== null && x.erster_s > VT.WECK_GUT_S).map((x) => x.erster_s);
+  if (nie.length) punkt(VT.NEIN, "Aufwachen hinten", `nach ${kcZ(VT.WECK_START_S + VT.WECK_ANZAHL * VT.WECK_ABSTAND_S, 0)} s noch still`,
+    "Die Boxen hinten wachen zu langsam auf: Der Anfang eines Films fehlt hinten.", "Schalter 2 an den Boxen hinten auf „on“, dann wiederholen.");
+  else if (spaet.length) { const s = Math.max(...spaet); punkt(VT.WARN, "Aufwachen hinten", `${kcZ(s, 1)} s`, `Die ersten ${kcZ(s, 1)} s eines Films fehlen hinten.`, "Schalter 2 an den Boxen hinten auf „on“ (dann schlafen sie nie)."); }
+  else punkt(VT.OK, "Aufwachen hinten", "sofort", "Hinten ist der Ton von Anfang an da.");
+}
+// „Aufwachen prüfen“ (eigener Knopf, wie Python aufwachen): eine Aufnahme am Hörplatz nach Ruhe
+function verbindungAufwachen(platz, box = null) {
+  box = box || {}; const punkte = [], N = VT.NAMEN;
+  const punkt = (z, name, wert, bedeutung, tun = null) => punkte.push({ z, punkt: name, wert, bedeutung, tun });
+  const w = verbindungWecken(platz.wecken), stumm = VT.HINTEN.filter((c) => c in platz.kanaele && platz.kanaele[c].snr < VT.STUMM_DB);
+  for (const c of stumm) punkt(VT.NEIN, `Kanal ${N[c]}`, "spielt nicht", `Von ${N[c]} kommt nichts an.`, "Ist die Box an, das Kabel gesteckt? Eingang der aktiven Box auf USB.");
+  vtWeckPunkt(w, stumm, punkt);
+  const ruhte = box.ruhte_s, zahl = typeof ruhte === "number";
+  if (!(zahl && ruhte >= VT.WECK_RUHE_MIN_S)) punkt(VT.INFO, "Ruhe vorher", zahl ? "zu kurz" : "unbekannt",
+    (zahl ? `Hinten war nur ${kcZ(ruhte / 60, 0)} min Ruhe` : "Die Box weiß nicht, wie lange hinten Ruhe war") + ": Vielleicht waren die Boxen noch wach. Sicher ist es nach 30 min Ruhe.");
+  if (!platz.sauber) punkt(VT.WARN, "Aufnahme", "nicht sauber", platz.probleme.join("; ") || "Aufnahme nicht sauber.", "Wiederholen.");
+  return { gesamt: vtGesamt(punkte), punkte, werte: { wecken: w, ruhte_s: ruhte === undefined ? null : ruhte } };
+}
+function vtVersionen(box) {
+  const sat = box.sat_versionen || {}, s = Object.keys(sat).length ? Object.entries(sat).map(([k, v]) => `${k} ${v}`).join(", ") : "?";
+  return `Version Hauptbox ${box.version ?? "?"}, Satelliten ${s}, Seite ${box.app_version ?? "?"}, Layout ${box.layout ?? "?"}`;
+}
+function verbindungAufwachenBericht(erg, platz, box = null) {
+  box = box || {};
+  const z = ["== Aufwachen hinten (Verbindungstest Satellit)", vtVersionen(box), `Ergebnis: ${erg.gesamt}`, ""];
+  for (const p of erg.punkte) z.push(`${p.z} ${p.punkt}: ${p.wert} – ${p.bedeutung}` + (p.tun ? ` → ${p.tun}` : ""));
+  z.push("", "-- Gemessen (Handy; ab Beginn des Messsignals, der Funk startet kurz davor mit Stille)");
+  for (const [c, x] of Object.entries(erg.werte.wecken)) z.push(`Aufwachen ${c}: erster Ton ${x.erster_s === null ? "nie" : kcZ(x.erster_s, 1) + " s"}, voll ${x.voll_s === null ? "nie" : kcZ(x.voll_s, 1) + " s"} (${kcZ(x.voll_db, 0)} dB über Rauschen)`);
+  z.push("  Weck-Töne (s: dB): " + platz.wecken.map((t) => `${t.kanal}${kcZ(t.t_s, 1)}:${kcZ(t.db, 0)}`).join(" "));
+  z.push(`Drift ${kcZ(platz.drift_ppm, 1)} ppm, Lautstärke der Box ${vtZahl(platz.mess_db) ? kcZ(platz.mess_db, 1) + " dB" : "?"}` + (platz.sauber ? "" : ", NICHT sauber: " + platz.probleme.join("; ")));
+  z.push("", "-- Gerechnet (Box, nicht gemessen)");
+  if (typeof box.ruhte_s === "number") z.push(`Funk ruhte vor dem Test (s): ${kcZ(box.ruhte_s, 1)}`);
+  return z.join("\n") + "\n";
+}
+// Ein Text für den Entwickler (wie Python bericht): gemessen (roh), daraus gerechnet, was die Box rechnet, Funk, Versionen
+function verbindungBericht(erg, plaetze, box = null, funkText = null) {
+  box = box || {}; const w = erg.werte, N = VT.NAMEN;
+  const z = ["== Verbindungstest Satellit (Box bis Membran)", vtVersionen(box), `Ergebnis: ${erg.gesamt}`, ""];
+  for (const p of erg.punkte) z.push(`${p.z} ${p.punkt}: ${p.wert} – ${p.bedeutung}` + (p.tun ? ` → ${p.tun}` : ""));
+  z.push("", "-- Gemessen (Handy, ohne gemeinsame Uhr: je Platz relativ zum Zeitmarker aus vorne links; Rohwerte)");
+  for (const c of VT.KANAELE) {
+    if (!(c in plaetze)) continue;
+    const p = plaetze[c];
+    z.push(`Platz vor ${N[c]}: nah ${p.nah} (+${kcZ(p.nah_abstand_db, 1)} dB), Drift ${kcZ(p.drift_ppm, 1)} ppm, Lautstärke der Box ${vtZahl(p.mess_db) ? kcZ(p.mess_db, 1) + " dB" : "?"}` + (p.sauber ? "" : ", NICHT sauber: " + p.probleme.join("; ")));
+    for (const [k, v] of Object.entries(p.kanaele)) z.push(`  ${k}: Laufzeit ${v.laufzeit_ms.map((x) => kcZ(x, 3)).join(" / ")} ms, Pegel ${v.pegel_db.map((x) => kcZ(x, 1)).join(" / ")} dB, Spitze ${v.spitze_db.map((x) => kcZ(x, 1)).join(" / ")} dB, Abstand zum Rauschen ${kcZ(v.snr, 0)} dB`);
+  }
+  if (w.paare.length) { z.push(`Paare roh (Laufzeit j − i aus zwei Plätzen, Abstand mit angesagtem Handy-Abstand ${kcZ(VT.H_M * 100, 0)} cm):`); for (const p of w.paare) z.push(`  ${p.i}→${p.j}: ${kcZ(p.delta_roh_ms, 3)} ms ± ${kcZ(p.streuung_ms, 3)}, ${kcZ(p.abstand_roh_m, 2)} m`); }
+  if (w.weck_toene && w.weck_toene.length) z.push("Weck-Töne (s: dB): " + w.weck_toene.map((t) => `${t.kanal}${kcZ(t.t_s, 1)}:${kcZ(t.db, 0)}`).join(" "));
+  z.push("", "-- Aus der Messung gerechnet");
+  if (Object.keys(w.handy_m).length) z.push("Handy-Abstand geschätzt (Spitze nah gegen fern, 1/r): " + Object.entries(w.handy_m).map(([c, v]) => `${VT.KURZ[c]} ${kcZ(v * 100, 0)} cm`).join(", ") + (w.handy_sicher ? ": sicher, nachgerechnet" : ": unsicher, nicht nachgerechnet"));
+  for (const p of w.paare) if (p.handy_ms) z.push(`  ${p.i}→${p.j}: Korrektur ${kcZ(-p.handy_ms, 3)} ms → ${kcZ(p.delta_ms, 3)} ms, ${kcZ(p.abstand_m, 2)} m`);
+  z.push("Laufzeit bis zur Membran gegen vorne links (Ausgleich): " + Object.entries(w.e_ms).map(([c, v]) => `${c} ${kcZ(v, 3)} ms`).join(", ") + (w.rest_ms === null ? "" : `; Widerspruch der Paare ${kcZ(w.rest_ms, 3)} ms`));
+  for (const [r, v] of Object.entries(w.pegel_db || {})) z.push(`Pegel ${r} gegen ${VT.GEGENUEBER[r]} (auf gleiche Lautstärke bezogen): über denselben Weg ${vtVz(v.weit)} dB (ganz nah ${vtVz(v.nah)} dB, hängt am Handy-Abstand)`);
+  if (w.polaritaet && Object.keys(w.polaritaet).length) z.push("Polarität (Korrelation mit vorne links, nah): " + Object.entries(w.polaritaet).map(([c, v]) => `${c} ${kcZ(v, 2)}`).join(", "));
+  for (const [c, x] of Object.entries(w.wecken || {})) z.push(`Aufwachen ${c}: erster Ton ${x.erster_s === null ? "nie" : kcZ(x.erster_s, 1) + " s"}, voll ${x.voll_s === null ? "nie" : kcZ(x.voll_s, 1) + " s"} (${kcZ(x.voll_db, 0)} dB über Rauschen)`);
+  z.push("", "-- Gerechnet (Box, nicht gemessen)");
+  for (const [k, name] of [["rechnung_ms", "Hauptbox Eingang bis Ausgang (ms)"], ["funk_ms", "Funk-Verzögerung eingestellt (ms)"], ["rueck_ms", "Funk gesamt (ms)"], ["puffer_ms", "Empfangspuffer Satellit (ms)"], ["wandler_ms", "USB-Wandler Satellit (ms)"], ["ruhte_s", "Hinten ruhig vor dem ersten Platz (s)"]])
+    if (vtZahl(box[k])) z.push(`${name}: ${kcZ(box[k], 1)}`);
+  if (vtZahl(box.rechnung_ms) && w.hinten_ms && Object.keys(w.hinten_ms).length) {
+    const v = box.rechnung_ms;
+    z.push(`Box bis Membran vorne: ${kcZ(v, 1)} ms gerechnet + Verstärker vorne (nicht messbar ohne gemeinsame Uhr)`);
+    for (const [r, d] of Object.entries(w.hinten_ms)) z.push(`Box bis Membran ${r}: vorne + ${kcZ(d, 1)} ms gemessen = ${kcZ(v + d, 1)} ms + Verstärker vorne`);
+  }
+  if (w.entwickler && w.entwickler.length) z.push("", "-- Hinweise für den Entwickler", ...w.entwickler);
+  if (funkText) z.push("", "-- Funk-Protokoll (mit Messung)", funkText.trim());
+  return z.join("\n") + "\n";
+}
+if (typeof module !== "undefined") module.exports = { verbindungFolge, verbindungPlatz, verbindungWecken, verbindungAuswerten, verbindungBericht, verbindungAufwachen, verbindungAufwachenBericht, VT, raumcheck, nbKandidaten, nbSaetze, nachbesserungEntscheiden, nachbesserung, NB, F, kinoLinieAus, lrPegelVorsichtig, messampel, kalibrierdateiLesen, mikroKalibrierung, messgenauigkeit, MESSGENAUIGKEIT, geraetVonKennung, geraetVonUa, androidModellAusUa, SITZMODI, SITZMODUS_NAMEN, kachelVerluste, abwaegung, ZIELE, ABWAEGUNG_MIN, teilwerteSchuetzen, analysiere, FS, FOLGE_BEWEGT, FOLGE, FOLGE_4, folgeFuer, MESS_FOLGEN, laufzeitenFrontsFuehren, rueckkanaeleEinmessen, profilAnwenden, profilEingepasst, PROFIL_EINPASSEN, profilDbAn, profilFilterDb, profilNeueId, zusatzTonDb, profilLautheitDb, profilVorverstaerkung, zusatzFehler, zahlText, zahlKurz,
   FILTER_ENTWURF, modenVersetzt, fitEqFuerTest: fitEq, nachpruefen, pruefungRechnen, wiederholStreuung, bandName, PR, praesenzAusLeistung, praesenzAnhebung, raumUeberhoehung, direktschall, direktFenster, absenkungPruefen, reflexion, bassAmPlatz, bassFormAmPlatz, ohneProfil, spitzenAnhebung, staerksteRaummode, reglerOptimieren, reglerRaumcheck, reglerZusammensetzen, reglerText, reglerWerte, reglerSauber,
   baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort, kanalCheck, kanalCheckAufnahme, bewegtProben, KC,
   rueckPruefen, rueckUrteil, direktDb, gleichmaessigkeit, gleichmaessigWaehlen, hoerVariante, anhebungEinpassen, einpassenKanal, profilKurveDb, gleichName, GLEICH_VARIANTEN, RUECK_ECHO_MS, RUECK_VERDECKT_DB, RUECK_VERDECKT_GEGEN_VORNE_DB, RUECK_WEG_MAX_MS, FUNK_MS, GLEICH_SPANNE_DB, GLEICH_STREUUNG_DB,
@@ -8754,9 +9138,9 @@ let audioKtx = null;  // gemeinsamer AudioContext (audioKontext), nur beim Einme
 const MIKRO_SCHRITTE = new Set([1, 3, 4, 5, 6, 10, 17]);
 // Mikrofon gerade in Benutzung, auch außerhalb der Einmess-Schritte (Sub-Abgleich von Zuhause, Sub umgedreht auf 11):
 // dann nichts schließen (Wächter-Prüfung 06.11.2026)
-const mikroInBenutzung = () => !!document.querySelector("#sa:not([hidden]) .sa-innen") || !(document.getElementById("messlage") || { hidden: true }).hidden;
+const mikroInBenutzung = () => !!document.querySelector("#sa:not([hidden]) .sa-innen, #vt:not([hidden]) .vt-innen") || !(document.getElementById("messlage") || { hidden: true }).hidden;
 // Tipps, die ein Mikrofon öffnen, auch außerhalb von MIKRO_SCHRITTE: dort muss der Kontext im Tipp entstehen
-const MIKRO_KNOEPFE = "[data-sa-start], .sa-innen, #g-gedreht-messen, #sub-vorher-start";
+const MIKRO_KNOEPFE = "[data-sa-start], .sa-innen, .vt-innen, #g-gedreht-messen, #sub-vorher-start";
 function audioFreigeben() {
   if (!audioKtx || mikroInBenutzung()) return;
   const k = audioKtx; audioKtx = null;
@@ -8765,11 +9149,12 @@ function audioFreigeben() {
 // Startanimation (start.js): endet, sobald die Seite bereit ist (erster Status der Box da, oder ohne Box gleich)
 const startBereit = () => { try { if (window.klangboxStart) window.klangboxStart.bereit(); } catch (e) { /* ohne Animation */ } };
 function zeigeSchritt(n) {
-  // Bedienseite der Box (bedienseite.js): nur Zuhause; Einmessen und „Meine Anlage“ führen zur Mess-Seite
-  // Über https (bedienseite.js „direkt“): eingemessen wird hier, nur das Einrichten von Boxen (12–16) braucht die App; 17 ist der Kanal-Check nach der Messung.
-  // Über http nur, was das Mikrofon braucht (MIKRO_SCHRITTE); Meine Anlage, Aufstellung, Klang und Regler gehen hier (Prüfer)
-  const bsUmleiten = window.klangboxBedienseite && n !== 18 && ((n >= 12 && n <= 16) || (!window.klangboxBedienseite.direkt && MIKRO_SCHRITTE.has(n)));
-  if (bsUmleiten) { window.klangboxBedienseite.einmessen(n); if (schrittJetzt === 18) return; n = 18; }
+  // Bedienseite der Box (bedienseite.js): Über http führt nur, was das Mikrofon braucht (MIKRO_SCHRITTE), zur sicheren
+  // Seite bzw. zur Mess-Seite; Meine Anlage, Aufstellung, Klang und Regler gehen hier (Prüfer). Boxen einrichten (12–16:
+  // Rear-Box, Rollen, Funk, Kanäle) geht hier wie in der App: Suchen und Koppeln macht die Hauptbox (Besitzer ohne App,
+  // 20.11.2026). Über https (bedienseite.js „direkt“) wird auch eingemessen; 17 ist der Kanal-Check nach der Messung.
+  const bsUmleiten = window.klangboxBedienseite && n !== 18 && !window.klangboxBedienseite.direkt && MIKRO_SCHRITTE.has(n);
+  if (bsUmleiten) { window.klangboxBedienseite.einmessen(); if (schrittJetzt === 18) return; n = 18; }
   // Bildschirmwechsel mit Feder: vorwärts von rechts, zurück von links (CI: ci.css .rein-vor / .rein-zurueck)
   const vor = n >= schrittJetzt || (schrittJetzt === 2 && n === 1 && MA.gespeichert);
   document.querySelectorAll(".schritt").forEach((el) => {
@@ -8791,7 +9176,7 @@ function zeigeSchritt(n) {
   einrichtenZeigen(n);
   if (n === 1) modiZeigen();
   if (n === 2) { afMehr = AF_MEHR.includes(MA.layout); afZeige("lautsprecher", 0); }
-  if (n === 3) { zeigeChips(); subVorherZeigen();
+  if (n === 3) { zeigeChips(); subVorherZeigen(); if (window.klangboxVerbindung) window.klangboxVerbindung.vorbereiten();
     // Zurück: mit Übersicht dorthin (Einmessen), sonst zum Einstieg (Schritt 1); Schritt 1 ist keine zweite Übersicht (Prüfer)
     const z = $("vorb-zurueck"); if (zuhauseBereit()) { z.dataset.zu = "18"; z.dataset.zhNach = "einmessen"; } else { z.dataset.zu = "1"; delete z.dataset.zhNach; } }
   if (n === 5) { $("platz-bild").innerHTML = plaetzeBild(hauptDaten ? 0 : -1); platzKopf(1); $("platz-zurueck").dataset.zu = boxPegelDa() && !kefSelbst ? "3" : "4"; }
@@ -9280,6 +9665,30 @@ const messLage = (() => {
 })();
 // Mikrofon öffnen: über die App (nativ) oder getUserMedia ohne Filter.
 // Gibt {stopp(): Promise<{daten, rate, spitze} | {fehler}>, schliessen(), kaputt} oder {fehler} zurück.
+// Aufnahme im Audio-Thread: sammelt Blöcke zu 4096 Proben und schickt sie an die Seite (keine Probe geht verloren, auch
+// wenn die Seite gerade zeichnet). Ohne AudioWorklet (sehr alte Browser) bleibt der ScriptProcessor.
+const AUFNAHME_WORKLET = `class KbAufnahme extends AudioWorkletProcessor {
+  constructor() { super(); this.b = new Float32Array(4096); this.f = 0; this.an = true;
+    this.port.onmessage = () => { this.senden(); this.port.postMessage({ ende: true }); this.an = false; }; }
+  senden() { if (this.f) { this.port.postMessage({ d: this.b.slice(0, this.f) }); this.f = 0; } }
+  process(ein) {
+    if (!this.an) return false;
+    const k = ein[0] && ein[0][0], n = k ? k.length : 128;
+    for (let i = 0; i < n; i++) { this.b[this.f++] = k ? k[i] : 0; if (this.f === this.b.length) this.senden(); }
+    return true;
+  }
+}
+registerProcessor("kb-aufnahme", KbAufnahme);`;
+const workletGeladen = new WeakMap();
+function aufnahmeWorklet(ctx) {
+  if (!ctx.audioWorklet || typeof AudioWorkletNode === "undefined") return Promise.resolve(false);
+  if (!workletGeladen.has(ctx)) {
+    let url = null;
+    try { url = URL.createObjectURL(new Blob([AUFNAHME_WORKLET], { type: "application/javascript" })); } catch (e) { return Promise.resolve(false); }
+    workletGeladen.set(ctx, ctx.audioWorklet.addModule(url).then(() => true, () => false));
+  }
+  return workletGeladen.get(ctx);
+}
 async function mikrofonOeffnen(ui) {
   if (nativAufnahme) {
     const a = nativ.aufnahme(mikroWahl().messmikro ? "extern" : "intern"), mic = { kaputt: false }; let gestoppt = false;
@@ -9318,25 +9727,40 @@ async function mikrofonOeffnen(ui) {
   const mikroInfo = { name: name || "ohne Namen", echo: st.echoCancellation ?? null, stoerfilter: st.noiseSuppression ?? null, automatik: st.autoGainControl ?? null, rate_spur: st.sampleRate ?? null };
   const ctx = audioKontext();
   if (ctx.state !== "running") { try { await ctx.resume(); } catch (e) { /* bleibt still: unten erkannt */ } }
-  meldeBox("mikrofon", { ...mikroInfo, rate: ctx.sampleRate, kontext: ctx.state });
-  const q = ctx.createMediaStreamSource(stream), knoten = ctx.createScriptProcessor(4096, 1, 1), stumm = ctx.createGain();
+  const worklet = await aufnahmeWorklet(ctx);
+  meldeBox("mikrofon", { ...mikroInfo, rate: ctx.sampleRate, kontext: ctx.state, weg: worklet ? "worklet" : "scriptprocessor" });
+  const q = ctx.createMediaStreamSource(stream), stumm = ctx.createGain();
   stumm.gain.value = 0;
   const puffer = []; let spitze = 0, zu = false;
   // Spielt auf dem iPhone noch etwas (Musik, auch per AirPlay), hält iOS die Tonverarbeitung der Seite an: „interrupted“
   let unterbrochen = ctx.state === "interrupted";
   const lage = () => { if (ctx.state === "interrupted") unterbrochen = true; };
   try { ctx.addEventListener("statechange", lage); } catch (e) { /* ältere Browser */ }
-  knoten.onaudioprocess = (ev) => {
-    const d = ev.inputBuffer.getChannelData(0); puffer.push(new Float32Array(d));
+  const nimm = (d) => {
+    puffer.push(d);
     let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i]));
     spitze = Math.max(spitze, m); if (ui.pegel) $(ui.pegel).style.width = Math.min(100, m * 100) + "%";
   };
+  // AudioWorklet (im Audio-Thread, verliert nichts); ohne es der alte Weg über den Hauptthread (ScriptProcessor), der in
+  // Chromium unter Last immer wieder 128 Proben verliert (gemessen 20.11.2026): Dort fängt die Lückenerkennung der
+  // Auswertung (Zeitmarker, LUECKE_MS) das ab
+  let knoten, rest = null;
+  if (worklet) {
+    knoten = new AudioWorkletNode(ctx, "kb-aufnahme", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1, channelCountMode: "explicit" });
+    knoten.port.onmessage = (ev) => { if (ev.data.d) nimm(ev.data.d); if (ev.data.ende && rest) rest(); };
+  } else {
+    knoten = ctx.createScriptProcessor(4096, 1, 1);
+    knoten.onaudioprocess = (ev) => nimm(new Float32Array(ev.inputBuffer.getChannelData(0)));
+  }
   q.connect(knoten); knoten.connect(stumm); stumm.connect(ctx.destination);
   // den Kontext nicht schließen: Safari startet einen neuen nur nach einem Tippen (audioKontext), die Pegelautomatik
   // nimmt aber mehrmals hintereinander ohne Tippen auf
   const schliessen = () => { if (zu) return; zu = true; knoten.disconnect(); q.disconnect(); stumm.disconnect(); stream.getTracks().forEach((t) => t.stop()); try { ctx.removeEventListener("statechange", lage); } catch (e) { /* egal */ } };
   return { kaputt: false, schliessen, stopp: async () => {
-    const rate = ctx.sampleRate; schliessen();
+    const rate = ctx.sampleRate;
+    // Worklet: den letzten angefangenen Block noch abholen (höchstens 0,5 s warten)
+    if (worklet && !zu) await Promise.race([new Promise((fertig) => { rest = fertig; knoten.port.postMessage("ende"); }), warte(500)]);
+    schliessen();
     const n = puffer.reduce((s, b) => s + b.length, 0), daten = new Float32Array(n); let o = 0;
     if (!n) return { fehler: "Das Mikrofon hat nichts geliefert.", leer: true, musik: unterbrochen || ctx.state === "interrupted" };
     for (const b of puffer) { daten.set(b, o); o += b.length; }
@@ -9394,10 +9818,18 @@ async function aufnehmen(ui, src, sekundenExtern, tick) {
     if (ui.lage) messLage.schliessen(!!d, !d && ui.letzterFehler ? { ...nutzerFehler(ui.letzterFehler), nochmal: () => { const b = $(ui.start); if (b && !b.disabled) b.click(); } } : null);
   }
 }
+// Lücken in der Aufnahme (analyse: „hat Lücken“): einmal heißt noch einmal messen. Kommen sie dreimal hintereinander,
+// nimmt dieses Gerät nicht lückenlos auf; das sagt die Seite dann ehrlich, statt immer wieder „noch einmal“
+let lueckenFolge = 0;
+function lueckenHinweis(probleme) {
+  const l = (probleme || []).some((t) => /hat Lücken/.test(t));
+  lueckenFolge = l ? lueckenFolge + 1 : 0;
+  return l && lueckenFolge >= 3 ? " Das passiert immer wieder: Dieses Gerät nimmt im Browser nicht lückenlos auf. Bitte den Browser aktualisieren (Safari: über das Update des iPhones) und andere Apps schließen, dann noch einmal." : "";
+}
 // Fehlertexte der Messung in Worte, die man versteht: groß, was los ist; klein, was zu tun ist (Messansicht-Prüfung 06.11.2026)
 function nutzerFehler(html) {
   const t = String(html || "").replace(/<[^>]+>/g, "").trim();
-  const regeln = [[/Wahrscheinlich spielt auf dem iPhone noch Musik/, "Auf dem iPhone spielt noch Musik"], [/bluetooth|nimmt „.*“ auf, nicht das iPhone/i, "Falsches Mikrofon"], [/Echo-Unterdrückung|Störfilter ist an|Lautstärke-Automatik ist an/, "Mikrofon-Filter an"],
+  const regeln = [[/hat Lücken/, "Aufnahme mit Lücken"], [/Wahrscheinlich spielt auf dem iPhone noch Musik/, "Auf dem iPhone spielt noch Musik"], [/bluetooth|nimmt „.*“ auf, nicht das iPhone/i, "Falsches Mikrofon"], [/Echo-Unterdrückung|Störfilter ist an|Lautstärke-Automatik ist an/, "Mikrofon-Filter an"],
     [/Kein Zugriff aufs Mikrofon|nicht angeschlossen|Mikrofon hat nichts geliefert/, "Kein Mikrofon"],
     [/Störgeräusch|Geräusch|zu laut im Raum/i, "Zu laut im Raum"], [/übersteuert|Übersteuer/i, "Zu laut aufgenommen"],
     [/Fast nichts aufgenommen|zu leise|nichts aufgenommen/i, "Nichts gehört"], [/Prüfton|Stufen|Zeitmarker|nachgeregelt/i, "Das iPhone hat nachgeregelt"],
@@ -9441,13 +9873,15 @@ async function aufnehmenKern(ui, src, sekundenExtern, tick) {
     // modus: die Box spielt das Layout und die Einstellung dieses Modus und bleibt beim Einmessen in ihm (ältere Box: ignoriert)
     // ui.ziel („kino“): die Nachmessung spielt die Einmessung mit dem gehörten Kino-Ziel (Kino-Linie); die Box sagt in
     // „ziel“, ob sie es getan hat (eine ältere Box kennt das Feld nicht)
-    const mzZiel = folge === "standard" && ui.ziel ? { ziel: ui.ziel } : {};
-    let a = await nativ.box("messsignal", { kanaele: folge === "standard" ? (ui.kanaele || messKanaele()) : K2, folge, start_in_ms: 1500, modus, profil: ui.profil || profilJetzt, ...mzZiel }, { zeitMs: 10000 });
-    if (!a.ok && folge === "pegel" && a.grund === "falsche_eingabe") a = await nativ.box("messsignal", { kanaele: K2, folge: "standard", start_in_ms: 1500, modus, profil: ui.profil || profilJetzt }, { zeitMs: 10000 });
+    // ui.nah (Verbindungstest, Handy eine Handbreit vor der Box): der Prüfton mit dem Nah-Messpegel
+    const mzExtra = folge === "standard" && ui.ziel ? { ziel: ui.ziel } : folge === "pegel" && ui.nah ? { nah: true } : {};
+    let a = await nativ.box("messsignal", { kanaele: folge === "standard" ? (ui.kanaele || messKanaele()) : K2, folge, start_in_ms: 1500, modus, profil: ui.profil || profilJetzt, ...mzExtra }, { zeitMs: 10000 });
+    // ältere Box ohne „pegel“: Standard-Folge. Nicht nah: die spielte mit dem Pegel des Hörplatzes aus 10 cm (53e/N-j)
+    if (!a.ok && folge === "pegel" && a.grund === "falsche_eingabe" && !ui.nah) a = await nativ.box("messsignal", { kanaele: K2, folge: "standard", start_in_ms: 1500, modus, profil: ui.profil || profilJetzt }, { zeitMs: 10000 });
     // die vorige Folge klingt auf der Box noch aus (Einpegeln und Messung gehen ohne Pause ineinander über, langsames WLAN):
     // kurz warten, bis zu 8× neu versuchen; derselbe Ton, nie lauter, nie doppelt (die Box spielt erst, wenn sie frei ist)
     for (let i = 0; i < 8 && !a.ok && a.grund === "beschaeftigt" && !(laeuft && laeuft.abbruch); i++) {
-      await warte(1500); a = await nativ.box("messsignal", { kanaele: folge === "standard" ? (ui.kanaele || messKanaele()) : K2, folge, start_in_ms: 1500, modus, profil: ui.profil || profilJetzt, ...mzZiel }, { zeitMs: 10000 }); }
+      await warte(1500); a = await nativ.box("messsignal", { kanaele: folge === "standard" ? (ui.kanaele || messKanaele()) : K2, folge, start_in_ms: 1500, modus, profil: ui.profil || profilJetzt, ...mzExtra }, { zeitMs: 10000 }); }
     ui.zielGespielt = a.ok ? a.ziel || null : null;
     ui.zielFronts = a.ok && a.fronts ? a.fronts : null; ui.zielAbgeschwaecht = !!(a.ok && a.abgeschwaecht);
     const zurueck = () => { if (ausGesetzt) nativ.box("aus", { aus: false }); };
@@ -9562,12 +9996,46 @@ function pegelSchrittGewechselt(n) { if (!pegelLaeuft && (n <= 3 || (n >= 7 && n
 window.addEventListener("pagehide", () => { if (kefSitzung) kefZurueck(); if (boxPegelSitzung) boxPegelZurueck(); });
 // Klång-Box: vorher führte die Quelle (→ danach wieder {fuehren: false}) oder die Box mit einem Wert (→ zurück auf ihn)
 var boxPegelSitzung = null, pegelGesetzt = false;
-function boxPegelZurueck() {
-  const s = boxPegelSitzung; if (!s || !nativ) return Promise.resolve(true);
+// Rückgabe true = zurückgestellt; bei einem Fehler (Netz) einmal neu versuchen (Prüfer 53d/N-f)
+async function boxPegelZurueck() {
+  const s = boxPegelSitzung; if (!s || !nativ) return true;
   // messpegel: false – nur die Hörlautstärke zurück; der eingepegelte Messpegel gilt weiter fürs Nachmessen
-  return nativ.box("lautstaerke", s.fuehren ? { fuehren: true, db: s.db, messpegel: false } : { fuehren: false }).then((a) => { if (a.ok && boxPegelSitzung === s) { boxPegelSitzung = null; pegelGesetzt = false; } return !!a.ok; });
+  for (let i = 0; i < 2; i++) {
+    const a = await nativ.box("lautstaerke", s.fuehren ? { fuehren: true, db: s.db, messpegel: false } : { fuehren: false });
+    if (a.ok) { if (boxPegelSitzung === s) { boxPegelSitzung = null; pegelGesetzt = false; } return true; }
+  }
+  return false;
 }
 // Stufen für pegelautomatik.js: 0 … 80 = −80 … 0 dB an der Box (1 Stufe = 1 dB); lauter als 0 dB kann die Box nicht
+// Nah vor der Box (Verbindungstest, 10 cm): etwa 20 dB mehr Schalldruck als am Hörplatz (Direktschall aus 10 cm statt
+// etwa 3 m sind 30 dB, am Hörplatz trägt der Nachhall 5–10 dB bei). Der erste Prüfton ist darum nie lauter als der
+// vorsichtigste bekannte Wert (Startwert der Einmessung, Hörlautstärke) minus NAH_RESERVE_DB; ein früher nah gefundener
+// Wert gilt, wenn er leiser ist (auch unter −60 dB); die Reserve selbst geht höchstens bis −60 dB hinunter.
+// Obergrenze nah (nahGrenze): nie lauter als dieser vorsichtigste Wert, auch nicht, wenn nichts ankommt (Prüfer 53d/H2).
+const NAH_RESERVE_DB = 20;
+function nahGrenze(ursprung) { return Math.min(+lesen("raumcheck-box-pegel", "65") || 65, ursprung); }
+function nahStart(ursprung) {
+  const nah = +lesen("raumcheck-vt-pegel", "80") || 80;
+  return Math.min(nah, Math.max(20, nahGrenze(ursprung) - NAH_RESERVE_DB), nahGrenze(ursprung));
+}
+// Messpegel vor einer Messung ohne vorheriges Einpegeln (Nachmessen, Kurzprüfung, Sub-Automatik): Gilt er nicht mehr
+// (älter als 4 h, Neustart), spielte die Box nur mit der Hörlautstärke (zu leise, schlechter Störabstand). Dann erst
+// einpegeln, wie beim Einmessen (nie lauter). Hörprobe und „Box antippen“ brauchen das nicht: Dort hört der Mensch zu,
+// die Hörlautstärke ist richtig. ui: Anzeige wie bei der Messung; ohne ui unsichtbare Felder (die Messansicht zeigt alles)
+// Die Hörlautstärke stellt boxPegelAutomatik mit bleiben gleich danach zurück. nochmal: was „Nochmal messen“ tun soll,
+// wenn das Einpegeln selbst scheitert (ohne ui: unsichtbarer Knopf, sonst täte er nichts; Prüfer 53c/N-e)
+async function messpegelSichern(ui = null, nochmal = null) {
+  if (!boxPegelDa() || kefSelbst) return true;
+  const s = await nativ.box("status", {}, { zeitMs: 8000 });
+  if (!s.ok || !s.messpegel || s.messpegel.gilt) return true;
+  if (!ui) {
+    if (!$("mp-felder")) { const d = document.createElement("div"); d.id = "mp-felder"; d.hidden = true;
+      d.innerHTML = '<span id="mp-status"></span><span id="mp-pegel"></span><span id="mp-filter"></span><button type="button" id="mp-start"></button><button type="button" id="mp-abbrechen"></button>'; document.body.appendChild(d); }
+    $("mp-start").onclick = nochmal;
+    ui = { status: "mp-status", pegel: "mp-pegel", filter: "mp-filter", start: "mp-start", abbrechen: "mp-abbrechen" };
+  }
+  return boxPegelAutomatik({ ui, weiter: false, bleiben: true });
+}
 // Einpegeln in der gedrehten Mess-Ansicht (Besitzer 18.11.2026: „ganze Ansicht drehbar wegen Mikro“)
 const PEGEL_LAGE = { titel: "Pegel prüfen", art: "platz" };
 // Scheitert das Einpegeln selbst (zu leise, Lautstärke wirkt nicht): wie bei den Plätzen aufrecht mit „Nochmal messen“
@@ -9578,34 +10046,49 @@ async function boxPegelAutomatik(opt = {}) {
   const U = opt.ui || { status: "check-status", pegel: "check-pegel", filter: "check-filter", start: "check-start", abbrechen: "check-abbrechen" };
   const st = (h) => { $(U.status).innerHTML = h; if (messLage.offen) messLage.status(h); };
   const laeuft = (t) => st(`<span class="laeuft">${esc(t)}</span>`);
-  const selbst = (grund) => { kefSelbst = true; kefModusZeigen(); st(`<span class="warn">${esc(grund)} Stell die Lautstärke bitte selbst ein und tippe auf „Prüfen“.</span>`); if (opt.weiter === false) { zeigeSchritt(4); $("check-status").innerHTML = `<span class="warn">${esc(grund)} Stell die Lautstärke bitte selbst ein und tippe auf „Prüfen“.</span>`; } return false; };
+  // opt.bleiben (Verbindungstest, Messpegel vor dem Nachmessen): kein Sprung im Einmessen, der Grund steht nur dort, wo
+  // eingepegelt wurde. opt.nah (Verbindungstest, Handy eine Handbreit vor der Box): eigener Startwert, der Startwert der
+  // Einmessung bleibt unberührt
+  const startSchluessel = opt.nah ? "raumcheck-vt-pegel" : "raumcheck-box-pegel";
+  const selbst = (grund) => { if (opt.bleiben) { st(`<span class="warn">${esc(grund)}</span>`); return false; } kefSelbst = true; kefModusZeigen(); st(`<span class="warn">${esc(grund)} Stell die Lautstärke bitte selbst ein und tippe auf „Prüfen“.</span>`); if (opt.weiter === false) { zeigeSchritt(4); $("check-status").innerHTML = `<span class="warn">${esc(grund)} Stell die Lautstärke bitte selbst ein und tippe auf „Prüfen“.</span>`; } return false; };
   pegelLaeuft = true; pegelAbbruch = false; wach.an();
   $(U.start).disabled = true; $(U.abbrechen).hidden = false;
   // gedreht einpegeln: alle Prüftöne in einer Ansicht; weiter === false: die Messung danach bleibt in ihr
-  messLage.folge(true); let fertig = false, fehlerLage = null;
+  messLage.folge(true); let fertig = false, fehlerLage = null, eigeneSitzung = false, gesetzt = null;
   try {
     if (!(await pegelSkript)) return selbst("Die Pegelautomatik ließ sich nicht laden.");
     const s = await nativ.box("status", {});
     if (!s.ok) return selbst(`Die Klång-Box antwortet nicht (${s.fehler || s.grund}).`);
     const l = s.lautstaerke || { fuehren: false, db: 0 };
-    if (!boxPegelSitzung) boxPegelSitzung = { fuehren: !!l.fuehren, db: +l.db || 0 };
+    if (!boxPegelSitzung) { boxPegelSitzung = { fuehren: !!l.fuehren, db: +l.db || 0 }; eigeneSitzung = true; }
     const ursprung = boxPegelSitzung.fuehren ? Math.round(80 + boxPegelSitzung.db) : 80;
     $("check-kef").textContent = "Lautstärke: über die Klång-Box (danach wie vorher)";
-    const ui = { ...U, leiseOk: true, lage: PEGEL_LAGE };
+    const ui = { ...U, leiseOk: true, lage: PEGEL_LAGE, nah: !!opt.nah };
     const e = await window.PegelAutomatik.einpegeln({
       // Start: der zuletzt gefundene Pegel (gleicher Raum, gleicher Verstärker), sonst −15 dB. Vorher immer −30 dB in
       // kleinen Schritten: 16 Messungen, fast 4 Minuten bis 0 dB (05.11.2026)
-      ursprung, max: 80, start: Math.min(80, Math.max(40, +lesen("raumcheck-box-pegel", "65") || 65)), abbruch: () => pegelAbbruch,
+      ursprung, max: opt.nah ? nahGrenze(ursprung) : 80, start: opt.nah ? nahStart(ursprung) : Math.min(80, Math.max(40, +lesen(startSchluessel, "65") || 65)), abbruch: () => pegelAbbruch,
       steigungBekannt: 1, schrittDbMax: 15, schrittMax: 15,  // Box: 1 Stufe = 1 dB, also direkt springen (2–3 Prüftöne)
+      // nah vor der Box startet sie bewusst leise (nahStart) und spielt nie lauter als nahGrenze (Einmess-Start bzw.
+      // Hörlautstärke), auch mit Signal. Kommt nichts an, in 6-dB-Schritten höchstens bis dorthin, dann ehrlich „kommt
+      // nichts an“ (Prüfer 53c/N-d, 53d/H2). Das reicht: E gibt am Platz etwa 33 dB Abstand, aus 10 cm sind es 20 dB mehr.
+      ...(opt.nah ? { blindSchritt: 6, blindGesamt: 80 } : {}),
       // Die Box spielt beim Messen höchstens so laut wie ohne Lautstärkeregelung (0 dB). Reicht das nicht, ist der
       // Verstärker zu leise: dort drehen, nicht in den Einstellungen der App (05.11.2026: „lauter stellen, aber wo?“)
       texte: {
         zu_leise_bei_max: (x) => `Der Prüfton ist zu leise (${Math.round(x.abstand_db)} dB Abstand zum Raumgeräusch, nötig 30 dB), obwohl die Klång-Box schon so laut spielt, wie sie beim Messen darf. Bitte den Verstärker lauter drehen, etwa auf kräftige Hörlautstärke, dann noch einmal „Prüfen“ tippen. Die Einmessung bleibt richtig, wenn du danach wieder leiser hörst.`,
         lautstaerke_wirkt_nicht: () => "Die Klång-Box stellt lauter, aber am Mikrofon wird es nicht lauter. Ist der Verstärker an und auf dem richtigen Eingang?",
+        ...(opt.nah ? {
+          kein_signal: () => "Kommt nichts an – Mikrofon frei? Box an? Lauter als beim Einmessen spielt die Box hier nicht.",
+          zu_leise_bei_max: (x) => `Der Prüfton kommt auch eine Handbreit vor der Box zu leise an (${Math.round(x.abstand_db)} dB Abstand zum Raumgeräusch). Lauter als beim Einmessen spielt die Box hier nicht. Mikrofon frei? Sonst den Verstärker etwas lauter drehen und noch einmal.`,
+        } : {}),
       },
+      // nah: als eigener Nah-Messpegel (die Box spielt ihn nur für den Verbindungstest), der Messpegel am Hörplatz bleibt
+      // für Nachmessen, Sub und Hörprobe (Prüfer 53d/M1)
       setzeLautstaerke: async (v) => {
-        const a = await nativ.box("lautstaerke", { fuehren: true, db: Math.max(-80, Math.min(0, v - 80)) });
+        const a = await nativ.box("lautstaerke", { fuehren: true, db: Math.max(-80, Math.min(0, v - 80)), ...(opt.nah ? { messpegel: "nah" } : {}) });
         if (!a.ok) throw new Error(a.fehler || a.grund);
+        gesetzt = a.lautstaerke && Number.isFinite(+a.lautstaerke.db) ? +a.lautstaerke.db : Math.max(-80, Math.min(0, v - 80));
         return { wert: Math.round(80 + (a.lautstaerke && Number.isFinite(+a.lautstaerke.db) ? +a.lautstaerke.db : v - 80)) };
       },
       messe: async () => {
@@ -9617,7 +10100,7 @@ async function boxPegelAutomatik(opt = {}) {
         nativ.box("protokoll", { text: `Prüfton am Mikrofon: Ton ${p.ton.toFixed(1)} dB, Raum ${p.rausch.toFixed(1)} dB, Abstand ${p.abstand.toFixed(1)} dB, Spitze ${p.spitze_db.toFixed(1)} dBFS, ${(d.length / 48000).toFixed(1)} s` }).catch(() => {});
         return { pegel_db: p.ton, stoer_db: p.rausch, spitze_db: p.spitze_db, clip: p.spitze_db > -3 };
       },
-      ursache: async () => ({ grund: "unklar", text: "Die Klång-Box spielt den Messton, aber am Mikrofon kommt nichts an. Sind Verstärker oder Boxen an und nicht stumm?" }),
+      ursache: opt.nah ? undefined : async () => ({ grund: "unklar", text: "Die Klång-Box spielt den Messton, aber am Mikrofon kommt nichts an. Sind Verstärker oder Boxen an und nicht stumm?" }),
       zurueckstellen: () => boxPegelZurueck(),
       melde: (i) => {
         if (i.art === "setze") laeuft(`Stelle die Klång-Box auf ${i.lautstaerke - 80} dB …`);
@@ -9634,16 +10117,35 @@ async function boxPegelAutomatik(opt = {}) {
       return false;
     }
     meldeBox("pegel", { abstand_db: Math.round(e.abstand_db), box_db: e.lautstaerke - 80 });
-    st(`<span class="ok">✓ Passt: ${Math.round(e.abstand_db)} dB Abstand zum Raumgeräusch bei ${e.lautstaerke - 80} dB an der Klång-Box.</span> Nach der Messung stelle ich das zurück.`);
-    schreiben("raumcheck-box-pegel", String(e.lautstaerke));  // nächstes Mal gleich hier anfangen
-    pegelGesetzt = true; fertig = true;
+    st(`<span class="ok">✓ Passt: ${Math.round(e.abstand_db)} dB Abstand zum Raumgeräusch bei ${e.lautstaerke - 80} dB an der Klång-Box.</span>${opt.bleiben ? "" : " Nach der Messung stelle ich das zurück."}`);
+    schreiben(startSchluessel, String(e.lautstaerke));  // nächstes Mal gleich hier anfangen
+    if (!opt.bleiben) pegelGesetzt = true;  // der Verbindungstest pegelt nah an einer Box: gilt nicht fürs Einmessen
+    fertig = true;
     if (opt.weiter === false) return true;
     await warte(1500); zeigeSchritt(5); return true;
   } finally {
     pegelLaeuft = false; pegelAbbruch = false; wach.aus();
+    // bleiben (Verbindungstest, Aufwachen prüfen, Nachmessen, Kurzprüfung, Sub-Automatik): die Hörlautstärke gleich wieder
+    // wie vorher, auch bei Fehler und Abbruch. Die Messung danach spielt die Box mit dem eben gesetzten Messpegel
+    // (_mess_db, 4 h gültig; messpegel: false beim Zurückstellen lässt ihn stehen), nicht mit der Hörlautstärke.
+    // Sonst blieb die Musik nach dem Nachmessen bis zu 20 dB lauter (Prüfer 53c/H1). Das Einmessen selbst stellt wie
+    // bisher beim Schrittwechsel zurück (es misst mehrere Plätze nacheinander mit diesem Pegel); läuft dessen Sitzung
+    // schon, bleibt sie ihm (eigeneSitzung).
+    // Ergebnis geprüft (boxPegelZurueck versucht es zweimal): ehrlich sagen, wenn die Box noch auf dem Messpegel steht (N-f)
+    // Gescheitert, auch nach einem Erfolg: die Messung danach nicht starten, sondern sichtbar in der Messansicht melden
+    // (ohne ui stünde die Warnung nur in versteckten Feldern; 53e/N-i)
+    let zurueckGescheitert = false;
+    if (opt.bleiben && eigeneSitzung && boxPegelSitzung && !(await boxPegelZurueck())) {
+      const t = `Lautstärke bitte prüfen, die Box steht auf ${gesetzt === null ? "dem Messpegel" : `${Math.round(gesetzt)} dB`}.`;
+      st(`<span class="warn">${esc(t)}</span>`);
+      fehlerLage = { titel: "Lautstärke bitte prüfen", text: fehlerLage ? `${fehlerLage.text} ${t}` : t, nochmal: fehlerLage ? fehlerLage.nochmal : null };
+      meldeBox("fehler", { bereich: "Pegel", text: `Zurückstellen gescheitert: ${t}` });
+      fertig = false; zurueckGescheitert = true;
+    }
     $(U.start).disabled = false; $(U.abbrechen).hidden = true;
     if (fertig && opt.weiter === false) messLage.folge(false);  // die Messung gleich danach schließt die Ansicht
     else messLage.folgeEnde(fertig, fehlerLage);
+    if (zurueckGescheitert) return false;  // statt des true oben: ohne zurückgestellte Lautstärke wird nicht gemessen
   }
 }
 const QUELLEN = { wifi: "WLAN/Stream", bluetooth: "Bluetooth", tv: "TV (HDMI)", optical: "Optisch", optic: "Optisch", coaxial: "Koaxial", analog: "Analog", usb: "USB", standby: "Standby" };
@@ -9827,7 +10329,8 @@ async function neueAufnahme(name, daten, kanaele = K2, statusId = "status") {
   if (!p.ok) { st(`<span class="warn">${esc(name)}: Prüfung fehlgeschlagen (${esc(p.fehler)}).</span>`); return false; }
   const pr = p.ergebnis;
   meldeBox("aufnahme", { platz: name, sauber: !!pr.sauber, probleme: pr.probleme || [], schnarren_hz: pr.schnarren_hz ?? null, treppe_db: pr.treppe_stufen_db || null, marker_schwankung_db: pr.marker_schwankung_db ?? null });
-  if (!pr.sauber) { st(`<span class="warn"><b>${esc(nutzerFehler(pr.probleme.join(" ")).titel)}</b> · ${esc(name)} nicht verwendet: ${esc(pr.probleme.join(" "))} Bitte noch einmal messen.</span>`); return false; }
+  const lh = lueckenHinweis(pr.probleme);
+  if (!pr.sauber) { st(`<span class="warn"><b>${esc(nutzerFehler(pr.probleme.join(" ")).titel)}</b> · ${esc(name)} nicht verwendet: ${esc(pr.probleme.join(" "))} Bitte noch einmal messen.${esc(lh)}</span>`); return false; }
   if (name === "Hörplatz") { dateien = []; platzNr = 0; }
   dateien.push({ name, daten, kanaele });
   zeigeDateien();
@@ -9846,6 +10349,16 @@ self.onmessage = (ev) => {
       const o = { ...ev.data.opt };
       if (ev.data.bewegt && ev.data.weg) { try { const ab = analysiere(new Float64Array(ev.data.bewegt), FOLGE_BEWEGT); o.bewegt = bewegtProben(ab, FOLGE_BEWEGT, ev.data.weg.start_s, ev.data.weg.weg_s, ev.data.weg.breite_m); } catch (e) {} }
       self.postMessage({ ok: true, ergebnis: { pruefung: aw ? aw.pruefung : null, kc: kanalCheck(aw, ev.data.kanaele, ev.data.layout, o) } }); return;
+    }
+    if (ev.data.art === "verbindung") {  // Verbindungstest Satellit: ein Platz (bzw. „Aufwachen prüfen“), wie verbindungstest.py
+      const fo = verbindungFolge(ev.data.kanaele, ev.data.wdh || VT.WDH), x = new Float64Array(ev.data.daten), platz = verbindungPlatz(x, analysiere(x, fo), fo);
+      if (ev.data.aufwachen) { platz.mess_db = Number.isFinite(+ev.data.mess_db) ? +ev.data.mess_db : null; const erg = verbindungAufwachen(platz, ev.data.box);
+        self.postMessage({ ok: true, ergebnis: { erg, text: verbindungAufwachenBericht(erg, platz, ev.data.box), zuLaut: platz.probleme.some((t) => /übersteuert/.test(t)) } }); return; }
+      self.postMessage({ ok: true, ergebnis: platz }); return;
+    }
+    if (ev.data.art === "verbindungAuswerten") {
+      const erg = verbindungAuswerten(ev.data.plaetze, ev.data.box, ev.data.funk);
+      self.postMessage({ ok: true, ergebnis: { erg, text: verbindungBericht(erg, ev.data.plaetze, ev.data.box, ev.data.funkText) } }); return;
     }
     if (ev.data.art === "bewegtPruefen") { self.postMessage({ ok: true, ergebnis: bewegtePunkte(new Float64Array(ev.data.daten)).info }); return; }
     if (ev.data.art === "nachpruefen") {
@@ -11140,6 +11653,7 @@ async function nachAufnahme(ui, mitEinstellungen = true, titel = null, fest = nu
   // Kino mit Kino-Linie (gehört): nachmessen, was gehört wird (Messsignal mit dem Kino-Ziel, Besitzer 18.11.2026)
   const ziel = fest ? fest.ziel || null : mitEinstellungen && r && quelle === "box" && nbOptionen(r).kinoLinie ? "kino" : null;
   const u = { status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen", kanaele, mitEinstellungen, ziel, lage: { titel: titel || "Nachmessen · Hörplatz", art: "platz" } };
+  if (quelle === "box" && !(await messpegelSichern({ status: "a-status", pegel: "a-pegel", filter: "a-filter", start: ui, abbrechen: "a-abbrechen" }))) return null;
   const d = await aufnehmen(u, "raumcheck.wav", kanaele.length === 4 ? 38 : 26);
   if (!d) return null;
   if (fest) fest.gespielt = u.zielGespielt === "kino" ? "kino" : "stereo";
@@ -11147,7 +11661,8 @@ async function nachAufnahme(ui, mitEinstellungen = true, titel = null, fest = nu
     if (u.zielGespielt === "kino") { if (u.zielFronts) nach.klFronts = u.zielFronts; if (u.zielAbgeschwaecht) nach.klAbgeschwaecht = true; } }
   $("a-status").innerHTML = `<span class="laeuft">Prüfe die Aufnahme…</span>`;
   const p = await imWorker({ art: "pruefen", daten: d, kanaele });
-  if (!p.ok || !p.ergebnis.sauber) { const t = p.ok ? p.ergebnis.probleme.join(" ") : p.fehler; $("a-status").innerHTML = `<span class="warn"><b>${esc(nutzerFehler(t).titel)}</b> · nicht verwendet: ${esc(t)} Bitte noch einmal.</span>`; return null; }
+  const lh = lueckenHinweis(p.ok ? p.ergebnis.probleme : []);
+  if (!p.ok || !p.ergebnis.sauber) { const t = p.ok ? p.ergebnis.probleme.join(" ") : p.fehler; $("a-status").innerHTML = `<span class="warn"><b>${esc(nutzerFehler(t).titel)}</b> · nicht verwendet: ${esc(t)} Bitte noch einmal.${esc(lh)}</span>`; return null; }
   $("a-status").innerHTML = `<span class="ok">✓ Aufnahme sauber.</span>`;
   return d;
 }
@@ -11708,7 +12223,8 @@ $("g-gedreht-messen").addEventListener("click", async () => {
   const d = await aufnehmen({ status: "g-mess-status", pegel: "g-pegel", filter: "g-filter", start: "g-gedreht-messen", abbrechen: "g-abbrechen", lage: { titel: "Sub-Polarität umgedreht · Hörplatz", art: "platz" } }, "raumcheck.wav", 26);
   if (!d) return;
   const pr = await imWorker({ art: "pruefen", daten: d });
-  if (!pr.ok || !pr.ergebnis.sauber) { $("g-mess-status").innerHTML = `<span class="warn">Nicht verwendet: ${esc(pr.ok ? pr.ergebnis.probleme.join(" ") : pr.fehler)} Bitte noch einmal.</span>`; return; }
+  const lh = lueckenHinweis(pr.ok ? pr.ergebnis.probleme : []);
+  if (!pr.ok || !pr.ergebnis.sauber) { $("g-mess-status").innerHTML = `<span class="warn">Nicht verwendet: ${esc(pr.ok ? pr.ergebnis.probleme.join(" ") : pr.fehler)} Bitte noch einmal.${esc(lh)}</span>`; return; }
   geraetGedreht = d; geraetFormular();
 });
 // Werte über die App ans Gerät (herstellerneutral; die App ordnet dem Adapter des Herstellers zu)
@@ -11919,19 +12435,33 @@ const VB_IC = {
   ziel: '<path d="M6 21V4M6 4h11l-2.5 4L17 12H6"/>',
 };
 let verbArt = "haupt";
+// Anschluss der Rear-Box aus ihren Ausgängen (Status nach dem Koppeln): USB-Lautsprecher per USB-Kabel, DAC+ per Cinch,
+// Digi+ optisch. Unbekannt (noch nicht gefunden, nichts erkannt): null, dann zeigt die Seite keinen Anschluss (nichts raten)
+function rearKabel() {
+  const haupt = nativ && nativ.boxen && nativ.boxen.haupt, sat = ein.boxen.find((b) => b.id !== haupt && b.gekoppelt);
+  const aus = sat ? ein.ausgaenge[sat.id] || [] : [];
+  if (aus.includes("usb")) return "USB-Kabel vom Pi zur aktiven Box (ihr USB-Eingang).";
+  if (aus.some((a) => /^analog/.test(a))) return "Cinch vom Ausgang der Box in „Aux“ oder „Line“ der Rear-Lautsprecher.";
+  if (aus.includes("spdif")) return "Optisch vom „OUT“ der Box zu den Rear-Lautsprechern bzw. ihrem Wandler.";
+  return null;
+}
 function verbSchritte(app) {
-  const rear = verbArt === "rear";
-  const finden = app ? "iPhone im selben WLAN wie der Router. Die App sucht von selbst (Bonjour, „klangbox.local“)."
+  // Rear-Box über die Bedienseite (ohne App): Suchen, Koppeln und Rolle macht die Hauptbox (POST /api/satelliten)
+  const rear = verbArt === "rear", hb = rear && !!window.klangboxBedienseite;
+  const finden = hb ? "Die Hauptbox sucht sie im Heimnetz (Bonjour)." : app ? "iPhone im selben WLAN wie der Router. Die App sucht von selbst (Bonjour, „klangbox.local“)."
     : "Im selben WLAN in Safari http://klangbox.local öffnen: Dort bedienst du die Box. Verbinden und Einrichten macht die App „Klång-Box“.";
   return [
     ["karte", "SD-Karte einlegen", rear ? "Die zweite Karte, genauso beschrieben wie die erste, in den Pi stecken, bis sie sitzt." : "Die beschriebene Karte in den Pi stecken, Kontakte zur Platine, bis sie sitzt."],
-    ["kabel", "Kabel stecken", rear ? "Cinch vom Ausgang der Box in „Aux“ oder „Line“ der Rear-Lautsprecher. Kein Tonkabel nach vorne, kein LAN nötig: Den Ton bekommt sie über Funk."
-      : "Optisch rein: von der Quelle (Fernseher oder Streamer) in „IN“. Optisch raus: „OUT“ zum Wandler (DAC) oder zu den aktiven Boxen. Ins Heimnetz kommt sie über WLAN (beim Beschreiben der Karte eingetragen), ein LAN-Kabel zum Router geht wahlweise."],
+    // Rear-Box: der Anschluss so, wie sie ihn wirklich hat (Ausgänge aus ihrem Status); noch unbekannt: kein Anschluss-Text
+    rear ? (rearKabel() ? ["kabel", "Kabel stecken", `${rearKabel()} Kein Tonkabel nach vorne, kein LAN nötig: Den Ton bekommt sie über Funk.`] : null)
+      : ["kabel", "Kabel stecken", "Optisch rein: von der Quelle (Fernseher oder Streamer) in „IN“. Optisch raus: „OUT“ zum Wandler (DAC) oder zu den aktiven Boxen. Ins Heimnetz kommt sie über WLAN (beim Beschreiben der Karte eingetragen), ein LAN-Kabel zum Router geht wahlweise."],
     ["strom", "Strom einstecken", "Netzteil in die Steckdose, USB-C in den Pi."],
     ["warten", "Warten, bis sie bereit ist", "Etwa 2 bis 3 Minuten, beim ersten Start vielleicht mit einem Neustart. Bereit ist sie, wenn die Lampe am Pi grün ist und nur ab und zu flackert. Nicht ausstecken."],
-    ["finden", "Die App findet die Box", finden],
-    ["koppeln", "Koppeln", "Die App koppelt von selbst, in den ersten 2 Minuten nach dem Einstecken (die Box hat keinen Knopf). Verpasst: Stecker kurz ziehen, wieder einstecken."],
-    rear ? ["rolle", "Fertig: Rear-Box", "Die App macht sie zur Rear-Box und richtet den Funk ein. Ohne App: eine Datei „klangbox-rolle.txt“ mit dem Wort „satellit“ auf die Karte legen."]
+    ["finden", hb ? "Die Hauptbox findet die Rear-Box" : "Die App findet die Box", finden],
+    ["koppeln", "Koppeln", hb ? "Die Hauptbox koppelt sie von selbst, in den ersten 2 Minuten nach dem Einstecken. Verpasst: Stecker kurz ziehen, wieder einstecken."
+      : "Die App koppelt von selbst, in den ersten 2 Minuten nach dem Einstecken (die Box hat keinen Knopf). Verpasst: Stecker kurz ziehen, wieder einstecken."],
+    rear ? ["rolle", "Fertig: Rear-Box", hb ? "Die Hauptbox macht sie zur Rear-Box und richtet den Funk ein."
+      : "Die App macht sie zur Rear-Box und richtet den Funk ein. Ohne App: eine Datei „klangbox-rolle.txt“ mit dem Wort „satellit“ auf die Karte legen."]
       : ["ziel", "Fertig", "Verbunden. Weiter geht es mit dem Einrichten: Die App übernimmt alles aus „Meine Anlage“."],
   ];
 }
@@ -11939,18 +12469,21 @@ function verbindenZeigen() {
   const app = !!(nativ && nativ.boxen), n = app ? gekoppelte().length : 0, gefunden = app && ein.boxen.length > 0;
   const stand = (i) => (!app ? (i < 4 ? "" : "aus") : n && (verbArt !== "rear" || n >= 2) ? "erledigt" : i === 4 ? (gefunden ? "erledigt" : "jetzt") : i === 5 ? (gefunden ? "jetzt" : "") : i < 4 && gefunden ? "erledigt" : "");
   $("h-gefunden").textContent = verbArt === "rear" ? "Rear-Box hinzufügen" : "Klång-Box verbinden";
-  $("e-verb-zweck").textContent = verbArt === "rear" ? "Eine zweite Box hinten spielt die Rear-Lautsprecher über Funk. Sie braucht nur Strom und die Cinch-Kabel."
+  $("e-verb-zweck").textContent = verbArt === "rear" ? "Eine zweite Box hinten spielt die Rear-Lautsprecher über Funk. Sie braucht nur Strom und ein Kabel zu den Rear-Lautsprechern."
     : "Freiwillig. Ohne Box misst du genauso und stellst das Ergebnis an deinen Geräten ein. Mit Box kommen Kino mit Rears, Laufzeiten und alle Quellen dazu.";
-  $("e-verb").innerHTML = verbSchritte(app).map(([ic, t, x], i) => { const k = stand(i);
-    return `<li class="${k}"><svg class="verb-ic" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${k === "erledigt" ? VB_IC.fertig : VB_IC[ic]}</svg>
-      <span><b>${i + 1}. ${esc(t)}</b><small>${esc(x)}</small></span></li>`; }).join("");
+  // ein Schritt kann fehlen (Anschluss der Rear-Box unbekannt): Stand nach seiner Stelle, Nummer fortlaufend
+  $("e-verb").innerHTML = verbSchritte(app).map((s, i) => s && { s, k: stand(i) }).filter(Boolean).map(({ s: [ic, t, x], k }, nr) =>
+    `<li class="${k}"><svg class="verb-ic" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${k === "erledigt" ? VB_IC.fertig : VB_IC[ic]}</svg>
+      <span><b>${nr + 1}. ${esc(t)}</b><small>${esc(x)}</small></span></li>`).join("");
   $("e-nochmal").hidden = !app || !n; $("e-boxen").hidden = !app;
   const w = $("e-weiter-1");
   if (!app) { w.disabled = false; w.textContent = "Box ist verbunden"; }
   // noch keine Box: der Hauptknopf sucht (die Seite sucht ohnehin alle paar Sekunden), sonst einrichten
   else if (!n) { w.textContent = "Noch einmal suchen"; w.disabled = false; }
-  else { w.textContent = n >= 2 || verbArt === "rear" ? "Boxen einrichten" : "Box einrichten"; w.disabled = false; }
+  // Rear-Box hinzufügen: erst, wenn sie da ist (sonst ginge es mit nur der Hauptbox durch die Schritte, Prüfer 53w/N2)
+  else { w.textContent = n >= 2 || verbArt === "rear" ? "Boxen einrichten" : "Box einrichten"; w.disabled = rearFehlt(); }
   $("e-ohne").textContent = verbArt === "rear" ? "Zurück zu Box" : "Später verbinden";
+  adresseZeigen();
 }
 // In der App sucht Schritt 12 von selbst, bis eine Box da ist (höchstens 3 Minuten, so lange wie Start und Kopplungsfenster)
 let verbUhr = null;
@@ -11979,7 +12512,7 @@ async function boxenSuchen() {
   // Neue Boxen koppelt die App gleich selbst (nur im Knopfdruck-Fenster nach dem Einschalten möglich)
   for (const b of ein.boxen.filter((x) => !x.gekoppelt)) {
     b.text = "koppelt…"; boxenZeigen();
-    const k = await nativ.box("koppeln", {}, { box: b.id, zeitMs: 15000 });
+    const k = await nativ.box("koppeln", {}, { box: b.id, zeitMs: 30000 });  // über die Hauptbox: Status, Token, Koppeln
     b.gekoppelt = !!k.ok; b.text = k.ok ? "" : (k.fehler || k.grund); boxenZeigen();
   }
   for (const b of gekoppelte()) {
@@ -11992,13 +12525,26 @@ async function boxenSuchen() {
   einMerken(); suchLaeuft = false;
   const n = gekoppelte().length;
   einStatus(!ein.boxen.length ? `<span class="laeuft">Noch keine Klång-Box im Heimnetz. Ich suche weiter, bis sie bereit ist (bis zu 3 Minuten nach dem Einstecken).</span>`
-    : n ? `<span class="ok">✓ ${n === 1 ? "Eine Klång-Box ist" : n === 2 ? "Beide Klång-Boxen sind" : `Alle ${n} Klång-Boxen sind`} gekoppelt.</span>` : "", "e-such-status");
+    : rearFehlt() ? `<span class="laeuft">Noch keine Rear-Box gefunden. Ich suche weiter.</span>` : n ? `<span class="ok">✓ ${n === 1 ? "Eine Klång-Box ist" : n === 2 ? "Beide Klång-Boxen sind" : `Alle ${n} Klång-Boxen sind`} gekoppelt.</span>` : "", "e-such-status");
   const nichtGekoppelt = ein.boxen.filter((b) => !b.gekoppelt).length;
   if (nichtGekoppelt) einStatus(`<span class="warn">Koppeln ging nicht${n ? ` bei ${nichtGekoppelt === 1 ? "einer Box" : `${nichtGekoppelt} Boxen`}` : ""}: Das Kopplungsfenster ist 2 Minuten nach dem Einstecken offen. Stecker kurz ziehen, wieder einstecken, dann „Noch einmal suchen“.</span>`, "e-such-status");
   verbindenZeigen();
-  // eine Box und „Meine Anlage“ steht: gleich einrichten, ohne Tipp (Rolle, Layout, Zuordnung lassen sich jederzeit ändern)
-  if (n === 1 && MA.gespeichert && !einAutoLief && !document.querySelector('.schritt[data-s="12"]').hidden) einrichtenAuto();
+  // eine Box und „Meine Anlage“ steht: gleich einrichten, ohne Tipp (Rolle, Layout, Zuordnung lassen sich jederzeit ändern).
+  // Nicht beim Hinzufügen einer Rear-Box: Solange nur die Hauptbox da ist, fehlt sie noch (sonst richtete das 2.0 ein)
+  if (n === 1 && verbArt !== "rear" && MA.gespeichert && !einAutoLief && !document.querySelector('.schritt[data-s="12"]').hidden) einrichtenAuto();
 }
+// Rear-Box hinzufügen, aber nur die Hauptbox gefunden; in der Bedienseite dann die Adresse anbieten (Repeater)
+function rearFehlt() { return verbArt === "rear" && !ein.boxen.some((b) => b.id !== (nativ && nativ.boxen && nativ.boxen.haupt)); }
+function adresseZeigen() { $("e-adresse").hidden = !(window.klangboxBedienseite && rearFehlt() && !suchLaeuft && ein.boxen.length); }
+$("e-adresse-los").addEventListener("click", async () => {
+  const b = $("e-adresse-los"), a = $("e-adresse-feld").value.trim();
+  if (!a) { $("e-adresse-status").innerHTML = `<span class="warn">Bitte die Adresse eingeben, etwa 192.168.178.79.</span>`; return; }
+  b.disabled = true; $("e-adresse-status").innerHTML = `<span class="laeuft">Die Hauptbox koppelt die Rear-Box…</span>`;
+  const k = await nativ.box("koppeln", { adresse: a }, { zeitMs: 20000 });  // Bedienseite: über die Hauptbox (bedienseite.js)
+  b.disabled = false;
+  $("e-adresse-status").innerHTML = k.ok ? "" : `<span class="warn">${esc(k.fehler || k.grund)}</span>`;
+  if (k.ok) boxenSuchen();  // die gekoppelte Rear-Box steht jetzt in der Liste der Hauptbox
+});
 function boxenZeigen() {
   $("e-boxen").innerHTML = ein.boxen.map((b) => `<div class="kasten"><div class="reihe"><div><h3>${esc(b.name)}</h3><span class="klein ${b.text && b.text !== "koppelt…" ? "warn" : ""}">${
     b.gekoppelt ? `gekoppelt${b.ueber === "haupt" ? " · über die Hauptbox erreichbar" : ""}` : esc(b.text || "neu")}</span></div><i class="ampel ${b.gekoppelt ? "gut" : b.text && b.text !== "koppelt…" ? "problem" : ""}"></i></div></div>`).join("");
@@ -12040,7 +12586,10 @@ async function satellitenPruefen() {
       st.ok ? (ueber ? "✓ antwortet über die Hauptbox (sie ist jetzt nur im Funknetz der Boxen)" : "✓ antwortet")
         : "antwortet nicht. Ist sie am Strom? Findet sie die Hauptbox 10 Minuten lang nicht, geht sie zurück ins Heim-WLAN."}</span></div><i class="ampel ${st.ok ? "gut" : "problem"}"></i></div></div>`);
   }
-  $("e-satelliten").innerHTML = zeilen.join("");
+  // gleich nach dem Koppeln: der Verbindungstest Satellit (verbindungstest.js), wenn ein Satellit antwortet
+  const vt = zeilen.some((z) => !z.includes('data-erreichbar="nein"')) && mitHinten(ein.layout) && window.klangboxVerbindung
+    ? `<div class="kasten" id="e-vt"><div class="reihe"><div><h3>Verbindungstest</h3><span class="klein">Passt alles bis zur Membran? Laufzeit, Zuordnung, Polarität, Pegel und Funk, etwa 4 Minuten.</span></div></div><button type="button" class="zweit" id="e-vt-start">Verbindungstest starten</button></div>` : "";
+  $("e-satelliten").innerHTML = zeilen.join("") + vt;
 }
 // Vorschlag für hinten: eine Box je Rear, wenn sie weit auseinander stehen oder kein Kabel zwischen ihnen gehen soll
 function rueckVorschlagText() {
@@ -12050,13 +12599,22 @@ function rueckVorschlagText() {
   if (ein.keinKabel || weit) return `${weit ? `Hinten liegen etwa ${zt(d, 1)} m zwischen links und rechts. ` : ""}Ohne Kabel zwischen hinten links und rechts brauchst du je eine Klång-Box pro Rear-Lautsprecher (${gekoppelte().length < 3 ? "noch eine Box dazu, dann neu suchen" : "unter „Wo kommen Bild und Ton her?“ hinten links und hinten rechts wählen"}).`;
   return "Eine Box hinten bekommt beide Rear-Lautsprecher (ein Kabel zwischen hinten links und rechts).";
 }
+const HINTEN_DAZU = { "2.0": "4.0", "2.1": "4.1", "3.0": "5.0", "3.1": "5.1" };  // Rear-Box hinzufügen: vorne bleibt, hinten kommt dazu
 function layoutZeigen() {
-  // vorbelegt aus „Meine Anlage“ (K3: dort einmal gefragt); ohne Angabe: mit zwei Boxen 4.0
-  if (!ein.layout) ein.layout = MA.gespeichert ? MA.layout : einBenutzt().length >= 2 ? "4.0" : "2.0";
-  $("e-layout-ma").hidden = !MA.gespeichert;
-  $("e-layout-ma").textContent = `Aus „Meine Anlage“: ${ein.layout} · ${layoutKurz(ein.layout)}`;
-  if (!MA.gespeichert) $("e-layout-klappe").open = true;
-  $("e-layout").innerHTML = Object.keys(BOX_LAYOUTS).map((l) => `<button type="button" class="chip" data-layout="${l}" aria-pressed="${l === ein.layout}">${l}${mitHinten(l) ? " (mit hinten)" : ""}</button>`).join("");
+  // vorbelegt aus „Meine Anlage“ (K3: dort einmal gefragt); ohne Angabe: mit zwei Boxen 4.0. Rear-Box hinzufügen:
+  // immer ein Layout mit hinten (aus „Meine Anlage“ nur, wenn es hinten hat, sonst 4.0; „Fertig“ schreibt es dorthin
+  // zurück). Vorher endete der Weg beim Besitzer mit „Meine Anlage“ 2.0 in 2.0, ohne Funk und ohne Rears (Prüfer 53w/H1)
+  // Hinten wird ergänzt, nicht ersetzt: 2.1 bleibt mit Sub (4.1), 3.x mit Center (5.x) (Prüfung 53x/M-neu); die Tasten
+  // ohne hinten sind im Rear-Weg gesperrt, und der Satz darüber sagt, was aus „Meine Anlage“ wird (N-a)
+  const rear = verbArt === "rear", basis = MA.gespeichert ? MA.layout : ein.layout || "2.0";
+  if (rear && (!ein.layout || !mitHinten(ein.layout))) ein.layout = mitHinten(basis) ? basis : HINTEN_DAZU[basis] || "4.0";
+  else if (!ein.layout) ein.layout = MA.gespeichert ? MA.layout : einBenutzt().length >= 2 ? "4.0" : "2.0";
+  const dazu = rear && MA.gespeichert && !mitHinten(MA.layout);
+  $("e-layout-ma").hidden = !MA.gespeichert || (!dazu && ein.layout !== MA.layout);
+  $("e-layout-ma").textContent = dazu ? `Aus „Meine Anlage“: ${MA.layout}, mit der Rear-Box ${ein.layout} · ${layoutKurz(ein.layout)}`
+    : `Aus „Meine Anlage“: ${ein.layout} · ${layoutKurz(ein.layout)}`;
+  if (!MA.gespeichert || dazu) $("e-layout-klappe").open = true;
+  $("e-layout").innerHTML = Object.keys(BOX_LAYOUTS).map((l) => `<button type="button" class="chip" data-layout="${l}" aria-pressed="${l === ein.layout}"${rear && !mitHinten(l) ? " disabled" : ""}>${l}${mitHinten(l) ? " (mit hinten)" : ""}</button>`).join("");
   const kan = BOX_LAYOUTS[ein.layout], std = standardZuordnung(ein.layout), gueltig = (z) => z && z.box && (z.box === "fronts" || einBenutzt().includes(z.box));
   ein.zuordnung = Object.fromEntries(kan.map((ch) => [ch, gueltig(ein.zuordnung[ch]) ? ein.zuordnung[ch] : std[ch]]));
   const boxen = einBenutzt();
@@ -12209,7 +12767,8 @@ $("e-weiter-3").addEventListener("click", async () => {
 $("e-funk-einrichten").addEventListener("click", async () => {
   const b = $("e-funk-einrichten"), sat = einSatelliten(); b.disabled = true;
   $("e-funk").innerHTML = `<span class="laeuft">Die Hauptbox sucht einen freien Kanal, spannt das Funknetz auf und verbindet ${sat.length === 1 ? "die zweite Box" : `${sat.length} Boxen`}. Das dauert meist unter einer Minute, manchmal etwas länger…</span>`;
-  // partner: die Satelliten (eine Box: Einzelform, mehrere: Liste); Adresse und Token ergänzt die App
+  // partner: die Satelliten (eine Box: Einzelform, mehrere: Liste); Adresse und Token ergänzt die App bzw. (Bedienseite)
+  // die Hauptbox aus ihrer eigenen Kopplung
   const partner = sat.length === 1 ? { id: sat[0] } : sat.map((id) => ({ id }));
   const a = await nativ.box("funk", { aktion: "einrichten", partner }, { box: einHaupt(), zeitMs: 95000 + 15000 * Math.max(0, sat.length - 1) });
   b.disabled = false; b.textContent = "Noch einmal einrichten";
@@ -12701,7 +13260,7 @@ function boxProbleme(st) {
   if (st.zustand === "fehler") z.push(esc(st.grund ? `Die Klangkette läuft nicht (${st.grund}).` : "Die Klangkette läuft nicht."));
   for (const s of sats) if (s.erreichbar === false) z.push(esc(s.name ? `Die Rear-Box ${s.name} antwortet nicht.` : "Eine Rear-Box antwortet nicht."));
   // Funk-Stick (status.funk.stick): abgezogen, hostapd nicht gestartet, oder neu und Rears geplant (dann „Funk einrichten“)
-  if (stick && (stick.zustand !== "neu" || einSatelliten().length || sats.length) && !window.klangboxBedienseite)
+  if (stick && (stick.zustand !== "neu" || einSatelliten().length || sats.length))
     z.push(esc(`Funk-Stick: ${stick.text || ""}`) + (stick.zustand !== "fehlt" ? ` <button type="button" class="kb-link" id="zh-funk-einrichten"${zhFunkLaeuft ? " disabled" : ""}>${zhFunkLaeuft ? "Richtet ein …" : "Funk einrichten"}</button>` : ""));
   for (const w of waechterWarn(st)) z.push(esc(w.text || w.regel));
   if (st.temperatur_c != null && +st.temperatur_c >= 80) z.push(`Die Box ist sehr warm (${Math.round(+st.temperatur_c)} °C). Braucht sie mehr Luft?`);
@@ -13060,7 +13619,7 @@ function zhEinmessenBlick(id, profile, weiter) {
     const kan = Object.keys(EM_KANAL).filter((ch) => s.einstellungen[ch] && ch !== "SUB").map((ch) => { const v = s.einstellungen[ch], hinten = /^(SL|SR|RL|RR|BL|BR)$/.test(ch);
       return `<div class="em-fund em-kanal"><span>${EM_KANAL[ch]} <span class="wert">· ${hinten ? "über Funk · " : ""}Laufzeit · Pegel</span></span><span class="em-kanal-wert">${ms(v.delay_ms)}&nbsp;· ${db(v.gain_db)}</span></div>`; });
     const rearDa = Object.keys(s.einstellungen).some((ch) => /^(SL|SR|RL|RR|BL|BR)$/.test(ch)) || (st && (st.satelliten || []).length);
-    const rear = !rearDa && String(lz || "2.0").startsWith("2.") && !window.klangboxBedienseite && nativ && nativ.boxen ? `<button type="button" class="kb-zeile em-fund em-kanal" data-em-rear="1"><span>Rear-Boxen <span class="wert">· über Funk</span></span><span class="em-kanal-wert">hinzufügen</span></button>` : "";
+    const rear = !rearDa && String(lz || "2.0").startsWith("2.") && nativ && nativ.boxen ? `<button type="button" class="kb-zeile em-fund em-kanal" data-em-rear="1"><span>Rear-Boxen <span class="wert">· über Funk</span></span><span class="em-kanal-wert">hinzufügen</span></button>` : "";
     zeilen = kan.length || rear ? `<div class="em-funde">${kan.join("")}${rear}</div>` : "";
   }
   // Kino ist Stereo gefolgt: „Behalten | Zurück“ oben sagt schon, dass Kino Stereo folgt (die Zeile darunter entfällt dann)
@@ -14147,7 +14706,9 @@ function zuhauseZeigen(laden = true) {
   let boxBlick = "", boxKopf = "";
   if (boxDa && st) {
     const sat = st.rolle === "satellit", lr2 = st.lautstaerke, sb2 = st.standby, aus = st.ausgang;
-    const rear = window.klangboxBedienseite || sat ? "" : zhAktion("zh-rear", "", "Rear-Box hinzufügen<small>über Funk</small>", !!(nativ && nativ.boxen) && !((st.satelliten || []).length));
+    const rear = sat ? "" : zhAktion("zh-rear", "", "Rear-Box hinzufügen<small>über Funk</small>", !!(nativ && nativ.boxen) && !((st.satelliten || []).length))
+      // Verbindungstest Satellit (verbindungstest.js): mit Satellit; nimmt auf wie das Einmessen (App, sonst die sichere Bedienseite)
+      + (sat || (window.klangboxBedienseite && !window.klangboxBedienseite.direkt) ? "" : zhAktion("zh-verbindung", "", "Verbindungstest<small>hinten bis zur Membran</small>", !!(nativ && nativ.boxen && nativ.boxen.haupt) && (st.satelliten || []).length > 0 && mitHinten(boxLayout()) && !!window.klangboxVerbindung));
     // Ausgang (Besitzer 15.11.2026: eine Einstellung der Anlage, kein Test): Optisch | USB und Ausgangsrate in einem Fenster
     const usbWahl = !!aus && (((aus.usb || []).length) || aus.wahl === "usb");
     const ausgang = zhAktion("zh-ausgang-k", "", `Ausgang<small>${aus && aus.wahl === "usb" ? "USB" : "Optisch"}${st.streamer ? ` · bis ${zk((+st.streamer.max_rate || 96000) / 1000, 1)} kHz` : ""}</small>`,
@@ -14299,6 +14860,7 @@ document.addEventListener("click", async (ev) => {
     else if (!(MA.gespeichert && window.klangboxSubAbgleich && window.klangboxSubAbgleich.einstieg && window.klangboxSubAbgleich.einstieg()))
       zeigeSchritt(MA.gespeichert || window.klangboxBedienseite ? 3 : 2); }  // neues Handy: erst einmal „Meine Anlage“
   if (b.id === "zh-app" && nativ) { nativ.ereignis({ art: "einstellungen" }); return; }
+  if (b.id === "zh-verbindung" && window.klangboxVerbindung) { window.klangboxVerbindung.oeffnen(); return; }
   if (b.id === "zh-uebernehmen" && window.klangboxBedienseite) { window.klangboxBedienseite.uebernehmen(); return; }
   if (b.id === "zh-hoerprobe") { const r = letzteRunde(modus); if (r && typeof HP !== "undefined") HP.oeffnen(r); return; }
   if (b.id === "zh-rear" || b.id === "zh-verbinden" || b.id === "zh-leer-verbinden") { verbArt = b.id === "zh-rear" ? "rear" : "haupt"; zeigeSchritt(12); }
@@ -16934,6 +17496,11 @@ body.sa-misst .messlage { z-index: 70; }
     messBild(st.plaetze > 1 ? `Platz ${i + 1} von ${st.plaetze}` : "Sub und Boxen einzeln", "Sub · Automatik",
       `${i ? "Setz dich auf den nächsten Platz. " : ""}Die Klång-Box spielt Sweeps: links, rechts, dann der Sub (etwa 25 Sekunden). Bitte still sein.`);
     if (typeof mikrofonOeffnen !== "function" || !AN) { el("sa-hinweis").textContent = "Die Auswertung fehlt auf dieser Seite."; return; }
+    // Messpegel nicht mehr gültig (älter als 4 h, Neustart): erst einpegeln wie beim Einmessen (nie lauter)
+    if (typeof messpegelSichern === "function" && !(await messpegelSichern(null, () => autoSweeps(i)))) {
+      // der Grund steht in der Anzeige der Pegelautomatik (Einpegeln gescheitert bzw. „Lautstärke bitte prüfen …“, 53f/N-l)
+      const g = document.getElementById("mp-status"), t = g && g.textContent.trim();
+      el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(t || "Der Pegel ließ sich nicht einstellen. Bitte noch einmal.")}</span>`; return; }
     const mic = await mikrofonOeffnen({}); if (mic.fehler) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${mic.fehler}</span>`; return; }
     const a = await nativ.box("messsignal", { kanaele: ["FL", "FR", "SUB"], folge: "standard", start_in_ms: 1500, modus: st.modus }, { zeitMs: 15000 });
     if (!a.ok) { mic.schliessen(); el("sa-hinweis").innerHTML = `<span class="sa-warn">Die Klång-Box spielt die Sweeps nicht (${ex(a.fehler || a.grund)}).</span>`; return; }
@@ -16946,6 +17513,9 @@ body.sa-misst .messlage { z-index: 70; }
     try { const mk = (() => { try { const p = mikroProfil(); return p ? AN.mikroKalibrierung(p) : null; } catch (e) { return null; } })();
       m = AN.analysiere(rec.daten, AN.folgeAus({ lead: 1.0, kanaele: ["FL", "FR", "SUB"] }), mk); } catch (e) { m = null; }
     if (!m || !m.messungen.SUB) { el("sa-hinweis").innerHTML = `<span class="sa-warn">Die Sweeps ließen sich nicht auswerten. Bitte noch einmal, leiser im Raum.</span>`; return; }
+    // Lücken in der Aufnahme verschieben Sub gegen Fronts (Phase, Laufzeit): nie damit weiterrechnen
+    const luecke = (m.pruefung.probleme || []).find((t) => /hat Lücken/.test(t)), lh = lueckenHinweis(m.pruefung.probleme);
+    if (luecke) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(luecke)} Bitte diesen Platz noch einmal.${ex(lh)}</span>`; return; }
     st.messungen.push(m.messungen);
     if (i + 1 < st.plaetze) return autoSweeps(i + 1);
     autoRechnen();
@@ -17172,6 +17742,416 @@ body.sa-misst .messlage { z-index: 70; }
     runde: (r) => { stilEinmal(); return runde(r); }, nahtest: () => { stilEinmal(); nahtest(); } };
   return { oeffnen, schliessen, zuhauseKarte, daten, fluss, runde, get zustand() { return st; } };
 }
+</script>
+<script>// Verbindungstest Satellit (Besitzer 19.11.2026: „nach dem Anschließen wissen, ob von uns alles passt, in der Box bis
+// zur Membran“). Ablauf wie die freigegebenen Entwürfe: Start → je Platz (VL → HL → HR → VR) „Vor die Box …“ und die
+// gedrehte Messansicht → Ergebnis (alles ✓ bzw. was zu richten ist, mit Handlung) → Bericht teilen.
+// Rechnung: analyse.js (verbindungPlatz, verbindungAuswerten, gleich klangbox/verbindungstest.py) im Worker der Seite.
+// Die Box spielt die Messfolge „verbindung“ mit modus „kino“ (der Funk bleibt über alle Plätze eine Sitzung), pegelt am
+// ersten Platz nah vor VL ein (Pegelautomatik der Seite, nie lauter) und merkt sich das Ergebnis (POST /api/verbindungstest,
+// der Bericht der Box hängt es an). Gemessene Plätze überleben ein Neuladen (IndexedDB wie die Einmessung, messPuffer).
+// „Aufwachen prüfen“: eigene kurze Messung nach Ruhe (Messfolge „aufwachen“).
+// Eingebunden über den Platzhalter VERBINDUNGSTEST der Vorlage. Einhängepunkte: window.klangboxVerbindung.oeffnen()
+// (Box, Anschließen), .vorbereiten() (Zeile im Einmessen › Vorbereiten). Eigene Stile mit Präfix vt-.
+"use strict";
+(() => {
+  const el = (id) => document.getElementById(id);
+  const PLAETZE = ["FL", "SL", "SR", "FR"];  // einmal um das Sofa: VL → HL → HR → VR
+  const KURZ = { FL: "VL", FR: "VR", SL: "HL", SR: "HR" };
+  const NAME = { FL: "vorne links", FR: "vorne rechts", SL: "hinten links", SR: "hinten rechts" };
+  const PUFFER = "verbindungstest", PUFFER_H = 2;
+  const TUN_MESSEN = "Eine Handbreit vor der Box · still halten", VT_DATEI = "klangbox-verbindungstest.txt";
+  const STIL = `
+#vt { position: fixed; inset: 0; z-index: 60; background: var(--kb-grund); color: var(--kb-text); overflow-y: auto;
+  padding: max(16px, var(--kb-sicher-oben-ist)) var(--kb-rand-rechts) max(24px, var(--kb-sicher-unten-ist)) var(--kb-rand-links); }
+#vt[hidden] { display: none !important; }
+body.vt-an .messlage { z-index: 70; }
+#vt .vt-innen { max-width: var(--kb-inhalt); margin: 0 auto; display: grid; gap: 16px; }
+#vt .vt-kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+#vt .vt-kopf button { min-height: 44px; }
+#vt h1 { font: var(--kb-t-titel); margin: 0; }
+#vt .vt-lead { margin: 0; font: var(--kb-t-lead); color: var(--kb-text); }
+#vt .vt-knoepfe { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+#vt .vt-knoepfe.eins { grid-template-columns: 1fr; }
+#vt .vt-knoepfe button { min-height: 48px; }
+#vt .vt-karte { width: 100%; max-width: 300px; display: block; margin: 4px auto 0; }
+#vt .vt-zeilen { list-style: none; padding: 0; margin: 0; border-bottom: 1px solid var(--kb-linie); }
+#vt .vt-zeilen li { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 8px; padding: 9px 0; border-top: 1px solid var(--kb-linie); }
+#vt .vt-zeilen li > b { font-weight: 600; }
+#vt .vt-zeilen .vt-z { font-weight: 600; }
+#vt .vt-zeilen .vt-wert { text-align: right; font-variant-numeric: tabular-nums; }
+#vt .vt-zeilen .klein, #vt .vt-zeilen .vt-tun { grid-column: 2 / 4; }
+#vt .vt-zeilen .vt-tun button { min-height: 44px; margin-top: 4px; }
+#vt .vt-bericht { white-space: pre; font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 1.45; overflow: hidden;
+  background: var(--kb-flaeche); border: 1px solid var(--kb-linie); border-radius: 8px; padding: 10px; margin: 0; }
+#vt .vt-bericht.offen { white-space: pre-wrap; }
+`;
+  // laufender Test: plaetze, box (was die Box weiß, dazu ruhte_s vor dem ersten Versuch dieses Durchgangs und weck_platz:
+  // die zeitlich erste Aufnahme nach dieser Ruhe; null, wenn es keine gibt, z. B. wiederholt), versuche, eingepegelt
+  let st = null;
+
+  // --- Hülle ----------------------------------------------------------------------------------------------------------
+  function huelle() {
+    if (!el("vt-stil")) { const s = document.createElement("style"); s.id = "vt-stil"; s.textContent = STIL; document.head.appendChild(s); }
+    let h = el("vt");
+    if (!h) { h = document.createElement("div"); h.id = "vt"; h.setAttribute("role", "dialog"); h.setAttribute("aria-modal", "true"); h.setAttribute("aria-labelledby", "vt-h"); document.body.appendChild(h); }
+    h.hidden = false; h.scrollTop = 0; document.body.classList.add("vt-an"); return h;  // die gedrehte Messansicht liegt darüber
+  }
+  const kopf = (marke) => `<div class="vt-kopf"><span class="marke">${esc(marke)}</span><button type="button" class="klein zweit" id="vt-zu">Schließen</button></div>`;
+  function zeige(html) { const h = huelle(); h.innerHTML = `<div class="vt-innen">${html}</div>`; h.scrollTop = 0; const z = el("vt-zu"); if (z) z.onclick = () => schliessen(); }
+  function schliessen() { const h = el("vt"); if (h) h.hidden = true; document.body.classList.remove("vt-an"); aufraeumen(); }
+  // Lautstärke wie vorher. Den Modus stellt die Box selbst zurück, wenn „Einmessen folgt“ endet (wie nach dem Einmessen);
+  // die Seite setzt keinen festen Modus (Prüfer 53/1: „Auto“ wurde sonst dauerhaft „Stereo“).
+  async function aufraeumen() {
+    if (typeof boxPegelSitzung !== "undefined" && boxPegelSitzung && typeof boxPegelZurueck === "function") await boxPegelZurueck();
+  }
+  // Raumskizze von oben: Bild oben, vorne VL/VR, hinten HL/HR; die Box, vor der das Handy liegt, mit kräftigem Rand
+  function karte(aktiv, fertig = []) {
+    const box = (c, x, y) => {
+      const an = c === aktiv, ok = fertig.includes(c), n = PLAETZE.indexOf(c) + 1, id = KURZ[c];
+      return `<rect x="${x - 22}" y="${y - 16}" width="44" height="32" rx="6" fill="var(--kb-flaeche)" stroke="${an ? "var(--kb-text)" : "var(--kb-linie)"}" stroke-width="${an ? 3 : 1}"/>
+        <text x="${x}" y="${y + 5}" font-size="13" font-weight="600" text-anchor="middle" fill="var(--kb-text)">${ok ? "✓" : n}</text>
+        <text x="${x}" y="${y + (y < 100 ? 34 : -24)}" font-size="12" text-anchor="middle" fill="var(--kb-text-leise)">${id}</text>`;
+    };
+    return `<svg class="vt-karte" viewBox="0 0 300 190" aria-hidden="true">
+      <rect x="10" y="8" width="280" height="174" rx="8" fill="none" stroke="var(--kb-linie)"/>
+      <line x1="100" y1="16" x2="200" y2="16" stroke="var(--kb-text-leise)" stroke-width="3" stroke-linecap="round"/>
+      <text x="150" y="34" font-size="11" text-anchor="middle" fill="var(--kb-text-leise)">Bild</text>
+      <circle cx="150" cy="112" r="5" fill="var(--kb-text-leise)"/><text x="150" y="131" font-size="11" text-anchor="middle" fill="var(--kb-text-leise)">du</text>
+      ${box("FL", 52, 48)}${box("SL", 52, 150)}${box("SR", 248, 150)}${box("FR", 248, 48)}</svg>`;
+  }
+  const fertigListe = () => PLAETZE.filter((c) => st && st.plaetze[c]);
+  const naechster = () => PLAETZE.find((c) => !(st && st.plaetze[c])) || null;
+  const merken = () => { if (st && typeof messPuffer !== "undefined") messPuffer.schreiben(PUFFER, { zeit: Date.now(), plaetze: st.plaetze, box: st.box, versuche: st.versuche }); };
+  const vergessen = () => { if (typeof messPuffer !== "undefined") messPuffer.loeschen(PUFFER); };
+  // echtes Minuszeichen in der Anzeige (der Bericht bleibt maschinenlesbar mit „-“)
+  const minus = (t) => String(t).replace(/(^|[\s(±])-(?=\d)/g, "$1−");
+
+  // --- Box ------------------------------------------------------------------------------------------------------------
+  // Was die Box weiß, dazu die Versionen aller Satelliten und der Seite (für den Bericht)
+  async function boxLesen() {
+    const a = await nativ.box("verbindungstest", { aktion: "lesen" }, { zeitMs: 8000 });
+    // ältere Box (bzw. App) kennt die Adresse nicht: das ist „Update“, nicht „nicht erreicht“ (Prüfer 53c/N-c)
+    if (!a.ok) return a.grund === "unbekannt" ? { hinten: null } : null;
+    const box = { ...(a.box || {}), sat_versionen: {} }, stand = document.querySelector('meta[name="klangbox-stand"]'), app = window.klangboxNativ && window.klangboxNativ.appVersion;
+    box.app_version = (stand ? stand.content : "?") + (app ? `, App ${app}` : "");
+    for (const sat of ((zhSt() || {}).satelliten || [])) {
+      if (typeof boxRufe !== "function") break;
+      const s = await boxRufe("status", {}, { box: sat.id, zeitMs: 6000 });
+      box.sat_versionen[sat.name || sat.id] = s && s.ok && s.version ? s.version : "?";
+    }
+    return box;
+  }
+  // Rears nicht (oder nicht beide) zugeordnet: ehrlich sagen und zur Zuordnung führen, nicht mit vier Plätzen starten
+  function ohneHinten() {
+    zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Erst die Boxen hinten zuordnen</h1>
+      <p class="vt-lead">Der Test prüft vorne und hinten. Hinten links und hinten rechts sind noch keinem Satelliten zugeordnet.</p>
+      <div class="vt-knoepfe eins"><button type="button" id="vt-zuordnen">Zur Zuordnung</button></div>`);
+    el("vt-zuordnen").onclick = () => { schliessen(); if (typeof zeigeSchritt === "function") zeigeSchritt(14); };
+  }
+
+  // --- Start ----------------------------------------------------------------------------------------------------------
+  async function oeffnen() {
+    if (!(nativ && nativ.boxen && nativ.boxen.haupt)) return;
+    zeige(`${kopf("Verbindungstest")}<p class="klein" aria-live="polite">Frage die Box …</p>`);
+    const box = await boxLesen();
+    // ehrlich: Box nicht erreicht bzw. zu alt (kennt den Test nicht) ist etwas anderes als „Rears nicht zugeordnet“
+    if (!box) { zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Box nicht erreicht</h1><p class="vt-lead">Die Klång-Box antwortet gerade nicht. Ist sie an und im selben Netz? Dann noch einmal.</p>`); return; }
+    if (!Array.isArray(box.hinten)) { zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Erst das Update</h1><p class="vt-lead">Box oder App kennen den Verbindungstest noch nicht. Erst die Box aktualisieren (Box › Mehr › Updates) und die App, dann noch einmal.</p>`); return; }
+    if (!["SL", "SR"].every((c) => box.hinten.includes(c))) { ohneHinten(); return; }
+    const p = typeof messPuffer !== "undefined" ? await messPuffer.lesen(PUFFER) : null;
+    const frisch = p && p.plaetze && Object.keys(p.plaetze).length && Date.now() - p.zeit < PUFFER_H * 3600e3;
+    // neu geladen mitten im Test: Eine Folge des Verbindungstests, die die Box vielleicht noch spielt, gehört zu keiner
+    // Aufnahme mehr. Stoppen, dann misst auch die Pegelautomatik sofort (Prüfer 53b/M3). Eine andere Folge (eine Messung
+    // von einem anderen Gerät) bleibt; die Aufnahme wartet, bis die Box frei ist (Prüfer 53c/N-b)
+    if (frisch) {
+      let s = await nativ.box("status", {}, { zeitMs: 8000 });
+      if (s.ok && s.messung && VT_FOLGEN.includes(s.messung.folge)) await stoppen();
+      else if (s.ok && s.messung) {
+        zeige(`${kopf("Verbindungstest")}<p class="klein" aria-live="polite">Die Box misst gerade etwas anderes. Ich warte, bis sie frei ist …</p>`);
+        for (let i = 0; i < 60 && s.ok && s.messung; i++) { await warte(1000); s = await nativ.box("status", {}, { zeitMs: 8000 }); }
+        if (s.ok && s.messung) { zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Die Box misst gerade</h1><p class="vt-lead">Eine andere Messung läuft noch. Bitte gleich noch einmal.</p>`); return; }
+      }
+    }
+    // nach dem Neuladen: Ruhe und erste Aufnahme dieses Durchgangs gelten weiter (sie stehen im Puffer)
+    st = frisch ? { plaetze: p.plaetze, box: { ...box, ruhte_s: p.box.ruhte_s ?? null, weck_platz: p.box.weck_platz ?? null }, versuche: p.versuche || 1, eingepegelt: false }
+      : { plaetze: {}, box, versuche: 0, eingepegelt: false };
+    start();
+  }
+  function neuerDurchgang() { st.plaetze = {}; st.versuche = 0; st.eingepegelt = false; delete st.box.weck_platz; vergessen(); }
+  function start() {
+    const n = fertigListe().length, weiter = n > 0 && n < PLAETZE.length;
+    zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Passt alles bis zur Membran?</h1>
+      <p class="vt-lead">${weiter ? `${n} von 4 Plätzen sind schon gemessen. Es geht bei ${esc(NAME[naechster()])} weiter.`
+        : "Vier kurze Messungen, je eine Handbreit vor einer Box. Danach weißt du, ob Zuordnung, Laufzeit, Polarität, Pegel und Funk stimmen. Etwa 4 Minuten."}</p>
+      ${karte(null, fertigListe())}
+      <p class="klein">Die Box spielt leise Töne über alle vier Boxen, auch über den Funk. Das Einmessen am Hörplatz kommt danach.</p>
+      <div class="vt-knoepfe ${weiter ? "" : "eins"}">${weiter ? `<button type="button" class="zweit" id="vt-neu">Neu anfangen</button>` : ""}<button type="button" id="vt-los">${weiter ? "Weiter" : "Los · zuerst vorne links"}</button></div>
+      <button type="button" class="klein zweit" id="vt-aufwachen">Aufwachen prüfen</button>`);
+    el("vt-los").onclick = () => hinweis(naechster());
+    if (el("vt-neu")) el("vt-neu").onclick = () => { neuerDurchgang(); start(); };
+    el("vt-aufwachen").onclick = () => aufwachenStart();
+  }
+  function hinweis(c, status = "") {
+    zeige(`${kopf(`Platz ${PLAETZE.indexOf(c) + 1} von 4`)}<h1 id="vt-h">Vor die Box ${esc(NAME[c])}</h1>
+      <p class="vt-lead">Handy umgedreht, Mikrofon zur Box, eine Handbreit davor. Ruhig halten, bis die Uhr abläuft.</p>
+      ${karte(c, fertigListe())}
+      <p class="klein" id="vt-status" aria-live="polite">${status}</p>
+      <div hidden><span id="vt-pegel"></span><span id="vt-filter"></span><button type="button" id="vt-abbrechen"></button></div>
+      <div class="vt-knoepfe eins"><button type="button" id="vt-start">Ich stehe dort · Messen</button></div>`);
+    el("vt-start").onclick = () => messenPlatz(c);
+  }
+
+  // --- Eine Aufnahme (gedrehte Messansicht, Box spielt, Mikrofon wie beim Einmessen) ----------------------------------
+  // Rückgabe {daten, mess_db, kanaele} | {abbruch} | {fehler} | {neuEinpegeln}; bei einem leeren Mikrofon einmal still neu starten (wie
+  // aufnehmenKern). Spielt die Box noch eine Folge (Neuladen mitten in einer Messung), wartet die Seite, bis sie fertig ist.
+  async function aufnahme(titel, folge, neuVersucht = false) {
+    const ml = messLage;
+    if (!(await ml.oeffnen({ titel, art: "platz" }))) return { abbruch: true };
+    wach.an();
+    try {
+      const mic = await mikrofonOeffnen({});
+      if (mic.fehler) return { fehler: mic.fehler };
+      // verbindung: mit dem Nah-Messpegel (Handy eine Handbreit vor der Box); aufwachen: am Hörplatz, mit dessen Messpegel
+      const senden = () => nativ.box("messsignal", { folge, modus: "kino", start_in_ms: 1500, ...(folge === "verbindung" ? { nah: true } : {}) }, { zeitMs: 10000 });
+      let a = await senden();
+      for (let i = 0; i < 40 && !a.ok && a.grund === "beschaeftigt" && !ml.abbruch; i++) {
+        ml.status("Die Box spielt noch die vorige Messung zu Ende …"); await warte(1500); a = await senden(); }
+      ml.status("");
+      // kein geltender Nah-Messpegel (Box neu gestartet, älter als 4 h): nah neu einpegeln, nie ein Ersatzpegel (53e/M2)
+      if (!a.ok && a.grund === "kein_messpegel" && folge === "verbindung") { mic.schliessen(); return { neuEinpegeln: true }; }
+      if (!a.ok) { mic.schliessen(); return { fehler: `Die Klång-Box spielt den Messton nicht: ${a.fehler || a.grund}` }; }
+      const gesamt = (Number.isFinite(+a.start_in_ms) ? +a.start_in_ms / 1000 : 1.5) + (+a.dauer_s || 40) + 4.0, t0 = Date.now();
+      while (!ml.abbruch && Date.now() - t0 < gesamt * 1000) { const r = (Date.now() - t0) / 1000 / gesamt; ml.zeit(gesamt * (1 - r), r); el("ml-tun").textContent = TUN_MESSEN; await warte(250); }
+      const abgebrochen = ml.abbruch, r = await mic.stopp(); mic.schliessen();
+      if (abgebrochen) { nativ.box("messsignal", { stopp: true }, { zeitMs: 5000 }); return { abbruch: true }; }
+      if (r.fehler && r.leer && !neuVersucht) { mikroNeustart(); meldeBox("mikrofon", { neustart: true, grund: String(r.fehler).slice(0, 200), musik: !!r.musik }); return aufnahme(titel, folge, true); }
+      if (r.fehler) return { fehler: r.leer ? leerFehler(r) : `Aufnahme über die App fehlgeschlagen: ${r.fehler}` };
+      if (r.rate !== 48000) return { fehler: `Abtastrate ${r.rate} Hz statt 48000 Hz.` };
+      if (r.spitze < 0.003) return { fehler: "Fast nichts aufgenommen. Lief der Messton?" };
+      return { daten: r.daten, mess_db: a.mess_db, kanaele: a.kanaele || [] };
+    } finally { wach.aus(); }
+  }
+  const fehlerLage = (text, nochmal) => ({ ...nutzerFehler(text), nochmal });
+
+  // --- Ein Platz -----------------------------------------------------------------------------------------------------
+  const PEGEL_UI = { status: "vt-status", pegel: "vt-pegel", filter: "vt-filter", start: "vt-start", abbrechen: "vt-abbrechen", profil: "stereo" };
+  const VT_FOLGEN = ["verbindung", "aufwachen"];  // was dieser Test spielt (das Einpegeln misst mit der Folge „pegel“)
+  const stoppen = () => nativ.box("messsignal", { stopp: true }, { zeitMs: 5000 });
+  // Übersteuert: nur den Messpegel (nah: den Nah-Messpegel) 6 dB unter den, mit dem die Box eben gespielt hat; die
+  // Hörlautstärke bleibt unberührt (Prüfer 53d/N-g). Die Box senkt ihn nur, nie lauter. Ohne bekannten bzw. geltenden
+  // Messpegel setzt die Seite nichts: Dann soll der Verstärker leiser (Prüfer 53/5).
+  async function leiser(messDb, nah) {
+    const a = Number.isFinite(+messDb) ? await nativ.box("lautstaerke", { messpegel_db: Math.max(-80, +messDb - 6), messpegel: nah ? "nah" : true }) : { ok: false };
+    return a.ok ? "Zu laut aufgenommen: Die Aufnahme übersteuert. Der Prüfton kommt jetzt 6 dB leiser, bitte noch einmal."
+      : "Zu laut aufgenommen: Die Aufnahme übersteuert. Bitte am Verstärker etwas leiser drehen, dann noch einmal.";
+  }
+  async function messenPlatz(c, neuEingepegelt = false) {
+    if (typeof setzeQuelle === "function" && quelle !== "box") setzeQuelle("box");
+    const titel = `Platz ${PLAETZE.indexOf(c) + 1} von 4 · ${NAME[c]}`;
+    // am ersten Platz, nah vor der Box: die Pegelautomatik (nie lauter), in Stereo (der Funk zu den Rears bleibt still,
+    // sie sollen zum Aufwachen noch schlafen); danach bleibt die Ansicht gedreht
+    if (!st.eingepegelt) {
+      el("vt-start").disabled = true;
+      const ok = await boxPegelAutomatik({ ui: PEGEL_UI, weiter: false, bleiben: true, nah: true });
+      if (!ok) { if (el("vt-start")) el("vt-start").disabled = false; return; }
+      st.eingepegelt = true;
+    }
+    // vor dem ersten Versuch dieses Durchgangs: wie lange war hinten Ruhe (frisch, nicht vom Öffnen)
+    if (!st.versuche) { const b = await boxLesen(); if (b) st.box = { ...st.box, ...b }; }
+    const versuch = ++st.versuche;
+    const a = await aufnahme(titel, "verbindung");
+    if (a.neuEinpegeln && !neuEingepegelt) { st.eingepegelt = false; await messLage.schliessen(false); return messenPlatz(c, true); }
+    if (a.neuEinpegeln) a.fehler = "Die Klång-Box nimmt den eingepegelten Pegel nicht an. Bitte noch einmal.";
+    if (a.abbruch) { await messLage.schliessen(false); hinweis(c, "Abgebrochen."); return; }
+    if (a.fehler) { messLage.schliessen(false, fehlerLage(a.fehler, () => messenPlatz(c))); hinweis(c, `<span class="warn">${esc(a.fehler)}</span>`); return; }
+    if (!["SL", "SR"].every((x) => a.kanaele.includes(x))) { stoppen(); await messLage.schliessen(false); ohneHinten(); return; }
+    messLage.status("Ich werte aus …");
+    const r = await imWorker({ art: "verbindung", daten: a.daten, kanaele: null, wdh: 2 });
+    if (!r.ok) { const t = `Aufnahme unvollständig: ${r.fehler || "Zeitmarker nicht gefunden"}. Bitte noch einmal.`; messLage.schliessen(false, fehlerLage(t, () => messenPlatz(c))); hinweis(c, `<span class="warn">${esc(t)}</span>`); return; }
+    const platz = { ...r.ergebnis, mess_db: Number.isFinite(+a.mess_db) ? +a.mess_db : null };
+    // Lücken in der Aufnahme (das Gerät hat Teile verloren): ehrlich, derselbe Platz noch einmal (nie still weiterrechnen)
+    const lh = lueckenHinweis(platz.probleme);
+    if ((platz.probleme || []).some((t) => /hat Lücken/.test(t))) {
+      const t = `${platz.probleme.find((x) => /hat Lücken/.test(x))} Platz wiederholen.${lh}`;
+      messLage.schliessen(false, fehlerLage(t, () => messenPlatz(c))); hinweis(c, `<span class="warn">${esc(t)}</span>`); return;
+    }
+    if ((platz.probleme || []).some((t) => /übersteuert/.test(t))) {  // ehrlich melden, leiser, dann noch einmal
+      const t = await leiser(a.mess_db, true);
+      messLage.schliessen(false, fehlerLage(t, () => messenPlatz(c))); hinweis(c, `<span class="warn">${esc(t)}</span>`); return;
+    }
+    await messLage.schliessen(true);
+    // die Weck-Töne zählen nur aus der ersten Aufnahme nach der Ruhe; jede spätere ist keine erste mehr
+    if (versuch === 1) st.box.weck_platz = c; else if (!("weck_platz" in st.box)) st.box.weck_platz = null;
+    st.plaetze[c] = platz; merken();
+    const n = naechster();
+    if (n) hinweis(n); else abschluss();
+  }
+
+  // --- Auswerten, merken, zeigen --------------------------------------------------------------------------------------
+  async function abschluss() {
+    zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Gleich fertig</h1><p class="vt-lead">Die Box prüft noch den Funk (etwa 20 s).</p>`);
+    const f = await nativ.box("funk/protokoll?messen=1", {}, { zeitMs: 60000 });
+    const funk = f.ok && Array.isArray(f.punkte) ? f.punkte : null, funkText = f.ok && f.text ? f.text : null;
+    const r = await imWorker({ art: "verbindungAuswerten", plaetze: st.plaetze, box: st.box, funk, funkText });
+    if (!r.ok) { zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Das hat nicht geklappt</h1><p class="vt-lead">${esc(r.fehler || "Auswertung fehlgeschlagen.")}</p>`); return; }
+    const { erg, text } = r.ergebnis;
+    st.erg = erg; st.text = text;
+    await nativ.box("verbindungstest", { aktion: "speichern", gesamt: erg.gesamt, punkte: erg.punkte, text }, { zeitMs: 10000 });
+    vergessen(); await aufraeumen();
+    ergebnis();
+  }
+  const KURZ_WERT = 16;  // längere Werte stehen unter dem Punkt, nicht rechts daneben
+  // Eine Zeile: Zeichen, Punkt, Wert; darunter bei ! ✗ ? – was es heißt und was zu tun ist (gibt es einen Knopf, tut er es)
+  function zeile(p, extra = "") {
+    const titelWert = p.punkt === "Zuordnung" && p.z === "✗", titel = titelWert ? p.wert.charAt(0).toUpperCase() + p.wert.slice(1) : p.punkt;
+    const wert = titelWert ? "" : String(p.wert || ""), kurz = wert.length <= KURZ_WERT;
+    const sub = [kurz ? "" : esc(minus(wert)), p.z === "✓" ? "" : esc(minus(p.bedeutung || "")), p.z === "✓" || !p.tun || extra ? "" : esc(p.tun)].filter(Boolean).join(" ");
+    return `<li data-punkt="${esc(p.punkt)}" data-z="${esc(p.z)}"><span class="vt-z">${esc(p.z)}</span><b>${esc(titel)}</b><span class="vt-wert">${kurz ? esc(minus(wert)) : ""}</span>${sub ? `<span class="klein">${sub}</span>` : ""}${extra ? `<span class="vt-tun">${extra}</span>` : ""}</li>`;
+  }
+  // kurz für die Zeile (der Bericht hat alles): Laufzeit und Pegel hinten als ein Wert (Mittel beider Seiten)
+  function kurzWert(p, w) {
+    const mittel = (o) => { const v = Object.values(o || {}).map((x) => (typeof x === "number" ? x : x.weit)); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+    const vz = (x, n) => `${x >= 0 ? "+" : ""}${zt(x, n)}`;
+    if (p.punkt === "Laufzeit hinten" && mittel(w.hinten_ms) !== null && p.z === "✓") return { ...p, wert: `${vz(mittel(w.hinten_ms), 1)} ms` };
+    if (p.punkt === "Pegel hinten" && mittel(w.pegel_db) !== null) return { ...p, wert: `${vz(mittel(w.pegel_db), 1)} dB` };
+    return p;
+  }
+  // Handlung mit einem Tipp, wo die Box es kann: tauschen und umpolen in der Kanal-Zuordnung (wie der Kanal-Check)
+  function handlung(p) {
+    if (p.punkt === "Zuordnung" && /hinten links und rechts vertauscht/.test(p.wert)) return `<button type="button" class="klein" data-vt-tausch="SL,SR">Hinten tauschen</button>`;
+    if (p.punkt === "Zuordnung" && /vorne links und rechts vertauscht/.test(p.wert)) return `<button type="button" class="klein" data-vt-tausch="FL,FR">Vorne tauschen</button>`;
+    if (p.punkt === "Funk während der Messung") { const c = PLAETZE.find((x) => p.wert.includes(NAME[x])); return c ? `<button type="button" class="klein" data-vt-platz="${c}">Platz ${esc(NAME[c])} wiederholen</button>` : ""; }
+    if (p.punkt === "Polarität" && (p.z === "✗" || p.z === "!")) {  // „!“ (zwei gegen zwei): drehen nur als bewusste Wahl
+      const k = PLAETZE.filter((c) => p.wert.includes(NAME[c])); return k.length ? `<button type="button" class="klein" data-vt-umpolen="${k.join(",")}">In der Box drehen</button>` : ""; }
+    if (p.punkt === "Zuordnung" && p.z === "?") { const c = PLAETZE.find((x) => p.wert.includes(NAME[x])); return c ? `<button type="button" class="klein" data-vt-platz="${c}">Platz ${esc(NAME[c])} wiederholen</button>` : ""; }
+    if (p.punkt === "Aufwachen hinten" && p.z === "–") return `<button type="button" class="klein zweit" data-vt-aufwachen>Aufwachen prüfen</button>`;
+    return "";
+  }
+  function ergebnis() {
+    const erg = st.erg, w = erg.werte, gut = erg.punkte.filter((p) => p.z === "✓").map((p) => kurzWert(p, w));
+    // „Laufzeit hinten: nicht gemessen“ folgt aus einer falschen Zuordnung: kein eigenes Ding zum Richten
+    const zuordnungFalsch = erg.punkte.some((p) => p.punkt === "Zuordnung" && p.z === "✗");
+    const schlecht = erg.punkte.filter((p) => ["✗", "!", "?"].includes(p.z) && !(zuordnungFalsch && p.punkt === "Laufzeit hinten" && p.z === "?")).map((p) => kurzWert(p, w));
+    const auskunft = erg.punkte.filter((p) => p.z === "–" && p.punkt === "Aufwachen hinten");
+    if (!schlecht.length) {
+      zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Alles passt</h1>
+        <p class="vt-lead">Von der Box bis zu den Membranen. Jetzt kann das Einmessen kommen.</p>
+        <ul class="vt-zeilen">${gut.map((p) => zeile(p)).join("")}${auskunft.map((p) => zeile(p, handlung(p))).join("")}</ul>
+        <div class="vt-knoepfe"><button type="button" id="vt-einmessen">Weiter zum Einmessen</button><button type="button" class="zweit" id="vt-bericht">Bericht teilen</button></div>`);
+      el("vt-einmessen").onclick = () => { schliessen(); if (typeof zeigeSchritt === "function") zeigeSchritt(MA.gespeichert ? 3 : 2); };
+    } else {
+      const n = schlecht.length, titel = `${["Ein Ding", "Zwei Dinge", "Drei Dinge", "Vier Dinge"][n - 1] || `${n} Dinge`} richten`;
+      zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">${titel}</h1>
+        <p class="vt-lead">${gut.length ? "Der Rest passt. " : ""}Danach den Test noch einmal.</p>
+        <ul class="vt-zeilen">${schlecht.map((p) => zeile(p, handlung(p))).join("")}${auskunft.map((p) => zeile(p, handlung(p))).join("")}${gut.length ? zeile({ z: "✓", punkt: `${gut.length} weitere ${gut.length === 1 ? "Punkt passt" : "Punkte"}`, wert: gut.length === 1 ? "" : "passen" }) : ""}</ul>
+        <p class="klein" id="vt-status" aria-live="polite"></p>
+        <div class="vt-knoepfe"><button type="button" id="vt-nochmal">Gerichtet · nochmal testen</button><button type="button" class="zweit" id="vt-bericht">Bericht teilen</button></div>`);
+      el("vt-nochmal").onclick = () => { neuerDurchgang(); hinweis(PLAETZE[0]); };  // neuer Durchgang: Ruhe frisch lesen
+    }
+    el("vt-bericht").onclick = () => berichtZeigen(st.text, VT_DATEI);
+    el("vt").onclick = (ev) => aktion(ev);
+  }
+  async function aktion(ev) {
+    const b = ev.target.closest("button"); if (!b) return;
+    if (b.dataset.vtAufwachen !== undefined) { aufwachenStart(); return; }
+    if (b.dataset.vtPlatz) {  // Platz wiederholen: war er die erste Aufnahme nach der Ruhe, zählt das Aufwachen nicht mehr
+      const c = b.dataset.vtPlatz; delete st.plaetze[c]; if (st.box.weck_platz === c) st.box.weck_platz = null; merken(); hinweis(c); return; }
+    const status = (h) => { if (el("vt-status")) el("vt-status").innerHTML = h; };
+    if (!(b.dataset.vtTausch || b.dataset.vtUmpolen)) return;
+    if (!(typeof ein !== "undefined" && ein.layout && typeof kanaeleSenden === "function")) {
+      status(`<span class="warn">Das kann ich hier nicht in der Box umstellen. Bitte die Kabel tauschen bzw. Plus und Minus tauschen, dann noch einmal testen.</span>`); return;
+    }
+    b.disabled = true;
+    const vorher = ein.zuordnung;
+    if (b.dataset.vtTausch) { const [x, y] = b.dataset.vtTausch.split(","); ein.zuordnung = kcTauschZuordnung({ [x]: y, [y]: x }); }
+    else { const neu = { ...vorher }; for (const ch of b.dataset.vtUmpolen.split(",")) if (neu[ch]) neu[ch] = { ...neu[ch], polaritaet: neu[ch].polaritaet === "gedreht" ? "normal" : "gedreht" }; ein.zuordnung = neu; }
+    const a = await kanaeleSenden();
+    if (!a.ok) { ein.zuordnung = vorher; b.disabled = false; status(`<span class="warn">Die Box hat es nicht umgestellt: ${esc(a.fehler || a.grund)}</span>`); return; }
+    einMerken();
+    b.outerHTML = `<span class="ok">✓ In der Box ${b.dataset.vtTausch ? "getauscht" : "gedreht"}. Bitte noch einmal testen.</span>`;
+  }
+  // Vorschau: Kopf und die Punkte, jede Zeile gekürzt (geteilt wird der ganze Text)
+  function vorschau(text) {
+    const z = String(text).split("\n"), ende = z.indexOf("", 4), kurz = (t) => (t.length > 46 ? t.slice(0, 45) + "…" : t);
+    return [...z.slice(0, 3), ...z.slice(4, ende < 0 ? 12 : ende).filter((t) => !t.startsWith("–")).slice(0, 9)].map(kurz).join("\n") + "\nund alle Messwerte …";
+  }
+  // Bericht teilen (Entwurf 7): Vorschau, „Teilen“ (Datei, sonst Text, sonst Zwischenablage, sonst zum Markieren)
+  function berichtZeigen(text, datei) {
+    const zurueck = st && st.erg ? ergebnis : start;
+    zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Bericht teilen</h1>
+      <p class="vt-lead">Alle Messwerte mit Streuung, was die Box nur rechnet, das Funk-Protokoll und die Versionen. Keine Passwörter.</p>
+      <pre class="vt-bericht" id="vt-text">${esc(vorschau(text))}</pre>
+      <p class="klein" id="vt-status" aria-live="polite">${datei === VT_DATEI ? "Der letzte Test steht auch im Bericht der Box (Box › Testlabor › Bericht senden)." : ""}</p>
+      <div class="vt-knoepfe"><button type="button" class="zweit" id="vt-zurueck">Zurück</button><button type="button" id="vt-teilen">Teilen</button></div>`);
+    el("vt-zurueck").onclick = () => zurueck();
+    el("vt-teilen").onclick = async () => {
+      const s = el("vt-status");
+      try {
+        const f = typeof File === "function" ? new File([text], datei, { type: "text/plain" }) : null;
+        if (f && navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "Klång-Box Verbindungstest" }); s.textContent = "✓ Geteilt."; return; }
+        if (navigator.share) { await navigator.share({ title: "Klång-Box Verbindungstest", text }); s.textContent = "✓ Geteilt."; return; }
+      } catch (e) { if (e && e.name === "AbortError") return; }
+      try { await navigator.clipboard.writeText(text); s.textContent = "✓ Kopiert – im Chat einfügen."; }
+      catch (e) { el("vt-text").textContent = text; el("vt-text").classList.add("offen"); s.textContent = "Teilen geht hier nicht: Text oben markieren und kopieren."; }
+    };
+  }
+
+  // --- Aufwachen prüfen (eigener Knopf): nach 30 min Ruhe, Handy am Platz -------------------------------------------
+  async function aufwachenStart() {
+    const box = (await boxLesen()) || {}, ruhte = box.ruhte_s, genug = typeof ruhte === "number" && ruhte >= 1800;
+    zeige(`${kopf("Aufwachen prüfen")}<h1 id="vt-h">Wachen die Boxen hinten schnell auf?</h1>
+      <p class="vt-lead">Dafür müssen sie vorher schlafen: etwa 30 min nichts über die Boxen hinten (Musik in Stereo oder aus). Dann misst die Box, wann hinten der erste Ton kommt.</p>
+      <p class="klein">${typeof ruhte === "number" ? `Hinten ist seit ${zt(ruhte / 60, 0)} min Ruhe${genug ? "." : ": noch zu kurz, das Ergebnis zeigt dann nur den Anlauf."}` : "Wie lange hinten Ruhe ist, weiß die Box gerade nicht."}</p>
+      <p class="klein">Handy am Hörplatz, umgedreht, Mikrofon nach oben. Etwa 25 s.</p>
+      <p class="klein" id="vt-status" aria-live="polite"></p>
+      <div hidden><span id="vt-pegel"></span><span id="vt-filter"></span><button type="button" id="vt-abbrechen"></button></div>
+      <div class="vt-knoepfe eins"><button type="button" id="vt-weck-los">Messen</button></div>`);
+    el("vt-weck-los").onclick = () => aufwachenMessen(box);
+  }
+  // Ohne gültigen Messpegel (Neustart, älter als 4 h) erst einpegeln, am Hörplatz und in Stereo (die Rears bleiben
+  // still); die Box selbst spielt ohne Messpegel nie lauter als die Hörlautstärke (Prüfer 53/2)
+  async function aufwachenMessen(box) {
+    if (!box.mess_db_gilt) {
+      el("vt-weck-los").disabled = true;
+      const ok = await boxPegelAutomatik({ ui: { ...PEGEL_UI, start: "vt-weck-los" }, weiter: false, bleiben: true });
+      if (!ok) { if (el("vt-weck-los")) el("vt-weck-los").disabled = false; return; }
+      box.mess_db_gilt = true;
+    }
+    const a = await aufnahme("Aufwachen hinten", "aufwachen");
+    if (a.abbruch || a.fehler) { if (a.fehler) messLage.schliessen(false, fehlerLage(a.fehler, () => aufwachenMessen(box))); else await messLage.schliessen(false); return; }
+    messLage.status("Ich werte aus …");
+    const r = await imWorker({ art: "verbindung", daten: a.daten, kanaele: null, wdh: 1, aufwachen: true, box, mess_db: a.mess_db });
+    if (r.ok && r.ergebnis.zuLaut) {  // übersteuert: ehrlich, leiser, noch einmal (die Rears sind dann wach: nur Anlauf)
+      const t = await leiser(a.mess_db, false);
+      messLage.schliessen(false, fehlerLage(t, () => aufwachenMessen({ ...box, ruhte_s: 0 }))); return;
+    }
+    await messLage.schliessen(!!r.ok);
+    await aufraeumen();
+    if (!r.ok) { zeige(`${kopf("Aufwachen prüfen")}<h1 id="vt-h">Das hat nicht geklappt</h1><p class="vt-lead">${esc(r.fehler || "Auswertung fehlgeschlagen.")}</p>`); return; }
+    const { erg, text } = r.ergebnis, ok = erg.gesamt === "✓";
+    zeige(`${kopf("Aufwachen prüfen")}<h1 id="vt-h">${ok ? "Hinten ist der Ton gleich da" : "Hinten fehlt der Anfang"}</h1>
+      <ul class="vt-zeilen">${erg.punkte.map((p) => zeile(p)).join("")}</ul>
+      <div class="vt-knoepfe"><button type="button" class="zweit" id="vt-fertig">Fertig</button><button type="button" id="vt-bericht">Bericht teilen</button></div>`);
+    el("vt-fertig").onclick = () => schliessen();
+    el("vt-bericht").onclick = () => berichtZeigen(text, "klangbox-aufwachen.txt");
+  }
+
+  // --- Einmessen › Vorbereiten: anbieten bzw. empfehlen, nie erzwingen ---------------------------------------------------
+  async function vorbereiten() {
+    const z = el("vt-vorher"); if (!z) return;
+    z.hidden = true;
+    if (!(nativ && nativ.boxen && nativ.boxen.haupt) || !mitHinten(boxLayout())) return;
+    const a = await nativ.box("verbindungstest", { aktion: "lesen" }, { zeitMs: 6000 });
+    if (!a.ok) return;
+    const l = a.letzter;
+    if (l && l.gesamt === "✓") return;
+    el("vt-vorher-text").textContent = l ? `Der letzte Verbindungstest war nicht grün (${l.gesamt}). Empfohlen: erst noch einmal testen.` : "Hinten über Funk: Empfohlen ist erst der Verbindungstest (etwa 4 Minuten).";
+    z.hidden = false;
+  }
+  document.addEventListener("click", (ev) => { const b = ev.target.closest("#vt-vorher-start, #e-vt-start"); if (b) oeffnen(); });
+  window.klangboxVerbindung = { oeffnen, vorbereiten };
+})();
 </script>
 <script>// Hören (Mockup „Hören aufgeräumt“, D+): eine Ansicht, kein Player (Nutzer 08.11.2026: kein Play/Pause, kein Titelwechsel,
 // keine Gesten auf dem Cover). Cover (Antippen dreht es auf die Rückseite mit der Titelliste), Titel mit kleiner

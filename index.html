@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="klangbox-stand" content="da0b1ac43977">
+<meta name="klangbox-stand" content="77e4a0008657">
 <title>Klång-Box Raum-Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" href="favicon.svg?v=dp1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=dp1" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=dp1">
@@ -2218,6 +2218,8 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
     <!-- Ohne Box: Vorher/Nachher als Musikstück (vgKarte), gefüllt beim Öffnen aus der letzten Runde -->
     <div class="sheet-block" hidden data-block="zh-vg" id="zh-vg-block"></div>
     <div class="sheet-block" hidden data-block="em-tipps" id="em-tipps-block"></div>
+    <!-- Hinten ausgeglichen (Paket 54, Entwurf Bild 1): emHintenHtml aus der letzten Runde -->
+    <div class="sheet-block" hidden data-block="em-hinten" id="em-hinten-block"></div>
     <div class="sheet-block" hidden data-block="em-fund" id="em-fund-block"><div class="em-fund-inhalt" id="em-fund-inhalt"></div></div>
     <div class="sheet-block" hidden data-block="zh-mehr" id="zh-mehr-block"><div class="zh-aktionen" id="zh-mehr-liste"></div></div>
     <!-- Kino folgt Stereo (2.0/2.1, POST /api/kino_folgt {an}): ab Werk an, Rückschaltung bei Fehler oder Wächtern (aus_grund) -->
@@ -2358,6 +2360,13 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
         <span class="klein">Lauter geht es nicht, auch nicht mit Fernbedienung oder Handy.</span></div>
       <!-- Pegel einmessen (pegelecht.js): nur, wenn die Klång-Box regelt; danach echte dB auf Hören und „Wie echt“ im Fenster Klang -->
       <div id="zh-pe-platz"></div>
+      <!-- Anzeige Stufen | dB und Regler an die Anlage (lautstaerke.js, Besitzer 20.11.2026): in der Box gespeichert, nur wenn die Klång-Box regelt -->
+      <div class="kasten" id="zh-lr-anzeige" hidden><h3 id="zh-lr-anzeige-label">Anzeige</h3>
+        <div class="seg" role="group" aria-labelledby="zh-lr-anzeige-label"><button type="button" data-laut-anzeige="stufen" aria-pressed="true">Stufen</button><button type="button" data-laut-anzeige="db" aria-pressed="false">dB</button></div>
+        <span class="klein" id="zh-lr-anzeige-text"></span></div>
+      <div class="kasten" id="zh-lr-skala" hidden><div class="reihe"><div><h3>Regler an die Anlage anpassen</h3><span class="klein" id="zh-lr-skala-text"></span></div>
+        <button type="button" class="schalter" role="switch" id="zh-lr-skala-an" aria-checked="true" aria-label="Regler an die Anlage anpassen"></button></div>
+        <span class="klein">Umschalten ändert nur die Zahl, nie den Ton.</span></div>
       <!-- Musik ↔ Film (0.3.42 aus dem Fenster Klang hierher): einmal einstellen, kein Hörgeschmack -->
       <div id="zh-ma-platz"></div>
       <p class="klein" id="zh-lr-kal" hidden></p>
@@ -2549,12 +2558,157 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
   <audio id="vg-audio" preload="auto" x-webkit-airplay="allow" playsinline></audio>
 </main>
 
-<script type="text/plain" id="analyse-src">// Raum-Check-Auswertung in JavaScript: dieselben Schritte wie klangbox/messung.py,
+<script type="text/plain" id="analyse-src">// Korrektur der Rückkanäle (Paket 54): Lage, Pegel und Laufzeit auf die Plätze (kein Lage-Ausgleich, Besitzer 20.11.2026).
+// Dieselbe Rechnung wie klangbox/rueckkorrektur.py (Herleitung und Grenzen dort, Zahlen in docs/rear_pruefstand.md);
+// der Bass-EQ je Rückkanal steht in analyse.js (rueckEq), weil er fitEq und pruefen braucht.
+// tests/test_rueckkorrektur.py prüft Python und JavaScript gegeneinander. Läuft im Browser und in Node.
+"use strict";
+
+const RK = (() => {
+  const C_SCHALL = 343, VORNE = ["FL", "FR"], HINTEN = ["SL", "SR", "BL", "BR"];
+  const ORT_REST_MAX_MS = 0.3, ORT_MAX_ITER = 40, PEGEL_MIN_DB = -20;
+  const r1 = (x, n) => { const p = 10 ** n; return Math.round(x * p) / p; };
+  const grad = (r) => r * 180 / Math.PI;
+
+  function lsLoesen(A, y) {  // wie _ls_loesen: Normalgleichungen, Gauß mit Pivotsuche
+    const n = A[0].length, M = [], b = [];
+    for (let r = 0; r < n; r++) {
+      M.push([]); let s = 0;
+      for (let c = 0; c < n; c++) { let t = 0; for (let k = 0; k < A.length; k++) t += A[k][r] * A[k][c]; M[r].push(t); }
+      for (let k = 0; k < A.length; k++) s += A[k][r] * y[k];
+      b.push(s);
+    }
+    for (let c = 0; c < n; c++) {
+      let piv = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+      [M[c], M[piv]] = [M[piv], M[c]]; [b[c], b[piv]] = [b[piv], b[c]];
+      if (Math.abs(M[c][c]) < 1e-12) M[c][c] = 1e-12;
+      for (let r = c + 1; r < n; r++) { const f = M[r][c] / M[c][c]; for (let s = c; s < n; s++) M[r][s] -= f * M[c][s]; b[r] -= f * b[c]; }
+    }
+    const x = new Array(n).fill(0);
+    for (let c = n - 1; c >= 0; c--) { let s = b[c]; for (let k = c + 1; k < n; k++) s -= M[c][k] * x[k]; x[c] = s / M[c][c]; }
+    return x;
+  }
+
+  function abstandVon(paare) {
+    const d = new Map();
+    for (const p of paare) if (typeof p.abstand_m === "number" && p.abstand_m > 0) { d.set(p.i + "|" + p.j, +p.abstand_m); d.set(p.j + "|" + p.i, +p.abstand_m); }
+    return d;
+  }
+
+  function boxenAusAbstaenden(paare) {  // wie boxen_aus_abstaenden
+    const d = abstandVon(paare);
+    if (!d.has("FL|FR")) return null;
+    const b = d.get("FL|FR"), boxen = { FL: [-b / 2, 0], FR: [b / 2, 0] };
+    const frei = [...HINTEN, "C"].filter((c) => d.has("FL|" + c) && d.has("FR|" + c));
+    for (const c of frei) {
+      const dl = d.get("FL|" + c), dr = d.get("FR|" + c), x = (dl * dl - dr * dr) / (2 * b), y2 = dl * dl - (x + b / 2) ** 2;
+      boxen[c] = [x, (c === "C" ? 1 : -1) * Math.sqrt(Math.max(y2, 0))];
+    }
+    // Reihenfolge der Paare wie das dict in Python (Einfügereihenfolge, je Paar i < j)
+    const liste = [];
+    for (const [k, v] of d) { const [i, j] = k.split("|"); if (i < j && i in boxen && j in boxen && !(VORNE.includes(i) && VORNE.includes(j))) liste.push([i, j, v]); }
+    for (let it = 0; it < ORT_MAX_ITER && liste.length && frei.length; it++) {
+      const zeilen = [], rest = [];
+      for (const [i, j, dij] of liste) {
+        const dx = boxen[i][0] - boxen[j][0], dy = boxen[i][1] - boxen[j][1], r = Math.max(Math.hypot(dx, dy), 1e-6);
+        const z = new Array(2 * frei.length).fill(0);
+        if (frei.includes(i)) { z[2 * frei.indexOf(i)] += dx / r; z[2 * frei.indexOf(i) + 1] += dy / r; }
+        if (frei.includes(j)) { z[2 * frei.indexOf(j)] -= dx / r; z[2 * frei.indexOf(j) + 1] -= dy / r; }
+        zeilen.push(z); rest.push(dij - r);
+      }
+      const s = lsLoesen(zeilen, rest);
+      frei.forEach((c, k) => { boxen[c][0] += s[2 * k]; boxen[c][1] += s[2 * k + 1]; if (c !== "C" && boxen[c][1] > 0) boxen[c][1] = -boxen[c][1]; });
+      if (Math.max(...s.map(Math.abs)) < 1e-6) break;
+    }
+    return boxen;
+  }
+
+  function platzOrten(boxen, ankunftMs, eMs) {  // wie platz_orten
+    const k = Object.keys(boxen).filter((c) => c in ankunftMs && c in eMs);
+    if (k.length < 4) return null;
+    const cx = k.reduce((s, c) => s + boxen[c][0], 0) / k.length, cy = k.reduce((s, c) => s + boxen[c][1], 0) / k.length;
+    const t0 = k.reduce((s, c) => s + ankunftMs[c] - eMs[c] - Math.hypot(boxen[c][0] - cx, boxen[c][1] - cy) / C_SCHALL * 1000, 0) / k.length;
+    let x = [cx, cy, t0];
+    for (let it = 0; it < ORT_MAX_ITER; it++) {
+      const zeilen = [], rest = [];
+      for (const c of k) {
+        const dx = x[0] - boxen[c][0], dy = x[1] - boxen[c][1], r = Math.max(Math.hypot(dx, dy), 1e-6);
+        zeilen.push([dx / r / C_SCHALL * 1000, dy / r / C_SCHALL * 1000, 1]);
+        rest.push(ankunftMs[c] - eMs[c] - (x[2] + r / C_SCHALL * 1000));
+      }
+      const s = lsLoesen(zeilen, rest);
+      x = [x[0] + s[0], x[1] + s[1], x[2] + s[2]];
+      if (Math.max(...s.map(Math.abs)) < 1e-7) break;
+    }
+    const rest = k.map((c) => ankunftMs[c] - eMs[c] - (x[2] + Math.hypot(x[0] - boxen[c][0], x[1] - boxen[c][1]) / C_SCHALL * 1000));
+    return { pos: [x[0], x[1]], rest_ms: Math.sqrt(rest.reduce((s, r) => s + r * r, 0) / rest.length) };
+  }
+
+  function winkelVomPlatz(boxen, pos) {  // wie winkel_vom_platz: 0° senkrecht auf die Linie der Fronts, links positiv
+    const dx = boxen.FR[0] - boxen.FL[0], dy = boxen.FR[1] - boxen.FL[1], n = Math.max(Math.hypot(dx, dy), 1e-9);
+    let fx = -dy / n, fy = dx / n;
+    if (fx * (boxen.FL[0] - pos[0]) + fy * (boxen.FL[1] - pos[1]) < 0) { fx = -fx; fy = -fy; }
+    const lx = -fy, ly = fx, w = {}, a = {};
+    for (const [c, [bx, by]] of Object.entries(boxen)) {
+      const vx = bx - pos[0], vy = by - pos[1];
+      w[c] = grad(Math.atan2(vx * lx + vy * ly, vx * fx + vy * fy)); a[c] = Math.hypot(vx, vy);
+    }
+    return [w, a];
+  }
+
+
+  function lage(paare, eMs, sitze) {  // wie lage
+    const boxen = boxenAusAbstaenden(paare);
+    if (!boxen) return null;
+    const plaetze = [];
+    for (const s of sitze) {
+      const o = platzOrten(boxen, s.ankunft_ms, eMs);
+      if (!o) continue;
+      const [w, a] = winkelVomPlatz(boxen, o.pos), wr = {}, ar = {};
+      for (const c of Object.keys(w)) { wr[c] = r1(w[c], 1); ar[c] = r1(a[c], 2); }
+      plaetze.push({ platz: s.platz, pos: [r1(o.pos[0], 3), r1(o.pos[1], 3)], rest_ms: r1(o.rest_ms, 3), winkel: wr, abstand_m: ar });
+    }
+    if (!plaetze.length) return null;
+    const bx = {}; for (const [c, v] of Object.entries(boxen)) bx[c] = [r1(v[0], 3), r1(v[1], 3)];
+    return { boxen: bx, plaetze, sicher: plaetze.every((p) => p.rest_ms <= ORT_REST_MAX_MS) };
+  }
+
+  function pegelLaufzeit(sitze, fronts, art = "haupt") {  // wie pegel_laufzeit
+    if (!["haupt", "minimax"].includes(art)) throw new Error(`Unbekannte Art ${art}`);
+    const aus = {}, hinten = HINTEN.filter((c) => sitze.every((s) => c in s.mitte_db && c in s.ankunft_ms));
+    const n = art === "haupt" ? 1 : sitze.length;
+    for (const ch of hinten) {
+      const diffs = [], fehl = [], nach = [];
+      for (const s of sitze) {
+        diffs.push(VORNE.reduce((t, c) => t + s.mitte_db[c] + fronts[c].gain_db, 0) / 2 - s.mitte_db[ch]);
+        fehl.push(Math.max(...VORNE.map((c) => s.ankunft_ms[c] + fronts[c].delay_ms)) - s.ankunft_ms[ch]);
+        nach.push(Math.max(...hinten.map((c) => s.ankunft_ms[c])) - s.ankunft_ms[ch]);
+      }
+      const g = art === "haupt" ? diffs[0] : 0.5 * (Math.max(...diffs) + Math.min(...diffs));
+      const gleich = 0.5 * (Math.max(...nach.slice(0, n)) + Math.min(...nach.slice(0, n)));
+      const d = Math.max(Math.max(...fehl.slice(0, n)), gleich);
+      const gain = r1(Math.max(PEGEL_MIN_DB, Math.min(g, 0)), 2), delay = r1(Math.max(0, d), 3);
+      aus[ch] = { gain_db: gain, delay_ms: delay, fehlt_db: r1(Math.max(0, g), 2),
+        nachher: diffs.map((df, i) => ({ pegel_db: r1(gain - df, 2), spaeter_ms: r1(delay - fehl[i], 3) })) };
+    }
+    return aus;
+  }
+
+  return { boxenAusAbstaenden, platzOrten, winkelVomPlatz, lage, pegelLaufzeit };
+})();
+
+if (typeof module !== "undefined") module.exports = RK;
+
+// Raum-Check-Auswertung in JavaScript: dieselben Schritte wie klangbox/messung.py,
 // klangbox/einmessung.py, klangbox/bewertung.py und klangbox/raumcheck.py (Stereo-Messung, 2.0).
 // Läuft im Browser und in Node (für den Abgleich mit der Python-Fassung).
 "use strict";
 
 const FS = 48000;
+// Korrektur der Rückkanäle (rueckkorrektur.js): in der Seite steht sie vor diesem Skript (werkzeuge/raumcheck_seite.py),
+// in Node kommt sie erst, wenn sie gebraucht wird, neben dieser Datei
+let RK_GELADEN = null;
+const rka = () => RK_GELADEN || (RK_GELADEN = typeof RK !== "undefined" ? RK : require(require("path").join(__dirname, "rueckkorrektur.js")));
 const PRUEF_STUFEN_DB = [-52, -42, -32, -22, -12];  // leise → laut: der Nachhall stört die nächste Stufe nicht
 const PRUEF_STUFE_S = 0.6;
 const PRUEF_VORSTUFE_DB = -62;  // unbewertet, im Vorlauf: jede bewertete Stufe hat denselben Vorgänger (wie messung.py)
@@ -3220,7 +3374,7 @@ function verschoben(r, dHz) {  // r(F − dHz) linear auf dem Raster F (wie np.i
   return o;
 }
 function modenVersetzt(posDb, dHz = FILTER_ENTWURF.versatzHz) { const o = []; for (const r of posDb) o.push(r, verschoben(r, dHz), verschoben(r, -dHz)); return o; }
-function fitEq(posDb, ziel, sel) {
+function fitEq(posDb, ziel, sel, nurAbsenken = false) {  // nurAbsenken: keine Anhebung (Rückkanäle, wie fit_eq)
   const idx = []; for (let i = 0; i < NF; i++) if (sel[i]) idx.push(i);
   if (idx.length < 8) return [];
   const f = idx.map((i) => F[i]), N = f.length;
@@ -3228,7 +3382,7 @@ function fitEq(posDb, ziel, sel) {
   const E = FILTER_ENTWURF.wahl === "robust" ? modenVersetzt(posDb).map((r) => idx.map((i) => r[i] - ziel[i])) : Emess, P = E.length;
   const kand = [];
   for (let j = 0; j < N; j += 5) for (const q of EQ_QS) for (const g of EQ_GAINS) {
-    if (g > 0 && (q > 3 || f[j] < 35)) continue;
+    if (g > 0 && (q > 3 || f[j] < 35 || nurAbsenken)) continue;
     kand.push({ f0: f[j], q, g, i0: j, D: peqDbAuf(f[j], q, g, f) });
   }
   const loch = Array.from({ length: N }, (_, i) => Emess.some((e) => e[i] < -6));
@@ -3351,7 +3505,7 @@ function einmessen(punkte, hausDb) {
 // Wie einmessung.laufzeiten_fronts_fuehren in Python. Die Rückkanäle kommen über den Funk der zweiten
 // Klång-Box; die Messung misst das mit. Vorne wartet nie auf hinten; hinten wartet, falls es früher wäre.
 const RUECK_SPAETER_MAX_MS = 35, RUECK_NAMEN = { SL: "Hinten links", SR: "Hinten rechts", BL: "Hinten links (2)", BR: "Hinten rechts (2)", C: "Der Center" };
-const ZUSATZ = ["C", "SL", "SR", "BL", "BR"];  // über die Klång-Box neben FL/FR: nur Pegel und Laufzeit, kein EQ
+const ZUSATZ = ["C", "SL", "SR", "BL", "BR"];  // über die Klång-Box neben FL/FR: Center Pegel und Laufzeit, Rückkanäle dazu Bass (hintenEinmessen)
 function laufzeitenFrontsFuehren(ankunftMs) {
   const fronts = ["FL", "FR", "C"].filter((c) => c in ankunftMs);
   if (!fronts.length) throw new Error("Regel 4.0: ohne Front-Kanal gibt es keine Bezugszeit");
@@ -3379,6 +3533,50 @@ function rueckkanaeleEinmessen(haupt, fronts) {
   }
   if ("C" in haupt) for (const ch of ["FL", "FR"]) aus[ch] = { delay_ms: verz[ch] };
   return { aus, hinweise };
+}
+
+// --- Klang je Rückkanal (Paket 54): Bass-EQ wie vorne, nur absenken, wie rueck_eq und ton_waechter in klangbox/rueckkorrektur.py
+// Lage und Pegel/Laufzeit auf die Plätze stehen in rueckkorrektur.js.
+const RUECK_EQ_BIS_HZ = 300, RUECK_WAND_HZ = [60, 200], TON_MAX_DB = 10, TON_FREI_DB = 6;
+function rueckTonWerte(eq, kurveR, kdb) {
+  const senke = bassJeTon({ FL: { eq }, FR: { eq } }, kurveR).schlimmste.senke_db, c = summeDb(eq);
+  return [senke, nbDroehnen(kdb.map((v, i) => v + c[i]))];
+}
+function rueckTonWaechter(eq, pw, ch, notizen) {
+  const p = new Float64Array(NF); for (const x of pw) for (let i = 0; i < NF; i++) p[i] += x[i] / pw.length;
+  const kdb = dbArr(glaetten(p, 6)), f = [], db = [];
+  let m = 0, n = 0; for (let i = 0; i < NF; i++) if (F[i] >= 500 && F[i] <= 2000) { m += kdb[i]; n++; }
+  m /= n;
+  for (let i = 0; i < NF; i++) if (F[i] >= 20 && F[i] <= 400) { f.push(Math.round(F[i] * 10) / 10); db.push(Math.round((kdb[i] - m) * 100) / 100); }
+  const kurveR = { f, db }, [s0, d0] = rueckTonWerte([], kurveR, kdb);
+  const verletzt = (s, d) => s > Math.max(TON_FREI_DB, s0) + 1e-9 && (s > TON_MAX_DB + 1e-9 || d >= d0 - 1e-9);
+  const fl = eq.slice();
+  let [s1, d1] = rueckTonWerte(fl, kurveR, kdb);
+  while (fl.length && verletzt(s1, d1)) {
+    let k = 0, best = Infinity;
+    for (let j = 0; j < fl.length; j++) { const w = rueckTonWerte(fl.slice(0, j).concat(fl.slice(j + 1)), kurveR, kdb)[0]; if (w < best) { best = w; k = j; } }
+    notizen.push(`${ch}: Filter ${Math.round(fl[k].freq)} Hz verworfen (sonst ein Ton ${s1.toFixed(1)} dB leiser als seine Nachbarn)`);
+    fl.splice(k, 1);
+    [s1, d1] = rueckTonWerte(fl, kurveR, kdb);
+  }
+  const r1 = (x, k) => Math.round(x * 10 ** k) / 10 ** k;
+  return { eq: fl, ton: { senke_vorher: r1(s0, 1), senke_nachher: r1(s1, 1), droehnen_vorher: r1(d0, 2), droehnen_nachher: r1(d1, 2) } };
+}
+function rueckEq(hs, gainDb, hausDb, ch = "SL") {  // hs: Frequenzgänge (antwort) an den Plätzen; nur absenken
+  const pw = hs.map(leistung), pAvg = new Float64Array(NF);
+  for (const x of pw) for (let i = 0; i < NF; i++) pAvg[i] += x[i] / pw.length;
+  const mid = bandDb(dbArr(glaetten(pAvg, 3)), 500, 2000), grenze = untereGrenze(pAvg, mid), lo = Math.max(grenze * 1.1, 20);
+  const shelf = biquadDb(biquad("Lowshelf", 100, 0.7, hausDb)), ziel = shelf.map((v) => mid + gainDb + v);
+  const posDb = pw.map((x) => dbArr(glaetten(x, 12)).map((v) => v + gainDb));
+  const sel = Array.from(F, (f) => f >= lo && f <= RUECK_EQ_BIS_HZ), notizen = [];
+  let fl = fitEq(posDb, ziel, sel, true);  // hinten nur absenken (Besitzer 20.11.2026)
+  fl = pruefen(fl, posDb, ziel, sel, notizen, ch);
+  const tw = rueckTonWaechter(fl, pw, ch, notizen); fl = tw.eq;
+  const c = summeDb(fl), abw = (r, mitC) => { const v = []; for (let i = 0; i < NF; i++) if (sel[i]) v.push(r[i] + (mitC ? c[i] : 0) - ziel[i]); return rms(v); };
+  const r2 = (x) => Math.round(x * 100) / 100, r1 = (x) => Math.round(x * 10) / 10;
+  const glatt3 = dbArr(glaetten(pAvg, 3)).map((v, i) => v - shelf[i]);
+  return { eq: fl, notizen, vorher_db: posDb.map((r) => r2(abw(r, false))), nachher_db: posDb.map((r) => r2(abw(r, true))),
+    wand_db: r1(bandDb(glatt3, RUECK_WAND_HZ[0], RUECK_WAND_HZ[1]) - mid), grenze_hz: r1(grenze), ton: tw.ton };
 }
 
 // --- Empfehlungen aus der Messung (wie raumcheck.py, docs/MESSPLAN.md „Empfehlungen aus der Messung“) ----------------------
@@ -3421,20 +3619,18 @@ function rueckPruefen(punkte, funkMs = null) {
   const f = zahlText(funk, 0), an = angenommen ? ", angenommen" : "";
   let text = "";
   if (schlecht.length) {
-    const verdeckt = schlecht.filter((c) => kanaele[c].verdeckt);
     const gruende = schlecht.map((c) => { const k = kanaele[c];
       if (k.verdeckt) return `${RUECK_NAMEN[c]} hat von hier aus kaum eigenen Direktschall (steht vermutlich verdeckt)` + (k.zu_spaet ? ` und kommt ${zahlText(k.spaeter_ms, 0)} ms nach vorne an (davon ${f} ms Funk${an})` : "");
       return `${RUECK_NAMEN[c]} kommt ${zahlText(k.spaeter_ms, 0)} ms nach vorne an, davon nur ${f} ms${angenommen ? " (angenommen)" : ""} durch den Funk: Der Weg von dort ist viel länger als von vorne`; });
+    // keine Aufstell-Tipps (Besitzer 20.11.2026): die Boxen stehen, wo sie stehen
     text = "Die Rückkanäle kommen hier vermutlich nicht gut an: " + gruende.join("; ") + ". "
-      + (verdeckt.length ? `Am besten stellst du ${verdeckt.length === 1 ? "die Box" : "die Boxen"} so, dass du sie von hier aus siehst, etwa auf Ohrhöhe, und misst neu. Geht das nicht: `
-        : "Stehen die hinteren Boxen näher am Platz, kommen sie früher an. Sonst: ")
       + "Probier „Kino nur vorne“ (Film nur auf den Fronts, Dialog bleibt gleich) und hör Vorher/Nachher. Zurück geht es jederzeit mit „Rückkanäle wieder an“.";
   }
   let spaetText = "";
   if (spaet.length) {
     const weg = Math.max(0, ...spaet.map((c) => kanaele[c].weg_ms));
     spaetText = spaet.map((c) => `${RUECK_NAMEN[c]} kommt ${zahlText(kanaele[c].spaeter_ms, 0)} ms nach vorne an`).join("; ")
-      + `. Hauptgrund ist die Funk-Verzögerung der Box (${f} ms${an}), der Weg selbst macht ${zahlText(weg, 0)} ms. Vorne wartet die Box nicht auf den Funk, sonst passt der Ton nicht mehr zum Bild. Klingen Effekte von hinten wie ein Echo, stell die hinteren Boxen näher an deinen Platz.`;
+      + `. Hauptgrund ist die Funk-Verzögerung der Box (${f} ms${an}), der Weg selbst macht ${zahlText(weg, 0)} ms. Vorne wartet die Box nicht auf den Funk, sonst passt der Ton nicht mehr zum Bild.`;
   }
   if (angenommen && (text || spaetText)) {
     const hinweis = ` Die Funk-Verzögerung (${f} ms) ist angenommen: Die Klång-Box war beim Auswerten nicht verbunden. Mit verbundener Box neu auswerten, dann zählt ihr eigener Wert.`;
@@ -4426,7 +4622,7 @@ function kinoLinieAus(e) {
   return { einstellungen: Object.fromEntries(["FL", "FR"].map((c) => [c, { gain_db: q[c].gain_db, eq: q[c].eq.map((x) => ({ ...x })) }])),
     voll_eq: { FL: liste(e.voll_eq, "FL"), FR: liste(e.voll_eq, "FR") }, teil_eq: { FL: liste(e.teil_eq, "FL"), FR: liste(e.teil_eq, "FR") } };
 }
-function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null, sitzmodus = "allein", ziel = "ausgewogen", umgebung = false, funkMs = null, bewegtGemessen = false, kinoLinie = false) {
+function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikrofon = null, kanaele = null, sitzmodus = "allein", ziel = "ausgewogen", umgebung = false, funkMs = null, bewegtGemessen = false, kinoLinie = false, verbindung = null) {
   if (!SITZMODI.includes(sitzmodus)) throw new Error(`Unbekannter Sitzmodus ${sitzmodus}`);
   if (!ZIELE.includes(ziel)) throw new Error(`Unbekanntes Ziel ${ziel}`);
   const mikro = mikrofon ? mikroKalibrierung(mikrofon) : null, folge = folgeFuer(kanaele);
@@ -4543,12 +4739,21 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
     } else if (!Object.keys(verluste).length) erg.bericht.push("Wächter: Die Raumanpassung würde hier insgesamt nichts verbessern. Die Box bleibt neutral.");
   }
   const zusatz = ZUSATZ.filter((c) => folge.kanaele.includes(c));
-  if (zusatz.length) {  // Center und Rückkanäle dazu (nur Pegel und Laufzeit, Regel 4.0); neutral bleibt neutral
+  // die Rückkanäle folgen dem Sitzmodus der Fronts (wie raumcheck.py)
+  const artHinten = breit || zwei ? "minimax" : "haupt", hintenMit = (p) => zusatz.filter((c) => c !== "C").every((c) => c in p.messungen);
+  const hintenSitze = (artHinten === "haupt" ? punkte.slice(0, 1) : ausgleich).filter(hintenMit).map((p) => [p.name, p.messungen]);
+  const frontsLz = (e) => ({ FL: { gain_db: e.FL.gain_db, delay_ms: e.FL.delay_ms }, FR: { gain_db: e.FR.gain_db, delay_ms: e.FR.delay_ms } });
+  erg.hinten = null;
+  if (zusatz.length) {  // Center (Pegel und Laufzeit, Regel 4.0) und Rückkanäle (hintenEinmessen: Plätze, Bass); neutral bleibt neutral
     const r = zusatzDazu(erg.einstellungen, { ...punkte[0].messungen, ...extra }, zusatz, neutral);
     erg.tipps = erg.tipps.concat(r.hinweise);
     if (zusatz.includes("C")) erg.bericht.push(`Center: ${r.aus.C.gain_db.toFixed(1)} dB, ${r.aus.C.delay_ms.toFixed(1)} ms`);
     const hinten = zusatz.filter((c) => c !== "C");
-    if (hinten.length) erg.bericht.push("Rückkanäle: " + hinten.map((ch) => `${RUECK_NAMEN[ch]} ${r.aus[ch].gain_db.toFixed(1)} dB, ${r.aus[ch].delay_ms.toFixed(1)} ms`).join(", "));
+    if (hinten.length && !neutral) {
+      erg.hinten = hintenEinmessen(hintenSitze, punkte.filter(hintenMit).map((p) => p.messungen), frontsLz(erg.einstellungen), artHinten, HAUSKURVE[modus], verbindung);
+      for (const [ch, k] of Object.entries(erg.hinten.kanaele)) erg.einstellungen[ch] = { gain_db: k.gain_db, delay_ms: k.delay_ms, eq: k.eq.map((q) => ({ ...q })) };
+    }
+    if (hinten.length) erg.bericht.push("Rückkanäle: " + hinten.map((ch) => hintenZeile(ch, erg.einstellungen[ch])).join(", "));
   }
   if (gleichVoll) {  // die volle Variante und die Hör-Schalter dazu (mit Center: dieselbe Laufzeit der Fronts wie in den Einstellungen)
     if (extra.C) for (const ch of ["FL", "FR"]) gleichVoll[ch].delay_ms = erg.einstellungen[ch].delay_ms;
@@ -4582,6 +4787,10 @@ function raumcheck(aufnahmen, modus = "kino", raumM3 = null, bewegt = null, mikr
     if (a && sM.gesamt >= sh.gesamt + 1) {
       const eM = { FL: { ...ohneTw.FL }, FR: { ...ohneTw.FR } };
       if (zusatz.length) zusatzDazu(eM, { ...punkte[0].messungen, ...extra }, zusatz, false);
+      if (erg.hinten) {  // dieselben Bass-Filter hinten, Pegel und Laufzeit zu diesen Fronts
+        const hM = hintenEinmessen(hintenSitze, [], frontsLz(eM), artHinten, HAUSKURVE[modus], null, Object.fromEntries(Object.entries(erg.hinten.kanaele).map(([c, k]) => [c, k.eq])));
+        for (const [ch, k] of Object.entries(hM.kanaele)) eM[ch] = { gain_db: k.gain_db, delay_ms: k.delay_ms, eq: k.eq.map((q) => ({ ...q })) };
+      }
       const kM = kurve(nM[0].C), vM = kurveVoll(nM[0].C);
       Object.assign(a, { einstellungen: eM, score_prognose: sM, kurve: { f: kh.f, heute: kh.v, prognose: kM.v }, kurve_voll: { f: vh.f, heute: vh.v, prognose: vM.v } });
       if (!waechterErgebnis({ ...erg, einstellungen: eM, score_prognose: sM }).length) erg.abwaegung = a;
@@ -5200,7 +5409,6 @@ const NB = { freq: [32, 36, 40, 45, 50, 56, 63, 71, 80, 90, 100], q: [1.4, 2.8],
   // Bereich „voll“ (Besitzer 18.11.2026): breite Glocken auch darüber, mit den Wächtern der Einmessung für oben (nachpruefung.py)
   obenFreq: [200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500], obenQ: [0.7, 1.0], obenGain: [-2, -1.5, -1, 1, 1.5, 2], obenBisHz: 5000,
   lautBand: [100, 5000], lautDb: 0.1, minBoostHz: 35, unterZielOkt: 1 / 6, praesenz: [[2000, 5000, 1.0], [5000, 8000, 1.5]], praesenzBezug: [500, 2000] };
-const NB_MEHRKANAL = ["C", "SL", "SR", "BL", "BR"];
 function nbKurveDb(ms) {  // Leistungsmittel der Mitte über die Plätze, 1/6 Oktave, dB auf F
   const p = new Float64Array(NF); for (const m of ms) { const l = glaetten(leistung(antwort(m.C)), 6); for (let i = 0; i < NF; i++) p[i] += l[i] / ms.length; }
   return dbArr(p);
@@ -5264,17 +5472,18 @@ function nbSaetze(filt, bereich = 150) {
 }
 // opt: {bereich: 90 | 150 | null (voll), messmikro, gehoert: "hoerschalter" | null}, wie nachpruefung.nachbesserung (die
 // Kino-Linie misst die Nachmessung selbst: der Aufrufer rechnet dann mit modus „kino“ und ihren Filtern)
-function nachbesserung(nRk, einstellungen, sv, sn, modus, raumM3, buehneMit, opt = null) {
+// nRk: nur die Fronts (nachpruefen trennt Center und Rears ab); zusatz: die ganzen Nachher-Messungen je Platz für
+// hintenNachbessern („hinten“: nie lauter, zählt nicht im Ring), wie nachbesserung in nachpruefung.py
+function nachbesserung(nRk, einstellungen, sv, sn, modus, raumM3, buehneMit, opt = null, zusatz = null, art = "haupt") {
   const e = einstellungen || {};
   if (!["FL", "FR"].every((ch) => e[ch] && typeof e[ch] === "object")) return null;
   const o = { bereich: 150, messmikro: false, gehoert: null, ...(opt || {}) };
   const kj = {}; for (const [k, v] of Object.entries(sn.kacheln)) if (v.punkte != null) kj[k] = v.punkte;
-  const mehrkanal = NB_MEHRKANAL.some((ch) => ch in e) || nRk.some((m) => NB_MEHRKANAL.some((ch) => ch !== "C" && ch in m));
-  if (mehrkanal || o.gehoert === "hoerschalter")
-    return { vorschlag: false, grund: mehrkanal ? "mehrkanal" : o.gehoert, kacheln_jetzt: kj, ring_jetzt: Object.values(kj).reduce((a, b) => a + b, 0) };
+  if (o.gehoert === "hoerschalter") return { vorschlag: false, grund: o.gehoert, kacheln_jetzt: kj, ring_jetzt: Object.values(kj).reduce((a, b) => a + b, 0), hinten: null };
+  const hn = zusatz && zusatz.length ? hintenNachbessern(zusatz, e, art, HAUSKURVE[modus] ?? 2) : null, hintenNeu = hn && hn.vorschlag ? hn.kanaele : {};
   const eDb = nbKurveDb(nRk), jetzt = { kacheln: kj, senke_db: nbSenke({}, nRk[0]), droehnen_db: nbDroehnen(eDb) };
   const aus = { vorschlag: false, grund: "streuung", kacheln_jetzt: kj, ring_jetzt: Object.values(kj).reduce((a, b) => a + b, 0),
-    senke_jetzt_db: Math.round(jetzt.senke_db * 10) / 10, droehnen_jetzt_db: jetzt.droehnen_db };
+    senke_jetzt_db: Math.round(jetzt.senke_db * 10) / 10, droehnen_jetzt_db: jetzt.droehnen_db, hinten: hn };
   const kand = nbKandidaten(eDb, zielkurve(HAUSKURVE[modus] ?? 2), { FL: e.FL.eq || [], FR: e.FR.eq || [] }, F, o.bereich, !!o.messmikro, nRk.map((m) => nbKurveDb([m])));
   const gruende = []; let best = null;
   for (const k of kand) {
@@ -5287,17 +5496,28 @@ function nachbesserung(nRk, einstellungen, sv, sn, modus, raumM3, buehneMit, opt
     const summe = (x) => Object.values(x.kacheln).reduce((a, b) => a + b, 0);
     if (grund === null && (!best || summe(neu) > summe(best[1]))) best = [k, neu];
   }
-  if (!best) { aus.grund = gruende.find((x) => ["ton", "kachel", "droehnen"].includes(x)) || "streuung"; return aus; }
+  if (!best) {
+    aus.grund = gruende.find((x) => ["ton", "kachel", "droehnen"].includes(x)) || "streuung";
+    if (Object.keys(hintenNeu).length) return { ...aus, vorschlag: true, grund: null, filter: null, kacheln_neu: { ...kj }, ring_neu: aus.ring_jetzt,
+      senke_neu_db: aus.senke_jetzt_db, droehnen_neu_db: aus.droehnen_jetzt_db, einstellungen: { ...e, ...hintenNeu }, saetze: [] };  // nur hinten: vorne und Ring bleiben
+    return aus;
+  }
   const [k, neu] = best, filt = { freq: k.freq, gain: k.gain, q: k.q };
   const neueEinst = {}; for (const [ch, v] of Object.entries(e)) neueEinst[ch] = ["FL", "FR"].includes(ch) ? { ...v, eq: (v.eq || []).concat([{ ...filt }]) } : v;
+  Object.assign(neueEinst, hintenNeu);
   return { ...aus, vorschlag: true, grund: null, filter: filt, kacheln_neu: neu.kacheln, ring_neu: Object.values(neu.kacheln).reduce((a, b) => a + b, 0),
     senke_neu_db: Math.round(neu.senke_db * 10) / 10, droehnen_neu_db: neu.droehnen_db, einstellungen: neueEinst, saetze: nbSaetze(filt, o.bereich) };
 }
 function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", raumM3 = null, toleranz = NP.rausch, vorhersageKette = null, vorhersageUngefaehr = false, sitzmodus = "allein", akzeptiert = null, geraet = null, nachbessern = null) {
-  const plaetze = nachher.filter((p) => p.name in vorher);
+  let plaetze = nachher.filter((p) => p.name in vorher);
   if (!plaetze.length) return { ok: false, empfehlung: "zuruecknehmen", satz: "Ich kann nichts vergleichen: Zur Nachmessung fehlt die Messung vorher am selben Platz. Sicherheitshalber bleibt der alte Stand.",
     gruende: ["keine Messung vorher und nachher am selben Platz"], je_platz: [], hinweise: [], profil_pruefung: null, vergleich: null };
   const haupt = plaetze[0].name, z = zahlText;
+  // Center und Rückkanäle (Paket 54): eigene Prüfung (hintenPruefen); alles Übrige mit den Fronts und der Phantom-Mitte wie
+  // die Einmessung (wie nachpruefung.py)
+  const zv = plaetze.map((p) => vorher[p.name]), zn = plaetze.map((p) => ohneProfil(p.messungen, profil)), nurVorne = (m) => ({ FL: m.FL, FR: m.FR });
+  vorher = Object.fromEntries(Object.entries(vorher).map(([n, m]) => [n, nurVorne(m)]));
+  plaetze = plaetze.map((p) => ({ ...p, messungen: nurVorne(p.messungen) }));
   const v = plaetze.map((p) => mitMitte(vorher[p.name])), nRoh = plaetze.map((p) => mitMitte(p.messungen)), nRk = plaetze.map((p) => mitMitte(ohneProfil(p.messungen, profil)));
   let reglerGeaendert = [], gAlt = null, gNeu = null;
   if (geraet && geraet.profil) {
@@ -5320,6 +5540,8 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     if (sb) gruende.push(`${p.name}: Bass ${z(a)} → ${z(b)} dB Abweichung (schlechter um ${z(b - a)} dB, Toleranz ${z(tol)} dB)`);
     if (ss) gruende.push(`${p.name}: Raummode bei ${z(fSp, 0)} Hz um ${z(sp)} dB stärker angehoben als der übrige Bass (erlaubt ${z(NP.spitzeMax)} dB): Das dröhnt.`);
   });
+  const hausDb = HAUSKURVE[modus] ?? 2, hp = hintenPruefen(zv, zn, plaetze.map((p) => p.name), hausDb), hintenSchlecht = !!(hp && hp.schlechter.length);
+  if (hintenSchlecht) gruende.push(...hp.gruende);
   // Präsenz-Wächter: 2–8 kHz nicht lauter, keine neue Spitze. Die Messung ohne Profil, seine Anhebung zählt mit (L1)
   const pfl = (profil && profil.filter) || [], praesenz = praesenzAnhebung(v, nRk, pfl.length ? profilFilterDb(pfl) : null), praesenzSchlecht = !praesenz.ok;
   if (praesenzSchlecht) gruende.push("Präsenz (2–8 kHz): " + praesenz.gruende.join("; ") + ". Das kann auf Dauer anstrengen.");
@@ -5368,7 +5590,7 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
       && Object.keys(kachelSchlecht).every((k) => k === "buehne") && !reglerGeaendert.length) {
     teilSchlecht.length = 0; scoreSchlecht = false; delete kachelSchlecht.buehne; hinweise.push(PR.ortHinweis);
   }
-  const kachelErste = Object.keys(kachelSchlecht)[0], zurueck = !!(schlechter.length || teilSchlecht.length || kachelErste || scoreSchlecht || praesenzSchlecht || absenkungSchlecht);
+  const kachelErste = Object.keys(kachelSchlecht)[0], zurueck = !!(schlechter.length || teilSchlecht.length || kachelErste || scoreSchlecht || praesenzSchlecht || absenkungSchlecht || hintenSchlecht);
   let satz;
   if (zurueck) {
     if (praesenzSchlecht) { satz = "Ich nehme es zurück – der Präsenzbereich (2–8 kHz) wurde lauter oder spitzer."; hinweise.push("Mögliche Ursachen: " + PW.ursacheHoehen + " " + VGL.ursachen[1]);
@@ -5377,6 +5599,7 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
     else if (schlechter.length) satz = `Ich nehme es zurück – es wurde an Platz „${schlechter[0]}“ schlechter` + (schlechter.length > 1 ? ` (und an ${schlechter.length - 1} weiteren)` : "") + ".";
     else if (teilSchlecht.length) satz = `Ich nehme es zurück – ${buehneMit ? wo : je ? `an den ${plaetze.length} Plätzen` : `am Hauptplatz „${haupt}“`} wurde die Bühne schlechter (${teilSchlecht[0]}).`;
     else if (kachelErste) satz = `Ich nehme es zurück – „${sv.kacheln[kachelErste].titel}“ wurde schlechter (${kachelSchlecht[kachelErste][0]} → ${kachelSchlecht[kachelErste][1]} Punkte).` + (reglerRueck ? " " + reglerRueck : "");
+    else if (hintenSchlecht) satz = `Ich nehme es zurück – hinten wurde es schlechter (${hp.gruende[0]}).`;
     else satz = `Ich nehme es zurück – insgesamt wurde es schlechter (Score ${z(sv.gesamt_roh, 0)} → ${z(sn.gesamt_roh, 0)}).`;
     if (reglerRueck && !satz.includes(reglerRueck)) hinweise.push(reglerRueck);
   } else {
@@ -5406,9 +5629,9 @@ function nachpruefen(vorher, nachher, einstellungen, profil, modus = "kino", rau
   const vgl = vergleichRechnen(vh, nRk, plaetze.map((p) => p.name), modus, raumM3, sn, vorhersageUngefaehr, buehneMit, sv);
   if (vgl.ueber_toleranz) hinweise.push(`Prognose und Messung weichen ab (Score ${z(vgl.score.vorhergesagt, 0)} vorhergesagt, ${z(vgl.score.gemessen, 0)} gemessen; Bass im Mittel ${z(vgl.bass_kurve.mittel_abweichung_db)} dB). Mögliche Ursachen: ${vgl.ursachen.join(" ")} Danach am besten neu einmessen.`);
   // nur, wenn die Einmessung bleibt; nachbessern === false: keine (die 30-s-Prüfung nach dem Übernehmen)
-  const nachbesserungErg = zurueck || nachbessern === false ? null : nachbesserung(nRk, einstellungen, sv, sn, modus, raumM3, buehneMit, nachbessern || null);
+  const nachbesserungErg = zurueck || nachbessern === false ? null : nachbesserung(nRk, einstellungen, sv, sn, modus, raumM3, buehneMit, nachbessern || null, zn, buehneMit ? "minimax" : "haupt");
   return { nachbesserung: nachbesserungErg, ok: !zurueck, empfehlung: zurueck ? "zuruecknehmen" : "behalten", satz, status: zurueck ? "zurueckgenommen" : "bestaetigt", gruende, je_platz: jePlatz, hauptplatz: haupt,
-    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, kacheln, sitzmodus: buehneMit ? (sitzmodus === "breit" ? "breit" : "zwei") : "allein", akzeptiert, regler_zurueck: schuld.map((r) => r.id), hinweise, profil_pruefung: profilPruefung, vergleich: vgl, praesenz, absenkung, pruefung };
+    score_vorher: Math.round(sv.gesamt_roh * 10) / 10, score_nachher: Math.round(sn.gesamt_roh * 10) / 10, teile, kacheln, sitzmodus: buehneMit ? (sitzmodus === "breit" ? "breit" : "zwei") : "allein", akzeptiert, regler_zurueck: schuld.map((r) => r.id), hinweise, profil_pruefung: profilPruefung, vergleich: vgl, praesenz, absenkung, pruefung, hinten: hp };
 }
 
 // --- Modus „Ohne Box“: Regler der Lautsprecher selbst (klangbox/regler.py) ----------------------------------
@@ -6377,6 +6600,103 @@ if (typeof module !== "undefined") module.exports = { verbindungFolge, verbindun
   baender, abklingzeit, fruehAbklingzeit, waechterEq, spitzeJePlatz, antwortFuerTest: antwort, kanalCheck, kanalCheckAufnahme, bewegtProben, KC,
   rueckPruefen, rueckUrteil, direktDb, gleichmaessigkeit, gleichmaessigWaehlen, hoerVariante, anhebungEinpassen, einpassenKanal, profilKurveDb, gleichName, GLEICH_VARIANTEN, RUECK_ECHO_MS, RUECK_VERDECKT_DB, RUECK_VERDECKT_GEGEN_VORNE_DB, RUECK_WEG_MAX_MS, FUNK_MS, GLEICH_SPANNE_DB, GLEICH_STREUUNG_DB,
   BJT, BJT_INSTRUMENTE, bjtMessung, bassJeTon, bassMusikalisch, bassStellungen, bassSatz, bassSenkenSaetze, bjtInstrumente, bjtInstrumenteText };
+// --- Rückkanäle eingebaut (Paket 54, Phase 2): wie hinten_einmessen, hinten_pruefen, hinten_nachbessern in rueckkorrektur.py
+const HINTEN_K = ["SL", "SR", "BL", "BR"], ZUSATZ_K = ["C", ...HINTEN_K];
+const HNAMEN = { C: "Der Center", SL: "Hinten links", SR: "Hinten rechts", BL: "Hinten links (2)", BR: "Hinten rechts (2)" };
+const HKP = { bassTol: 0.5, pegelTol: 1.0, laufzeitTol: 0.5, nbPegel: 0.5, nbLaufzeit: 0.2, nbBass: 0.5, nbSaetzeEq: 2, maxFilter: 10, maxDelay: 30, pegelMin: -20 };
+const hMittel = (x) => (x.length ? x.reduce((a, b) => a + b, 0) / x.length : 0);
+const hR = (x, n) => Math.round(x * 10 ** n) / 10 ** n;
+function sitzWerte(m) {
+  const mitte_db = {}, ankunft_ms = {};
+  for (const [c, x] of Object.entries(m)) { mitte_db[c] = bandDb(dbArr(glaetten(leistung(antwort(x)), 3)), 500, 2000); ankunft_ms[c] = x.delay * 1000; }
+  return { mitte_db, ankunft_ms };
+}
+function hintenEinmessen(sitzeMess, eqMess, fronts, art, hausDb, verbindung = null, eqFest = null) {
+  const hinten = HINTEN_K.filter((c) => sitzeMess.length && sitzeMess.every(([, m]) => c in m));
+  if (!hinten.length) return null;
+  const sitze = sitzeMess.map(([n, m]) => ({ platz: n, ...sitzWerte(m) })), pl = rka().pegelLaufzeit(sitze, fronts, art), kan = {};
+  for (const ch of hinten) {
+    const k = { gain_db: pl[ch].gain_db, delay_ms: pl[ch].delay_ms, fehlt_db: pl[ch].fehlt_db, pegel_max_db: hR(Math.max(...pl[ch].nachher.map((x) => Math.abs(x.pegel_db))), 2) };
+    if (eqFest) k.eq = (eqFest[ch] || []).map((q) => ({ ...q }));
+    else {
+      const r = rueckEq(eqMess.filter((m) => ch in m).map((m) => antwort(m[ch])), pl[ch].gain_db, hausDb, ch);
+      Object.assign(k, { eq: r.eq.map((q) => ({ freq: q.freq, gain: q.gain, q: q.q })), bass_vorher_db: hR(hMittel(r.vorher_db), 2), bass_nachher_db: hR(hMittel(r.nachher_db), 2), wand_db: r.wand_db });
+    }
+    kan[ch] = k;
+  }
+  let la = null;
+  if (verbindung && Array.isArray(verbindung.paare) && verbindung.e_ms && typeof verbindung.e_ms === "object") {
+    const L = rka().lage(verbindung.paare, verbindung.e_ms, sitze);
+    if (L && L.sicher && L.plaetze.length === sitze.length) la = L;
+  }
+  return { kanaele: kan, art, plaetze: sitze.length, lage: la };
+}
+function hBassAbw(m, hausDb) {
+  const p = leistung(antwort(m)), mid = bandDb(dbArr(glaetten(p, 3)), 500, 2000), lo = Math.max(untereGrenze(p, mid) * 1.1, 20);
+  const g = dbArr(glaetten(p, 12)), sh = biquadDb(biquad("Lowshelf", 100, 0.7, hausDb)), d = [];
+  for (let i = 0; i < NF; i++) if (F[i] >= lo && F[i] <= RUECK_EQ_BIS_HZ) d.push(g[i] - mid - sh[i]);
+  return rms(d);
+}
+const hPegel = (s, c) => s.mitte_db[c] - (s.mitte_db.FL + s.mitte_db.FR) / 2;
+const hFrueh = (s, c) => Math.max(s.ankunft_ms.FL, s.ankunft_ms.FR) - s.ankunft_ms[c];
+function hintenPruefen(vorher, nachher, namen, hausDb) {
+  const kan = ZUSATZ_K.filter((c) => vorher.every((m) => c in m) && nachher.every((m) => c in m));
+  if (!kan.length) return null;
+  const sv = vorher.map(sitzWerte), sn = nachher.map(sitzWerte), out = {}, gruende = [], z = zahlText;
+  for (const c of kan) {
+    const pv = sv.map((s) => hPegel(s, c)), pn = sn.map((s) => hPegel(s, c));
+    const k = { pegel_vorher_db: hR(Math.max(...pv.map(Math.abs)), 2), pegel_nachher_db: hR(Math.max(...pn.map(Math.abs)), 2) };
+    const g = [];
+    namen.forEach((n, i) => { if (Math.abs(pn[i]) > Math.abs(pv[i]) + HKP.pegelTol) g.push(`${n}: ${HNAMEN[c]} ${z(Math.abs(pv[i]))} → ${z(Math.abs(pn[i]))} dB neben vorne`); });
+    if (HINTEN_K.includes(c)) {
+      const bv = vorher.map((m) => hBassAbw(m[c], hausDb)), bn = nachher.map((m) => hBassAbw(m[c], hausDb));
+      Object.assign(k, { bass_vorher_db: hR(hMittel(bv), 2), bass_nachher_db: hR(hMittel(bn), 2) });
+      namen.forEach((n, i) => { if (bn[i] > bv[i] + HKP.bassTol) g.push(`${n}: ${HNAMEN[c]} Bass ${z(bv[i])} → ${z(bn[i])} dB Abweichung`); });
+      namen.forEach((n, i) => { const a = hFrueh(sv[i], c), b = hFrueh(sn[i], c); if (b > HKP.laufzeitTol && b > a + HKP.laufzeitTol) g.push(`${n}: ${HNAMEN[c]} kommt ${z(b)} ms vor vorne an`); });
+    }
+    k.schlechter = g.length > 0; out[c] = k; gruende.push(...g);
+  }
+  const hinten = kan.filter((c) => HINTEN_K.includes(c));
+  if (hinten.length >= 2) {
+    const spanne = (s) => Math.max(...hinten.map((c) => s.ankunft_ms[c])) - Math.min(...hinten.map((c) => s.ankunft_ms[c]));
+    namen.forEach((n, i) => { const a = spanne(sv[i]), b = spanne(sn[i]);
+      if (b > a + HKP.laufzeitTol) { gruende.push(`${n}: hinten ${z(a)} → ${z(b)} ms auseinander`); for (const c of hinten) out[c].schlechter = true; } });
+  }
+  return { kanaele: out, gruende, schlechter: kan.filter((c) => out[c].schlechter) };
+}
+function hBandText(f0, q) { const bw = 2 * Math.asinh(1 / (2 * q)) / Math.log(2); return `${5 * Math.floor(f0 * Math.pow(2, -bw / 4) / 5 + 0.5)}–${5 * Math.floor(f0 * Math.pow(2, bw / 4) / 5 + 0.5)} Hz`; }
+function hintenNachbessern(nachher, einst, art, hausDb) {
+  const kan = ZUSATZ_K.filter((c) => einst[c] && typeof einst[c] === "object" && nachher.length && nachher.every((m) => c in m));
+  if (!kan.length) return null;
+  const sitze = nachher.map((m, i) => ({ platz: String(i), ...sitzWerte(m) })), pl = rka().pegelLaufzeit(sitze, { FL: { gain_db: 0, delay_ms: 0 }, FR: { gain_db: 0, delay_ms: 0 } }, art);
+  const neu = {}, saetze = [], pJ = [], pN = [], bJ = [], bN = [], z = zahlText;
+  for (const c of kan) {
+    const alt = einst[c]; let g = +(alt.gain_db || 0), d = +(alt.delay_ms || 0), geaendert = false;
+    const eq = (alt.eq || []).map((q) => ({ ...q })), diffs = sitze.map((s) => -hPegel(s, c));
+    let dg, dd;
+    if (c in pl) { dg = pl[c].gain_db; dd = pl[c].delay_ms; }
+    else { const roh = art === "haupt" ? diffs[0] : 0.5 * (Math.max(...diffs) + Math.min(...diffs)); dg = hR(Math.max(HKP.pegelMin, Math.min(roh, 0)), 2); dd = 0; }
+    pJ.push(...diffs.map(Math.abs));
+    if (dg <= -HKP.nbPegel) { g = hR(Math.max(HKP.pegelMin, g + dg), 2); geaendert = true; saetze.push(`${HNAMEN[c]}: ${z(-dg)} dB leiser. So laut wie vorne.`); pN.push(...diffs.map((x) => Math.abs(x - dg))); }
+    else pN.push(...diffs.map(Math.abs));
+    if (dd >= HKP.nbLaufzeit) { d = hR(Math.min(HKP.maxDelay, d + dd), 3); geaendert = true; saetze.push(`${HNAMEN[c]} wartet ${z(dd)} ms länger. So kommt hinten alles zusammen an.`); }
+    if (HINTEN_K.includes(c)) {
+      const r = rueckEq(nachher.map((m) => antwort(m[c])), 0, hausDb, c), bj = hMittel(r.vorher_db), bn = hMittel(r.nachher_db);
+      bJ.push(bj);
+      if (r.eq.length && bj - bn >= HKP.nbBass && eq.length + r.eq.length <= HKP.maxFilter) {
+        eq.push(...r.eq.map((q) => ({ freq: q.freq, gain: q.gain, q: q.q }))); geaendert = true; bN.push(bn);
+        for (const q of r.eq.slice(0, HKP.nbSaetzeEq)) saetze.push(`${HNAMEN[c]} ${hBandText(q.freq, q.q)}: ${z(Math.abs(q.gain))} dB weniger. Dort kam mehr an als geplant.`);
+      } else bN.push(bj);
+    }
+    if (geaendert) neu[c] = { gain_db: g, delay_ms: d, eq };
+  }
+  return { vorschlag: Object.keys(neu).length > 0, kanaele: neu, saetze,
+    werte: { pegel_jetzt_db: hR(Math.max(...pJ), 1), pegel_neu_db: hR(Math.max(...pN), 1), bass_jetzt_db: bJ.length ? hR(hMittel(bJ), 1) : null, bass_neu_db: bN.length ? hR(hMittel(bN), 1) : null } };
+}
+const hintenZeile = (ch, e) => `${RUECK_NAMEN[ch]} ${e.gain_db.toFixed(1)} dB, ${e.delay_ms.toFixed(1)} ms` + ((e.eq || []).length ? `, ${e.eq.length} Filter` : "");
+
+// Paket 54 (Rückkanäle): eigene Zeile, damit die Exportliste oben unberührt bleibt
+if (typeof module !== "undefined") Object.assign(module.exports, { rueckEq, rueckTonWaechter, sitzWerte, hintenEinmessen, hintenPruefen, hintenNachbessern });
 </script>
 <script type="application/json" id="klangprofile-daten">{
   "schema_version": 1,
@@ -10378,7 +10698,7 @@ self.onmessage = (ev) => {
         ev.data.raumM3, ev.data.sub, ev.data.gedreht ? new Float64Array(ev.data.gedreht) : null, ev.data.sitzmodus || "allein", ev.data.ziel || "ausgewogen") }); return;
     }
     const aufn = ev.data.dateien.map((d) => ({ name: d.name, daten: new Float64Array(d.daten) }));
-    const rc = (linie) => raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null, ev.data.sitzmodus || "allein", ev.data.ziel || "ausgewogen", !!ev.data.umgebung, ev.data.funkMs ?? null, false, linie);
+    const rc = (linie) => raumcheck(aufn, ev.data.modus, ev.data.raumM3, ev.data.bewegt ? new Float64Array(ev.data.bewegt) : null, ev.data.mikrofon || null, ev.data.kanaele || null, ev.data.sitzmodus || "allein", ev.data.ziel || "ausgewogen", !!ev.data.umgebung, ev.data.funkMs ?? null, false, linie, ev.data.verbindung || null);
     const erg = rc(false);
     // Kino an 2.0/2.1 (Stereo-Ziel): dieselben Aufnahmen noch einmal mit dem alten Kino-Ziel, für den Hör-Schalter „Kino-Linie“
     if (erg && !erg.fehler && erg.modus === "kino" && erg.rechen_modus === "stereo") { try { const l = kinoLinieAus(rc(true)); if (l) erg.kino_linie = l; } catch (e) { /* nur eine Zugabe */ } }
@@ -10409,15 +10729,24 @@ function funkMsBox() {
   if (sat.length) return Math.max(...sat);
   return ok(f.latenz_ms) ? f.latenz_ms : null;
 }
+// Lage der Rückkanäle (analyse.js hintenEinmessen): Abstände und Laufzeiten aus dem letzten Verbindungstest der Box; ohne
+// Box oder ohne Test: null (dann ohne Skizze, Pegel, Laufzeit und Bass hinten gibt es trotzdem)
+async function vtLage() {
+  if (!nativ || !boxBereit()) return null;
+  try {
+    const a = await nativ.box("verbindungstest", { aktion: "lesen" }, { zeitMs: 5000 }), l = a && a.ok && a.letzter && a.letzter.lage;
+    return l && Array.isArray(l.paare) && l.e_ms && typeof l.e_ms === "object" ? { paare: l.paare, e_ms: l.e_ms } : null;
+  } catch (e) { return null; }
+}
 async function auswerten(bewegt, umgebung = false) {
   if (!dateien.length) { zeigeSchritt(5); $("status").innerHTML = `<span class="warn">Erst am Hörplatz messen.</span>`; return; }
   const ziel = umgebung ? "pl-status" : bewegt ? "bewegen-status" : "status";
   $(ziel).innerHTML = `<span class="laeuft">Rechnet, etwa 10 bis 40 Sekunden…</span>`;
   $("auswerten").disabled = true;
   const kanaele = dateien[0].kanaele || K2;
-  const funkMs = funkMsBox();
+  const funkMs = funkMsBox(), verbindung = kanaele.some((c) => FUNK_HINTEN.includes(c)) ? await vtLage() : null;
   const r = await imWorker({ art: "auswerten", dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null,
-                            mikrofon: mikroProfil(), kanaele, sitzmodus: umgebung ? "allein" : sitzmodus, ziel: messZiel, umgebung, funkMs });
+                            mikrofon: mikroProfil(), kanaele, sitzmodus: umgebung ? "allein" : sitzmodus, ziel: messZiel, umgebung, funkMs, verbindung });
   $("auswerten").disabled = !dateien.length;
   if (!r.ok) { $(ziel).innerHTML = `<span class="warn">Auswertung fehlgeschlagen: ${esc(r.fehler)}</span>`; return; }
   profilPruefen();  // Profil passt immer zum Modus der Messung
@@ -10431,7 +10760,7 @@ async function auswerten(bewegt, umgebung = false) {
   runden.unshift(runde);
   runden = rundenBehalten(); schreiben("raumcheck-runden", JSON.stringify(runden));
   messdaten = r.ergebnis.fehler ? null : { id: runde.id, dateien: dateien.map((d) => ({ name: d.name, daten: d.daten })), bewegt, modus, raumM3: +$("raum").value || null, kanaele, umgebung,
-    mikrofon: mikroProfil(), sitzmodus: umgebung ? "allein" : sitzmodus, ziel: messZiel, funkMs };
+    mikrofon: mikroProfil(), sitzmodus: umgebung ? "allein" : sitzmodus, ziel: messZiel, funkMs, verbindung };
   dateien = []; hauptDaten = null; platzNr = 0; zeigeDateien(); $(ziel).innerHTML = "";
   if (nativ && !r.ergebnis.fehler) nativ.ereignis({ art: "ergebnis", score: r.ergebnis.score_prognose.gesamt, ohne: r.ergebnis.score_heute.gesamt });
   nachhallUebernehmen(); zuEinmessen();
@@ -10593,6 +10922,49 @@ function emTippsHtml(r) {
   return empfehlungKarte(r, runden.indexOf(r)) + hebel + raum;
 }
 function emTippsZeigen() { const b = $("em-tipps-block"); if (b && !b.hidden) b.innerHTML = emTippsHtml(letzteRunde(modus)); }
+// Hinten ausgeglichen (Paket 54, Entwurf Bild 1, vom Besitzer freigegeben): was die Box an den Rückkanälen ausgleicht, in
+// Worten, dazu eine kleine Skizze von oben, wie die Box Boxen und Plätze aus Verbindungstest und Einmessung kennt. Nur der
+// Ist-Zustand, kein Soll-Bereich: keine Aufstell-Tipps. Ohne Verbindungstest keine Skizze. Bei 4.0/5.1 kein Lage-Ausgleich.
+const EM_HINTEN_NAMEN = { SL: "Hinten links", SR: "Hinten rechts", BL: "Hinten links (2)", BR: "Hinten rechts (2)" };
+function emHintenSkizze(la) {
+  const pk = Object.values(la.boxen).concat(la.plaetze.map((p) => p.pos)), xs = pk.map((p) => p[0]), ys = pk.map((p) => p[1]);
+  const b = 260, h = 150, rand = 48, k = Math.min((b - 2 * rand) / Math.max(0.5, Math.max(...xs) - Math.min(...xs)), (h - 30) / Math.max(0.5, Math.max(...ys) - Math.min(...ys)));
+  const X = (x) => rand + (x - Math.min(...xs)) * k + ((b - 2 * rand) - (Math.max(...xs) - Math.min(...xs)) * k) / 2, Y = (y) => 15 + (Math.max(...ys) - y) * k;
+  const p0 = la.plaetze[0], P = [X(p0.pos[0]), Y(p0.pos[1])], mitte = b / 2;
+  let s = `<svg id="em-hinten-skizze" viewBox="0 0 ${b} ${Math.round(Y(Math.min(...ys)) + 15)}" style="width:100%;max-width:300px;display:block;margin:4px auto 0" role="img" aria-label="Lage der Boxen von oben">`;
+  for (const [c, [x, y]] of Object.entries(la.boxen)) {
+    if (EM_HINTEN_NAMEN[c]) {
+      s += `<line x1="${P[0]}" y1="${P[1]}" x2="${X(x)}" y2="${Y(y)}" stroke="var(--kb-text-leise)" stroke-width="1" stroke-dasharray="3 3"/>`;
+      const links = X(x) < mitte;
+      s += `<text x="${X(x) + (links ? -10 : 10)}" y="${Y(y) + 4}" font-size="11" fill="var(--kb-text-leise)" text-anchor="${links ? "end" : "start"}">${zt(p0.abstand_m[c], 1)} m</text>`;
+    }
+    s += `<rect x="${X(x) - 6}" y="${Y(y) - 6}" width="12" height="12" fill="var(--kb-flaeche)" stroke="var(--kb-text)" stroke-width="1.5"/>`;
+  }
+  la.plaetze.forEach((p, i) => { s += `<circle cx="${X(p.pos[0])}" cy="${Y(p.pos[1])}" r="${i ? 3 : 4.5}" fill="${i ? "var(--kb-text-leise)" : "var(--kb-text)"}"/>`; });
+  return s + "</svg>";
+}
+function emHintenSaetze(h) {
+  const k = h.kanaele, ch = Object.keys(k), out = [], n = h.plaetze;
+  const dMin = Math.min(...ch.map((c) => k[c].delay_ms));
+  for (const c of ch) { const d = k[c].delay_ms - dMin; if (d >= 0.3) out.push(`${EM_HINTEN_NAMEN[c]} wartet ${zt(d, 1)} ms, damit hinten alles gleichzeitig ankommt.`); }
+  const hz = (eq) => { const f = eq.map((q) => (q.freq < 100 ? 5 : 10) * Math.round(q.freq / (q.freq < 100 ? 5 : 10))).sort((a, b) => a - b).slice(0, 3);
+    return f.length > 1 ? `${f.slice(0, -1).join(", ")} und ${f[f.length - 1]}` : `${f[0]}`; };
+  for (const c of ch) {
+    if (!(k[c].eq || []).length) continue;
+    out.push(k[c].wand_db >= 3 ? `${EM_HINTEN_NAMEN[c]}: ${zt(k[c].wand_db, 0)} dB mehr Bass durch Wand oder Ecke. Um ${hz(k[c].eq)} Hz gesenkt.` : `${EM_HINTEN_NAMEN[c]}: Bass um ${hz(k[c].eq)} Hz gesenkt.`);
+  }
+  const genau = Math.max(0.5, ...ch.map((c) => k[c].pegel_max_db));
+  out.push(`Hinten so laut wie vorne, ${n > 1 ? `an allen ${n} Plätzen` : "an deinem Platz"} auf ${zt(genau, 1)} dB genau.`);
+  return out;
+}
+function emHintenHtml(r) {
+  const h = r && r.e && !r.e.fehler ? r.e.hinten : null;
+  if (!h || !h.kanaele || !Object.keys(h.kanaele).length) return "";
+  return `<p class="nb-lead" id="em-hinten-lead">Die Box gleicht die hinteren Boxen ${h.plaetze > 1 ? `für alle ${h.plaetze} Plätze` : "für deinen Platz"} aus, so wie sie stehen.</p>
+    ${h.lage ? emHintenSkizze(h.lage) : ""}<ul class="klein nb-liste" id="em-hinten-liste">${emHintenSaetze(h).map((t) => `<li>${esc(t)}</li>`).join("")}</ul>`;
+}
+function emHintenZeigen() { const b = $("em-hinten-block"); if (b && !b.hidden) b.innerHTML = emHintenHtml(letzteRunde(modus)); }
+window.addEventListener("sheetauf", (ev) => { if (ev.detail && ev.detail.id === "em-hinten-block") emHintenZeigen(); });
 window.addEventListener("sheetauf", (ev) => { if (ev.detail && ev.detail.id === "em-tipps-block") emTippsZeigen(); });
 // --- Raumscan (RoomPlan aus der App oder raum.json) -----------------------------------------------
 // Format (Meter): Grundriss von oben wie RoomPlan (x, z): x nach rechts, y nach unten wie in einem Bild,
@@ -11862,7 +12234,7 @@ function pruefungHtml(u, r) {
 // Nur im Profil, das den Sub abgeglichen hat (Sub nur einmal, Kino-Bass nie über den gemeinsamen Regler; Prüfer M2):
 // mit übernommener Stellung bleibt es bei der Glocke der Box
 function nbSubZuerst(nb, r) {
-  if (!nb || !nb.vorschlag || nb.filter.gain >= 0 || nb.filter.freq > 63 || nb.filter.q > 1.4 || !hatSub(MA.layout)) return false;
+  if (!nb || !nb.vorschlag || !nb.filter || nb.filter.gain >= 0 || nb.filter.freq > 63 || nb.filter.q > 1.4 || !hatSub(MA.layout)) return false;
   const sa = window.klangboxSubAbgleich;
   return !!(sa && sa.subZuerstErlaubt && r && sa.subZuerstErlaubt(r.modus));
 }
@@ -11888,12 +12260,16 @@ function nbHtml(r, u) {
       <div class="knoepfe breit"><button type="button" class="zweit" id="a-nb-lassen"${aus}>So lassen</button><button type="button" id="a-nb-sub"${aus}>Gedreht · Nachmessen</button></div></section>`;
   }
   if (nb.vorschlag) {
-    const d = ringJ(nb.kacheln_neu) - ringJ(nb.kacheln_jetzt);
-    return `<section class="card" id="a-nb">${kopf}<h2>Nachgebessert: Ring +${d}</h2>
-      <p class="nb-lead">Aus der Messung vorher und nachher hat die Box die Korrektur noch einmal gerechnet. ${nbTonSatz(nb)}</p>
-      ${tab(zeile("jetzt (nachgemessen)", nb.kacheln_jetzt) + zeile(`${EM_MINI}nachgebessert`, nb.kacheln_neu, ' class="nb-empfohlen"', true))}
-      <p class="klein" id="a-nb-ring">Ring: jetzt ${ringJ(nb.kacheln_jetzt)}, nachgebessert ${ringJ(nb.kacheln_neu)} von ${skala}.</p>
-      <ul class="klein nb-liste">${nb.saetze.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+    // hinten (Paket 54): eigene Zeilen, nicht im Ring; ein Vorschlag nur hinten hat vorne keinen Filter
+    const d = ringJ(nb.kacheln_neu) - ringJ(nb.kacheln_jetzt), h = nb.hinten && nb.hinten.vorschlag ? nb.hinten : null;
+    const saetze = [...(nb.saetze || []), ...(h ? h.saetze : [])];
+    return `<section class="card" id="a-nb">${kopf}<h2>${nb.filter ? `Nachgebessert: Ring +${d}` : "Nachgebessert: hinten"}</h2>
+      <p class="nb-lead">${nb.filter ? `Aus der Messung vorher und nachher hat die Box die Korrektur noch einmal gerechnet. ${nbTonSatz(nb)}`
+        : "Vorne bleibt alles, wie es ist. Für hinten hat die Box die Korrektur noch einmal gerechnet. Nichts wird lauter."}</p>
+      ${nb.filter ? `${tab(zeile("jetzt (nachgemessen)", nb.kacheln_jetzt) + zeile(`${EM_MINI}nachgebessert`, nb.kacheln_neu, ' class="nb-empfohlen"', true))}
+      <p class="klein" id="a-nb-ring">Ring: jetzt ${ringJ(nb.kacheln_jetzt)}, nachgebessert ${ringJ(nb.kacheln_neu)} von ${skala}.</p>` : ""}
+      ${h ? nbHintenTab(h) : ""}
+      <ul class="klein nb-liste">${saetze.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
       ${boxBereit() ? `<p class="klein">Danach misst die Box am Hörplatz kurz nach (30 Sekunden). Wird es schlechter, nimmt sie es zurück.</p>${status}
       <div class="knoepfe breit"><button type="button" class="zweit" id="a-nb-lassen"${aus}>So lassen</button><button type="button" id="a-nb-uebernehmen"${aus}>Übernehmen</button></div>`
       // ohne App (Browser): wie die Einmessung über die Bedienseite der Box, danach hier noch einmal nachmessen
@@ -11901,20 +12277,34 @@ function nbHtml(r, u) {
       <div class="knoepfe breit"><button type="button" class="zweit" id="a-nb-lassen"${aus}>So lassen</button><button type="button" class="zweit" id="a-nb-kopieren">Kopieren</button><button type="button" id="a-nb-web-geladen"${aus}>Auf der Bedienseite geladen</button></div>`}</section>`;
   }
   const pk = (u.pruefung && u.pruefung.kacheln) || {}, prog = Object.fromEntries(ks.map((k) => [k, pk[k] ? pk[k].prognose : null]));
-  const warum = { streuung: "Jede weitere Änderung läge innerhalb der Messstreuung.", mehrkanal: "Mit Center oder hinteren Lautsprechern rechnet die Nachbesserung noch nicht.",
+  const warum = { streuung: "Jede weitere Änderung läge innerhalb der Messstreuung.",
     hoerschalter: "Es spielen andere Hör-Schalter als gemessen: Dafür rechnet die Nachbesserung noch nicht." }[nb.grund]
     || "Jede weitere Änderung würde einen Ton leiser machen oder eine Kachel verschlechtern.";
   // „Wirkt wie geplant“ nur, wenn jede Kachel innerhalb der Toleranz der Prüfung (±5 Punkte) an ihrer Prognose liegt; eine
   // Kachel darunter wird genannt (Prüfer 18.11.2026, N6: Bass 65 gegen Prognose 69 ohne Wort dazu)
   const tief = nbTief(u);
-  const nochNicht = ["mehrkanal", "hoerschalter"].includes(nb.grund);
+  const nochNicht = nb.grund === "hoerschalter";
   const geplant = u.pruefung && u.pruefung.urteil === "wie_geplant", wie = geplant && !(tief && tief[1] < -NB_TOL);
   const unter = tief ? ` ${nbUnterText(titel(tief[0]), tief[1])}${-tief[1] <= NB_TOL ? `, innerhalb der Messstreuung (±${NB_TOL})` : ""}.` : "";
   return `<section class="card" id="a-nb">${kopf}<h2>${wie ? "Wirkt wie geplant" : geplant ? "Wirkt teilweise wie geplant" : nochNicht ? "Nachgemessen" : "Mehr ist nicht zu holen"}</h2>
     <p class="nb-lead">${n > 1 ? `An allen ${n} Plätzen nachgemessen.` : "Am Hörplatz nachgemessen."}${esc(unter)} ${nochNicht ? "Eine Nachbesserung rechnet die App hier noch nicht." : "Mehr ist ohne Nachteil nicht zu holen."}</p>
     ${tab(zeile("Prognose", prog) + zeile("nachgemessen", nb.kacheln_jetzt, "", true))}
-    <p class="klein" id="a-nb-ring">Ring: ${ringJ(nb.kacheln_jetzt)} von ${skala}. ${warum}</p>
+    <p class="klein" id="a-nb-ring">Ring: ${ringJ(nb.kacheln_jetzt)} von ${skala}. ${warum}</p>${nbHintenSatz(nb.hinten)}
     <div class="knoepfe"><button type="button" id="a-nb-behalten"${aus}>Behalten</button></div></section>`;
+}
+// hinten (analyse.js hintenNachbessern, Entwurf „Nachgebessert“ Bild 3): Pegel zu vorne und Bass-Abweichung, jetzt gegen
+// nachgebessert; zählt nicht im Ring (Besitzer 20.11.2026)
+function nbHintenTab(h) {
+  const w = h.werte, z = (name, a, b, art) => `<tr><td>${name}</td><td class="n">${art(a)}</td><td class="n"><b>${art(b)}</b></td></tr>`;
+  const pm = (x) => `±${zt(x, 1)} dB`, db = (x) => `${zt(x, 1)} dB`;
+  return `<div class="tabelle"><table class="nb-tab" id="a-nb-hinten"><thead><tr><th>hinten</th><th class="n">jetzt</th><th class="n">nachgebessert</th></tr></thead><tbody>${
+    z("Pegel zu vorne", w.pegel_jetzt_db, w.pegel_neu_db, pm)}${w.bass_jetzt_db != null ? z("Bass-Abweichung", w.bass_jetzt_db, w.bass_neu_db, db) : ""}</tbody></table></div>`;
+}
+// ohne Vorschlag: hinten in einem Satz (Entwurf Bild 4)
+function nbHintenSatz(h) {
+  if (!h || !h.werte) return "";
+  const w = h.werte;
+  return `<p class="klein" id="a-nb-hinten-satz">Hinten: so laut wie vorne (±${zt(w.pegel_jetzt_db, 1)} dB)${w.bass_jetzt_db != null ? `, Bass ${zt(w.bass_jetzt_db, 1)} dB vom Ziel` : ""}.</p>`;
 }
 function nbMerken(r, ergebnis, meldung) {
   const nb = r.urteil.nachbesserung; nb.ergebnis = ergebnis; nb.meldung = meldung; rundeSpeichern(); urteilZeigen(r);
@@ -11955,11 +12345,15 @@ function kinoLinieEinst(r) {
 // Runde mit der Nachbesserung, ohne die Runde selbst zu ändern: Wie Stereo in FL/FR und als Zusatz; gegen die Kino-Linie
 // gerechnet nur auf der Kino-Linie (ihre Filter und der Zusatz „nachbesserung_kino“)
 function nbRunde(r) {
-  const nb = r.urteil.nachbesserung, f = nb.filter, g = { freq: f.freq, gain: f.gain, q: f.q };
+  const nb = r.urteil.nachbesserung, f = nb.filter;
+  // Center und Rears (Paket 54) stehen in nb.einstellungen; die Fronts nur mit Filter (sonst bleibt vorne, wie es ist)
+  const hinten = Object.fromEntries(Object.entries(nb.einstellungen || {}).filter(([c]) => c !== "FL" && c !== "FR"));
+  if (!f) return { ...r, e: { ...r.e, einstellungen: { ...r.e.einstellungen, ...hinten } } };
+  const g = { freq: f.freq, gain: f.gain, q: f.q };
   const plus = (o) => Object.fromEntries(["FL", "FR"].map((c) => [c, [...((o || {})[c] || []), { ...g }]]));
   if (r.urteil.kino_linie) {
     const k = r.e.kino_linie, ke = Object.fromEntries(["FL", "FR"].map((c) => [c, { ...k.einstellungen[c], eq: [...k.einstellungen[c].eq, { ...g }] }]));
-    return { ...r, e: { ...r.e, kino_linie: { ...k, einstellungen: { ...k.einstellungen, ...ke } }, nachbesserung_kino: plus(r.e.nachbesserung_kino) } };
+    return { ...r, e: { ...r.e, einstellungen: { ...r.e.einstellungen, ...hinten }, kino_linie: { ...k, einstellungen: { ...k.einstellungen, ...ke } }, nachbesserung_kino: plus(r.e.nachbesserung_kino) } };
   }
   return { ...r, e: { ...r.e, einstellungen: nb.einstellungen, nachbesserung: plus(r.e.nachbesserung) } };
 }
@@ -11996,7 +12390,7 @@ async function nbUebernehmen() {
     await zurueck(`Die Nachbesserung ließ sich nicht prüfen (die Box hat die Kurzprüfung ${r.urteil.kino_linie ? "nicht " : ""}mit der Kino-Linie gespielt).`);
     return;
   }
-  const filt = { gain_db: 0, delay_ms: 0, eq: [nb.filter] };
+  const filt = { gain_db: 0, delay_ms: 0, eq: nb.filter ? [nb.filter] : [] };  // nur hinten: vorne keine Änderung
   const res = await imWorker({ art: "nachpruefen", modus: r.urteil.kino_linie ? "kino" : rundeRechenModus(r), raumM3: +$("raum").value || null, kanaele: r.kanaele || K2, mikrofon: mikroProfil(),
     vorher: [{ name: nach.haupt, daten: vorher }], nachher: [{ name: nach.haupt, daten: d }], einstellungen: { FL: filt, FR: filt }, profil: r.profil || null, sitzmodus: "allein", nachbessern: false });
   const u2 = res.ok && !res.ergebnis.fehler ? res.ergebnis : null;
@@ -13836,7 +14230,13 @@ async function mdHolen(runde, datei) {
 // kommen zur Runde auf die Box; der Startbericht zeigt Prognose und Nachmessung. Je Runde gilt die letzte Prüfung.
 // Uploads einer Runde nie gleichzeitig (Runde und Prüfung teilen den Ordner auf der Box): eine Kette je Runde
 const mdKetten = {};
-function mdKette(id, fn) { const k = (mdKetten[id] || Promise.resolve()).then(fn, fn); mdKetten[id] = k.catch(() => {}); return k; }
+let mdOffen = 0;  // Uploads, die noch laufen oder warten (bedienseite.js: nach einem Update nicht neu laden, solange > 0)
+function mdKette(id, fn) {
+  mdOffen++;
+  const k = (mdKetten[id] || Promise.resolve()).then(fn, fn); mdKetten[id] = k.catch(() => {});
+  k.then(() => { mdOffen--; }, () => { mdOffen--; });
+  return k;
+}
 function pruefungHochladen(r, nachher) { return mdKette(r.id, () => pruefungHochladenJetzt(r, nachher)); }
 async function pruefungHochladenJetzt(r, nachher) {
   if (!nativ || !boxBereit() || !r.urteil) return;
@@ -13894,7 +14294,7 @@ async function messdatenHochladenJetzt(r) {
     }
     await mdDatei(r.id, "runde.json", new TextEncoder().encode(JSON.stringify(r)));
     const a = await nativ.box("messdaten", { aktion: "fertig", runde: r.id, meta: { modus: m.modus, raum_m3: m.raumM3, kanaele: m.kanaele, sitzmodus: m.sitzmodus,
-      ziel: m.ziel, umgebung: !!m.umgebung, mikrofon: m.mikrofon || null, bewegt: !!m.bewegt, funk_ms: m.funkMs ?? null, anlage: r.anlage, datum: new Date().toISOString(), plaetze } }, { zeitMs: 15000 });
+      ziel: m.ziel, umgebung: !!m.umgebung, mikrofon: m.mikrofon || null, bewegt: !!m.bewegt, funk_ms: m.funkMs ?? null, verbindung: m.verbindung || null, anlage: r.anlage, datum: new Date().toISOString(), plaetze } }, { zeitMs: 15000 });
     if (!a.ok) throw new Error(a.fehler || a.grund);
     r.messdaten_box = r.id; rundeSpeichern();
   } catch (e) { meldeBox("fehler", { bereich: "Messdaten", text: String(e && e.message || e).slice(0, 200) }); }
@@ -14678,6 +15078,7 @@ function zuhauseZeigen(laden = true) {
   const emZeilen = zhAktion("zh-abkuh", "", `Hör den Unterschied<small>${boxDa ? (abGeht ? (bt ? `Blindtest ${bt.box}/${bt.runden}&nbsp;· ${esc(bt.datum)}` : "blind, ohne und mit Box") : "nach dem Laden") : boxOhneApp() ? "Blindtest über das Box-Symbol" : "am iPhone gerechnet"}</small>`, boxDa || boxOhneApp() || vgDa,
       abGeht ? ` data-sheet-block="ab-kuh" data-sheet-titel="Hör den Unterschied"` : boxDa ? " disabled" : boxOhneApp() ? ` data-sheet-block="ab-hilfe" data-sheet-titel="Blindtest über das Box-Symbol"` : ` data-sheet-block="zh-vg" data-sheet-titel="Hör den Unterschied"`)
     + zhAktion("zh-em-tipps", "", "Tipps aus der Messung<small>Empfehlungen, Raum</small>", !!emTippsHtml(rl), ` data-sheet-block="em-tipps" data-sheet-titel="Tipps aus der Messung"`)
+    + zhAktion("zh-em-hinten", "", "Hinten ausgeglichen<small>Pegel, Laufzeit und Bass der hinteren Boxen</small>", !!emHintenHtml(rl), ` data-sheet-block="em-hinten" data-sheet-titel="Hinten ausgeglichen"`)
     + zhAktion("zh-verbessern", "", "Aufstellung verbessern<small>Boxen und Sofa</small>", true, ` data-zu="8"`)
     // Bedienseite der Box über http: Ergebnisse der Mess-Seite kommen per Einfügen (bedienseite.js); solange nichts
     // eingemessen ist, steht der Knopf zusätzlich oben unter dem Kopf (#bs-oben)
@@ -17999,7 +18400,9 @@ body.vt-an .messlage { z-index: 70; }
     if (!r.ok) { zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Das hat nicht geklappt</h1><p class="vt-lead">${esc(r.fehler || "Auswertung fehlgeschlagen.")}</p>`); return; }
     const { erg, text } = r.ergebnis;
     st.erg = erg; st.text = text;
-    await nativ.box("verbindungstest", { aktion: "speichern", gesamt: erg.gesamt, punkte: erg.punkte, text }, { zeitMs: 10000 });
+    // dazu Abstände und Laufzeiten: daraus kennt die Einmessung die Lage der Rückkanäle (rueckkorrektur, keine Tipps)
+    const w = erg.werte || {}, lage = { paare: (w.paare || []).map((p) => ({ i: p.i, j: p.j, abstand_m: p.abstand_m })), e_ms: w.e_ms || {} };
+    await nativ.box("verbindungstest", { aktion: "speichern", gesamt: erg.gesamt, punkte: erg.punkte, text, lage }, { zeitMs: 10000 });
     vergessen(); await aufraeumen();
     ergebnis();
   }
@@ -19860,6 +20263,14 @@ body.gt-offen { overflow: hidden; }
 //   Hintergrund den Sollwert (regler.hintergrund_soll_db) und klein „gerade ≈ 44 dB“. Regler und Tasten bleiben in Stufen.
 //   Ohne Bezug wie bisher die Stufe, dazu unter Cover und Leiste eine ruhige Zeile „Echte dB: noch nicht eingepegelt“ mit
 //   dem Weg zu Pegel einmessen (dauerhaft erreichbar, nur solange die Klång-Box regelt und kein gültiger Bezug da ist).
+// - Anzeige Stufen | dB (Besitzer 20.11.2026, 0.3.55; gespeichert in der Box, regler.anzeige, ab Werk Stufen): Mit Stufen
+//   ist die große Zahl die Stufe, ohne dB-Zeile und ohne „Echte dB: noch nicht eingepegelt“. Mit dB wie oben, dB immer
+//   mit Einheit, auch in der Leiste. Im Hintergrund (Schalter) mit gültigem Bezug immer dB. Was gilt, sagt die Box
+//   (regler.anzeige_db), damit alle Telefone dasselbe zeigen.
+// - Regler an die Anlage angepasst (0.3.55): Die Box schickt die Spanne der Skala (regler.skala_db); alle Stufen rechnet
+//   die Seite nur damit (LAUT_SKALA, Parität: tests/test_lautstaerke_seite.py) und schickt sie mit jeder Stufe mit. Passt
+//   sie nicht mehr (409 „skala_geaendert“), lädt die Seite neu; wechselt sie, rechnet die Seite die Zahl in dB um (der
+//   Ton bleibt). Unter Stufe 1 (nur angepasst) zeigt die Zahl 1, „+“ geht dort in dB-Schritten (nie ein Sprung).
 // - Verstärker regelt (Standard): auf Hören gar keine Lautstärke-Anzeige, keine Abfrage des Ausgangspegels (Nutzer
 //   09.11.2026: „das springt mit jeder Sekunde“). Wer regelt, steht nur unter Box › Lautstärke.
 // - Die Zahl folgt jedem Druck sofort; zur Box geht höchstens alle 40 ms der letzte Wert, nie zwei Anfragen zugleich
@@ -19867,22 +20278,52 @@ body.gt-offen { overflow: hidden; }
 //   Höchstwert und bei stumm.
 // Zugänglich: echte Knöpfe „Leiser“, „Lauter“, „Stumm“; dazu ein verstecktes <input type="range"> (VoiceOver: Wischen
 // nach oben/unten; Tastatur: Pfeile, Bild auf/ab, M).
-// Regelweg wie klangbox/dienst/lautstaerke_skala.py (KNOTEN); Test: tests/test_lautstaerke_seite.py.
+// Regelweg wie klangbox/dienst/lautstaerke_skala.py (KNOTEN, Spanne); Test: tests/test_lautstaerke_seite.py.
 // Nutzt von der Seite: nativ, boxBereit, zh (Zuhause-Zustand), zhLaden, JETZT (hängt die Anzeige nach jedem Zeichnen ein).
+// Nur Zahlen, ohne Seite (Parität mit lautstaerke_skala.py): Stufe ↔ dB bei Spanne sp (null: volle, 80 dB), dazu ein
+// Schritt um n Stufen, der unter Stufe 1 in dB rechnet (so groß wie eine Stufe bei 1) und nie springt
+const LAUT_SKALA = (() => {
+  const KNOTEN = [[1, -80], [10, -58], [30, -35], [100, 0]], SPANNE_DB = 80, SPANNE_BEREICH = [40, 80], UNTER_EINS = 0.01, STUMM_DB = -100;
+  const r2 = (x) => Math.round(x * 100) / 100, r3 = (x) => Math.round(x * 1000) / 1000;
+  const spanne = (sp) => (sp == null || !isFinite(+sp) ? SPANNE_DB : Math.min(SPANNE_BEREICH[1], Math.max(SPANNE_BEREICH[0], +sp)));
+  const voll = (s) => { for (let i = 1; i < KNOTEN.length; i++) { const [s0, d0] = KNOTEN[i - 1], [s1, d1] = KNOTEN[i]; if (s <= s1) return d0 + (d1 - d0) * (s - s0) / (s1 - s0); } return 0; };
+  function dbAus(s, sp) {
+    sp = spanne(sp); s = Math.max(0, Math.min(100, +s));
+    if (s <= 0) return STUMM_DB;
+    if (s < 1) return r2(-80 + Math.max(0, (s - UNTER_EINS) / (1 - UNTER_EINS)) * (80 - sp));  // −80 … −S
+    return r2(voll(s) * sp / SPANNE_DB);
+  }
+  function stufeAus(d, sp) {
+    sp = spanne(sp);
+    if (d == null || !isFinite(+d) || +d < -80 - 1e-9) return 0;
+    d = Math.min(+d, 0);
+    if (d < -sp - 1e-9) return r3(UNTER_EINS + (1 - UNTER_EINS) * (d + 80) / (80 - sp));  // nie 0, solange Ton läuft
+    d = d * SPANNE_DB / sp;
+    for (let i = 1; i < KNOTEN.length; i++) { const [s0, d0] = KNOTEN[i - 1], [s1, d1] = KNOTEN[i]; if (d <= d1 + 1e-9) return r2(Math.max(s0, s0 + (s1 - s0) * (d - d0) / (d1 - d0))); }
+    return 100;
+  }
+  function schritt(w, n, sp) {
+    if (w == null || !n) return w;
+    if (w <= 0) return n > 0 ? n : 0;  // aus: „+“ auf Stufe n wie bisher
+    if (w < 1 && n > 0) return Math.min(100, stufeAus(dbAus(w, sp) + n * (dbAus(2, sp) - dbAus(1, sp)), sp));
+    return Math.max(0, Math.min(100, Math.round(w) + n));
+  }
+  const zeigen = (w) => (w == null ? null : w <= 0 ? 0 : Math.max(1, Math.round(w)));  // unter 1: „1“, nie „0“
+  const senden = (w) => (w < 1 ? r3(w) : Math.round(w * 2) / 2);  // halbe Stufen; unter 1 fein (sonst ein Sprung)
+  return { KNOTEN, SPANNE_DB, SPANNE_BEREICH, UNTER_EINS, dbAus, stufeAus, schritt, zeigen, senden };
+})();  // Ende LAUT_SKALA
 const LAUT = (() => {
   const $ = (id) => document.getElementById(id);
-  const KNOTEN = [[1, -80], [10, -58], [30, -35], [100, 0]];
-  const STUMM_DB = -100, TAKT_MS = 40, RUHE_MS = 1500, ZEIGEN_MS = 1500, TASTE_STUFEN = 2;
-  const dbAus = (s) => { s = Math.max(0, Math.min(100, +s)); if (s <= 0) return STUMM_DB; if (s < 1) return -80;
-    for (let i = 1; i < KNOTEN.length; i++) { const [s0, d0] = KNOTEN[i - 1], [s1, d1] = KNOTEN[i]; if (s <= s1) return Math.round((d0 + (d1 - d0) * (s - s0) / (s1 - s0)) * 100) / 100; }
-    return 0; };
-  const stufeAus = (d) => { if (d == null || !isFinite(+d) || +d < -80 - 1e-9) return 0; d = Math.min(+d, 0);
-    for (let i = 1; i < KNOTEN.length; i++) { const [s0, d0] = KNOTEN[i - 1], [s1, d1] = KNOTEN[i]; if (d <= d1 + 1e-9) return Math.round((s0 + (s1 - s0) * (d - d0) / (d1 - d0)) * 100) / 100; }
-    return 100; };
+  const STUMM_DB = -100, TAKT_MS = 40, RUHE_MS = 1500, ZEIGEN_MS = 1500;
   const z = { art: "leer", wert: null, grenze: 100, stumm: false, regelt: null, fuehrt: false, spl: null, splBei: null,
     lied: null, liedSicher: false, soll: null,  // echte dB (regler.lied_db, lied_db_sicher, hintergrund_soll_db)
+    skala: LAUT_SKALA.SPANNE_DB, anzeigeDb: false,  // Spanne der Skala (regler.skala_db) und ob dB gezeigt werden (regler.anzeige_db)
+    skalaKennt: false,  // die Box nennt skala_db (ab 0.3.55): nur dann „skala“ mitschicken (ältere Box: unbekannter Schlüssel)
     inFlug: false, offen: null, zuletztGesendet: 0, bedient: 0, ziehen: null, takt: 0, hapGrenze: false, sichtbar: false,
     zeigenBis: 0, zeigenUhr: 0, nachholen: false, tasten: false };  // tasten: der App gemeldet, dass sie die iPhone-Tasten abfangen soll (nur auf Hören, nur wenn die Box regelt)
+  const dbAus = (s, sp = z.skala) => LAUT_SKALA.dbAus(s, sp), stufeAus = (d, sp = z.skala) => LAUT_SKALA.stufeAus(d, sp);
+  // iPhone-Tasten: je Druck 2 Stufen (1 dB im Hörbereich); angepasst (feinere Stufen) 3 Stufen, also wieder etwa 1 dB
+  const tasteStufen = () => (z.skala < LAUT_SKALA.SPANNE_DB - 1e-9 ? 3 : 2);
   const da = () => typeof boxBereit === "function" && boxBereit() && typeof nativ !== "undefined" && !!nativ;
   const nativDa = () => nativ && typeof nativ.ereignis === "function" && !window.klangboxBedienseite;
   const haptik = (wert) => { if (z.fuehrt && nativDa()) nativ.ereignis({ art: "haptik", wert }); };
@@ -19900,7 +20341,10 @@ const LAUT = (() => {
     e.innerHTML = `<input type="range" class="zh-vol-zugang" id="zh-vol-regler" min="0" max="100" step="1" value="0" aria-label="Lautstärke">`;
     jetzt.after(e);
     const r = $("zh-vol-regler");
-    r.addEventListener("input", () => { if (z.art === "regler") { setzen(+r.value); anzeigen(); } });
+    // VoiceOver wischt eine Stufe weiter: unter 1 (die Zahl zeigt 1) in dB-Schritten, nie auf die angezeigte 2
+    r.addEventListener("input", () => { if (z.art !== "regler") return;
+      const v = +r.value, w = z.wert;
+      setzen(w != null && w > 0 && w < 1 && v > w ? LAUT_SKALA.schritt(w, 1, z.skala) : v); anzeigen(); });
     r.addEventListener("keydown", (ev) => { if (z.art === "regler" && (ev.key === "Enter" || ev.key === "m" || ev.key === "M")) { ev.preventDefault(); stummUmschalten(); anzeigen(); } });
     return e;
   }
@@ -19978,25 +20422,28 @@ const LAUT = (() => {
   // Werte der Box gelten für ihre Stufe (splBei); bis zur Antwort verschiebt die Stellung der Anzeige sie (Regelweg wie die Box)
   function texte() {
     if (z.art === "regler") {
-      const w = z.wert == null ? null : Math.round(z.wert);
+      const w = LAUT_SKALA.zeigen(z.wert);
       const d = z.wert != null && z.splBei != null ? dbAus(z.wert) - dbAus(z.splBei) : 0;
-      const spl = z.spl != null && !z.stumm && z.wert > 0 ? Math.round(z.spl + d) : null;
+      const spl = z.anzeigeDb && z.spl != null && !z.stumm && z.wert > 0 ? Math.round(z.spl + d) : null;
       const zahl = z.stumm ? "Stumm" : w == null ? "–" : String(w);
-      let echt = null;  // echte dB: das Lied am Platz bzw. im Hintergrund der Sollwert
-      if (z.lied != null && !z.stumm && w != null && z.wert > 0) {
+      let echt = null;  // echte dB (nur mit Anzeige dB bzw. im Hintergrund): das Lied am Platz bzw. der Sollwert
+      if (z.anzeigeDb && z.lied != null && !z.stumm && w != null && z.wert > 0) {
         const lied = Math.round(z.lied + d);
         echt = z.soll != null ? { db: Math.round(z.soll + d), ca: false, unter: `gerade ≈ ${lied} dB · Stufe ${w}` }
           : { db: lied, ca: !z.liedSicher, unter: `Stufe ${w}` };
       }
-      return { zahl, w, spl, klein: zahl, echt };
+      // Leiste: mit dB die dB-Zahl mit Einheit (auch im Hintergrund der Sollwert), sonst die Stufe
+      const klein = echt ? `${echt.ca ? "≈ " : ""}${echt.db} dB` : zahl;
+      return { zahl, w, spl, klein, echt };
     }
     return { zahl: "–", klein: "" };
   }
   // Ohne gültigen Bezug: ruhige Zeile unter der Leiste, warum keine echten dB, und der Weg zu Pegel einmessen (Box › Lautstärke)
   function peZeile() {
     const l = $("zh-vol-leiste"); if (!l) return;
-    const st = (typeof zh !== "undefined" && zh && zh.st) || {}, pe = st.pegel_echt;
-    const text = z.art !== "regler" || !pe || pe.gilt ? "" : pe.an ? "Echte dB: gilt gerade nicht" : "Echte dB: noch nicht eingepegelt";
+    const st = (typeof zh !== "undefined" && zh && zh.st) || {}, pe = st.pegel_echt, r = (st.lautstaerke && st.lautstaerke.regler) || {};
+    // nur bei Anzeige dB (mit Stufen fehlt nichts, die Zeile mahnte sonst dauernd)
+    const text = z.art !== "regler" || !pe || pe.gilt || r.anzeige !== "db" ? "" : pe.an ? "Echte dB: gilt gerade nicht" : "Echte dB: noch nicht eingepegelt";
     let e = $("zh-vol-pe");
     if (!text) { if (e) e.hidden = true; return; }
     if (!e) { e = document.createElement("p"); e.id = "zh-vol-pe"; e.className = "klein zh-vol-pe"; l.after(e); }
@@ -20017,13 +20464,13 @@ const LAUT = (() => {
       l.dataset.art = z.art;
       if (!l.hidden && z.art === "regler" && $("zh-vol-mitte-zahl")) {
         $("zh-vol-mitte-etikett").textContent = z.stumm ? "" : "Lautstärke";
-        $("zh-vol-mitte-zahl").textContent = t.zahl;
+        $("zh-vol-mitte-zahl").textContent = t.klein;
         const n = z.wert == null || z.stumm ? 0 : Math.max(0, Math.min(100, z.wert));
         $("zh-vol-fuellung").style.width = `${n}%`; $("zh-vol-punkt").style.left = `${n}%`; $("zh-vol-punkt").hidden = z.wert == null;
-        const ansage = z.stumm ? "Stumm" : `Lautstärke ${t.zahl}`;
+        const ansage = z.stumm ? "Stumm" : t.echt ? `Lautstärke ${t.echt.ca ? "etwa " : ""}${t.echt.db} Dezibel` : `Lautstärke ${t.zahl}`;
         if ($("zh-vol-ansage").textContent !== ansage) { clearTimeout(z.ansageUhr); z.ansageUhr = setTimeout(() => { const a = $("zh-vol-ansage"); if (a) a.textContent = ansage; }, 500); }
         $("zh-vol-stumm").setAttribute("aria-pressed", String(!!z.stumm));
-        $("zh-vol-stumm").setAttribute("aria-label", z.stumm ? "Stumm, antippen für Ton" : `Lautstärke ${t.zahl}, antippen für stumm`);
+        $("zh-vol-stumm").setAttribute("aria-label", z.stumm ? "Stumm, antippen für Ton" : `${ansage}, antippen für stumm`);
         $("zh-vol-lauter").disabled = z.wert == null || z.wert >= z.grenze - 1e-9;
         $("zh-vol-leiser").disabled = z.wert == null || z.wert <= 0;
       }
@@ -20046,8 +20493,8 @@ const LAUT = (() => {
       if (z.art === "regler") {
         r.disabled = false; r.removeAttribute("aria-disabled"); r.setAttribute("aria-label", "Lautstärke");
         if (t.w != null && document.activeElement !== r) r.value = String(t.w);
-        const db = t.echt ? `, ${t.echt.ca ? "etwa " : ""}${t.echt.db} Dezibel${z.soll != null ? " eingestellt" : ""}` : t.spl != null ? `, etwa ${t.spl} Dezibel` : "";
-        r.setAttribute("aria-valuetext", z.stumm ? "Stumm" : t.w == null ? "unbekannt" : `${t.w}${db}`);
+        const wert = t.echt ? `${t.echt.ca ? "etwa " : ""}${t.echt.db} Dezibel${z.soll != null ? " eingestellt" : ""}, Stufe ${t.w}` : `${t.w}${t.spl != null ? `, etwa ${t.spl} Dezibel` : ""}`;
+        r.setAttribute("aria-valuetext", z.stumm ? "Stumm" : t.w == null ? "unbekannt" : wert);
       } else {
         r.disabled = true; r.setAttribute("aria-disabled", "true");
         r.setAttribute("aria-label", z.art === "verstaerker" ? "Lautstärke, regelt der Verstärker" : "Lautstärke");
@@ -20081,6 +20528,7 @@ const LAUT = (() => {
     if (z.art !== art) { z.art = art; z.wert = null; }
     if (!$("zh-lautstaerke-block") || !$("zh-lautstaerke-block").hidden) sheetZeigen();
     if (art === "regler") {
+      skalaUebernehmen(r);
       const ruhig = !z.ziehen && !z.inFlug && z.offen == null && Date.now() - z.bedient > RUHE_MS;
       const soll = r && r.hintergrund_soll_db != null ? +r.hintergrund_soll_db : null;
       if (ruhig || z.wert == null) {
@@ -20097,12 +20545,27 @@ const LAUT = (() => {
     tastenMelden(); zeichnen();
   }
 
-  function lied(r, soll) { z.lied = r && r.lied_db != null ? +r.lied_db : null; z.liedSicher = !!(r && r.lied_db_sicher); z.soll = soll; }
+  function lied(r, soll) { z.lied = r && r.lied_db != null ? +r.lied_db : null; z.liedSicher = !!(r && r.lied_db_sicher); z.soll = soll;
+    z.anzeigeDb = !!(r && r.anzeige_db); }
+  // Spanne der Box übernehmen. Wechselt sie (Bezug neu, Schalter, Kino), bleibt der Ton: die Zahl wird über dB umgerechnet,
+  // auch ein noch nicht gesendeter Wert (der dann mit der neuen Spanne geht)
+  function skalaUebernehmen(r) {
+    const neu = r && r.skala_db != null ? +r.skala_db : LAUT_SKALA.SPANNE_DB;
+    if (r) z.skalaKennt = r.skala_db != null;
+    if (z.offen && z.offen.stufe !== undefined && !z.skalaKennt) delete z.offen.skala;
+    if (Math.abs(neu - z.skala) < 1e-9) return;
+    const alt = z.skala; z.skala = neu;
+    const um = (w) => (w == null || w <= 0 ? w : stufeAus(dbAus(w, alt), neu));
+    z.wert = um(z.wert); z.splBei = um(z.splBei);
+    if (z.offen && z.offen.stufe !== undefined) z.offen = { ...z.offen, stufe: LAUT_SKALA.senden(z.wert), ...(z.skalaKennt ? { skala: neu } : {}) };
+  }
 
   // --- Senden: höchstens alle 40 ms, immer der letzte Wert, nie zwei zugleich -----------------------------------------
   function senden(daten) {
     z.offen = { ...(z.offen || {}), ...daten };
-    if (daten.stufe !== undefined) delete z.offen.stumm;
+    // skala nur, wenn die Box sie kennt: eine ältere Box (vor 0.3.55) speicherte sonst bei jeder Stufe sofort
+    // (zustand.json, beim Ziehen bis 25×/s) und lehnte ohne Kopplung den unbekannten Schlüssel ab
+    if (daten.stufe !== undefined) { delete z.offen.stumm; if (z.skalaKennt) z.offen.skala = z.skala; else delete z.offen.skala; }
     pumpe();
   }
   async function pumpe() {
@@ -20115,33 +20578,40 @@ const LAUT = (() => {
     if (a && a.ok !== false && a.lautstaerke && typeof zh !== "undefined" && zh) {
       zh.st = { ...(zh.st || {}), lautstaerke: a.lautstaerke };
       const r = a.lautstaerke.regler;
+      if (r) skalaUebernehmen(r);
       if (r) { z.grenze = r.grenze_stufe != null ? +r.grenze_stufe : z.grenze; z.spl = r.spl_db != null ? +r.spl_db : null; z.splBei = +r.stufe;
         lied(r, r.hintergrund_soll_db != null ? +r.hintergrund_soll_db : null);
         if (z.offen == null && !z.ziehen) { if (Math.abs(+r.stufe - (z.wert ?? 0)) > 0.6) z.wert = +r.stufe; z.stumm = !!r.stumm; } }
       zeichnen();
+    } else if (a && a.grund === "skala_geaendert") {
+      // Die Skala hat sich geändert (Bezug, Schalter, Kino, zweites Telefon): nichts gestellt; neu laden, dann zählt die
+      // Stufe der Box (nie aus der alten Zahl weiterrechnen)
+      z.bedient = 0; if (z.offen && z.offen.stufe !== undefined) z.offen = null;
+      if (typeof zhLaden === "function") zhLaden();
     } else if (a && a.grund === "lautstaerke_quelle" && typeof zhLaden === "function") zhLaden();
     if (z.offen != null) pumpe();
   }
   function setzen(s) {
     s = Math.max(0, Math.min(z.grenze, s));
-    const vorher = z.wert == null ? null : Math.round(z.wert);
+    const alt = z.wert, vorher = LAUT_SKALA.zeigen(z.wert);
     z.wert = s; z.bedient = Date.now();
     if (z.stumm && s > 0) z.stumm = false;
-    const jetzt = Math.round(s), anGrenze = s >= z.grenze - 1e-9;
+    const jetzt = LAUT_SKALA.zeigen(s), anGrenze = s >= z.grenze - 1e-9;
     if (anGrenze && !z.hapGrenze) haptik("grenze");  // deutlich, genau einmal am Höchstwert
-    else if (!anGrenze && vorher != null && jetzt !== vorher) haptik("schritt");  // fein, je ganze Stufe
+    // fein, je ganze Stufe; unter Stufe 1 (die Zahl bleibt 1) je Schritt
+    else if (!anGrenze && vorher != null && (jetzt !== vorher || (s > 0 && s < 1 && s !== alt))) haptik("schritt");
     z.hapGrenze = anGrenze;
     zeichnen();
-    senden({ stufe: Math.round(s * 2) / 2 });  // auf halbe Stufen gerundet (VoiceOver-Regler, Status)
+    senden({ stufe: LAUT_SKALA.senden(s) });  // auf halbe Stufen gerundet (VoiceOver-Regler, Status), mit der Spanne
   }
   function stummUmschalten() {
     z.stumm = !z.stumm; z.bedient = Date.now(); haptik("stumm"); zeichnen();
     senden({ stumm: z.stumm });
   }
-  // Lautstärketaste am iPhone (App: VolumeTasten.swift): je Druck 2 Stufen (1 dB im Hörbereich)
+  // Lautstärketaste am iPhone (App: VolumeTasten.swift): je Druck tasteStufen() Stufen (etwa 1 dB im Hörbereich)
   function taste(n) {
     if (z.art !== "regler" || z.wert == null) return;
-    setzen(z.wert + Math.sign(+n || 0) * TASTE_STUFEN);
+    setzen(LAUT_SKALA.schritt(z.wert, Math.sign(+n || 0) * tasteStufen(), z.skala));
     anzeigen();
   }
   function tastenMelden() {  // die App fängt die Tasten nur ab, solange Hören offen ist und die Klång-Box regelt
@@ -20155,15 +20625,17 @@ const LAUT = (() => {
   // „−/+“: ein Druck = eine Stufe (0,5 dB im Hörbereich). Gehalten (Besitzer 16.11.2026: „erst langsam, dann etwas
   // schneller“): nach 400 ms wiederholen, viermal alle 200 ms, danach alle 80 ms. 12,5 Stufen je Sekunde sind im
   // Hörbereich gut 6 dB/s, so schnell wie die Rampe der Box: Was die Zahl zeigt, ist zu hören, nach dem Loslassen läuft
-  // nichts nach (40 → 80 in knapp 4 s). Halten endet sofort mit Loslassen, Finger vom Knopf ziehen, pointercancel, Seite
+  // nichts nach (40 → 80 in knapp 4 s). Angepasst (Spanne S, feinere Stufen) schneller, gleich viele dB je Sekunde:
+  // 80 ms × S / 80, höchstens alle 50 ms (S = 50: 50 ms, 20 Stufen ≈ 6,3 dB/s). Halten endet sofort mit Loslassen, Finger vom Knopf ziehen, pointercancel, Seite
   // unsichtbar (visibilitychange, pagehide), Fenster ohne Fokus (blur), Wechsel weg von Hören und an der Grenze bzw. bei 0.
   // Die Grenzen nach oben (max_db, Rampe, nie lauter nach einem Start) setzt die Box durch; hier geht nur die Stufe hin,
   // gebündelt über senden (höchstens eine Anfrage unterwegs).
   const WIEDER_START_MS = 400, WIEDER_LANGSAM_MS = 200, WIEDER_LANGSAM_N = 4, WIEDER_SCHNELL_MS = 80;
+  const schnellMs = () => Math.max(50, Math.round(WIEDER_SCHNELL_MS * z.skala / LAUT_SKALA.SPANNE_DB));
   let halt = null, tasteWdh = 0;  // halt: {knopf, id, uhr}, solange „−/+“ gehalten wird; tasteWdh: letzte Tasten-Wiederholung
   function schrittKnopf(n) {  // true: in diese Richtung geht es weiter (nicht an der Grenze bzw. bei 0)
     if (z.art !== "regler" || z.wert == null) return false;
-    setzen(Math.round(z.wert) + n);
+    setzen(LAUT_SKALA.schritt(z.wert, n, z.skala));
     anzeigen();
     return n > 0 ? z.wert < z.grenze - 1e-9 : z.wert > 0;
   }
@@ -20179,7 +20651,7 @@ const LAUT = (() => {
     let schritte = 0;
     const weiter = () => {
       if (!halt || !schrittKnopf(n)) { haltenEnde(); return; }
-      schritte++; halt.uhr = setTimeout(weiter, schritte < WIEDER_LANGSAM_N ? WIEDER_LANGSAM_MS : WIEDER_SCHNELL_MS);
+      schritte++; halt.uhr = setTimeout(weiter, schritte < WIEDER_LANGSAM_N ? WIEDER_LANGSAM_MS : schnellMs());
     };
     if (schrittKnopf(n)) halt.uhr = setTimeout(weiter, WIEDER_START_MS);
     else haltenEnde();
@@ -20253,12 +20725,35 @@ const LAUT = (() => {
     $("zh-lr-fertig").textContent = vorstufeLaeuft ? "Fertig" : box ? "Fertig" : "Fertig, Klång-Box regelt";
     $("zh-lr-start").textContent = vorstufeLaeuft ? "Läuft … nochmal" : r.vorstufe ? "Neu einstellen: Signal starten" : "Signal starten";
     $("zh-lr-max").hidden = !box;
-    const maxDb = fb.max_db != null ? +fb.max_db : 0, maxSt = Math.round(stufeAus(maxDb));
-    if (document.activeElement !== $("zh-lr-max-r")) $("zh-lr-max-r").value = String(maxSt);
+    // „Höchstens“ in derselben Skala wie Hören (regler.skala_db); unten bis −35 dB (bei voller Spanne Stufe 30)
+    const sp = r.skala_db != null ? +r.skala_db : LAUT_SKALA.SPANNE_DB, maxR = $("zh-lr-max-r");
+    const maxDb = fb.max_db != null ? +fb.max_db : 0, maxSt = Math.round(LAUT_SKALA.stufeAus(maxDb, sp));
+    maxR.min = String(Math.ceil(LAUT_SKALA.stufeAus(MAX_UNTEN_DB, sp))); maxR.dataset.skala = String(sp);
+    if (document.activeElement !== maxR) maxR.value = String(maxSt);
     $("zh-lr-max-wert").textContent = String(maxSt);
+    skalaKaesten(box, r);
     const kal = $("zh-lr-kal"); kal.hidden = !box || !r.kalibrierung;
     kal.textContent = r.kalibrierung === "gilt" ? "„≈ dB“ ist ungefähr (±3 dB) und gilt, solange der Verstärker nicht verstellt wird."
       : r.kalibrierung === "pruefen" ? "Der Verstärker wurde neu eingestellt: Für „≈ dB“ unter Hördosis neu kalibrieren." : "";
+  }
+  // Box › Lautstärke: „Anzeige: Stufen | dB“ und „Regler an die Anlage anpassen“ (nur, wenn die Klång-Box regelt).
+  // dB nur mit gültigem Bezug; der Schalter nur mit gültigem Bezug (ohne wirkt er nicht)
+  const MAX_UNTEN_DB = -35;
+  function skalaKaesten(box, r) {
+    const an = $("zh-lr-anzeige"), sk = $("zh-lr-skala"); if (!an || !sk) return;
+    const moeglich = !!r.skala_moeglich, wahl = r.anzeige === "db" ? "db" : "stufen";
+    an.hidden = !box;
+    document.querySelectorAll("[data-laut-anzeige]").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.lautAnzeige === wahl));
+      b.disabled = b.dataset.lautAnzeige === "db" && !moeglich && wahl !== "db"; });
+    $("zh-lr-anzeige-text").textContent = !moeglich && wahl !== "db" ? "Für dB erst Pegel einmessen."
+      : !moeglich ? "Der Bezug gilt gerade nicht: Hören zeigt Stufen." : "Gilt für Hören. Im Hintergrund zeigt Hören immer dB.";
+    sk.hidden = !box || !moeglich;
+    if (!moeglich) return;
+    $("zh-lr-skala-an").setAttribute("aria-checked", String(!!r.skala_anpassen));
+    const m = +r.musik_100_db, sa = r.skala_angepasst_db != null ? +r.skala_angepasst_db : LAUT_SKALA.SPANNE_DB;
+    const bei20 = (sp) => Math.round(m + LAUT_SKALA.dbAus(20, sp));
+    $("zh-lr-skala-text").textContent = `Musik spielt bei dir auf Stufe 100 mit etwa ${Math.round(m)} dB.`
+      + (sa < LAUT_SKALA.SPANNE_DB - 1e-9 ? ` An: Stufe 20 ≈ ${bei20(sa)} dB statt ${bei20(LAUT_SKALA.SPANNE_DB)} dB.` : " Deine Anlage nutzt schon die ganze Skala.");
   }
   async function aufruf(daten, text) {
     $("zh-lr-status").textContent = text || "";
@@ -20279,7 +20774,7 @@ const LAUT = (() => {
     if (t.closest("#zh-lr-fertig")) { const a = await aufruf({ vorstufe: "fertig" });
       if (a && a.ok !== false) { vorstufeLaeuft = false; wahlBox = false;
         const st0 = a.lautstaerke && a.lautstaerke.regler ? Math.round(+a.lautstaerke.regler.stufe || 0) : null;
-        // Stufe 40 oder leiser (nie lauter als vorher); stand die Box auf 0 (ganz zu), bleibt sie dort
+        // −30 dB (Stufe 40) oder leiser (nie lauter als vorher); stand die Box auf 0 (ganz zu), bleibt sie dort
         $("zh-lr-status").textContent = st0 === 0 ? "✓ Die Klång-Box regelt. Die Box steht noch auf 0. Mit + lauter stellen."
           : `✓ Die Klång-Box regelt. Hören startet bei ${st0 == null ? 40 : st0}.`;
         if (typeof zhLaden === "function") zhLaden(); }
@@ -20287,11 +20782,18 @@ const LAUT = (() => {
     if (t.closest("#zh-lr-voll")) { const a = await aufruf({ volle_stellung: true }, "Fährt langsam hoch …");
       if (a && a.ok !== false) { $("zh-lr-status").textContent = "✓ Die Box geht langsam auf volle Stellung."; if (typeof zhLaden === "function") zhLaden(); }
       sheetZeigen(); return; }
+    const aw = t.closest("[data-laut-anzeige]");
+    if (aw && !aw.disabled && aw.getAttribute("aria-pressed") !== "true") { const a = await aufruf({ anzeige: aw.dataset.lautAnzeige });
+      if (a && a.ok !== false) { zeigen(); if (typeof zhLaden === "function") zhLaden(); } sheetZeigen(); return; }
+    if (t.closest("#zh-lr-skala-an")) { const r0 = (zh && zh.st && zh.st.lautstaerke && zh.st.lautstaerke.regler) || {};
+      const a = await aufruf({ skala_anpassen: !r0.skala_anpassen });
+      if (a && a.ok !== false) { zeigen(); if (typeof zhLaden === "function") zhLaden(); } sheetZeigen(); return; }
     if (t.closest("#zh-lr-ohne")) { const a = await aufruf({ regelt: "box" }); if (a && a.ok !== false) { wahlBox = false; if (typeof zhLaden === "function") zhLaden(); } sheetZeigen(); return; }
   });
   document.addEventListener("change", async (ev) => {
     if (ev.target.id !== "zh-lr-max-r") return;
-    const db = Math.max(-40, dbAus(+ev.target.value));
+    // mit der Spanne, mit der der Schieber gezeichnet wurde (Status der Box), gespeichert in dB
+    const db = Math.max(-40, LAUT_SKALA.dbAus(+ev.target.value, +ev.target.dataset.skala || LAUT_SKALA.SPANNE_DB));
     const a = await nativ.box("fernbedienung", { max_db: db }, { zeitMs: 6000 });
     if (a && a.ok !== false && a.fernbedienung && zh) zh.st = { ...(zh.st || {}), fernbedienung: a.fernbedienung };
     else $("zh-lr-status").textContent = (a && a.fehler) || "Ging nicht.";

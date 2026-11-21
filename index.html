@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="klangbox-stand" content="bb746ab17b7b">
+<meta name="klangbox-stand" content="da0b1ac43977">
 <title>Klång-Box Raum-Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" href="favicon.svg?v=dp1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=dp1" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=dp1">
@@ -6126,7 +6126,7 @@ const vtSeite = (r) => (r === "SL" ? "links" : "rechts");
 const vtZahl = (x) => typeof x === "number" && isFinite(x);
 // plaetze: {Box, vor der das Handy lag: verbindungPlatz(...) mit mess_db}; box: was die Box rechnet und weiß (mit
 // weck_platz); funk: Punkte des Funk-Protokolls. Wie Python auswerten.
-function verbindungAuswerten(plaetze, box = null, funk = null) {
+function verbindungAuswerten(plaetze, box = null, funk = null, funkFehler = null) {
   box = box || {}; const punkte = [], N = VT.NAMEN, entwickler = [];  // entwickler: nur im Bericht
   const punkt = (z, name, wert, bedeutung, tun = null) => punkte.push({ z, punkt: name, wert, bedeutung, tun });
   const P = Object.values(plaetze), da = VT.KANAELE.filter((c) => c in plaetze);
@@ -6295,7 +6295,7 @@ function verbindungAuswerten(plaetze, box = null, funk = null) {
     else if (knapp.length) punkt(VT.WARN, "Funk", `${knapp[0].punkt}: ${knapp[0].wert}`, knapp[0].bedeutung || "", knapp[0].tun || null);
     else punkt(VT.OK, "Funk", "in Ordnung", `${funk.length} ${funk.length === 1 ? "Punkt" : "Punkte"} des Funk-Protokolls geprüft.`);
     werte.funk = { gut: funk.filter((p) => p.z === VT.OK).length, knapp: knapp.length, schlecht: schlecht.length };
-  }
+  } else if (funkFehler) punkt(VT.UNKLAR, "Funk", "nicht prüfbar", `Das Funk-Protokoll der Box kam nicht (${funkFehler}).`, "Bericht teilen; den Test später noch einmal.");  // nie still weglassen
   werte.aufnahmen = Object.fromEntries(Object.entries(plaetze).map(([c, p]) => [c, { drift_ppm: p.drift_ppm, sauber: p.sauber, nah: p.nah, nah_abstand_db: p.nah_abstand_db, probleme: p.probleme }]));
   for (const [c, p] of Object.entries(plaetze)) if (!p.sauber) punkt(VT.WARN, "Aufnahme", N[c], p.probleme.join("; ") || "Aufnahme nicht sauber.", "Platz wiederholen.");
   werte.entwickler = entwickler;
@@ -10357,7 +10357,7 @@ self.onmessage = (ev) => {
       self.postMessage({ ok: true, ergebnis: platz }); return;
     }
     if (ev.data.art === "verbindungAuswerten") {
-      const erg = verbindungAuswerten(ev.data.plaetze, ev.data.box, ev.data.funk);
+      const erg = verbindungAuswerten(ev.data.plaetze, ev.data.box, ev.data.funk, ev.data.funkFehler || null);
       self.postMessage({ ok: true, ergebnis: { erg, text: verbindungBericht(erg, ev.data.plaetze, ev.data.box, ev.data.funkText) } }); return;
     }
     if (ev.data.art === "bewegtPruefen") { self.postMessage({ ok: true, ergebnis: bewegtePunkte(new Float64Array(ev.data.daten)).info }); return; }
@@ -17993,7 +17993,9 @@ body.vt-an .messlage { z-index: 70; }
     zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Gleich fertig</h1><p class="vt-lead">Die Box prüft noch den Funk (etwa 20 s).</p>`);
     const f = await nativ.box("funk/protokoll?messen=1", {}, { zeitMs: 60000 });
     const funk = f.ok && Array.isArray(f.punkte) ? f.punkte : null, funkText = f.ok && f.text ? f.text : null;
-    const r = await imWorker({ art: "verbindungAuswerten", plaetze: st.plaetze, box: st.box, funk, funkText });
+    // kam das Protokoll nicht (ältere Box, Netz, Fehler): „Funk nicht prüfbar“ im Ergebnis, nie still weglassen
+    const funkFehler = funk ? null : String(f.fehler || f.grund || "keine Antwort");
+    const r = await imWorker({ art: "verbindungAuswerten", plaetze: st.plaetze, box: st.box, funk, funkText, funkFehler });
     if (!r.ok) { zeige(`${kopf("Verbindungstest")}<h1 id="vt-h">Das hat nicht geklappt</h1><p class="vt-lead">${esc(r.fehler || "Auswertung fehlgeschlagen.")}</p>`); return; }
     const { erg, text } = r.ergebnis;
     st.erg = erg; st.text = text;

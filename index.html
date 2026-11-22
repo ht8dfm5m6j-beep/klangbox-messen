@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="klangbox-stand" content="77e4a0008657">
+<meta name="klangbox-stand" content="2069139fa882">
 <title>Klång-Box Raum-Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" href="favicon.svg?v=dp1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=dp1" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=dp1">
@@ -1857,6 +1857,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
     <p id="check-text">Setz dich auf deinen Hörplatz. Ein kurzer Messton läuft, das iPhone hört zu. Danach weißt du, ob es zu leise, zu laut oder genau richtig ist.</p>
     <p id="check-kef-text" hidden>Setz dich auf deinen Hörplatz. Die App stellt die Lautstärke selbst ein: erst leise, dann Schritt für Schritt lauter, bis der Messton sauber ankommt. Das dauert etwa ein bis zwei Minuten. Nach der Messung stellt sie die alte Lautstärke wieder her.</p>
     <div id="check-kef" class="klein" hidden></div>
+    <p class="klein" id="check-kanaele"></p>
     <div id="check-filter" class="klein"></div>
     <button type="button" class="zweit klein" id="check-selbst" hidden>Lautstärke selbst einstellen</button>
     <div class="aktion"><div class="aktion-status"><div class="balken" aria-hidden="true"><div id="check-pegel"></div></div>
@@ -2266,6 +2267,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
         <button type="button" class="kb-zeile" id="zh-diag-eingang"><span>Eingang prüfen <span class="wert">· optisch, 6 s</span></span></button>
         <button type="button" class="kb-zeile" id="zh-diag-bitstream"><span>Mehrkanal prüfen <span class="wert">· etwa 15 s still</span></span></button>
         <button type="button" class="kb-zeile" id="zh-diag-funk" data-name="Funk-Protokoll"><span>Funk-Protokoll <span class="wert">· Funk zu den Rears</span></span></button>
+        <div id="zh-diag-sat-berichte" hidden></div>
         <p class="klein" id="zh-anschluss-status" aria-live="polite"></p></section>
       <section class="zh-gruppe" id="zh-fehlersuche" aria-label="Diagnose" hidden>
         <button type="button" class="kb-zeile" id="zh-diag-kopieren"><span>Diagnose kopieren <span class="wert">· kurzer Stand, sofort</span></span></button>
@@ -3528,7 +3530,9 @@ function rueckkanaeleEinmessen(haupt, fronts) {
   const aus = {};
   for (const ch of ZUSATZ.filter((c) => c in haupt)) {
     const g = vorne - mitte[ch];
-    if (g > 0.5) hinweise.push(`${RUECK_NAMEN[ch]} ist ${zahlText(g)} dB leiser als vorne. Dreh die ${ch === "C" ? "vordere" : "hintere"} Box etwas lauter (die Klång-Box hebt nie an).`);
+    // Paket 1, F6 (wie raumcheck.REAR_LAUTER_DB): so viel gleicht die Box nicht aus, sie senkt nur
+    if (g >= 3 && ch !== "C") hinweise.push(`Lautsprecher hinten lauter stellen: ${RUECK_NAMEN[ch]} ist ${zahlText(g)} dB leiser als vorne, die Klång-Box kann hinten nur leiser machen. Dreh die Lautstärke an der Box hinten um etwa ${zahlText(g)} dB höher und miss dann noch einmal.`);
+    else if (g > 0.5) hinweise.push(`${RUECK_NAMEN[ch]} ist ${zahlText(g)} dB leiser als vorne. Dreh die ${ch === "C" ? "vordere" : "hintere"} Box etwas lauter (die Klång-Box hebt nie an).`);
     aus[ch] = { gain_db: Math.round(Math.max(-20, Math.min(g, 0)) * 100) / 100, delay_ms: verz[ch], eq: [] };
   }
   if ("C" in haupt) for (const ch of ["FL", "FR"]) aus[ch] = { delay_ms: verz[ch] };
@@ -6244,7 +6248,7 @@ const VT = { C: 343.0, KANAELE: ["FL", "FR", "SL", "SR"], VORNE: ["FL", "FR"], H
   WECK_F: [250.0, 1200.0], WECK_SUCHE_S: 0.01, WECK_RUHE_S: [0.04, 0.09, 0.14], WECK_ABSTAND_DB: 12.0, WECK_VOLL_DB: 25.0,
   WECK_GUT_S: 0.5, H_M: 0.10, H_FAKTOR: 1.5, NAH_MIN_DB: 10.0, SNR_MAX_DB: 60.0, STUMM_DB: 25.0, POL_RHO_SICHER: 0.8, SPITZE_HP_HZ: 400.0,
   RUECK_SPAETER_MAX_MS: 35.0, STREUUNG_GUT_MS: 0.5, WECK_RUHE_MIN_S: 1800.0, RUECK_ECHO_MS: 45.0, MIN_PUFFER_MS: 18.0, LR_GUT_MS: 0.5,
-  REST_MIN_MS: -2.0, REST_MAX_MS: 15.0, PEGEL_LEISE_DB: -6.0, PEGEL_ZU_LEISE_DB: -12.0, PEGEL_LAUT_DB: 15.0, HANDY_UNSICHER_MS: 0.5,
+  REST_MIN_MS: -2.0, REST_MAX_MS: 15.0, PEGEL_LEISE_DB: -5.0, PEGEL_ZU_LEISE_DB: -12.0, PEGEL_LAUT_DB: 15.0, HANDY_UNSICHER_MS: 0.5,
   H_STREU_MAX: 1.5, H_K_REIHE: 0.6, H_K_QUER: 0.9 };
 function verbindungFolge(kanaele = null, wdh = VT.WDH) {  // wdh 1: „Aufwachen prüfen“ (wie Python folge)
   const k = VT.KANAELE.filter((c) => !kanaele || kanaele.includes(c)), alle = [];
@@ -6499,7 +6503,7 @@ function verbindungAuswerten(plaetze, box = null, funk = null, funkFehler = null
   else if (pm.length) {
     const wert = pm.map(([r, v]) => `${vtSeite(r)} ${vtVz(v)} dB`).join(" · "), leise = Math.min(...pm.map((x) => x[1])), laut = Math.max(...pm.map((x) => x[1]));
     if (leise < VT.PEGEL_ZU_LEISE_DB) punkt(VT.NEIN, "Pegel hinten", wert, "Hinten viel leiser als vorne. Die Box hebt nie an.", "Lautstärke an den Boxen hinten höher stellen, dann den Test wiederholen.");
-    else if (leise < VT.PEGEL_LEISE_DB) punkt(VT.WARN, "Pegel hinten", wert, "Hinten leiser als vorne. Die Box hebt nie an.", "Lautstärke an den Boxen hinten etwas höher stellen.");
+    else if (pm.reduce((s, x) => s + x[1], 0) / pm.length < VT.PEGEL_LEISE_DB) punkt(VT.WARN, "Pegel hinten", wert, "Hinten leiser als vorne. Die Box hebt nie an.", "Lautsprecher hinten lauter stellen (an den Boxen hinten höher drehen), dann misst die Einmessung genau nach.");
     else if (laut > VT.PEGEL_LAUT_DB) punkt(VT.WARN, "Pegel hinten", wert, "Hinten viel lauter als vorne: Die Einmessung senkt, dabei geht Reserve verloren.", "Lautstärke an den Boxen hinten etwas zurückdrehen.");
     else punkt(VT.OK, "Pegel hinten", wert, "Passt. Den Feinabgleich am Hörplatz macht die Einmessung (grob ±3 dB).");
   }
@@ -9135,7 +9139,25 @@ const bKey = (m) => `raumcheck-bestaetigt-${m}` + (aufAktiv() && aufAktiv().list
 const letzteRundeP = (id) => runden.find((r) => rundeProfil(r) === id && r.e && !r.e.fehler && rundeHier(r)) || null;
 // „Kino nur vorne“ bleibt nur, wenn es ausdrücklich gewählt wurde; sonst ist Kino das Kino des Layouts (auf 2.x stereo_kino,
 // nach dem Einrichten von Rears kino_<Layout>)
+// Paket 1, F1: Spielt die Box schon mehr Lautsprecher, als „Meine Anlage“ in diesem Browser weiß (eingerichtet in einem
+// anderen Browser oder an der Box), zieht „Meine Anlage“ nach (der Sub-Anschluss bleibt, wie er gewählt ist). Umgekehrt
+// (Meine Anlage plant mehr, die Box ist noch nicht eingerichtet) bleibt die Planung stehen.
+function maAnBox() {
+  if (typeof boxBereit !== "function" || !boxBereit()) return false;
+  const bl = nativ.boxen.layout;
+  if (!bl || !BOX_LAYOUTS[bl] || !mehrAlsVorne(bl)) return false;
+  // Nachprüfung S4: nur, wenn „Meine Anlage“ höchstens vorne hat und die Box eine echte Obermenge spielt; sonst bleibt
+  // die Planung, und der Hinweis „Die Klång-Box spielt …“ steht unter „Meine Anlage“
+  const ma = BOX_LAYOUTS[MA.layout] || [], box = BOX_LAYOUTS[bl];
+  if (mehrAlsVorne(MA.layout) || !ma.filter((k) => k !== "SUB").every((k) => box.includes(k))) return false;
+  const ohneSub = (l) => (BOX_LAYOUTS[l] || []).filter((k) => k !== "SUB").join(",");
+  if (ohneSub(bl) === ohneSub(MA.layout)) return false;
+  const neu = hatSub(MA.layout) ? layoutMitSub(bl) : layoutOhneSub(bl);
+  if (!BOX_LAYOUTS[neu] || neu === MA.layout) return false;
+  MA.layout = neu; maMerken(); return true;
+}
 function profilPruefen() {
+  try { maAnBox(); } catch (e) { /* vor dem Anlegen von nativ/MA: nichts */ }
   const p = profilInfo(profilJetzt);
   if (!p || p.fremd || p.modus !== modus || (profilJetzt === "stereo_kino" && mehrAlsVorne(MA.layout) && lesen("raumcheck-profil-vorne", "") !== "1"))
     profilJetzt = modus === "stereo" ? "stereo" : kinoStandard();
@@ -9349,13 +9371,20 @@ function modiZeigen() {
   if (v) $("m-stand-kino-vorne").textContent = standTextP("stereo_kino");
   $("m-weiter").textContent = `${profilInfo(profilJetzt).name} einmessen`;
   $("ma-text").textContent = MA.gespeichert ? `${MA.layout} · ${layoutKurz(MA.layout)}${GW.namen() ? ` · ${GW.namen()}` : ""}` : "noch nicht eingerichtet";
-  $("ma-messe").textContent = MA.gespeichert ? `Ich messe: ${layoutText(modus === "stereo" ? stereoLayout(MA.layout) : quelle === "box" ? boxLayout() : MA.layout)}` : "";
+  $("ma-messe").textContent = MA.gespeichert ? messText() : "";
   const bl = boxBereit() ? nativ.boxen.layout : null;
   $("ma-box-hinweis").hidden = !(bl && bl !== MA.layout);
   // Box-Seite: Einrichten geht hier nicht; meist reicht 2.0 (Sub am Verstärker spielt mit links/rechts)
   if (bl) $("ma-box-hinweis").textContent = window.klangboxBedienseite
     ? `Die Klång-Box spielt ${bl}. Hängt der Sub am Verstärker, ist das richtig so, und er wird über links und rechts mitgemessen.`
     : `Die Klång-Box spielt gerade ${bl}. Für ${MA.layout} richte die Box neu ein.`;
+}
+// Was gemessen wird, aus den Kanälen der Messung (Paket 1, F1): „Kino nur vorne“ bei einem Layout mit hinteren
+// Lautsprechern sagt ausdrücklich, dass hinten weder gemessen noch geprüft wird
+function messText() {
+  if (quelle === "box" && modus !== "stereo" && profilJetzt === "stereo_kino" && mehrAlsVorne(boxLayout()))
+    return `Ich messe: nur vorne L/R (Kino nur vorne). Die Lautsprecher hinten werden nicht gemessen und nicht geprüft; für alle: „Kino ${boxLayout()}“ wählen.`;
+  return `Ich messe: ${layoutText(modus === "stereo" ? stereoLayout(MA.layout) : quelle === "box" ? boxLayout() : MA.layout)}`;
 }
 function setzeModus(m) {
   modus = m === "stereo" ? "stereo" : "kino";
@@ -9499,6 +9528,7 @@ function zeigeSchritt(n) {
   if (n === 3) { zeigeChips(); subVorherZeigen(); if (window.klangboxVerbindung) window.klangboxVerbindung.vorbereiten();
     // Zurück: mit Übersicht dorthin (Einmessen), sonst zum Einstieg (Schritt 1); Schritt 1 ist keine zweite Übersicht (Prüfer)
     const z = $("vorb-zurueck"); if (zuhauseBereit()) { z.dataset.zu = "18"; z.dataset.zhNach = "einmessen"; } else { z.dataset.zu = "1"; delete z.dataset.zhNach; } }
+  if (n === 4) $("check-kanaele").textContent = messText();  // Paket 1, F1: was gleich gemessen wird
   if (n === 5) { $("platz-bild").innerHTML = plaetzeBild(hauptDaten ? 0 : -1); platzKopf(1); $("platz-zurueck").dataset.zu = boxPegelDa() && !kefSelbst ? "3" : "4"; }
   if (n === 6) platzZeigen();
   pegelSchrittGewechselt(n);
@@ -13226,7 +13256,11 @@ let kcStand = null;  // { daten, kanaele, layout, opt, kc, pruefung, antworten, 
 const KC_PUNKT = { FL: [70, 54], FR: [250, 54], C: [160, 46], SL: [44, 168], SR: [276, 168], BL: [104, 206], BR: [216, 206] };
 const KC_FARBE = { gruen: "var(--kb-text)", gelb: "var(--kb-text-leise)", rot: "var(--kb-text)" };  // D+: Form statt Farbe
 // was der Kanal-Check erwartet: Kino über die Box das Layout der Box, sonst die Fronts (mit Sub, wenn „Meine Anlage“ einen hat)
-const kcLayout = () => (quelle === "box" && modus !== "stereo" ? boxLayout() : quelle === "box" ? stereoLayout(boxLayout()) : subAnschluss ? "2.1" : "2.0");
+// Paket 1, F1: verglichen wird nur mit dem, was gemessen wurde. Misst die Seite nur vorne (Stereo, „Kino nur vorne“),
+// erwartet der Check vorne (mit Sub, wenn das Layout der Box einen hat), nie das ganze Layout der Box.
+const kcLayout = (kanaele = messKanaele()) => (quelle === "box"
+  ? (kanaele.some((c) => !["FL", "FR", "SUB"].includes(c)) ? boxLayout() : stereoLayout(boxLayout()))
+  : subAnschluss ? "2.1" : "2.0");
 // Lautsprecher-Positionen aus dem Raumscan der App (raum.json: lautsprecher [{kanal, mitte: [x, y, z]}]); der Hörplatz aus der Aufstellung
 function kcPositionen(kanaele) {
   const roh = scan && scan.roh && Array.isArray(scan.roh.lautsprecher) ? scan.roh.lautsprecher : null;
@@ -13257,7 +13291,7 @@ async function kcRechnen(extra = {}) {
 async function kanalCheckNachMessung(d, kanaele) {
   $("status").innerHTML = `<span class="laeuft">Prüfe, was wo spielt…</span>`;
   const opt = { ...kcPositionen(kanaele), ...(await kcBoxOptionen(kanaele)) };
-  kcStand = { daten: d, kanaele, layout: kcLayout(), opt, kc: null, pruefung: null, antworten: {}, bewegt: null, tippen: null };
+  kcStand = { daten: d, kanaele, layout: kcLayout(kanaele), opt, kc: null, pruefung: null, antworten: {}, bewegt: null, tippen: null };
   if (!(await kcRechnen())) { kcStand = null; if (await neueAufnahme("Hörplatz", d, kanaele)) { hauptDaten = d; zeigeSchritt(6); } return; }
   // Aufnahme aus anderen Gründen unbrauchbar (Störgeräusch, Filter) und kein Kanal auffällig: wie bisher melden
   if (!(kcStand.pruefung && kcStand.pruefung.sauber) && kcStand.kc.status === "gruen") { kcStand = null; await neueAufnahme("Hörplatz", d, kanaele); return; }
@@ -15008,6 +15042,8 @@ function zuhauseZeigen(laden = true) {
   document.querySelectorAll("[data-zh-modus]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.zhModus === wahl));
   $("zh-quelle").innerHTML = boxDa ? (st ? zhQuelleText(st) + (st.profil_aktiv && profilInfo(st.profil_aktiv, zhLayout()) ? ` <span class="klein">· ${wahl === "auto" ? "Auto spielt" : "spielt"} ${esc(profilInfo(st.profil_aktiv, zhLayout()).name)}</span>`
       : wahl === "auto" && st.modus ? ` <span class="klein">· Auto spielt ${st.modus === "kino" ? "Kino" : "Stereo"}</span>` : "")
+      // Paket 1: Layout mit Rears, Stereo spielt: hinten ist es planmäßig still (der Funk ruht), kein Fehler
+      + (st.modus === "stereo" && st.funk && st.funk.ruht && mehrAlsVorne(zhLayout()) ? ` <span class="klein" id="zh-hinten-ruht">· Stereo: hinten ruht</span>` : "")
     : `<span class="laeuft">Frage die Klång-Box…</span>`) : `<span class="klein">${(() => { const r0 = letzteRunde(modus); return r0 && r0.wiim_uebernommen === r0.id ? `Spielt über den EQ im ${esc(streamerName())}` : "Gemessen ohne Box"; })()}</span>`;
   // Bereich und Klang erst, wenn die Box eine Einmessung spielt (vorher gibt es nichts zu schalten; Ablaufprüfung P1-9)
   const spSt = st && st.profile && st.profil_aktiv ? st.profile[st.profil_aktiv] : st && st.modi ? st.modi[st.modus] : null;
@@ -19097,23 +19133,28 @@ const JETZT = (() => {
   const TEILEN = {
     bericht: { aufruf: "bericht", datei: "klangbox-bericht.txt", titel: "Klång-Box-Bericht", wort: "Bericht" },
     funk: { aufruf: "funk/protokoll?messen=1", datei: "klangbox-funkprotokoll.txt", titel: "Klång-Box Funk-Protokoll", wort: "Funk-Protokoll" },
+    // Paket 1, F3: der Bericht der Rear-Box über die Hauptbox (GET /api/satellit/<id>/bericht), vorläufig im Funk-Bereich
+    sat: { aufruf: "bericht", datei: "klangbox-bericht-rear-box.txt", titel: "Klång-Box-Bericht der Rear-Box", wort: "Bericht der Rear-Box",
+      box: (knopf) => (knopf && knopf.dataset.satBericht) || null, zeitMs: 120000 },  // je Rear-Box ein Knopf (K5)
   };
   const bereit = {};
   async function berichtTeilen(knopf, statusEl, art = "bericht") {
     const t = TEILEN[art], st = statusEl || $("zh-diag-status"), name = (knopf && knopf.dataset.name) || "Bericht teilen";
-    const bericht = bereit[art];
+    const ziel = t.box ? t.box(knopf) : null, schl = ziel ? `${art}:${ziel}` : art;
+    const bericht = bereit[schl];
     if (!bericht || Date.now() - bericht.zeit > 5 * 60000) {
       if (knopf) knopf.disabled = true; st.textContent = `${t.wort} wird erstellt (bis zu einer Minute) …`;
-      const d = await nativ.box(t.aufruf, {}, { zeitMs: 60000 });
+      if (t.box && !ziel) { if (knopf) knopf.disabled = false; st.innerHTML = `<span class="warn">Keine Rear-Box eingerichtet.</span>`; return; }
+      const d = await nativ.box(t.aufruf, {}, { zeitMs: t.zeitMs || 60000, ...(ziel ? { box: ziel } : {}) });
       if (knopf) knopf.disabled = false;
       if (!d || d.ok === false || !d.text) { st.innerHTML = `<span class="warn">${h((d && d.fehler) || `${t.wort} kam nicht.`)}</span>`; return; }
-      bereit[art] = { text: d.text, zeit: Date.now(), phase: d.phase };
+      bereit[schl] = { text: d.text, zeit: Date.now(), phase: d.phase };
       if (knopf) knopf.textContent = "Jetzt teilen";
       st.textContent = `${t.wort} bereit${d.phase ? ` (Phase ${d.phase})` : ""}, ${Math.max(1, Math.round(d.text.length / 1024))} KB. Noch einmal tippen: „Jetzt teilen“.`;
       return;
     }
     const text = bericht.text;
-    bereit[art] = null; if (knopf) knopf.textContent = name;
+    bereit[schl] = null; if (knopf) knopf.textContent = name;
     try {
       const datei = typeof File === "function" ? new File([text], t.datei, { type: "text/plain" }) : null;
       if (datei && navigator.canShare && navigator.canShare({ files: [datei] })) { await navigator.share({ files: [datei], title: t.titel }); st.textContent = "✓ Geteilt."; return; }
@@ -19130,6 +19171,15 @@ const JETZT = (() => {
     $("zh-diag-bitstream").hidden = $("zh-diag-eingang").hidden = !(zh && zh.st && zh.st.eingang && zh.st.rolle !== "satellit");
     // Funk-Protokoll: nur an der Hauptbox (sie prüft auch die Satelliten über den Funk)
     $("zh-diag-funk").hidden = !(zh && zh.st && zh.st.rolle === "haupt");
+    // je Rear-Box ein Knopf „Bericht der Rear-Box …“ (über die Hauptbox, GET /api/satellit/<id>/bericht)
+    const sats = $("zh-diag-funk").hidden ? [] : (zh.st.satelliten || []), sb = $("zh-diag-sat-berichte");
+    const sbSoll = sats.map((s) => s.id).join(",");
+    if (sb.dataset.ids !== sbSoll) {
+      sb.dataset.ids = sbSoll;
+      sb.innerHTML = sats.map((s) => { const name = `Bericht der Rear-Box${sats.length > 1 && s.name ? " " + s.name : ""}`;
+        return `<button type="button" class="kb-zeile" data-sat-bericht="${h(s.id)}" data-name="${h(name)}"><span>${h(name)} <span class="wert">· über die Hauptbox</span></span></button>`; }).join("");
+    }
+    sb.hidden = !sats.length;
     $("zh-ws-anschluss").hidden = !da() || ["zh-diag-bitstream", "zh-diag-eingang", "zh-diag-funk"].every((id) => $(id).hidden);
     // Box › Ausgang: Optisch | USB (Nutzer 11.11.2026: Nubert per USB testen) nur, wenn ein USB-Wandler steckt oder USB gewählt ist
     const aus = zh && zh.st && zh.st.ausgang, az = $("zh-ausgang-zeile");
@@ -19298,6 +19348,7 @@ const JETZT = (() => {
     if (t.closest("#zh-diag-kopieren")) { diagnoseKopieren(t.closest("button")); return; }
     if (t.closest("#zh-diag-bericht")) { berichtTeilen(t.closest("button")); return; }
     if (t.closest("#zh-diag-funk")) { berichtTeilen(t.closest("button"), $("zh-anschluss-status"), "funk"); return; }
+    if (t.closest("[data-sat-bericht]")) { berichtTeilen(t.closest("[data-sat-bericht]"), $("zh-anschluss-status"), "sat"); return; }
     // Bitte um Bericht auf Hören: ein Tipp holt, der zweite teilt
     if (t.closest("#zh-bitte-senden")) { const s = bitteStand(zh && zh.st), stEl = $("zh-bitte-status");
       await berichtTeilen(t.closest("button"), stEl);

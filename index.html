@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<meta name="klangbox-stand" content="2069139fa882">
+<meta name="klangbox-stand" content="cd1733a7cd78">
 <title>Klång-Box Raum-Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="icon" href="favicon.svg?v=dp1" type="image/svg+xml"><link rel="icon" href="favicon-32.png?v=dp1" sizes="32x32"><link rel="apple-touch-icon" href="apple-touch-icon.png?v=dp1">
@@ -1996,16 +1996,7 @@ button.em-teilwert:active:not(:disabled) { background: var(--kb-flaeche); }
     <div id="s-ergebnis" style="display: grid; gap: 16px;"></div>
     <div class="aktion"><div class="knoepfe breit"><button type="button" class="zweit" data-zu="18" data-zh-nach="einmessen">Zurück</button><button type="button" id="s-rechnen">Vorschläge zeigen</button></div></div>
   </section>
-  <!-- Schritt 9: Klangprofil („Wie soll es klingen?“) -->
-  <section class="schritt" data-s="9" hidden style="display: grid; gap: 16px;" aria-labelledby="h-klang">
-    <h1 id="h-klang">Wie soll es klingen?</h1>
-    <p>Die Raumanpassung bleibt immer. Ein Klangprofil verschiebt die Tonbalance um ein, zwei dB, Vinyl und Bühne ändern dazu das Stereobild (nur Stereo). Neutral ist voreingestellt, wechseln geht jederzeit unter Hören › Klang.</p>
-    <div class="card"><span class="klein">Prognose am Hauptplatz (dB, 20 Hz bis 20 kHz)</span><div id="p-kurve"></div>
-      <div class="legende" id="p-legende"></div></div>
-    <div id="p-waechter" aria-live="polite"></div>
-    <div class="profile" id="p-liste" role="radiogroup" aria-label="Klangprofil"></div>
-    <div class="aktion"><div class="knoepfe breit"><button type="button" class="zweit" data-zu="18" data-zh-nach="hoeren">Zurück</button><button type="button" id="p-weiter">Klang übernehmen und nachmessen</button></div></div>
-  </section>
+  <!-- Schritt 9 (Klangprofil „Wie soll es klingen?“) entfällt (Besitzer): Klangprofile gibt es nur unter Hören › Klang -->
 
   <!-- Schritt 10: Einstellungen anwenden und nachmessen (mit Rücknahme) -->
   <section class="schritt" data-s="10" hidden style="display: grid; gap: 16px;" aria-labelledby="h-anwenden">
@@ -9471,7 +9462,7 @@ const sheet = (() => {
 
 // --- Geführter Ablauf (die App führt, Schritt für Schritt) --------------------------------------
 const SCHRITTE = ["", "Einmessen", "Meine Anlage", "Vorbereiten", "Ruhe und Lautstärke", "Mitte messen", "Plätze um den Kopf", "", "Aufstellung",
-  "Klang nach Geschmack", "Laden und nachmessen", "Ohne Klång-Box", "Verbinden", "Hauptbox", "Lautsprecher", "Funk", "Anschließen", "Kanal-Check", "Zuhause"];
+  "", "Laden und nachmessen", "Ohne Klång-Box", "Verbinden", "Hauptbox", "Lautsprecher", "Funk", "Anschließen", "Kanal-Check", "Zuhause"];
 let schrittJetzt = 0;
 // Tippsperre nach jedem Bildschirmwechsel: Der nächste Hauptknopf liegt oft genau dort, wo man eben getippt hat; ein
 // zweiter Tipp startete sonst gleich die Messung („tippt aus Versehen und ist schon woanders“, Analyse 06.11.2026)
@@ -9516,9 +9507,9 @@ function zeigeSchritt(n) {
   if (!MIKRO_SCHRITTE.has(n)) audioFreigeben();  // Einmessen verlassen: Wiedergabe anderer Apps nicht mehr stören
   // Fortschritt: fünf Segmente (CI 6). Messen: Einmessen, Vorbereiten (+ Ruhe), Hörplatz (+ Kanal-Check), Bewegen, Laden
   // Ablauf (Nutzer): einmessen → vorbereiten → messen → Einmessen „Weiter: Laden“ → nachmessen.
-  // Das Klangprofil (9) ist danach freiwillig und zählt nicht mit.
+  // Ein Klangprofil gibt es nur unter Hören › Klang (Schritt 9 entfällt, Besitzer).
   const MESS_SEGMENT = { 1: 1, 3: 2, 4: 2, 5: 3, 17: 3, 6: 3, 10: 5 };
-  const an = n >= 12 && n <= 16 ? n - 11 : MESS_SEGMENT[n] || (n === 8 || n === 9 || n === 11 ? 5 : 0);
+  const an = n >= 12 && n <= 16 ? n - 11 : MESS_SEGMENT[n] || (n === 8 || n === 11 ? 5 : 0);
   document.querySelectorAll("#fortschritt span").forEach((s, i) => s.classList.toggle("an", i < an));
   $("schritt-text").textContent = n === 18 ? "" : n === 2 ? "Meine Anlage · einmal einrichten" : n >= 12 && n <= 16 ? `Klång-Box einrichten · ${n - 11} von 5 · ${SCHRITTE[n]}`
     : MESS_SEGMENT[n] ? `Schritt ${MESS_SEGMENT[n]} von 5 · ${SCHRITTE[n]}` : SCHRITTE[n];
@@ -9533,7 +9524,6 @@ function zeigeSchritt(n) {
   if (n === 6) platzZeigen();
   pegelSchrittGewechselt(n);
   if (n === 8) planZeigen();
-  if (n === 9) profilZeigen();
   if (n === 10) anwendenZeigen();
   if (n === 11) geraetZeigen();
   ablaufZeigen(n);
@@ -11422,7 +11412,7 @@ $("s-ergebnis").addEventListener("click", (ev) => {
 function nachhallUebernehmen() { const r = runden.find((x) => x.e && x.e.score_heute && x.e.score_heute.werte && x.e.score_heute.werte.raum); if (r) $("s-t60").value = (Math.round(r.e.score_heute.werte.raum * 100) / 100).toString(); }
 
 // Steht eine Nachmessung an? Mit Klång-Box, sobald sie die neuen Einstellungen spielt, oder nach geänderten Geräte-Reglern.
-// Ohne Box ist Schritt 9/10 nur eine Vorschau (U7): dann gibt es dort nichts nachzumessen.
+// Ohne Box ist Schritt 10 nur eine Vorschau (U7): dann gibt es dort nichts nachzumessen.
 const nachmessenArt = (r) => (!r || r.e.fehler || r.status !== "vorhergesagt" ? null
   : r.spaeter && r.spaeter.art === "geraet" ? "geraet"
   : boxBereit() && (r.box_geladen === r.id || r.spaeter) ? "box"
@@ -11511,68 +11501,14 @@ let messdaten = null;  // { id, dateien: [{name, daten}], bewegt, modus, raumM3 
 const aktuelleRunde = () => { const r = runden.find((x) => rundeProfil(x) === profilJetzt); return r && !r.e.fehler ? r : null; };
 const rundeSpeichern = () => schreiben("raumcheck-runden", JSON.stringify(rundenBehalten()));
 
-// Schritt 9: Profil wählen. Der Wächter rechnet Raum-EQ plus Profil zusammen (profilAnwenden), eingepasst wie auf Hören
-// (Prüfung 0.3.42: sonst blieb z. B. Röhre hier aus, die die Box auf Hören mit 80 % spielt; die Box passt beim Laden ein)
-function profilFuer(r, id) {
-  if (!PROFILE || !id || id === "neutral") return { ...NEUTRAL };
-  try { return AJ.profilAnwenden(r.e.einstellungen, id, PROFILE, { raumEinpassen: true }); } catch (e) { return { ...NEUTRAL, hinweise: ["Profil ließ sich nicht rechnen, es bleibt neutral."] }; }
+// Klangprofile gibt es nur unter Hören › Klang (Besitzer; Schritt 9 „Wie soll es klingen?“ entfällt). Die Einmessung
+// trägt immer Neutral, auch eine gespeicherte Runde mit Profil (bis 0.3.x): beim Laden der Seite auf Neutral (die Box
+// spielt eine geladene Einmessung ohnehin Neutral, box._klang_ziel_id).
+function profilNeutral(r) {
+  if (!r || (r.profil_id === "neutral" && r.profil && r.profil.id === "neutral" && !r.klang_entfernt)) return false;
+  r.profil_id = "neutral"; r.profil = { ...NEUTRAL }; delete r.klang_entfernt; return true;
 }
-function kurveVollSvg(f, linien) {
-  const W = 320, H = 176, L = 30, R = 8, T = 8, B = 32, lo = Math.log(20), hi = Math.log(20000);
-  const x = (v) => L + (Math.log(v) - lo) / (hi - lo) * (W - L - R), y = (d) => T + (10 - Math.max(-20, Math.min(10, d))) / 30 * (H - T - B);
-  let s = "";
-  for (const d of [10, 0, -10, -20]) s += `<line x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}" style="stroke: var(--kb-linie)"/><text x="${L - 4}" y="${y(d) + 3}" text-anchor="end">${d}</text>`;
-  for (const [v, t] of [[20, "20"], [100, "100"], [1000, "1k"], [10000, "10k"]]) s += `<text x="${x(v)}" y="${H - 6}" text-anchor="${v === 20 ? "start" : "middle"}">${t} Hz</text>`;
-  for (const l of linien) s += `<path d="${l.v.map((d, i) => `${i ? "L" : "M"}${x(f[i]).toFixed(1)},${y(d).toFixed(1)}`).join("")}" fill="none" stroke="${l.farbe}" stroke-width="2"${l.strich ? ` stroke-dasharray="5 4"` : ""}${l.klasse ? ` class="${l.klasse}"` : ""}/>`;
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Frequenzgang am Hauptplatz mit Profil">${s}</svg>`;
-}
-function profilKurve(r, p) {
-  const kv = r.e.kurve_voll;
-  const f = kv ? kv.f : Array.from({ length: 100 }, (_, i) => 20 * Math.pow(1000, i / 99));
-  const pd = AJ.profilDbAn(p.filter || [], f), mitte = pd.filter((_, i) => f[i] >= 500 && f[i] <= 2000), mu = mitte.length ? mitte.reduce((a, b) => a + b) / mitte.length : 0;
-  const linien = [], leg = [];
-  if (kv) { linien.push({ v: kv.heute, farbe: "var(--kb-text-leise)", heute: true }, { v: kv.prognose, farbe: "var(--kb-signal)", klasse: "ak-s" }); leg.push(["var(--kb-text-leise)", "heute"], ["var(--kb-signal)", "mit Klång-Box"]); }
-  linien.push({ v: f.map((_, i) => (kv ? kv.prognose[i] : 0) + pd[i] - mu), farbe: "var(--kb-text)", strich: true }); leg.push(["var(--kb-text)", kv ? `mit „${p.name}“` : `nur das Profil „${p.name}“`]);
-  $("p-kurve").innerHTML = kurveVollSvg(f, linien);
-  $("p-legende").innerHTML = leg.map(([c, t]) => `<span><i style="background: ${c}"></i>${esc(t)}</span>`).join("") + (kv ? "" : `<span class="klein">Ältere Messrunde: Für die ganze Prognose bitte neu messen.</span>`);
-}
-function profilZeigen() {
-  const r = aktuelleRunde();
-  if (!r) { zuEinmessen(); return; }
-  if (!PROFILE) { $("p-liste").innerHTML = `<p class="warn">Die Klangprofile fehlen in dieser Seite. Es bleibt neutral.</p>`; return; }
-  profilMigrieren(r);
-  const gewaehlt = r.profil_id || "neutral", p = profilFuer(r, gewaehlt);
-  r.profil = p; rundeSpeichern();
-  profilKurve(r, p);
-  const hw = (r.klang_entfernt ? [`„${r.klang_entfernt}“ gibt es nicht mehr. Es bleibt Neutral.`] : []).concat(p.hinweise || []);
-  $("p-waechter").innerHTML = hw.length ? `<div class="kasten">${hw.map((h) => `<p class="${/Wächter/.test(h) ? "warn" : "klein"}" style="font-size:14px">${esc(h)}</p>`).join("")}${
-    p.skala < 1 && p.skala > 0 ? `<span class="klein">Ich wende es mit ${zt(p.skala * 100, 0)} % an. So bleibt alles in den Grenzen, die nie verschlimmbessern.</span>` : ""}</div>` : "";
-  // Dieselben vier wie auf Hören (Neutral, Röhre, Vinyl, Bühne); Vinyl und Bühne nur Stereo, im Kino blass mit Grund
-  const kino = r.modus === "kino";
-  const karte = (q) => { const an = q.id === gewaehlt, aus = kino && !!q.zusatz;
-    return `<div class="profil" data-an="${an}"><button type="button" class="waehlen" role="radio" aria-checked="${an}" data-profil="${esc(q.id)}"${aus ? " disabled" : ""}>
-      <span class="titel"><b>${esc(q.name)}</b>${an ? `<span class="marke">gewählt</span>` : ""}</span><span class="klein">${aus ? KL_NUR_STEREO : esc(q.kurz)}</span></button>
-      <details><summary>Was es nicht kann</summary><p class="klein">${esc(q.was_es_nicht_kann)}</p></details></div>`; };
-  $("p-liste").innerHTML = PROFILE.profile.map(karte).join("");
-}
-// Gespeicherte Runde mit einem der neun entfernten Profile (bis 0.3.41): Neutral, mit Hinweis; Röhre unter neuer id
-function profilMigrieren(r) {
-  if (!PROFILE || !r || !r.profil_id) return;
-  const neu = AJ.profilNeueId(r.profil_id, PROFILE);
-  if (neu === r.profil_id) return;
-  const weg = (PROFILE.entfernt || {})[r.profil_id];
-  if (weg) r.klang_entfernt = weg;
-  r.profil_id = neu; r.profil = profilFuer(r, neu); rundeSpeichern();
-}
-// beim Laden der Seite: gespeicherte Runden mit alter Profil-id umschreiben (entfernt: Neutral mit Hinweis in Schritt 9)
-try { runden.forEach(profilMigrieren); } catch (e) { /* ohne Profile in der Seite: nichts umzuschreiben */ }
-$("p-liste").addEventListener("click", (ev) => {
-  const b = ev.target.closest("[data-profil]"), r = aktuelleRunde();
-  if (!b || !r) return;
-  if (r.profil_id !== b.dataset.profil && r.box_geladen === r.id) r.box_geladen = null;  // anderes Profil: neu senden
-  r.profil_id = b.dataset.profil; r.klang_entfernt = null; r.urteil = null; profilZeigen();
-});
-$("p-weiter").addEventListener("click", () => { anwendenArt = "box"; zeigeSchritt(10); });
+try { if (runden.map(profilNeutral).some(Boolean)) rundeSpeichern(); } catch (e) { /* ohne Runden: nichts umzuschreiben */ }
 
 // Export: Datei mit Raumanpassung und Profil (Form wie klangprofile.export in Python)
 // Korrekturbereich (Nutzer 06.11.2026: „die vertraute Stimmfarbe hat sich geändert“): r.bereich = 90 oder 150 Hz
@@ -11582,7 +11518,7 @@ const imBereich = (r, q) => !(r && r.bereich) || q.freq <= r.bereich;
 // Anhebung weg, heben die übrigen zusammen evtl. über +3 dB; dann die Anhebungen gleichmäßig senken, statt dass die Box die
 // ganze Einmessung ablehnt (Besitzer 16.11.2026). Nicht der Sub (+6 dB, kaum Filter über 90 Hz).
 // Mit Klangprofil (Prüfung 0.3.42) wie die Box beim Laden (feinabstimmung.einpassen): FL/FR gegen die Profilkurve eingepasst,
-// mit Korrekturbereich alle außer dem Sub; so lädt die Box ein in Schritt 9 eingepasstes Profil (z. B. Röhre 80 %)
+// mit Korrekturbereich alle außer dem Sub (die Seite exportiert seit dem Wegfall von Schritt 9 immer Neutral)
 const bereichKanal = (r, ch, eq, profDb = null) => ((r && r.bereich && ch !== "SUB") || (profDb && (ch === "FL" || ch === "FR"))
   ? AJ.einpassenKanal(eq, profDb) : { eq, skala: 1 });
 function bereichLeitplanke(r) {  // Hinweise wie die Box: „FR: Anhebungen auf 96 % (Leitplanke +3 dB zusammen)“
@@ -11740,7 +11676,8 @@ const ABLAUF_JETZT = {
   nachmessen: ["Die Prüfung: Wir messen dieselben Plätze wie beim Einmessen und sehen, ob die Einstellungen so wirken wie geplant.", "ca. 3 Minuten"],
   nachmessen_ein: ["Die Prüfung: Wir messen am Hörplatz wie vorhin und sehen, ob die Einstellungen so wirken wie geplant.", "ca. 30 Sekunden"],
   vergleich: ["Hör selbst: dein Lieblingsstück, live zwischen ohne und mit umschalten, am besten blind.", "ca. 3 Minuten"],
-  fertig: ["Gemessen und gehört: vorher → nachher. Klang nach Geschmack ist freiwillig.", ""],
+  fertig: ["Gemessen und gehört: vorher → nachher.", ""],
+  fertig_box: ["Gemessen und gehört: vorher → nachher. Ein Klangprofil wählst du unter Hören › Klang.", ""],  // nur mit Klång-Box
 };
 // Geladen: über die App (Box-Aufruf), ohne App über die Bedienseite der Box (Kopieren und Einfügen) oder ohne Box in den
 // EQ des Streamers übernommen (wiim_export.js; „Box ist Option“, LOGBUCH)
@@ -11776,7 +11713,8 @@ function ablaufZeigen(n) {
   const i = ABLAUF.findIndex(([k]) => k === punkt);
   $("ablauf-liste").innerHTML = ABLAUF.map(([k, t], j) => `<li class="${j < i ? "erledigt" : j === i ? "jetzt" : ""}"${j === i ? ' aria-current="step"' : ""}>${t}</li>`).join("");
   const [was, dauer] = ph === "laden" && anwendenArt === "wiim" ? [`Die Filter in die App deines ${streamerName()} eintragen, dann „Übernommen“.`, "ca. 5 Minuten"]
-    : ph === "hoerprobe" && anwendenArt === "wiim" ? ["Kurze Hörprobe mit dem neuen EQ: Passt die Mitte, passen die Seiten?", "ca. 2 Minuten"] : ph === "nachmessen" && !nachMehrPlaetze() ? ABLAUF_JETZT.nachmessen_ein : ABLAUF_JETZT[ph] || ["", ""];
+    : ph === "hoerprobe" && anwendenArt === "wiim" ? ["Kurze Hörprobe mit dem neuen EQ: Passt die Mitte, passen die Seiten?", "ca. 2 Minuten"] : ph === "nachmessen" && !nachMehrPlaetze() ? ABLAUF_JETZT.nachmessen_ein
+    : ph === "fertig" && boxBereit() && !wiimWeg(r) ? ABLAUF_JETZT.fertig_box : ABLAUF_JETZT[ph] || ["", ""];
   $("ablauf-jetzt").innerHTML = `${esc(was)}${dauer ? `<span class="ablauf-dauer">${esc(dauer)}</span>` : ""}`;
 }
 function phaseZeigen(r, ohneBox) {
@@ -11828,7 +11766,7 @@ function avHtml(r) {
   const laeuft = j && j.zustand === "spielt" ? `<p class="klein ok av-laeuft">Läuft: ${esc([j.titel, j.interpret].filter(Boolean).join(" – ") || j.quelle_name || "")}${j.quelle_name && j.titel ? `&nbsp;· ${esc(j.quelle_name)}` : ""}</p>` : "";
   const hilfe = schlecht ? `<div class="kasten av-hilfe"><span class="marke">Das ist in Ordnung</span><p class="klein">Dein Ohr entscheidet. Nichts soll schlechter klingen, darum:</p>
       <div class="zeilen">${box || wiimWeg(r) ? `<button type="button" class="zweit" id="av-zurueck">${wiimWeg(r) ? `EQ im ${esc(streamerName())} wieder aus` : "Einmessung zurücknehmen"}</button>` : ""}
-      ${box ? `<button type="button" class="zweit" data-zu="9">Klangprofil ändern</button>` : ""}<button type="button" class="zweit" data-zu="3">Neu einmessen</button></div></div>` : "";
+      <button type="button" class="zweit" data-zu="3">Neu einmessen</button></div></div>` : "";
   const schalter = box ? `<div class="seg av-ab" role="group" aria-label="Vergleich"><button type="button" data-av-seite="0" aria-pressed="${av.seite === 0}">A&nbsp;· ohne</button><button type="button" data-av-seite="1" aria-pressed="${av.seite === 1}">B&nbsp;· mit Einmessung</button></div>
       <p class="klein">Gleich laut, ohne Knacken: Die Box schaltet selbst um.</p><p class="klein" id="av-hinweis" aria-live="polite"></p>
       <button type="button" class="zweit" id="av-blind">Blind testen (empfohlen, 5 Runden)</button>
@@ -12031,19 +11969,16 @@ $("a-spaeter").addEventListener("click", () => {
   zuEinmessen();
 });
 $("a-zurueck").addEventListener("click", () => { if (anwendenArt === "geraet") zeigeSchritt(11); else zuEinmessen(); });
-// Ein Tipp nach der Messung: Raumanpassung mit dem gewählten Profil (Standard Neutral) sofort an die Klång-Box, danach
-// gleich die Pflicht-Nachmessung (Schritt 10). „Klang anpassen“ und die Hörprobe bleiben freiwillig.
-// Bis zur Nachmessung spielt die Box Neutral (Nutzer: „Klangprofil erst als Option nach der 2. Messung“)
-function profilStandard(r) { if (!r || (r.profil && r.profil_id)) return; r.profil_id = "neutral"; r.profil = profilFuer(r, "neutral"); rundeSpeichern(); }
+// Ein Tipp nach der Messung: Raumanpassung (immer Neutral, Klangprofile nur unter Hören) sofort an die Klång-Box, danach
+// gleich die Pflicht-Nachmessung (Schritt 10). Die Hörprobe bleibt freiwillig.
+function profilStandard(r) { if (profilNeutral(r)) rundeSpeichern(); }
 function boxSofortLaden() {
   const r = aktuelleRunde(); if (!r) return;
   if (!boxBereit()) {
-    if (r.status !== "bestaetigt") r.profil_id = "neutral";
-    r.profil = profilFuer(r, r.profil_id || "neutral"); r.profil_id = r.profil_id || "neutral"; rundeSpeichern();
+    profilStandard(r);
     anwendenArt = "box"; webKopieren(r); zeigeSchritt(10); return;
   }
-  if (r.status !== "bestaetigt") r.profil_id = "neutral";
-  r.profil = profilFuer(r, r.profil_id || "neutral"); r.profil_id = r.profil_id || "neutral"; rundeSpeichern();
+  profilStandard(r);
   anwendenArt = "box"; setzeQuelle("box"); zeigeSchritt(10);
   if (boxModus(r) && r.box_geladen !== r.id) $("a-box-senden").click();
 }
@@ -12487,7 +12422,8 @@ function urteilZeigen(r) {
       <div class="wirkung"><span class="gross zahl">${zt(u.score_nachher, 0)}</span><span class="klein">${esc(scoreName(r, u))} gemessen ${u.je_platz && u.je_platz.length > 1 ? `an ${u.je_platz.length} Plätzen` : "am Hörplatz"}: vorher ${zt(u.score_vorher, 0)}, jetzt ${zt(u.score_nachher, 0)}. Die Prognose war ${u.pruefung ? Math.round(u.pruefung.gesamt.prognose) : u.art === "wiim" && u.vergleich && u.vergleich.score ? Math.round(u.vergleich.score.vorhergesagt) : r.e.score_prognose.gesamt}${r.e.score_heute.gesamt !== Math.round(u.score_vorher) ? `, heute ${r.e.score_heute.gesamt} (mit allen Plätzen der Einmessung)` : ""}.</span></div>
       ${avGehoert(r) ? `<p class="${avSchlecht(r) ? "warn" : "ok"}" id="a-gehoert" style="font-size:15px">${esc(avGehoert(r))}</p>` : ""}${boxZeile}${fuerBox}
       <button type="button" class="${fuerBox ? "zweit" : "weiter"}" data-zu="18" data-zh-nach="${boxBereit() ? "hoeren" : "einmessen"}" id="a-fertig-zuhause">Fertig – zu ${boxBereit() ? "Hören" : "Einmessen"}</button>
-      <div class="zeilen a-freiwillig">${u.art === "wiim" ? `<p class="klein ok">✓ Im ${esc(streamerName())} übernommen${r.wiim_datum ? ` am ${esc(new Date(r.wiim_datum).toLocaleDateString("de-DE"))}` : ""}.</p>` : ""}${u.art === "box" && !boxBereit() ? `<button type="button" class="leise" data-sheet-block="ab-hilfe" data-sheet-titel="Blindtest über das Box-Symbol">Hör den Unterschied (Blindtest über das Box-Symbol)</button>` : ""}${u.art === "box" && boxBereit() && !avGehoert(r) ? `<button type="button" class="leise" data-sheet-block="ab-kuh" data-sheet-titel="Hör den Unterschied">Hör den Unterschied (Blindtest, freiwillig)</button>` : ""}${u.art === "box" && boxBereit() ? `<button type="button" class="leise" data-zu="9">Klang nach Geschmack anpassen (freiwillig)</button>` : ""}</div>
+      ${(() => { const frei = `${u.art === "wiim" ? `<p class="klein ok">✓ Im ${esc(streamerName())} übernommen${r.wiim_datum ? ` am ${esc(new Date(r.wiim_datum).toLocaleDateString("de-DE"))}` : ""}.</p>` : ""}${u.art === "box" && !boxBereit() ? `<button type="button" class="leise" data-sheet-block="ab-hilfe" data-sheet-titel="Blindtest über das Box-Symbol">Hör den Unterschied (Blindtest über das Box-Symbol)</button>` : ""}${u.art === "box" && boxBereit() && !avGehoert(r) ? `<button type="button" class="leise" data-sheet-block="ab-kuh" data-sheet-titel="Hör den Unterschied">Hör den Unterschied (Blindtest, freiwillig)</button>` : ""}`;
+        return frei ? `<div class="zeilen a-freiwillig">${frei}</div>` : ""; })()}
       ${hinweise}<details><summary>Messwerte je Platz</summary>${plaetze}${pp}</details></section>`;
     if (fuerBox) exportAnbieten(exportObjekt(r, "bestaetigt", r.e.einstellungen, r.profil), "a-best-export", "Für die Klång-Box speichern");
     return;
@@ -14410,7 +14346,10 @@ function hsZeigen() {
   variantenZeigen();
 }
 // Klangprofil auf Hören (status.klangprofil, POST /api/klangprofil {id}): Neutral, Röhre, Vinyl, Bühne als Kacheln.
-// Neutral trägt immer den orangen Ring (gilt als „Empfohlen“) und „Eingemessen“; im Kino sind Vinyl und Bühne blass.
+// Im Hintergrund (klangprofil.hintergrund) gilt dessen eigenes Profil (Voreinstellung Vinyl). Eine Wahl gilt bis zum
+// nächsten Start (Wechsel von Quelle, Modus oder Aufstellung, Neustart), dann wieder die Voreinstellung (sonst Neutral).
+// Den orangen Ring („Empfohlen“) trägt die Voreinstellung: Neutral, im Hintergrund Vinyl. Neutral trägt „Eingemessen“;
+// im Kino sind Vinyl und Bühne blass.
 // Mit Profil ist der Weg bewusst nicht mehr bitgenau (Hinweis unter Testlabor › Stereo bitgenau).
 const klangStand = () => (boxBereit() && zh.st && zh.st.klangprofil) || null;
 function profilKachelnZeigen() {
@@ -14418,7 +14357,7 @@ function profilKachelnZeigen() {
   $("zh-profil-abschnitt").hidden = !da; if (!da) return;
   const nur = (q) => !!q.zusatz;  // Vinyl, Bühne: Übersprechen bzw. Mitte/Seite, nur Stereo (klangprofile.nur_stereo)
   listeMitFokus($("zh-profil-kacheln"), PROFILE.profile.map((q) => { const an = q.id === kp.id, aus = kino && nur(q);
-    return `<button type="button" class="kl-kachel${q.id === "neutral" ? " empfohlen" : ""}" role="radio" aria-checked="${an}" data-zh-klangprofil="${esc(q.id)}"${aus ? " disabled" : ""}>
+    return `<button type="button" class="kl-kachel${q.id === ((kp.voreinstellung && kp.voreinstellung.id) || "neutral") ? " empfohlen" : ""}" role="radio" aria-checked="${an}" data-zh-klangprofil="${esc(q.id)}"${aus ? " disabled" : ""}>
       <span class="n">${esc(q.name)}</span><span class="d">${q.id === "neutral" ? "Eingemessen" : aus ? KL_NUR_STEREO : esc(q.kurz)}</span></button>`; }).join(""));
   // eingepasst (0.3.42: schwächer, Anhebungen der Raumanpassung gesenkt, leiser als pegelgleich): ehrlich sagen, nie still
   const ein = kp.eingepasst ? kp.eingepasst.replace(/^Wächter: /, "") : "";
@@ -14427,7 +14366,13 @@ function profilKachelnZeigen() {
     : kp.wirkt && kp.skala < 1 ? `„${kp.name}“ wirkt hier schwächer (${zt(kp.skala * 100, 0)} %): Deine Raumanpassung hebt dort schon an.` : "";
   // nach dem Update einmal leiser gestellt (die Profile spielen jetzt pegelgleich): sagen, dass man hochstellen kann
   const ges = kp.gesenkt_db > 0 ? `Die Profile spielen jetzt gleich laut wie Neutral. Damit es nach dem Update nicht lauter wird, hat die Box die Lautstärke einmal um ${zt(kp.gesenkt_db, 1)} dB gesenkt. Du kannst sie wieder hochstellen.` : "";
-  const alles = [text, ges].filter(Boolean).join(" ");
+  // Hintergrund (Besitzer: ab Werk Vinyl): dort spielt sein eigenes Profil; ehrlich sagen, welches, und was danach gilt.
+  // Eine Wahl gilt nur, bis Quelle oder Modus wechseln (box._klang_start); Hintergrund aus: Stereo spielt seine Wahl
+  const nb = kp.hintergrund && kp.normal ? kp.normal.name : "", vor = kp.gewaehlt && kp.voreinstellung && kp.voreinstellung.id !== kp.id ? kp.voreinstellung.name : "";
+  // je ein Satz (Textregel): Hintergrund mit Profil und dem ohne; eine Wahl gilt bis zum nächsten Wechsel von Quelle oder Modus
+  const hg = nb ? `Im Hintergrund ${kp.wirkt || kp.id === "neutral" ? "spielt" : "gilt"} ${kp.name}${vor ? " bis zum nächsten Wechsel von Quelle oder Modus" : ""}${nb !== kp.name ? `, ohne Hintergrund ${nb}` : ""}.`
+    : vor ? "Gilt bis zum nächsten Wechsel von Quelle oder Modus." : "";
+  const alles = [hg, text, ges].filter(Boolean).join(" ");
   $("zh-profil-text").textContent = alles; $("zh-profil-text").hidden = !alles;
 }
 // „Was hört man?“ (Klang › Einmessung): Hörschwellen und was davon bei dir wirkt, aus der Einmessung dieser App (Runde, die
@@ -14561,7 +14506,7 @@ document.addEventListener("click", async (ev) => {
   const st = zh.st || {}, inh = st.inhalt || {}, w = +b.dataset.wert;
   const art = b.dataset.zhInhalt, neu = art === "nachtmodus" || art === "vorne_hinten" || art === "hintergrund" ? { [art]: !!w } : art === "couch" ? { couch: w } : { raeumlichkeit: w };
   const a = await nativ.box("inhalt", { profil: inh.profil || "Film", raeumlichkeit: inh.raeumlichkeit ?? 1, ...neu }, { zeitMs: 6000 });
-  if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt, ...(a.vorne_hinten ? { vorne_hinten: a.vorne_hinten } : {}), ...(a.hintergrund ? { hintergrund: a.hintergrund } : {}), ...(a.couch ? { couch: a.couch } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); klangZeileZeigen(); }
+  if (a.ok && a.inhalt) { zh.st = { ...st, inhalt: a.inhalt, ...(a.vorne_hinten ? { vorne_hinten: a.vorne_hinten } : {}), ...(a.hintergrund ? { hintergrund: a.hintergrund } : {}), ...(a.couch ? { couch: a.couch } : {}), ...(a.klangprofil ? { klangprofil: a.klangprofil } : {}) }; $("zh-schalter-status").textContent = ""; inhaltZeigen(); profilKachelnZeigen(); klangZeileZeigen(); }
   else $("zh-schalter-status").innerHTML = `<span class="warn">${esc(a.fehler || a.grund)}</span>`;
 });
 $("zh-ma-platz").addEventListener("click", async (ev) => {
@@ -16888,10 +16833,61 @@ const SA = (() => {
     return { aendern: true, kosten_vorher: rund(k0, 2), kosten_nachher: rund(k, 2), trenn_hz: fc, gain_db: rund(g0 + dg, 1), delay_ms: rund(d0 + dd, 2), gedreht: !!jetzt.gedreht !== (pol < 0), grund: null };
   }
 
+  // --- Paket 3 (ab Werk an; Schalter „raumcheck-sub-paket3“ = „aus“: alter Ablauf), wie Python sub_nachweis, nah_nachweis, uebergang,
+  // uebergang_aus_anzeige, empfehlen_streuung, urteil_einmessung (Regeln und Herleitung dort) ---------------------------
+  const ERKENNUNG_DB = 6, ERKENNUNG_PUNKTE = 3, NAH_DA_DB = 6, NAH_BAENDER = [[25, 40], [40, 80]], STREUUNG_MIN = MASSSTAB_TOL;
+  function subNachweis(haupt, mit, fb, versatzDb = null) {
+    const f = RASTER, H = haupt.db, S = mit.db, NH = haupt.rausch_db || f.map(() => null), n = f.length, idx = [...Array(n).keys()];
+    let off;
+    if (!da(versatzDb)) { off = median(idx.filter((i) => REF_BAND[0] <= f[i] && f[i] <= REF_BAND[1] && sauberR(haupt, i) && sauberR(mit, i)).map((i) => S[i] - H[i]));
+      if (off === null) return { da: null, punkte: 0, bis_hz: null, tief_db: null, mitte_db: null }; }
+    else off = +versatzDb;
+    const bis = Math.max(40, fb); let treffer = 0;
+    for (const i of idx) { if (!(25 <= f[i] && f[i] <= bis) || !sauberR(mit, i) || !da(H[i])) continue;
+      const boden = da(NH[i]) ? Math.max(H[i], NH[i]) : H[i]; if (S[i] - off - boden >= ERKENNUNG_DB) treffer++; }
+    const band = (lo, hi) => eMittel(idx.filter((i) => lo <= f[i] && f[i] < hi && sauberR(mit, i) && da(H[i])).map((i) => S[i] - off - H[i]));
+    const r1 = (x) => (da(x) ? rund(x, 1) : null);
+    return { da: treffer >= ERKENNUNG_PUNKTE ? true : null, punkte: treffer, bis_hz: rund(bis, 0), tief_db: r1(band(25, 40)), mitte_db: r1(band(40, bis + 1e-9)) };
+  }
+  function nahNachweis(aus, an) {
+    const f = RASTER, werte = NAH_BAENDER.map(([lo, hi]) => {
+      const idx = f.map((_, i) => i).filter((i) => lo <= f[i] && f[i] < hi && sauberR(an, i) && da(aus.db[i]));
+      if (idx.length < 3) return null;
+      return rund(eMittel(idx.map((i) => an.db[i])) - eMittel(idx.map((i) => aus.db[i])), 1); });
+    const bew = werte.filter((w) => w !== null);
+    return { da: bew.length ? bew.some((w) => w >= NAH_DA_DB) : null, baender: NAH_BAENDER.map(([lo, hi], i) => ({ lo, hi, mehr_db: werte[i] })) };
+  }
+  const zuLeiseKosten = (g) => 2 * Math.max(0, GEWINN_MIN_DB - Math.max(0, da(g) ? g : 0));
+  const punkteAus = (k) => Math.trunc(Math.max(0, Math.min(100, Math.floor(100 - PUNKTE_JE_DB * rund(k, 1) + 0.5))));
+  function uebergang(b) { if (!b || !da(b.kosten)) return { kosten: null, punkte: null }; const k = rund(b.kosten - zuLeiseKosten(b.gewinn_db), 1); return { kosten: k, punkte: punkteAus(k) }; }
+  function uebergangAusAnzeige(punkte, gewinnDb) {
+    const w = []; for (let i = 0; i <= 500; i++) { const k = i / 10; if (punkteAus(k) === punkte) w.push(punkteAus(k - zuLeiseKosten(gewinnDb))); }
+    return [Math.min(...w), Math.max(...w)];
+  }
+  function empfehlenStreuung(zeilen, ohnePunkte, streuung = STREUUNG_PUNKTE) {
+    const z = zeilen.filter((x) => da(x.punkte)); if (!z.length) return { beste: null, gleich_gut: [], urteil: null, abstand: null };
+    const top = Math.max(...z.map((x) => x.punkte)), beste = z.find((x) => x.punkte === top), d = ohnePunkte - top;
+    return { beste: beste.key, gleich_gut: z.filter((x) => x !== beste && top - x.punkte <= streuung).map((x) => x.key),
+      urteil: d > streuung ? "ohne_besser" : -d > streuung ? "mit_besser" : "gleich", abstand: d };
+  }
+  // Phase A-B-A-B (Übergangspunkte je Wiederholung): 180° nur, wenn der Mittelwert um mehr als die Spanne der Wiederholungen
+  // und mehr als die Streuung besser ist; sonst 0° (wie Python phase_urteil)
+  function phaseUrteil(w0, w180, toleranz = null) {
+    if (!w0.length || !w180.length) return "0";
+    const mw = (w) => w.reduce((a, b) => a + b, 0) / w.length, sp = (w) => Math.max(...w) - Math.min(...w);
+    return mw(w180) - mw(w0) > Math.max(STREUUNG_PUNKTE, toleranz || 0, sp(w0), sp(w180)) ? "180" : "0";
+  }
+  function urteilEinmessung(ohne, mit, streuung = null) {
+    const tol = Math.max(STREUUNG_MIN, streuung || 0), ok = ohne.kacheln || {}, mk = mit.kacheln || {};
+    const ks = Object.keys(ok).filter((k) => da(mk[k]) && da(ok[k])), d = {}; for (const k of ks) d[k] = mk[k] - ok[k];
+    const besser = ks.filter((k) => d[k] > tol), schlechter = ks.filter((k) => d[k] < -tol);
+    return { urteil: besser.length && schlechter.length ? "gemischt" : besser.length ? "besser" : schlechter.length ? "schlechter" : "gleich", toleranz: tol, unterschied: d, besser, schlechter };
+  }
+
   const kern = { FS, DEZ, N_DEZ, PERIODE_S, BIN_HZ, RASTER, BINS, ZIELE, SCORE_TOL, SNR_GUT_DB, SNR_MIN_DB, LUFT_HZ, UNRUHE_PUNKTE, GEWINN_MIN_DB, STREUUNG_PUNKTE, BASSENDE_PLAETZE_MIN,
     MASSSTAB_TOL, SENKE_OK_DB, DROEHNEN_DB, FIX_RUNDEN, UEBERLAPP_MAX_DB,
     rund, median, zielDb, Dezimierer, frame, kohaerent, kurve, kurveAusH, bassende, bassendePlaetze, kennwerte, score, unruhig, plan, startstellung, lr4, auto,
-    kurveRaster, subBewertung, subWaechter, subSatz, subSatzEmpfohlen, trennPlan, rastHz, TRENN_ERWEITERN, TRENN_UNTEN, TRENN_FENSTER, TRENN_ZIEL, subEmpfehlen, phaseWahl, hoerplatzFix, droehnen, nachPruefen, diagnose, nachbessern, HOERPLATZ_FIX, KOSTEN_TOL_DB };
+    kurveRaster, subBewertung, subWaechter, subSatz, subSatzEmpfohlen, trennPlan, rastHz, TRENN_ERWEITERN, TRENN_UNTEN, TRENN_FENSTER, TRENN_ZIEL, subEmpfehlen, phaseWahl, hoerplatzFix, droehnen, nachPruefen, diagnose, nachbessern, subNachweis, nahNachweis, uebergang, uebergangAusAnzeige, empfehlenStreuung, urteilEinmessung, phaseUrteil, ERKENNUNG_DB, ERKENNUNG_PUNKTE, NAH_DA_DB, HOERPLATZ_FIX, KOSTEN_TOL_DB };
   if (typeof document === "undefined") return kern;
   return Object.defineProperties(kern, Object.getOwnPropertyDescriptors(saOberflaeche(kern)));
 })();
@@ -16912,6 +16908,10 @@ function saOberflaeche(K) {
   const zahl = (x, n = 1) => (Math.round(x * 10 ** n) / 10 ** n).toLocaleString("de-DE", { maximumFractionDigits: n }).replace("-", "−");
   const warte = (ms) => new Promise((r) => setTimeout(r, ms));
   const SPEICHER = "raumcheck-sub-abgleich";
+  // Paket 3: ab Werk an (Besitzer 23.11.2026, ersetzt den fehlerhaften alten Ablauf). Nur ein ausdrücklich gespeichertes
+  // „aus“ unter „raumcheck-sub-paket3“ holt den alten Ablauf zurück; fehlt der Schlüssel oder steht etwas anderes darin: an.
+  // Die Seite schreibt den Schlüssel nie selbst, ein gespeichertes „aus“ stammt also nie aus der Voreinstellung.
+  const NEU = () => lies("raumcheck-sub-paket3", "an") !== "aus";
   // „Empfohlen“: der orange Ring der Seite (EM_MINI), nur an der empfohlenen Zeile
   const EM_MINI_SA = typeof EM_MINI !== "undefined" ? EM_MINI : '<svg class="em-mini" viewBox="0 0 32 32" aria-hidden="true"><path fill-rule="evenodd" d="M2 16a14 14 0 1 0 28 0a14 14 0 1 0 -28 0ZM8 16a8 8 0 1 0 16 0a8 8 0 1 0 -16 0Z"/></svg>';
   let AN = null;  // Teile der Auswertung (analyse.js): Mikrofon-Korrektur, Sweeps auswerten
@@ -17100,7 +17100,7 @@ body.sa-misst .messlage { z-index: 70; }
     h.hidden = false; h.scrollTop = 0; return h;
   }
   const kopf = (marke) => `<div class="sa-kopf"><span class="marke">${ex(marke)}</span><button type="button" class="klein zweit" id="sa-zu">Schließen</button></div>`;
-  function zeige(html) { const h = huelle(); h.innerHTML = `<div class="sa-innen">${html}</div>`; const z = el("sa-zu"); if (z) z.onclick = () => schliessen(); }
+  function zeige(html) { const h = huelle(); h.innerHTML = `<div class="sa-innen">${html}${NEU() ? speicherZeile() : ""}</div>`; const z = el("sa-zu"); if (z) z.onclick = () => schliessen(); }
   // Schließen (auch „Fertig“): Ereignis „klangboxsub“ mit den gespeicherten Abgleichen, fertig = bis zum Ende gelaufen;
   // mit oeffnen({ zurueck: n }) danach zurück zu Schritt n (Ablauf: Sub zuerst abgleichen, dann einmessen)
   async function schliessen(fertig = false) {
@@ -17132,6 +17132,7 @@ body.sa-misst .messlage { z-index: 70; }
   }
   // Einstieg: läuft „Einmessen mit Sub“ schon, geht es dort weiter (auch nach dem Neuladen der Seite)
   function oeffnen(r = null, extra = {}) {
+    if (NEU()) nachholen();
     st = neuerZustand(r, extra);
     const p = st.plan, an = st;
     if (p.fall === "mehrere" || p.fall === "fremd" || p.fall === "kein_sub") {
@@ -17155,9 +17156,9 @@ body.sa-misst .messlage { z-index: 70; }
       <p class="sa-lead">Etwa 15 Minuten. Das Handy hältst du die ganze Zeit gleich: umgedreht, Mikrofon nach oben.</p>
       <ol class="sa-ablauf">
         <li><b>Raum ohne Sub</b> · 5 Plätze, wie immer<br><span class="klein">So weiß die Box, wo deine Boxen aufhören und was sie allein schaffen.</span></li>
-        <li><b>Sub am Hörplatz</b> · ${[phaseR() ? "Phase" : null, trennR() ? "Crossover" : null, "Level"].filter(Boolean).join(", ")}<br><span class="klein">Etwa ${(phaseR() ? 2 : 1) + (trennR() ? 2 : 0) + 2} kurze Messungen: ${[phaseR() ? "erst 0 gegen 180" : null, trennR() ? "dann der Crossover in drei Stellungen" : null, "zuletzt der Level"].filter(Boolean).join(", ")}. Du ${p.fall === "misch" ? "stellst in der App der Boxen ein" : "drehst"}, dann misst die Box. Nie beides zugleich.</span></li>
+        <li><b>Sub am Hörplatz</b> · ${[phaseR() ? "Phase" : null, trennR() ? "Crossover" : null, "Level"].filter(Boolean).join(", ")}<br><span class="klein">${NEU() ? "Erst prüft die Box, ob der Sub ankommt. Dann etwa " : "Etwa "}${(phaseR() ? 2 : 1) + (trennR() ? 2 : 0) + (NEU() ? 1 : 2)} kurze Messungen: ${[phaseR() ? "erst 0 gegen 180" : null, trennR() ? "dann der Crossover in drei Stellungen" : null, NEU() ? "zuletzt der Level eine Stufe leiser" : "zuletzt der Level"].filter(Boolean).join(", ")}. ${NEU() ? "Nie lauter als Mitte. " : ""}Du ${p.fall === "misch" ? "stellst in der App der Boxen ein" : "drehst"}, dann misst die Box. Nie beides zugleich.</span></li>
         <li><b>Empfehlung</b><br><span class="klein">Die Stellung, bei der du den Sub nicht merkst, ihn aber vermisst, wenn er aus ist.</span></li>
-        <li><b>Nachmessung</b> · 5 Plätze mit Sub<br><span class="klein">Mit Sub muss es besser sein als ohne. Sonst sagt die Box es dir.</span></li>
+        <li><b>Nachmessung</b> · 5 Plätze mit Sub<br><span class="klein">${NEU() ? "Mit Sub muss es klar besser sein als ohne, mehr als die Messstreuung." : "Mit Sub muss es besser sein als ohne."} Sonst sagt die Box es dir.</span></li>
       </ol>
       ${!an.sub ? subWahlHtml() : ""}
       ${hochpassHtml()}
@@ -17295,6 +17296,31 @@ body.sa-misst .messlage { z-index: 70; }
   // „Boxen allein“ pegelt ein wie beim Einmessen (ab −12 dB lauter, bis 30 dB über dem Raumgeräusch, höchstens 0 dB);
   // derselbe Pegel gilt für alle Messungen mit Sub. Bringt der Sub nach zwei Stellungen nirgends etwas dazu, fragt die App
   // nach (Netzschalter, Kabel), statt still weiterzumessen. Vergleich: siehe subDiff.
+  // Paket 3, nie lauter: Prüfstufen höchstens bis zur Hörlautstärke der Box (führt sie die Lautstärke); unbekannt: wie bisher
+  // Paket 3 (B3): ab der leisesten Stufe, die die Box annimmt (−30 dB), in 6-dB-Schritten bis höchstens zur Hörlautstärke.
+  // Hörlautstärke unter −30 dB: nicht messen (null), der Nutzer stellt selbst lauter. Unbekannt (Verstärker regelt): nur −30 dB,
+  // nie lauter (offen, der Besitzer entscheidet, ob die Rampe dann weiter steigen darf)
+  const MESS_MIN_DB = -30, RAMPE_DB = [-30, -24, -18, -12, -6, 0];
+  function pruefStufen(hoer) {
+    if (hoer === null || hoer === undefined || !Number.isFinite(+hoer)) return [MESS_MIN_DB];
+    const h = +hoer; if (h < MESS_MIN_DB) return null;
+    const s = RAMPE_DB.filter((x) => x <= h); if (s[s.length - 1] < h) s.push(h); return s;
+  }
+  const zuLeiseText = (hoer) => `Zum Messen die Lautstärke an der Klång-Box auf mindestens ${zahl(MESS_MIN_DB, 0)} dB stellen (jetzt ${zahl(hoer, 0)} dB). Die Box misst nie lauter, als du hörst.`;
+  // Paket 3 (N2): vor jeder Messung neu: höchstens die Hörlautstärke jetzt (unbekannt: −30 dB); darunter nicht messen.
+  // basis: der Pegel, mit dem gemessen werden soll (z. B. „Boxen allein“, auch aus einem Ablauf vor dem Schalter mit 0 dB)
+  async function messPegel(basis) {
+    if (quelleJetzt() !== "box") return { db: basis };
+    const hoer = await hoerDb(), grenze = hoer === null ? MESS_MIN_DB : hoer;
+    if (grenze < MESS_MIN_DB) return { fehler: zuLeiseText(hoer) };
+    return { db: Number.isFinite(basis) ? Math.min(basis, grenze) : grenze };
+  }
+  // Automatik (Sub an der Box): Grundlage ist der Messpegel der Einmessung, gedeckelt wie am Hörplatz (messPegel)
+  async function autoPegel() {
+    let basis; try { const s = await nativ.box("status", {}, { zeitMs: 8000 }); basis = s && s.ok && s.messpegel && Number.isFinite(+s.messpegel.db) ? +s.messpegel.db : undefined; } catch (e) { basis = undefined; }
+    return messPegel(basis);
+  }
+  async function hoerDb() { try { const s = await nativ.box("status", {}, { zeitMs: 8000 }); const l = s && s.ok ? s.lautstaerke : null; return l && l.fuehren && Number.isFinite(+l.db) ? +l.db : null; } catch (e) { return null; } }
   const CHECK_DB = [-12, -6, 0], CHECK_ABSTAND_DB = 20, AUS_ABSTAND_DB = 30, UEBER_RAUSCHEN_DB = 10, CHECK_MEHR_DB = 2;
   const sauber = (k, i) => { const x = k.db[i], n = (k.rausch_db || [])[i]; return x !== null && x !== undefined && !(n !== null && n !== undefined && x - n < UEBER_RAUSCHEN_DB); };
   // Unterschied mit Sub gegen ohne an Punkt i, null = nicht beurteilbar. Mit Sub im Rauschen: nicht beurteilbar. Nur „Sub aus“ im Rauschen: dort ist „Sub aus“ höchstens so laut, der
@@ -17334,6 +17360,72 @@ body.sa-misst .messlage { z-index: 70; }
       ${c ? `<p class="klein">Zuletzt: unter 80 Hz ${c.mehr_db === null ? "nicht beurteilbar" : `${vz(c.mehr_db)} dB mit Sub`}, ${c.abstand_db === null ? "Abstand unbekannt" : `${zahl(c.abstand_db, 0)} dB über dem Raumgeräusch`}.</p>${bereiche(c)}` : ""}
       <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-check-trotzdem">Trotzdem weiter</button><button type="button" id="sa-check-nochmal">Noch einmal messen</button></div>`);
     el("sa-check-nochmal").onclick = nochmal; el("sa-check-trotzdem").onclick = weiter;
+  }
+
+  // Paket 3: Am Hörplatz ändert der Sub zu wenig, um ihn sicher zu sehen. Das heißt nicht, dass er fehlt (ein tief
+  // getrennter Sub spielt vor allem unter 40 Hz, wo die Boxen allein im Raumgeräusch liegen). Klärt der Nahtest.
+  function nachweisOffen(F, m) {
+    const c = m.befund, nw = m.nachweis || {};
+    F.nahStand = { schritt: "offen" }; flussSetzen(F);
+    zeige(`${kopf("Schritt 2 von 4")}<h1 id="sa-h">Kommt dein Sub an?</h1>
+      <p class="sa-lead" id="sa-check-offen">Am Platz ändert der Sub wenig. Das ist bei einem tief getrennten Sub normal und heißt nicht, dass er fehlt. Prüf es kurz aus der Nähe: Die Box misst vor dem Sub einmal mit Sub aus, einmal an. Nichts am Sub verstellen.</p>
+      ${c ? `<p class="klein">Zuletzt: unter 80 Hz ${c.mehr_db === null ? "nicht beurteilbar" : `${vz(c.mehr_db)} dB mit Sub`}, ${c.abstand_db === null ? "Abstand unbekannt" : `${zahl(c.abstand_db, 0)} dB über dem Raumgeräusch`}.</p>${bereiche(c)}` : ""}
+      ${nw.punkte !== undefined ? `<p class="klein" id="sa-nachweis">Deutlich mehr mit Sub: an ${nw.punkte} von mindestens ${K.ERKENNUNG_PUNKTE} Punkten bis ${zahlHz(nw.bis_hz || F.fb)} Hz.</p>` : ""}
+      <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-check-nochmal">Noch einmal am Platz</button><button type="button" id="sa-nah-start">Aus der Nähe prüfen</button></div>`);
+    el("sa-check-nochmal").onclick = () => { F.nahStand = null; F.messungen.pop(); flussSetzen(F); naechsteMessung(F); };
+    el("sa-nah-start").onclick = () => nahImFluss(F, 0);
+  }
+  const NAH_FLUSS = [
+    { key: "aus", titel: "Vor den Sub, Sub aus", text: "Schalte den Sub aus. Leg das Handy 10 cm vor den Sub, auf etwas Festes, Mikrofon zum Sub. Dann still sein.", knopf: "Liegt · Messen" },
+    { key: "an", titel: "Sub an, so wie er steht", text: "Handy liegen lassen. Sub einschalten, nichts verstellen. Dann still sein.", knopf: "Sub ist an · Messen" }];
+  function nahImFluss(F, i, meldung = "") {
+    const s = NAH_FLUSS[i]; F.modus = F.modus || modusJetzt();
+    F.nahStand = { schritt: s.key, aus: i ? (F.nahStand && F.nahStand.aus) || null : null }; flussSetzen(F);
+    messBild(s.titel, `Schritt 2 von 4 · aus der Nähe ${i + 1} von 2`, ex(s.text), `<div class="sa-knoepfe eins"><button type="button" id="sa-nah-m">${s.knopf}</button></div>`);
+    el("sa-hinweis").innerHTML = meldung;
+    el("sa-nah-m").onclick = async () => { el("sa-nah-m").disabled = true;
+      // derselbe Pegel wie „Boxen allein“ (nie lauter), nach einer Übersteuerung leiser
+      const basis = Number.isFinite(F.nahPegelDb) ? F.nahPegelDb : Number.isFinite(F.haupt.db) ? F.haupt.db : undefined;
+      const pg = await messPegel(basis); if (!st) return;  // N2: nie lauter als jetzt gehört
+      if (pg.fehler) { nahImFluss(F, i, `<span class="sa-warn">${ex(pg.fehler)}</span>`); return; }
+      const pegel = Number.isFinite(pg.db) ? pg.db : undefined;
+      st.subPegelDb = pegel;
+      const m = await einmal("", i === 1 ? 6000 : 0); if (!st) return;
+      if (m.uebersteuert) {  // B9: so nah ist es zu laut; leiser und beide Nahtest-Messungen noch einmal (nie „weiter weg“)
+        let t;
+        if (Number.isFinite(pegel) && pegel - 6 >= MESS_MIN_DB) { F.nahPegelDb = pegel - 6; t = "Zu laut für das Mikrofon so nah am Sub. Die Box spielt jetzt 6 dB leiser. Miss beide Messungen noch einmal."; }
+        else t = "Zu laut für das Mikrofon so nah am Sub. Stell die Lautstärke eine Stufe leiser und miss beide Messungen noch einmal.";
+        F.nahStand = { schritt: "aus", aus: null }; flussSetzen(F);
+        nahImFluss(F, 0, `<span class="sa-warn">${ex(t)}</span>`); return;
+      }
+      if (m.fehler && !m.leise) { nahImFluss(F, i, `<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
+      subSpeichern(F, `nah_${s.key}`, `nah_${s.key}`, F.stellung || F.start || null, m.kurve);
+      if (i === 0) { F.nahStand = { schritt: "an", aus: m.kurve }; flussSetzen(F); nahImFluss(F, 1); return; }
+      nahFlussErgebnis(F, K.nahNachweis(F.nahStand.aus, m.kurve)); };
+  }
+  function nahFlussErgebnis(F, n) {
+    const zeilen = `<ul class="zh-ws-zeilen klein sa-messliste" id="sa-nah-werte">${n.baender.map((b) => `<li class="sa-mess"><span>${b.lo}–${b.hi}&nbsp;Hz<small>Sub an gegen aus, 10 cm</small></span><b>${b.mehr_db === null ? "–" : `${vz(b.mehr_db)} dB`}</b></li>`).join("")}</ul>`;
+    F.nahtest = n; F.nahStand = n.da ? null : { schritt: "ergebnis" }; flussSetzen(F); melden("nahtest_ergebnis", n);
+    if (n.da) {
+      F.subBestaetigt = true; flussSetzen(F);
+      zeige(`${kopf("Schritt 2 von 4")}<h1 id="sa-h">Der Sub spielt</h1>
+        <p class="sa-lead" id="sa-nah-urteil">Aus der Nähe ist er klar zu messen. Am Platz trägt er wenig bei. Die Box misst jetzt weiter am Platz.</p>${zeilen}
+        <div class="sa-knoepfe eins"><button type="button" id="sa-nah-weiter">Zurück an den Platz</button></div>`);
+      el("sa-nah-weiter").onclick = () => naechsteMessung(F); return;
+    }
+    zeige(`${kopf("Schritt 2 von 4")}<h1 id="sa-h">${n.da === false ? "Vom Sub kommt nichts an" : "Nicht zu beurteilen"}</h1>
+      <p class="sa-lead" id="sa-nah-urteil">${n.da === false ? "Auch aus der Nähe ändert sich mit Sub kaum etwas. Ist er an (Netzschalter, Lampe)? Sitzt das Kabel zum Sub fest, auch die blanken Drähte?" : "Zu nah am Raumgeräusch. Leg das Handy direkt vor die Membran und miss noch einmal."}</p>${zeilen}
+      <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-nah-nochmal">Noch einmal aus der Nähe</button><button type="button" id="sa-check-nochmal">Zurück an den Platz</button></div>`);
+    el("sa-nah-nochmal").onclick = () => nahImFluss(F, 0);
+    el("sa-check-nochmal").onclick = () => { F.nahStand = null; F.messungen.pop(); flussSetzen(F); naechsteMessung(F); };
+  }
+  // B6: nach dem Neuladen dort weiter, wo der Nachweis bzw. der Nahtest stand
+  function nahWeiter(F) {
+    const z = F.nahStand.schritt;
+    if (z === "ergebnis" && F.nahtest) return nahFlussErgebnis(F, F.nahtest);
+    if (z === "an" && F.nahStand.aus) return nahImFluss(F, 1);
+    if (z === "aus" || z === "an") return nahImFluss(F, 0);
+    return nachweisOffen(F, F.messungen[0]);
   }
 
   // --- Regler als Bild (0.3.44, Besitzer: „Schritt für Schritt“, „12:30 Uhr sagt mir nichts“): Drehregler mit den
@@ -17388,11 +17480,72 @@ body.sa-misst .messlage { z-index: 70; }
   // --- Einmessen mit Sub (Besitzer 18.11.2026): Raum ohne Sub (Maßstab) → Sub am Hörplatz → Empfehlung → Nachmessung ------
   // Zustand im Speicher (SPEICHER, Feld „fluss“): übersteht das Neuladen der Seite. Die Rechnung steht in K (wie Python).
   const fluss = () => daten().fluss || null;
-  function flussSetzen(F) { const d = daten(); if (F) d.fluss = F; else delete d.fluss; merke(SPEICHER, JSON.stringify(d)); }
+  // ohne Ablauf: Abbrechen löscht die Warteschlange; abgeschlossen (behalten) bleibt Offenes bis zum nächsten Öffnen (N3)
+  function flussSetzen(F, behalten = false) {
+    const d = daten(); if (F) d.fluss = F;
+    else { delete d.fluss; try { const o = JSON.parse(localStorage.getItem("raumcheck-sub-offen") || "null");
+      if (behalten && o && (o.liste || []).length) localStorage.setItem("raumcheck-sub-offen", JSON.stringify({ ...o, abgeschlossen: true })); else localStorage.removeItem("raumcheck-sub-offen"); } catch (e) {} }
+    merke(SPEICHER, JSON.stringify(d));
+  }
   // Bericht an die Box (Protokoll), wie die anderen Abläufe: Maßstab, Messungen mit Punkten, Empfehlung, Nachmessung
   function melden(art, d) {
     try { if (typeof meldeBox === "function") meldeBox(`sub_einmessen_${art}`, d);
       else if (typeof nativ !== "undefined" && nativ && boxDa()) nativ.box("protokoll", { art: `sub_einmessen_${art}`, daten: d, text: `sub_einmessen_${art}: ${JSON.stringify(d).slice(0, 400)}` }).catch(() => {}); } catch (e) { /* nie stören */ }
+  }
+  // Paket 3: jede Messung sofort auf die Box (POST /api/messdaten {aktion: "sub_messung"}, Format Version 1, entwurf.md 2e).
+  // Was nicht ankommt, bleibt im Ablauf (F.ungespeichert) und geht mit der nächsten Messung noch einmal
+  // Warteschlange je Ablauf (eigener Speicher, damit kein spätes Versprechen den Ablauf überschreibt): {ablauf, liste, gespeichert}
+  const OFFEN = "raumcheck-sub-offen";
+  const offenLesen = () => { try { return JSON.parse(lies(OFFEN, "null")) || null; } catch (e) { return null; } };
+  const offenSetzen = (o) => merke(OFFEN, JSON.stringify(o));
+  const ablaufLebt = (ablauf) => { const G = fluss(); return !!(G && G.ablauf && G.ablauf === ablauf); };
+  // ein abgeschlossener Ablauf mit Offenem: seine Warteschlange gilt weiter, der Ablauf selbst nicht (N3)
+  const abgeschlossenOffen = (ablauf) => { const o = offenLesen(); return !!(o && o.abgeschlossen && o.ablauf === ablauf); };
+  const subSender = () => (typeof window.__klangboxSubSpeichern === "function" ? window.__klangboxSubSpeichern
+    : boxDa() && typeof nativ !== "undefined" && nativ ? (x) => nativ.box("messdaten", x, { zeitMs: 15000 }) : null);
+  // leiser Hinweis unten im Ablauf: nur mit Box; gespeichert oder noch nicht (dann wird es weiter versucht)
+  function speicherText() {
+    const o = offenLesen(); if (!o || !(ablaufLebt(o.ablauf) || o.abgeschlossen)) return "";
+    const n = (o.liste || []).length;
+    if (o.abgeschlossen) return n ? `${n === 1 ? "Eine Messung des letzten Sub-Abgleichs liegt" : `${n} Messungen des letzten Sub-Abgleichs liegen`} noch nicht auf der Box. Ich versuche es beim nächsten Öffnen wieder.` : "";
+    if (n) return `${n === 1 ? "Eine Messung liegt" : `${n} Messungen liegen`} noch nicht auf der Box. Ich versuche es weiter.`;
+    return o.gespeichert ? "Jede Messung liegt sofort auf der Box." : "";
+  }
+  const speicherZeile = () => { const t = speicherText(); return `<p class="klein" id="sa-speicher" aria-live="polite"${t ? "" : " hidden"}>${ex(t)}</p>`; };
+  function speicherHinweis() { const e = el("sa-speicher"); if (!e) return; const t = speicherText(); e.textContent = t; e.hidden = !t; }
+  // senden; danach nur, wenn der Ablauf noch derselbe ist, die angekommenen aus der Warteschlange nehmen
+  const unterwegs = new Set();  // nichts zweimal zugleich senden (nach dem Neuladen geht Unbestätigtes noch einmal)
+  function subSenden(ablauf, alle) {
+    const senden = subSender(), liste = alle.filter((x) => !unterwegs.has(JSON.stringify(x))); if (!senden || !liste.length) return Promise.resolve(null);
+    liste.forEach((x) => unterwegs.add(JSON.stringify(x)));
+    return Promise.all(liste.map((x) => Promise.resolve().then(() => senden(x)).then((a) => !!(a && a.ok)).catch(() => false))).then((oks) => {
+      liste.forEach((x) => unterwegs.delete(JSON.stringify(x)));
+      const fertig = abgeschlossenOffen(ablauf);
+      if (!ablaufLebt(ablauf) && !fertig) return null;  // abgebrochen: nichts wiederbeleben
+      const da = new Set(liste.filter((_, i) => oks[i]).map((x) => JSON.stringify(x))), o = offenLesen();
+      const alt = o && o.ablauf === ablauf ? o : { ablauf, liste: [], gespeichert: 0 };
+      const rest = (alt.liste || []).filter((x) => !da.has(JSON.stringify(x)));
+      if (fertig && !rest.length) { try { localStorage.removeItem(OFFEN); } catch (e) {} }  // abgeschlossen und alles da: fertig
+      else offenSetzen({ ...alt, ablauf, liste: rest, gespeichert: (alt.gespeichert || 0) + da.size });
+      speicherHinweis(); return oks.every(Boolean);
+    });
+  }
+  // nach der letzten Messung (Empfehlung, Ergebnis): Offenes noch einmal versuchen
+  function nachholen() { const o = offenLesen(); if (o && (ablaufLebt(o.ablauf) || o.abgeschlossen) && (o.liste || []).length) subSenden(o.ablauf, o.liste.slice()); }
+  function subSpeichern(F, art, key, s, kurve, extra = {}) {
+    if (!NEU()) return;
+    if (!F.ablauf) { F.ablauf = `sa${Date.now()}`; flussSetzen(F); }
+    const d = { version: 1, aktion: "sub_messung", ablauf: F.ablauf, art, key, stellung: s ? { trenn: s.trenn ?? null, pegel: s.pegel ?? null, phase: s.phase ?? null, text: stellungText2(s) } : null,
+      modus: F.modus || modusJetzt(), zeit: new Date().toISOString(), pegel_db: Number.isFinite(st && st.subPegelDb) ? st.subPegelDb : null, f: [...K.RASTER],
+      kurve: { db: kurve.db, rausch_db: kurve.rausch_db || kurve.db.map(() => null) },
+      ohne: art === "hoerplatz" && F.haupt ? { db: F.haupt.kurve.db, rausch_db: F.haupt.kurve.rausch_db || F.haupt.kurve.db.map(() => null) } : null,
+      befund: extra.befund || null, bewertung: extra.bewertung || null, nachweis: extra.nachweis || null, uebergang: extra.uebergang || null };
+    if (!subSender()) return;
+    // Offenes eines abgeschlossenen Ablaufs geht mit (jede Messung trägt ihren eigenen „ablauf“), nichts still verlieren (N3)
+    const o = offenLesen(), alt = o && o.ablauf === F.ablauf ? o : { ablauf: F.ablauf, liste: o && o.abgeschlossen ? o.liste || [] : [], gespeichert: 0 };
+    const liste = (alt.liste || []).concat([d]);
+    offenSetzen({ ...alt, liste });  // erst in die Warteschlange (übersteht Neuladen), dann senden
+    return subSenden(F.ablauf, liste);
   }
   // Die drei Regler: aus dem Plan (Katalog), sonst allgemein. Pegel: wenig, Mitte, voll (und eine Stufe darunter)
   const ALLG = { trenn: { id: "crossover", rolle: "sub_trennfrequenz", name: "Crossover", skala: "hz", werte: { von: 30, bis: 120, stufenlos: true } },
@@ -17497,7 +17650,7 @@ body.sa-misst .messlage { z-index: 70; }
   }
   function runde(r) {
     const F = fluss();
-    if (!F && r && r.e && !r.e.fehler && hatSubJetzt() && r.modus === modusJetzt()) {
+    if (!F && !NEU() && r && r.e && !r.e.fehler && hatSubJetzt() && r.modus === modusJetzt()) {
       const u = uebernommen(), grund = u ? subPasstNicht(r) : null;
       if (u && grund) { subPasstFrage(r, u, grund); return true; }
     }
@@ -17514,6 +17667,7 @@ body.sa-misst .messlage { z-index: 70; }
       // Hochpass der Hauptboxen in der App der Boxen (Bassmanagement): dort ist die Trennung, fb = Hochpass
       const fb = F.hochpass_hz || (st.f6Mess ? Math.max(st.f6Mess, st.f6Kat || 0) : f6Von(st));
       const s0 = startStellung(fb, F.hochpass_hz || null);
+      if (NEU() && !F.ablauf) F.ablauf = `sa${Date.now()}`;
       Object.assign(F, { phase: "hoerplatz", massstab: w, fb, fb_quelle: F.hochpass_hz ? "hochpass" : st.f6Mess && fb === st.f6Mess ? "einmessung" : st.f6Kat ? "katalog" : "ersatz", stellung: s0, start: { ...s0 }, haupt: null, messungen: [] });
       flussSetzen(F);
       melden("massstab", { runde: r.id, kacheln: w.kacheln, ring: ringSumme(w.kacheln), senke_db: w.senke_db, droehnen_db: w.droehnen_db, bassende_hz: fb, quelle: F.fb_quelle, plaetze: w.plaetze });
@@ -17536,7 +17690,9 @@ body.sa-misst .messlage { z-index: 70; }
       <p class="klein" id="sa-hinweis" aria-live="polite">${meldung}</p>
       <div class="sa-knoepfe eins"><button type="button" id="sa-messen">Sub ist aus · Messen</button></div>`);
     el("sa-messen").onclick = async () => { el("sa-messen").disabled = true;
-      const stufen = quelleJetzt() === "box" ? CHECK_DB : [null]; let m = null;
+      const hoer = quelleJetzt() === "box" && NEU() ? await hoerDb() : null; if (!st) return;
+      const stufen = quelleJetzt() === "box" ? (NEU() ? pruefStufen(hoer) : CHECK_DB) : [null]; let m = null;
+      if (!stufen) { ohneFertig(F, `<span class="sa-warn">${ex(zuLeiseText(hoer))}</span>`); return; }
       // alle Stufen in einer gedrehten Ansicht (Besitzer 18.11.2026): „Handy umdrehen“ einmal, kein Zurückklappen dazwischen
       const ml = typeof messLage !== "undefined" ? messLage : null;
       if (ml) ml.folge(true);
@@ -17549,7 +17705,7 @@ body.sa-misst .messlage { z-index: 70; }
       if (ml) ml.folgeEnde(!m.fehler);
       if (m.fehler) { ohneFertig(F, `<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
       F.haupt = { kurve: m.kurve, db: Number.isFinite(st.subPegelDb) ? st.subPegelDb : null, vergleich_db: m.db ?? null, bassende_hz: K.bassende(m.kurve, F.modus) };
-      flussSetzen(F); naechsteMessung(F); };
+      flussSetzen(F); subSpeichern(F, "ohne", "ohne", null, m.kurve); naechsteMessung(F); };
   }
   // Messplan am Hörplatz (Besitzer 18.11.2026: „der Crossover muss ein echtes Ergebnis sein“), je Messung ein Knopfdruck:
   // 1. Phase 0 gegen 180 bei der Startstellung (Level Mitte); 2. mit der besseren Phase der Crossover: Start, eine Stufe
@@ -17560,18 +17716,28 @@ body.sa-misst .messlage { z-index: 70; }
   const gleicheStellung = (a, b) => a.trenn === b.trenn && a.pegel === b.pegel && a.phase === b.phase;
   const basisMessungen = (F) => F.messungen.filter((m) => !/^fix/.test(m.key) && !m.uebersteuert);
   const kostenBei = (F, s) => { const m = basisMessungen(F).find((x) => gleicheStellung(stellungVon(F, x), s)); return m ? m.b.kosten : null; };
+  // Paket 3: 0° und 180° in der Toleranz gleich → beide noch einmal (A-B-A-B); dann entscheidet phaseUrteil
+  const phaseMessung = (F, key) => F.messungen.find((m) => m.key === key && m.b && m.b.kosten !== null && m.b.kosten !== undefined) || null;
+  const uPunkte = (m) => K.uebergang(m.b).punkte;
+  function phaseGleich(F) { const a = phaseMessung(F, "p0"), b = phaseMessung(F, "p180"); return !!(a && b) && Math.abs(uPunkte(a) - uPunkte(b)) <= tolPunkte(F); }
+  const phaseWiederholt = (F) => NEU() && !!(phaseMessung(F, "p0b") && phaseMessung(F, "p180b"));
   const phaseGewaehlt = (F) => { const t0 = (F.start || F.stellung).trenn;
+    if (phaseR() && phaseWiederholt(F)) return K.phaseUrteil(["p0", "p0b"].map((k) => uPunkte(phaseMessung(F, k))), ["p180", "p180b"].map((k) => uPunkte(phaseMessung(F, k))), tolPunkte(F));
+    if (NEU() && phaseR()) { const a = phaseMessung(F, "p0"), b = phaseMessung(F, "p180");  // P3: dieselbe Skala wie Empfehlung
+      if (a && b) return uPunkte(b) - uPunkte(a) > tolPunkte(F) ? "180" : "0"; }
     return phaseR() ? K.phaseWahl(kostenBei(F, { trenn: t0, pegel: "mitte", phase: "0" }), kostenBei(F, { trenn: t0, pegel: "mitte", phase: "180" })) : "0"; };
   function messPlan(F) {
     const rt = trennR(), t0 = (F.start || F.stellung).trenn, p = [{ key: "p0", pegel: "mitte", phase: "0", trenn: t0 }];
     if (phaseR()) p.push({ key: "p180", pegel: "mitte", phase: "180", trenn: t0 });
+    if (NEU() && phaseR() && phaseGleich(F)) p.push({ key: "p0b", pegel: "mitte", phase: "0", trenn: t0 }, { key: "p180b", pegel: "mitte", phase: "180", trenn: t0 });
     const pw = phaseGewaehlt(F); let tb = t0, offen = false;
     if (rt && t0 !== null && t0 !== undefined) {
       const [lo, hi] = trennGrenzen(rt), tp = K.trennPlan(t0, trennSchritt(rt), lo, hi, (t) => kostenBei(F, { trenn: t, pegel: "mitte", phase: pw }), trennHzPlan(rt), F.fb);
       tp.folge.filter((x) => x !== t0).forEach((x) => p.push({ key: `x${x}`, pegel: "mitte", phase: pw, trenn: x }));
       if (tp.offen) offen = true; else tb = tp.beste;
     }
-    p.push({ key: "wenig", pegel: "wenig", phase: pw, trenn: tb, offen }, { key: "voll", pegel: "voll", phase: pw, trenn: tb, offen });
+    p.push({ key: "wenig", pegel: "wenig", phase: pw, trenn: tb, offen });
+    if (!NEU()) p.push({ key: "voll", pegel: "voll", phase: pw, trenn: tb, offen });  // Paket 3: nie lauter als Mitte
     return p;
   }
   function hoerplatzZustand(F) {  // Zustand für subDiff/kw wiederherstellen (nach dem Neuladen)
@@ -17593,23 +17759,33 @@ body.sa-misst .messlage { z-index: 70; }
   }
   // eine Messung am Hörplatz mit Stellung s (key), danach weiter()
   async function hoerplatzMessen(F, key, s, titel, vorlaufMs, zurueck, weiter) {
+    if (NEU()) {  // N2: nie lauter als jetzt gehört
+      const pg = await messPegel(F.haupt.db); if (!st) return;
+      if (pg.fehler) { zurueck(`<span class="sa-warn">${ex(pg.fehler)}</span>`); return; }
+      st.subPegelDb = Number.isFinite(pg.db) ? pg.db : undefined;
+    }
     const m = await gedrehtMessen(titel, "", vorlaufMs); if (!st) return;
     // übersteuert der Sub mit Sub (nicht die Boxen allein): diese Stellung ist viel zu laut, das ist ihr Ergebnis (sonst
     // hinge der Ablauf an einer Stellung, die nie messbar wird)
     if (m.uebersteuert && F.messungen.length) {
       F.messungen.push({ key, pegel: s.pegel, phase: s.phase, trenn: s.trenn, uebersteuert: true, b: { punkte: null, kosten: null } });
-      flussSetzen(F); melden("messung", { key, stellung: stellungText2(s), uebersteuert: true }); weiter(); return;
+      flussSetzen(F); if (m.kurve) subSpeichern(F, "hoerplatz", key, s, m.kurve, { befund: { uebersteuert: true } }); melden("messung", { key, stellung: stellungText2(s), uebersteuert: true }); weiter(); return;
     }
     if (m.fehler) { zurueck(`<span class="sa-warn">${ex(m.fehler)}</span>`); return; }
     const versatz = Number.isFinite(m.db) && Number.isFinite(F.haupt.vergleich_db) ? m.db - F.haupt.vergleich_db : null;
     const b = K.subBewertung(F.haupt.kurve, m.kurve, F.fb, versatz, F.philosophie || "erweiterung");
-    F.messungen.push({ key, pegel: s.pegel, phase: s.phase, trenn: s.trenn, kurve: m.kurve, db: m.db ?? null, b, befund: subBefund(m.kurve, m.db ?? null) });
-    flussSetzen(F);
-    melden("messung", { key, stellung: stellungText2(s), punkte: b.punkte, kosten: b.kosten, gewinn_db: b.gewinn_db, ueberlapp_db: b.ueberlapp_db, spitze_db: b.spitze_db, loch_db: b.loch_db, warnung: K.subWaechter(b) });
+    const nachweis = NEU() ? K.subNachweis(F.haupt.kurve, m.kurve, F.fb, versatz) : null;
+    const befund = subBefund(m.kurve, m.db ?? null);
+    F.messungen.push({ key, pegel: s.pegel, phase: s.phase, trenn: s.trenn, kurve: m.kurve, db: m.db ?? null, b, befund, nachweis });
+    flussSetzen(F); subSpeichern(F, "hoerplatz", key, s, m.kurve, { befund, bewertung: b, nachweis, uebergang: NEU() ? K.uebergang(b) : null });
+    // Paket 3: mit Kurven und Raumgeräusch (sonst bleibt jede Nachprüfung bei Vermutungen); die Box muss sie speichern
+    melden("messung", { key, stellung: stellungText2(s), punkte: b.punkte, kosten: b.kosten, gewinn_db: b.gewinn_db, ueberlapp_db: b.ueberlapp_db, spitze_db: b.spitze_db, loch_db: b.loch_db, warnung: K.subWaechter(b),
+      ...(NEU() ? { uebergang: K.uebergang(b), nachweis, pegel_db: m.db ?? null, kurve: { db: m.kurve.db, rausch_db: m.kurve.rausch_db }, ohne: { db: F.haupt.kurve.db, rausch_db: F.haupt.kurve.rausch_db } } : {}) });
     weiter();
   }
   function naechsteMessung(F, meldung = "") {
     hoerplatzZustand(F);
+    if (NEU() && F.nahStand && !F.subBestaetigt && F.messungen.length) { nahWeiter(F); return; }
     const plan = messPlan(F), z = plan.find((x) => !F.messungen.some((m) => m.key === x.key)), n = plan.length;
     if (!z) { F.phase = "empfehlung"; flussSetzen(F); empfehlung(F); return; }
     const i = plan.indexOf(z), letzte = F.messungen[F.messungen.length - 1], vorher = letzte ? stellungVon(F, letzte) : null, s = { trenn: z.trenn, pegel: z.pegel, phase: z.phase };
@@ -17628,8 +17804,8 @@ body.sa-misst .messlage { z-index: 70; }
       const w = wechsel(vorher, s);
       titel = w.titel; bilder = w.html; knopf = w.schalter ? "Umgestellt · Messen" : "Gedreht · Messen";
       lead = w.schalter ? "Nur umstellen, sonst nichts verstellen." : "Von der gepunkteten zur durchgezogenen Stellung. Sonst nichts verstellen.";
-      if (z.key.startsWith("x") && vorher.phase !== s.phase) lead = `${s.phase}° klingt besser, sie bleibt. ${lead}`;
-      notiz = z.key.startsWith("x") ? "Crossover: zu hoch dröhnt es und der Oberbass verliert Details, zu tief bricht es zwischen Sub und Boxen. Die Messung entscheidet." : "";
+      if (z.key.startsWith("x") && vorher.phase !== s.phase) lead = `${phaseWiederholt(F) && s.phase === "0" ? "0° und 180° gleich gut, 0° bleibt." : `${s.phase}° klingt besser, sie bleibt.`} ${lead}`;
+      notiz = /^p(0|180)b$/.test(z.key) ? "0° und 180° lagen gleich auf. Die Box misst beide noch einmal, dann entscheidet die Wiederholung." : z.key.startsWith("x") ? "Crossover: zu hoch dröhnt es und der Oberbass verliert Details, zu tief bricht es zwischen Sub und Boxen. Die Messung entscheidet." : "";
     }
     zeige(`${kopf(`Schritt 2 von 4 · Messung ${i + 1} von ${n}`)}<h1 id="sa-h">${ex(titel)}</h1>
       <p class="sa-lead">${ex(lead)}</p>
@@ -17642,6 +17818,11 @@ body.sa-misst .messlage { z-index: 70; }
       // erste Messung: 6 s Vorlauf, ein Sub mit Signal-Automatik wacht verzögert auf
       hoerplatzMessen(F, z.key, s, `Messung ${i + 1} von ${n}`, !vorher ? 6000 : 0, (t) => naechsteMessung(F, t), () => {
         // Sub-Check: nach zwei Stellungen bringt der Sub nirgends etwas dazu → nachfragen (aus, Kabel), nicht still weiter
+        if (NEU()) {  // Paket 3: Nachweis nach der ersten Messung mit Sub; nicht eindeutig → Nahtest, nie „nicht da“ vom Hörplatz
+          const erste = F.messungen[0];
+          if (F.messungen.length === 1 && !F.subBestaetigt && !(erste.nachweis && erste.nachweis.da)) { nachweisOffen(F, erste); return; }
+          naechsteMessung(F); return;
+        }
         const zwei = F.messungen.slice(0, 2);
         if (F.messungen.length === 2 && !F.subBestaetigt && zwei.every((x) => !(x.befund && x.befund.bester_db !== null && x.befund.bester_db >= CHECK_MEHR_DB))) {
           subNichtGefunden(F.messungen[1].befund, () => { F.messungen.pop(); flussSetzen(F); naechsteMessung(F); }, () => { F.subBestaetigt = true; flussSetzen(F); naechsteMessung(F); });
@@ -17667,26 +17848,37 @@ body.sa-misst .messlage { z-index: 70; }
   function hoerplatzZeilen(F) {
     const pw = phaseGewaehlt(F), t0 = (F.start || F.stellung).trenn;
     const verglichen = !!phaseR() && kostenBei(F, { trenn: t0, pegel: "mitte", phase: "0" }) !== null && kostenBei(F, { trenn: t0, pegel: "mitte", phase: "180" }) !== null;
-    return { zeilen: F.messungen.slice(), pw, verglichen };
+    // Paket 3 (B10): „voll“ gibt es mit Schalter nicht mehr; ältere Messungen dieser Stellung weder zeigen noch empfehlen
+    return { zeilen: NEU() ? F.messungen.filter((m) => m.pegel !== "voll") : F.messungen.slice(), pw, verglichen };
   }
   const stufeVon = (m) => STUFEN.indexOf(m.pegel) * 1000 + (Number.isFinite(+m.trenn) ? +m.trenn : 0);
   function hoerplatzTabelle(F, zeilen, ohne, bestKey) {
     const fbT = zahlHz(F.fb), t0 = (F.start || F.stellung).trenn;
     const w = (x, schlecht) => (x === null || x === undefined ? "–" : schlecht ? `<span class="warn">${vz(x)} dB</span>` : `${vz(x)} dB`);
-    const pk = (m) => (m.b.punkte === null ? "–" : (ohne.kosten !== null && m.b.kosten > ohne.kosten + K.KOSTEN_TOL_DB) || K.subWaechter(m.b) ? `<span class="warn">${m.b.punkte}</span>` : String(m.b.punkte));
+    const neu = NEU(), u = (b) => (neu ? K.uebergang(b) : b), uo = u(ohne), tolK = neu ? tolPunkte(F) / 2 : K.KOSTEN_TOL_DB;
+    const pk = (m) => { const x = u(m.b); return x.punkte === null ? "–" : (uo.kosten !== null && x.kosten > uo.kosten + tolK) || K.subWaechter(m.b) ? `<span class="warn">${x.punkte}</span>` : String(x.punkte); };
+    const pwT = neu && phaseR() ? phaseGewaehlt(F) : null, anders = (m) => (pwT && !/^fix/.test(m.key) && m.phase !== pwT ? '<span class="klein"> · andere Phase</span>' : "");
+    if (neu) return `<table class="sa-tab" id="sa-empf-tabelle"><tr class="klein"><th scope="col">am Hörplatz</th><th scope="col">Übergang</th></tr>
+      <tr><td>ohne Sub</td><td>${uo.punkte ?? "–"}</td></tr>
+      ${zeilen.map((m) => m.uebersteuert ? `<tr><td>${ex(zeileName(m))}</td><td><span class="warn">übersteuert</span></td></tr>` : `<tr${m.key === bestKey ? ' class="sa-empfohlen"' : ""}><td>${m.key === bestKey ? EM_MINI_SA : ""}${ex(zeileName(m))}${anders(m)}</td><td>${pk(m)}</td></tr>`).join("")}</table>`;
     return `<table class="sa-tab" id="sa-empf-tabelle"><tr class="klein"><th scope="col">am Hörplatz</th><th scope="col">unter ${fbT} Hz</th><th scope="col">50–80 Hz</th><th scope="col">Punkte</th></tr>
-      <tr><td>ohne Sub</td><td>±0 dB</td><td>±0 dB</td><td>${ohne.punkte ?? "–"}</td></tr>
+      <tr><td>ohne Sub</td><td>±0 dB</td><td>±0 dB</td><td>${uo.punkte ?? "–"}</td></tr>
       ${zeilen.map((m) => m.uebersteuert ? `<tr><td>${ex(zeileName(m))}</td><td colspan="3"><span class="warn">übersteuert</span></td></tr>` : `<tr${m.key === bestKey ? ' class="sa-empfohlen"' : ""}><td>${m.key === bestKey ? EM_MINI_SA : ""}${ex(zeileName(m))}</td><td>${w(m.b.gewinn_db, m.b.gewinn_db !== null && m.b.gewinn_db < -1)}</td><td>${w(m.b.ueberlapp_db, m.b.ueberlapp_db !== null && m.b.ueberlapp_db > K.UEBERLAPP_MAX_DB)}</td><td>${pk(m)}</td></tr>`).join("")}</table>`;
   }
-  const zeileName = (m) => { const rt = trennR(); return `${STUFE_NAME[m.pegel]} · ${m.phase}°${rt && m.trenn !== null && m.trenn !== undefined ? ` · ${tt(m.trenn, rt)}` : ""}`; };
+  const zeileName = (m) => { const rt = trennR(); return `${STUFE_NAME[m.pegel]} · ${m.phase}°${rt && m.trenn !== null && m.trenn !== undefined ? ` · ${tt(m.trenn, rt)}` : ""}${/^p(0|180)b$/.test(m.key) ? " · noch einmal" : ""}`; };
   const zeileSatz = (F, m) => (m.uebersteuert ? "Übersteuert das Mikrofon: viel zu laut." : K.subSatz(m.b, F.fb));
-  function empfehlung(F) {
+  function empfehlung(F, ohneGegeben = null) {
     hoerplatzZustand(F);
-    const { zeilen, pw, verglichen } = hoerplatzZeilen(F), ohne = K.subBewertung(F.haupt.kurve, F.haupt.kurve, F.fb, 0, F.philosophie || "erweiterung");
+    const { zeilen, pw, verglichen } = hoerplatzZeilen(F), ohne = ohneGegeben || K.subBewertung(F.haupt.kurve, F.haupt.kurve, F.fb, 0, F.philosophie || "erweiterung");
+    // Paket 3: auf der Übergangs-Skala, und nur klar (mehr als die Streuung) über „ohne Sub“
+    // Paket 3 (B4, B7): empfohlen nur, was in Punkten mehr als die Toleranz (gemessene Streuung, mindestens 3) über „ohne Sub“ liegt
+    const kv = (b) => (NEU() ? K.uebergang(b).kosten : b.kosten), ohneK = NEU() ? null : ohne.kosten, tol = tolPunkte(F), uo = K.uebergang(ohne).punkte;
+    const unklar = (b) => NEU() && !(K.uebergang(b).punkte !== null && uo !== null && K.uebergang(b).punkte > uo + tol);
+    if (NEU()) nachholen();
     // gleich gut: der Crossover wie im Plan (Fenster um 0,85 · fb), dann der kleinere Level (Prüfer 18.11.2026)
     const hzVon = trennR() ? trennHzPlan(trennR()) : null;
-    const erg = K.subEmpfehlen(zeilen.map((m) => ({ key: m.key, stufe: stufeVon(m), kosten: m.b.kosten, warnung: K.subWaechter(m.b),
-      hz: hzVon && m.trenn !== null && m.trenn !== undefined ? hzVon(m.trenn) : null, pegel: STUFEN.indexOf(m.pegel) })), ohne.kosten, hzVon ? F.fb : null);
+    const erg = K.subEmpfehlen(zeilen.map((m) => ({ key: m.key, stufe: stufeVon(m), kosten: m.b.kosten === null ? null : kv(m.b), warnung: K.subWaechter(m.b) || (m.b.kosten !== null && unklar(m.b) ? "nicht klar über ohne Sub" : null) || (NEU() && phaseR() && !/^fix/.test(m.key) && m.phase !== pw ? "andere Phase" : null),
+      hz: hzVon && m.trenn !== null && m.trenn !== undefined ? hzVon(m.trenn) : null, pegel: STUFEN.indexOf(m.pegel) })), ohneK, hzVon ? F.fb : null);
     if (erg.keine) { keineStellung(F, zeilen, ohne, erg); return; }
     const best = zeilen.find((m) => m.key === erg.beste), t0 = (F.start || F.stellung).trenn;
     F.empfehlung = { key: best.key, pegel: best.pegel, phase: best.phase, trenn: best.trenn ?? t0 }; F.stellung = stellungVon(F, best); flussSetzen(F);
@@ -17696,7 +17888,8 @@ body.sa-misst .messlage { z-index: 70; }
       || (m.b.zuviel_db || 0) > 1.5 || (m.b.kosten ?? -Infinity) > (best.b.kosten ?? Infinity)));
     const [bestSatz, satz] = K.subSatzEmpfohlen(best.b, F.fb, lauterZuViel);
     const gruende = zeilen.slice().reverse().map((m) => `<li><b>${ex(zeileName(m))}</b>: ${ex(m.key === best.key ? bestSatz : zeileSatz(F, m))}</li>`).join("")
-      + (verglichen ? `<li><b>Phase</b>: ${pw === "180" ? "180° klingt am Platz deutlich besser, sie gilt für alle weiteren Stellungen." : "0° und 180° etwa gleich, 0° bleibt."}</li>` : "");
+      + (verglichen ? `<li><b>Phase</b>: ${NEU() && best.phase !== pw ? `Nachgebessert: ${best.phase}° ist hier besser.` : phaseWiederholt(F) ? (pw === "180" ? "Je zweimal gemessen: 180° klingt klar besser, sie gilt für alle weiteren Stellungen." : "0° und 180° je zweimal gemessen: gleich gut, 0° bleibt.")
+        : pw === "180" ? "180° klingt am Platz deutlich besser, sie gilt für alle weiteren Stellungen." : "0° und 180° etwa gleich, 0° bleibt."}</li>` : "");
     // loch_db: Auslöschung durch den Sub (nicht jeder Ton des Raums): nur das sagen (Prüfer 18.11.2026, N4)
     const loch = best.b.loch_db !== null && best.b.loch_db <= 3 ? " Keine Auslöschung durch den Sub." : "";
     // am Anschlag des Reglers: ehrlich sagen (tiefer geht es dort nicht; meist ist dann der Level zu laut)
@@ -17715,15 +17908,41 @@ body.sa-misst .messlage { z-index: 70; }
   // Keine Stellung schlägt „ohne Sub“ (oder alle haben einen Wächter): nie eine davon empfehlen. Von der besten aus nach der
   // Ursache nachbessern (K.hoerplatzFix: Phase, Crossover runter, Level runter bis „noch weniger“) und am Platz messen;
   // bringt das nach HOERPLATZ_FIX Versuchen nichts: „Ohne Sub klingt es hier besser“
+  // Paket 3: Satz zu „keine Stellung“ aus den gemessenen Zeilen, mit dem Abstand gegen die Streuung (keine Potenzial-Zahl)
+  // Paket 3: die Zeile „Phase“ auch auf „keine Stellung“; sie erklärt den Zusatz „andere Phase“ in der Tabelle
+  function phaseZeile(F, zeilen) {
+    const { pw, verglichen } = hoerplatzZeilen(F); if (!verglichen) return "";
+    const t = phaseWiederholt(F) ? (pw === "180" ? "Je zweimal gemessen: 180° klingt klar besser." : "0° und 180° je zweimal gemessen: gleich gut, 0° bleibt.")
+      : pw === "180" ? "180° klingt am Platz deutlich besser." : "0° und 180° etwa gleich, 0° bleibt.";
+    const anders = zeilen.some((m) => !/^fix/.test(m.key) && m.phase !== pw);
+    return `<p class="klein" id="sa-phase"><b>Phase</b>: ${ex(t)}${anders ? " Zeilen mit „andere Phase“ zählen für die Empfehlung nicht." : ""}</p>`;
+  }
+  function keineUrteil(F, zeilen, ohne) {
+    // Zeilen der verworfenen Phase zählen nicht (außer Nachbesserungen, die die Phase bewusst drehen)
+    const pw = phaseR() ? hoerplatzZeilen(F).pw : null;
+    const z = zeilen.filter((m) => !m.uebersteuert && !(pw && !/^fix/.test(m.key) && m.phase !== pw)).map((m) => ({ key: m.key, punkte: K.uebergang(m.b).punkte })); return K.empfehlenStreuung(z, K.uebergang(ohne).punkte, tolPunkte(F));
+  }
+  const KEINE_TITEL = { ohne_besser: "Ohne Sub klingt es hier besser", gleich: "Mit Sub nicht klar besser", mit_besser: "Keine Stellung ohne Problem" };
+  function keineSatz(F, zeilen, ohne, nFix) {
+    const e = keineUrteil(F, zeilen, ohne);
+    const best = zeilen.find((m) => m.key === e.beste), fix = nFix ? `, auch nicht nach ${nFix === 1 ? "einer Nachbesserung" : `${nFix} Nachbesserungen`}` : "";
+    if (!best) return `Am Hörplatz war keine Stellung messbar${fix}.`;
+    // B5: klar über „ohne Sub“, aber mit Wächter (Loch, Dröhnen, Überlappung): das sagen, nichts empfehlen
+    if (e.urteil === "mit_besser") return `${zeileName(best)} lag ${-e.abstand} Punkte über ohne Sub, aber: ${K.subWaechter(best.b) || "Sie lässt sich nicht empfehlen."} Darum keine Empfehlung${fix ? `${fix.replace(", auch nicht nach", " (auch nach")})` : ""}.`;
+    return e.urteil === "gleich" ? `Am Hörplatz war keine Stellung klar besser als ohne Sub${fix}. Am besten war ${zeileName(best)}, gleich gut wie ohne (innerhalb der Messstreuung).`
+      : `Am Hörplatz war keine Stellung besser als ohne Sub${fix}. Am besten war ${zeileName(best)}, ${e.abstand} Punkte hinter ohne Sub. Das ist mehr als die Messstreuung.`;
+  }
   function keineStellung(F, zeilen, ohne, erg) {
     const base = zeilen.find((m) => m.key === erg.naechste) || zeilen.find((m) => !m.uebersteuert) || zeilen[0], nFix = F.messungen.filter((m) => /^fix/.test(m.key)).length;
     const schon = (s) => F.messungen.some((m) => gleicheStellung(stellungVon(F, m), s));
     const neu = nFix < K.HOERPLATZ_FIX ? fixFinden(stellungVon(F, base), base.uebersteuert ? "pegel_runter" : K.hoerplatzFix(base.b), schon) : null;
     if (!neu) {
       melden("empfehlung", { keine: true, messungen: zeilen.map((m) => ({ key: m.key, stellung: stellungText2(stellungVon(F, m)), punkte: m.b.punkte, kosten: m.b.kosten, warnung: K.subWaechter(m.b) })), ohne_sub_punkte: ohne.punkte, ohne_sub_kosten: ohne.kosten });
-      zeige(`${kopf("Schritt 3 von 4")}<h1 id="sa-h">Ohne Sub klingt es hier besser</h1>
-        <p class="sa-lead">${ex(`Am Hörplatz war keine Stellung besser als ohne Sub${nFix ? `, auch nicht nach ${nFix === 1 ? "einer Nachbesserung" : `${nFix} Nachbesserungen`}` : ""}. Am besten war ${zeileName(base)}: ${zeileSatz(F, base)}`)}</p>
+      zeige(`${kopf("Schritt 3 von 4")}<h1 id="sa-h">${NEU() ? KEINE_TITEL[keineUrteil(F, zeilen, ohne).urteil] || KEINE_TITEL.ohne_besser : "Ohne Sub klingt es hier besser"}</h1>
+        <p class="sa-lead">${ex(NEU() ? keineSatz(F, zeilen, ohne, nFix) : `Am Hörplatz war keine Stellung besser als ohne Sub${nFix ? `, auch nicht nach ${nFix === 1 ? "einer Nachbesserung" : `${nFix} Nachbesserungen`}` : ""}. Am besten war ${zeileName(base)}: ${zeileSatz(F, base)}`)}</p>
         ${hoerplatzTabelle(F, zeilen, ohne, null)}
+        ${NEU() ? phaseZeile(F, zeilen) : ""}
+        ${NEU() ? `<p class="klein" id="sa-streuung">Übergang: wie gut Sub und Boxen zusammenspielen, ohne Abzug für einen leisen Sub. Gleich gut heißt: höchstens ${tolPunkte(F)} Punkte auseinander (Messstreuung).</p>` : ""}
         <p class="klein">Tipp: Sub an einen anderen Platz stellen, dann noch einmal.</p>
         <div class="sa-knoepfe eins"><button type="button" id="sa-ohne-behalten">Ohne Sub behalten</button></div>`);
       el("sa-ohne-behalten").onclick = () => abschluss(F, "ohne");
@@ -17747,17 +17966,22 @@ body.sa-misst .messlage { z-index: 70; }
   // Schritt 4: Nachmessung (Einmessung mit Sub) gegen den Maßstab; sonst die Ursache und genau ein Regler
   function nachmessungAuswerten(F, r) {
     const mit = rundeWerte(r), pruef = K.nachPruefen(F.massstab, mit);
+    if (NEU()) {  // Paket 3: Toleranz je Kachel = gemessene Streuung dieser Anlage (mindestens 3); Regel B (Töne, Dröhnen) bleibt
+      const u = K.urteilEinmessung(F.massstab, mit, streuungJetzt(F));
+      Object.assign(pruef, { urteil: u.urteil, toleranz: u.toleranz, besser: u.besser, schlechter: u.schlechter, ok: u.urteil === "besser" && pruef.senke_db === null && !pruef.droehnt });
+    }
     // Trennfrequenz in Hz für die Diagnose; bei Raststufen ohne belegte Hz-Skala (und ohne Crossover am Sub) das Bassende
     const rtD = trennR(), trennDiag = trennHz(rtD, F.stellung.trenn) ?? F.fb;
     const diag = F.massstab.kurve && mit.kurve ? K.diagnose(F.massstab.kurve, mit.kurve, F.fb, trennDiag) : { art: null };
     const v = { runde: r.id, mit, pruef, diag, stellung: { ...F.stellung } };
     F.versuche.push(v);
     const fixes = F.versuche.length - 1;
-    if (!pruef.ok && fixes < K.FIX_RUNDEN) {
+    const gleich = NEU() && pruef.urteil === "gleich" && pruef.senke_db === null && !pruef.droehnt;  // du entscheidest, nichts nachbessern
+    if (!pruef.ok && !gleich && fixes < K.FIX_RUNDEN) {
       const neu = fixFinden(F.stellung, K.nachbessern(pruef, diag, F.versuche.some((x) => x.art === "phase"), trennDiag));
       if (neu) { v.art = neu.art; v.neu = neu.stellung; }
     }
-    v.ergebnis = pruef.ok ? "besser" : v.neu ? "nachbessern" : "ohne_besser";
+    v.ergebnis = pruef.ok ? "besser" : gleich ? "gleich" : v.neu ? "nachbessern" : "ohne_besser";
     F.phase = "ergebnis"; flussSetzen(F);
     melden("nachmessung", { runde: r.id, massstab_runde: F.massstab.runde, kacheln: mit.kacheln, ring_ohne: pruef.ring_ohne, ring_mit: pruef.ring_mit, senke_db: mit.senke_db, droehnen_db: mit.droehnen_db,
       ok: pruef.ok, schlechter: pruef.schlechter, diagnose: diag, ergebnis: v.ergebnis, nachbessern: v.art || null, stellung: stellungText2(v.stellung), neu: v.neu ? stellungText2(v.neu) : null });
@@ -17777,9 +18001,18 @@ body.sa-misst .messlage { z-index: 70; }
     }
     return null;
   }
+  // gemessene Streuung dieser Anlage: größter Unterschied Prognose − Nachmessung der letzten Prüfung (null: keine)
+  // B8: nur Prüfungen dieses Ablaufs (Runde des Maßstabs, Nachmessungen) und desselben Modus
+  function streuungJetzt(F) {
+    try { const ids = new Set([F && F.massstab && F.massstab.runde].concat(((F && F.versuche) || []).map((v) => v && v.runde)).filter(Boolean)), modus = (F && F.modus) || modusJetzt();
+      const r = (typeof runden !== "undefined" ? runden : []).find((x) => x && ids.has(x.id) && (x.modus || modus) === modus && x.urteil && x.urteil.pruefung && x.urteil.pruefung.kacheln); if (!r) return null;
+      const w = Object.values(r.urteil.pruefung.kacheln).map((k) => Math.abs(+k.abweichung)).filter(Number.isFinite); return w.length ? Math.round(Math.max(...w)) : null; } catch (e) { return null; }
+  }
+  const tolPunkte = (F) => Math.max(K.STREUUNG_PUNKTE, streuungJetzt(F) || 0);
   function ergebnis(F) {
+    if (NEU()) nachholen();
     const v = F.versuche[F.versuche.length - 1], m0 = F.massstab, mit = v.mit, p = v.pruef;
-    const warn = Object.keys(mit.kacheln).filter((k) => p.schlechter.includes(k)).concat(p.ring_besser ? [] : ["ring"]);
+    const warn = Object.keys(mit.kacheln).filter((k) => p.schlechter.includes(k)).concat(p.ring_besser || NEU() ? [] : ["ring"]);
     // aus denselben Werten wie die Tabelle (Summe der Zeile = Ring, Punkt 16)
     const ringZeile = `<p class="klein" id="sa-ring">Ring: ohne Sub ${ringSumme(m0.kacheln)}, mit Sub ${ringSumme(mit.kacheln)} von ${Object.keys(mit.kacheln).length * 100}.</p>`;
     if (v.ergebnis === "besser") {
@@ -17791,6 +18024,13 @@ body.sa-misst .messlage { z-index: 70; }
         <p class="klein" id="sa-toene">${ex(`${toene} ${dr}`.trim())}</p>
         <div class="sa-knoepfe eins"><button type="button" id="sa-behalten">Behalten</button></div>`);
       el("sa-behalten").onclick = () => abschluss(F, "mit"); return;
+    }
+    if (v.ergebnis === "gleich") {
+      zeige(`${kopf("Schritt 4 von 4")}<h1 id="sa-h">Mit Sub gleich gut wie ohne</h1>
+        <p class="sa-lead" id="sa-gleich">${ex(`An allen ${mit.plaetze && mit.plaetze > 1 ? mit.plaetze : 5} Plätzen nachgemessen. Kein Wert unterscheidet sich um mehr als die Messstreuung (±${p.toleranz} Punkte). Du entscheidest.`)}</p>
+        ${kachelTabelle([["ohne Sub", m0], ["mit Sub", mit]], m0)}${ringZeile}
+        <div class="sa-knoepfe"><button type="button" class="zweit" id="sa-gleich-ohne">Ohne Sub behalten</button><button type="button" class="zweit" id="sa-gleich-mit">Mit Sub behalten</button></div>`);
+      el("sa-gleich-ohne").onclick = () => abschluss(F, "ohne"); el("sa-gleich-mit").onclick = () => abschluss(F, "mit"); return;
     }
     if (v.ergebnis === "nachbessern") {
       const rt = trennR(), rp = pegelR(), rph = phaseR(), s = v.stellung, n = v.neu;
@@ -17851,7 +18091,8 @@ body.sa-misst .messlage { z-index: 70; }
       philosophie: F.philosophie || "erweiterung", art: "einmessen_mit_sub", ergebnis: wahl, schlechter: wahl === "ohne", vorher: ringOhne, nachher: ringMit,
       stellungen: wahl === "ohne" ? { Sub: "aus" } : stellungObj(v.stellung), massstab_runde: F.massstab.runde, runde: wahl === "ohne" || !v ? F.massstab.runde : v.runde,
       messungen: F.messungen.length, nachmessungen: F.versuche.length, aufstellung: aufJetzt(), profile_neu_einmessen: wahl === "mit" ? andereNeu(F.modus) : [] };
-    const d = daten(); d.eintraege = [e].concat(d.eintraege || []).slice(0, 12); delete d.fluss; merke(SPEICHER, JSON.stringify(d));
+    if (NEU()) nachholen();  // N3: Offenes vorher noch senden; was nicht ankommt, bleibt über den Abschluss hinaus
+    const d = daten(); d.eintraege = [e].concat(d.eintraege || []).slice(0, 12); merke(SPEICHER, JSON.stringify(d)); flussSetzen(null, true);
     melden("ende", { ergebnis: wahl, ring_ohne: ringOhne, ring_mit: ringMit, stellung: wahl === "ohne" ? "Sub aus" : stellungText2(v.stellung), versuche: F.versuche.length, laden: e.runde });
     const laden = () => { schliessen(true); if (typeof boxSofortLaden === "function") boxSofortLaden(); else if (typeof zuEinmessen === "function") zuEinmessen(); };
     if (wahl === "ohne") {
@@ -17919,6 +18160,7 @@ body.sa-misst .messlage { z-index: 70; }
   }
   async function autoVorher() {
     messBild("So klingt es jetzt", "Sub · vorher", "Ich messe, wie Sub und Boxen jetzt zusammen klingen (etwa 5 Sekunden).");
+    if (NEU()) { const pg = await autoPegel(); if (!st) return; if (pg.fehler) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(pg.fehler)}</span>`; return; } st.subPegelDb = Number.isFinite(pg.db) ? pg.db : undefined; }
     const f = await liveStart(); if (f) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(f)}</span>`; return; }
     const k = await sammeln(); if (!st) return;
     if (!k) { if (st.live) { st.live.stopp(); st.live = null; } await signalAus(st); if (!st) return; st.abgebrochen = false;
@@ -17932,6 +18174,8 @@ body.sa-misst .messlage { z-index: 70; }
   async function autoSweeps(i) {
     messBild(st.plaetze > 1 ? `Platz ${i + 1} von ${st.plaetze}` : "Sub und Boxen einzeln", "Sub · Automatik",
       `${i ? "Setz dich auf den nächsten Platz. " : ""}Die Klång-Box spielt Sweeps: links, rechts, dann der Sub (etwa 25 Sekunden). Bitte still sein.`);
+    let pgAuto = null;
+    if (NEU()) { pgAuto = await autoPegel(); if (!st) return; if (pgAuto.fehler) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(pgAuto.fehler)}</span>`; return; } }
     if (typeof mikrofonOeffnen !== "function" || !AN) { el("sa-hinweis").textContent = "Die Auswertung fehlt auf dieser Seite."; return; }
     // Messpegel nicht mehr gültig (älter als 4 h, Neustart): erst einpegeln wie beim Einmessen (nie lauter)
     if (typeof messpegelSichern === "function" && !(await messpegelSichern(null, () => autoSweeps(i)))) {
@@ -17939,7 +18183,7 @@ body.sa-misst .messlage { z-index: 70; }
       const g = document.getElementById("mp-status"), t = g && g.textContent.trim();
       el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(t || "Der Pegel ließ sich nicht einstellen. Bitte noch einmal.")}</span>`; return; }
     const mic = await mikrofonOeffnen({}); if (mic.fehler) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${mic.fehler}</span>`; return; }
-    const a = await nativ.box("messsignal", { kanaele: ["FL", "FR", "SUB"], folge: "standard", start_in_ms: 1500, modus: st.modus }, { zeitMs: 15000 });
+    const a = await nativ.box("messsignal", { kanaele: ["FL", "FR", "SUB"], folge: "standard", start_in_ms: 1500, modus: st.modus, ...(pgAuto && Number.isFinite(pgAuto.db) ? { pegel_db: pgAuto.db } : {}) }, { zeitMs: 15000 });
     if (!a.ok) { mic.schliessen(); el("sa-hinweis").innerHTML = `<span class="sa-warn">Die Klång-Box spielt die Sweeps nicht (${ex(a.fehler || a.grund)}).</span>`; return; }
     const dauer = (Number.isFinite(+a.start_in_ms) ? +a.start_in_ms / 1000 : 1.5) + (+a.dauer_s || 20) + 2.5, t0 = Date.now();
     while (st && Date.now() - t0 < dauer * 1000) { const b = el("sa-fort"); if (b) b.style.width = `${Math.min(100, (Date.now() - t0) / 10 / dauer)}%`; await warte(250); }
@@ -18008,6 +18252,7 @@ body.sa-misst .messlage { z-index: 70; }
     }
     st.trenn = erg.trenn_hz;
     messBild("Nachmessen", "Sub · nachher", "Ich messe noch einmal, wie es jetzt klingt (etwa 5 Sekunden).");
+    if (NEU()) { const pg = await autoPegel(); if (!st) return; if (pg.fehler) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(pg.fehler)}</span>`; return; } st.subPegelDb = Number.isFinite(pg.db) ? pg.db : undefined; }
     const f = await liveStart(); if (f) { el("sa-hinweis").innerHTML = `<span class="sa-warn">${ex(f)}</span>`; return; }
     const k = await sammeln();
     if (st && st.live) { st.live.stopp(); st.live = null; }
@@ -18044,8 +18289,8 @@ body.sa-misst .messlage { z-index: 70; }
     }
     st = { r: null, modus: "stereo", plan: { fall: "regler", schritte: [] }, phil: "erweiterung", schritte: [], zuletzt: {}, extra: {}, nah: {} };
     zeige(`${kopf("Testlabor · Sub-Nahtest")}<h1 id="sa-h">Box gegen Sub</h1>
-      <p class="sa-lead">Die Box spielt einen tiefen Prüfton (25–120 Hz), gleich laut für deine Box und für den Sub. Du legst das Handy dreimal aus der Nähe hin. Danach siehst du, ob der Sub so kräftig spielt, wie er sollte.</p>
-      <ol class="sa-liste klein"><li>Handy 10 cm vor den Tieftöner einer Box, Sub aus</li><li>Handy 10 cm vor den Sub, Sub aus</li><li>Gleiche Stelle, Sub an: Level und Crossover ganz auf</li></ol>
+      <p class="sa-lead">Die Box spielt einen tiefen Prüfton (25–120 Hz), gleich laut für deine Box und für den Sub. Du legst das Handy dreimal aus der Nähe hin. Danach siehst du, ${NEU() ? "ob vom Sub etwas ankommt" : "ob der Sub so kräftig spielt, wie er sollte"}.</p>
+      <ol class="sa-liste klein"><li>Handy 10 cm vor den Tieftöner einer Box, Sub aus</li><li>Handy 10 cm vor den Sub, Sub aus</li><li>${NEU() ? "Gleiche Stelle, Sub an, so wie er steht" : "Gleiche Stelle, Sub an: Level und Crossover ganz auf"}</li></ol>
       <p class="klein">Je Messung etwa 30 Sekunden, das Handy liegt dabei, du bist still. Kein Kabel umstecken. Für einen Sub an den Lautsprecherklemmen deines Verstärkers.</p>
       <div class="sa-knoepfe eins"><button type="button" id="sa-nah-los">Los geht's</button></div>`);
     el("sa-nah-los").onclick = () => nahSchritt(0);
@@ -18055,13 +18300,19 @@ body.sa-misst .messlage { z-index: 70; }
     { key: "aus", titel: "Vor den Sub, Sub aus", text: "Sub bleibt aus. Leg das Handy 10 cm vor den Sub (bei einem Sub, der nach unten abstrahlt: auf den Boden direkt davor), Mikrofon zum Sub.", knopf: "Liegt · Messen" },
     { key: "an", titel: "Sub an, ganz auf", text: "Handy liegen lassen. Sub einschalten, Level und Crossover ganz auf, Phase egal. Dann still sein.", knopf: "Sub ist an · Messen" },
   ];
+  // Paket 3 (N1): mit Schalter nie „ganz auf“, nichts verstellen
+  const NAH_AN_NEU = { key: "an", titel: "Sub an, so wie er steht", text: "Handy liegen lassen. Sub einschalten, nichts verstellen. Dann still sein.", knopf: "Sub ist an · Messen" };
   function nahSchritt(i, meldung = "") {
-    const s = NAH_SCHRITTE[i];
+    const s = NEU() && i === 2 ? NAH_AN_NEU : NAH_SCHRITTE[i];
     messBild(s.titel, `Testlabor · Sub-Nahtest · ${i + 1} von 3`, ex(s.text), `<div class="sa-knoepfe eins"><button type="button" id="sa-nah-m">${s.knopf}</button></div>`);
     el("sa-hinweis").innerHTML = meldung;
     el("sa-nah-m").onclick = async () => { el("sa-nah-m").disabled = true;
       // erste Messung pegelt ein (−12, −6, 0 dB, bis 20 dB über dem Raumgeräusch); die anderen bei demselben Pegel
-      const stufen = i === 0 && quelleJetzt() === "box" ? CHECK_DB : [i === 0 ? null : st.nah.db]; let m = null;
+      let stufen = i === 0 && quelleJetzt() === "box" ? CHECK_DB : [i === 0 ? null : st.nah.db]; let m = null;
+      if (NEU() && quelleJetzt() === "box") {  // N1: wie E2/B3 und N2: nie über der Hörlautstärke, unbekannt −30 dB
+        if (i === 0) { const hoer = await hoerDb(); if (!st) return; stufen = pruefStufen(hoer); if (!stufen) { nahSchritt(i, `<span class="sa-warn">${ex(zuLeiseText(hoer))}</span>`); return; } }
+        else { const pg = await messPegel(st.nah.db); if (!st) return; if (pg.fehler) { nahSchritt(i, `<span class="sa-warn">${ex(pg.fehler)}</span>`); return; } stufen = [pg.db]; }
+      }
       for (const db of stufen) { st.subPegelDb = db === null || db === undefined ? undefined : db;
         m = await einmal(db === null || db === undefined ? "" : `Prüfton ${zahl(db, 0)} dB.`, i === 2 ? 6000 : 0); if (!st) return;
         if (m.fehler && !m.leise) break; if (!m.leise && (m.w.snr_db === null || m.w.snr_db >= CHECK_ABSTAND_DB)) break; }
@@ -18077,7 +18328,11 @@ body.sa-misst .messlage { z-index: 70; }
       return { lo, hi, box: b, sub, diff: sub !== null && b !== null ? sub - b : null, mehr: a !== null && s !== null ? s - a : null };
     });
     const haupt = zeilen.filter((z) => z.hi <= 80 && z.diff !== null), schnitt = haupt.length ? haupt.reduce((q, z) => q + z.diff, 0) / haupt.length : null;
-    const urteil = schnitt === null ? ["Nicht zu beurteilen", "Der Sub hat die Messung vor ihm kaum verändert. Ist er wirklich an (Lampe), Level ganz auf? Steckt das Kabel zum Sub fest?"]
+    const nw = NEU() ? K.nahNachweis(n.aus, n.an) : null;  // N1: ohne „ganz auf“ gelten die Schwellen nicht, nur: kommt etwas an?
+    const urteil = nw ? (nw.da ? ["Der Sub spielt", "Aus der Nähe ist er klar zu messen, so wie er steht."]
+      : nw.da === false ? ["Vom Sub kommt nichts an", "Auch aus der Nähe ändert sich mit Sub kaum etwas. Ist er an (Netzschalter, Lampe)? Sitzt das Kabel zum Sub fest, auch die blanken Drähte?"]
+      : ["Nicht zu beurteilen", "Zu nah am Raumgeräusch. Leg das Handy direkt vor die Membran und miss noch einmal."])
+      : schnitt === null ? ["Nicht zu beurteilen", "Der Sub hat die Messung vor ihm kaum verändert. Ist er wirklich an (Lampe), Level ganz auf? Steckt das Kabel zum Sub fest?"]
       // Schwellen mit Spielraum für die Bauart (Prüfer: nach unten strahlender Sub, Handy am Boden, misst ~25–35 cm
       // von der Membranmitte, der Boden gibt ~+6 dB; gesund liegt er dann etwa −2 bis −4 dB unter dem Tieftöner)
       : schnitt >= -8 ? ["Der Sub spielt kräftig", "Aus der Nähe ist er etwa so laut wie der Tieftöner deiner Box, wie es sein soll. Am Sub liegt es nicht."]
@@ -18096,6 +18351,8 @@ body.sa-misst .messlage { z-index: 70; }
   // --- Karten für die Seite ------------------------------------------------------------------------------------------
   function zuhauseKarte() {
     if (!hatSubJetzt()) return "";
+    const offenAlt = NEU() ? speicherText() : "";  // N3: Offenes eines abgeschlossenen Ablaufs zeigen und nachholen
+    if (offenAlt) setTimeout(nachholen, 0);
     const F = fluss(), l = (daten().eintraege || [])[0], box = boxDa() && subAnBox();
     const lauf = { ohne: "Schritt 1: Raum ohne Sub", hoerplatz: "Schritt 2: Sub am Hörplatz", empfehlung: "Schritt 3: Empfehlung", nach: "Schritt 4: Nachmessung mit Sub", ergebnis: "Schritt 4: Ergebnis" };
     const text = F && !box ? `<span>Einmessen mit Sub läuft</span><span class="klein">${ex(lauf[F.phase] || "")}</span>`
@@ -18104,7 +18361,7 @@ body.sa-misst .messlage { z-index: 70; }
     const offen = !F && l && l.art === "einmessen_mit_sub" ? neuOffen(l) : [], u = !F && !box ? uebernommen() : null;
     const zusatz = offen.map((m) => `<span class="klein sa-warn" data-sa-neu="${ex(m)}">${ex(MODUS_NAME[m] || m)} neu einmessen (Sub geändert)</span>`).join("")
       + (u ? `<span class="klein" id="sa-uebernommen">${ex(uebernahmeText(u))}</span>` : "");
-    return `<div class="sa-zuhause" style="display:grid; gap:8px"><span class="marke">Sub</span>${text}${zusatz}
+    return `<div class="sa-zuhause" style="display:grid; gap:8px"><span class="marke">Sub</span>${text}${zusatz}${offenAlt ? `<span class="klein" id="sa-offen">${ex(offenAlt)}</span>` : ""}
       <button type="button" class="zweit" data-sa-start="zuhause">${box ? "Sub abgleichen" : F ? "Weiter" : u ? "Sub neu abgleichen" : "Einmessen mit Sub"}</button></div>`;
   }
   // „Neu einmessen“ mit Sub (Besitzer 18.11.2026): statt der Einmessung allein der Ablauf mit Sub; läuft er schon und wartet
@@ -18150,6 +18407,7 @@ body.sa-misst .messlage { z-index: 70; }
     } finally { st = alt; }
   }
   function einstieg() {
+    if (NEU()) return false;  // Paket 3 (E1): „Neu einmessen“ misst normal, den Sub-Abgleich gibt es unter Einmessen › Mehr
     if (!hatSubJetzt()) return false;
     const s = neuerZustand(); if (!["regler", "misch"].includes(s.plan.fall)) return false;
     const F = fluss(); if (F && F.modus === s.modus && (F.phase === "ohne" || F.phase === "nach")) return false;
@@ -18162,7 +18420,7 @@ body.sa-misst .messlage { z-index: 70; }
     const F = fluss();
     if (F && F.phase === "ohne") return { text: "Einmessen mit Sub, Schritt 1 von 4: Raum ohne Sub. Der Sub bleibt aus.", knopf: null };
     if (F && F.phase === "nach") return { text: "Einmessen mit Sub, Schritt 4 von 4: Nachmessung mit Sub. Nichts mehr am Sub drehen.", knopf: null };
-    if (!hatSubJetzt() || F) return null;
+    if (!hatSubJetzt() || F || NEU()) return null;
     const s = neuerZustand(); if (!["regler", "misch"].includes(s.plan.fall)) return null;
     const u = uebernommen(); if (u) return { text: uebernahmeText(u), knopf: null };
     return { text: "Mit Sub: einmal mit Sub einmessen (etwa 15 Minuten)?", knopf: "Einmessen mit Sub" };
@@ -18172,7 +18430,21 @@ body.sa-misst .messlage { z-index: 70; }
   const weg = () => { if (!st) return; if (st.sammelnAbbruch) st.sammelnAbbruch(); if (st.boxSignal || st.ton || st.live) { if (st.live) { st.live.stopp(); st.live = null; } signalAus(st); } };
   document.addEventListener("visibilitychange", () => { if (document.hidden) weg(); });
   window.addEventListener("pagehide", weg);
-  window.SA_TEST = { get zustand() { return st; } };
+  window.SA_TEST = { get zustand() { return st; }, pruefStufen, subSpeichern, flussSetzen, abschlussTest: (F, wahl) => { st = neuerZustand(); abschluss(F, wahl); },
+    autoTest: (was) => { st = neuerZustand(); st.r = { e: { einstellungen: {}, sitzplaetze: [] }, modus: st.modus }; st.mitEinstellungen = true; st.plaetze = 1; st.messungen = []; if (was === "sweeps") autoSweeps(0); else autoVorher(); },
+    // Paket 3 (Bilder vorher/nachher): Bildschirme mit gemessenen Werten zeigen, ohne zu messen
+    bild: { pruefen(c, nachweis) { st = neuerZustand(); const F = { fb: 76, haupt: { kurve: { db: [] } }, messungen: [{ befund: c, nachweis }] };
+              if (NEU()) nachweisOffen(F, F.messungen[0]); else subNichtGefunden(c, () => {}, () => {}); },
+            keine(F, ohne) { st = neuerZustand(); F.messungen.forEach((m) => { m.b = { ...m.b }; }); const zeilen = hoerplatzZeilen(F).zeilen, erg = { naechste: F.naechste };
+              const alt = K.HOERPLATZ_FIX; keineStellungMit(F, zeilen, ohne, erg); return alt; },
+            nah(i) { st = neuerZustand(); if (NEU()) nahImFluss({ haupt: { db: -12 } }, i); else nahSchritt(i); },
+            naechste(F) { st = neuerZustand(); naechsteMessung(F); },
+            hoerplatz(F, ohne) { st = neuerZustand(); F.haupt = F.haupt || { kurve: { db: [], rausch_db: [] }, db: null, vergleich_db: null }; empfehlung(F, ohne); },
+            nach(massstabR, mitR, vorher = 2) { st = neuerZustand(mitR); const m0 = rundeWerte(massstabR), s0 = { trenn: 15, pegel: "mitte", phase: "0" };
+              const F = { modus: "stereo", phase: "nach", massstab: m0, fb: 47, stellung: s0, start: s0, versuche: Array.from({ length: vorher }, () => ({})), messungen: [] };
+              nachmessungAuswerten(F, mitR); },
+            nahErgebnis(n) { st = neuerZustand(); nahFlussErgebnis({ haupt: {} , messungen: [] }, n); } } };
+  function keineStellungMit(F, zeilen, ohne, erg) { keineStellung(F, zeilen, ohne, erg); }
   // Einstieg für andere Teile der Seite (z. B. Schritt 3 „Vorbereiten“): oeffnen({ zurueck: 3 })
   window.klangboxSubAbgleich = { oeffnen: (opts = {}) => oeffnen(typeof aktuelleRunde === "function" ? aktuelleRunde() : null, opts), daten, fluss, einstieg, vorbereiten,
     subZuerstErlaubt, nachfuehren,

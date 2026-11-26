@@ -12,7 +12,9 @@
  *   Seite (https) frei. Darum führt jeder Weg zum Einmessen zur Mess-Seite im Internet.
  * - Ergebnisse kommen per Kopieren und Einfügen (oder als Datei) zurück: Die Mess-Seite liegt auf https, die Box auf
  *   http; direkt darf die Mess-Seite die Box im Browser nicht ansprechen.
- * - Unter Zuhause steht die Adresse der Box (IP), falls klangbox.local im Netz einmal nicht geht.
+ * - Über dem Kopf steht nichts (wie auf Hören): Die Adresse der Box (IP, falls klangbox.local im Netz einmal nicht geht)
+ *   steht leise unter Box › Mehr › WLAN, „Ergebnis übernehmen“ unter Einmessen (oben, solange nichts eingemessen ist,
+ *   sonst in Einmessen › Mehr), der Hinweis für eine Rear-Box im Zustand der Box (Vorlage: boxAdresseHtml, boxStatusHtml).
  */
 (function () {
   "use strict";
@@ -39,16 +41,22 @@
   // Token: im Browser gemerkt; im privaten Modus (kein localStorage) wenigstens bis zum Neuladen
   let tokenHier = null;
   const token = () => lesen(TOKEN) || tokenHier;
-  async function anfrage(methode, pfad, daten) {
+  // zeitMs (optional): nach so vielen ms abbrechen (dann „netz“), z. B. die Probe vor dem Neuladen nach einem Update
+  async function anfrage(methode, pfad, daten, zeitMs = 0) {
     const kopf = { "Content-Type": "application/json" }, t = token();
     if (t) kopf["X-Klangbox-Token"] = t;
+    const ab = zeitMs && typeof AbortController === "function" ? new AbortController() : null;
+    const uhr = ab ? setTimeout(() => ab.abort(), zeitMs) : 0;
     try {
-      const r = await fetch(pfad, { method: methode, headers: kopf, cache: "no-store", body: methode === "GET" ? undefined : JSON.stringify(daten || {}) });
+      const r = await fetch(pfad, { method: methode, headers: kopf, cache: "no-store", body: methode === "GET" ? undefined : JSON.stringify(daten || {}),
+        ...(ab ? { signal: ab.signal } : {}) });
       let d = null; try { d = await r.json(); } catch (e) { d = null; }
       if (!d || typeof d !== "object") d = { ok: false, grund: "format", fehler: "Die Box hat unklar geantwortet." };
       return { code: r.status, d, t };
     } catch (e) {
       return { code: 0, t, d: { ok: false, grund: "netz", fehler: "Die Klång-Box ist gerade nicht erreichbar." } };
+    } finally {
+      if (uhr) clearTimeout(uhr);
     }
   }
   async function koppeln() {
@@ -107,17 +115,124 @@
   mitCodeKoppeln().then(() => einladen());
   setInterval(() => { if (!document.hidden) einladen(); }, 10 * 60 * 1000);
 
+  // Neue Software auf der Box (Update, auch nachts von selbst; Zurück zur alten Version): Die Seite kam mit der alten
+  // Version und spricht deren Schnittstelle (0.3.56: Lautstärke-Stufen nur mit passender Skala, sonst 409). Meldet der
+  // Status eine andere Version als beim Laden, lädt sie sich einmal neu, aber nur
+  // - sichtbar (im Hintergrund erst beim Wiederkommen),
+  // - wenn nichts in Arbeit ist (seiteRuhig: Zuhause, kein Sheet/Dialog, keine Messansicht, Hörprobe, Verbindungstest,
+  //   keine ungesicherte Messung, keine Eingabe); sonst ein ruhiger Hinweis „Neue Version da“ unter dem Kopf (nur auf Zuhause ohne
+  //   Sheet, Dialog und Messansicht, sonst still), und beim nächsten Status wird erneut geprüft,
+  // - wenn die Box gerade antwortet (GET /api/status, höchstens NEU_PROBE_MS; sonst bliebe die Home-Bildschirm-App auf
+  //   der Fehlerseite stehen),
+  // - je Version höchstens einmal von selbst (sessionStorage), damit eine Box, die zwischen zwei Versionen wechselt,
+  //   keine Schleife auslöst.
+  const NEU_FUER = "klangbox-neu-geladen-fuer";
+  const NEU_PROBE_MS = 5000;  // so lange auf GET /api/status warten, bevor neu geladen wird
+  let versionGeladen = null, versionNeu = null, neuPrueft = false;
+  // Ungesicherte Messung (Vorlage): Neu laden verlöre sie. Nicht dazu zählt, was die Box schon hat und die Seite jederzeit
+  // zurückholt (nach.vorher einer Runde mit messdaten_box, nachVorherVonDerBox).
+  // (1) Aufnahmen der laufenden Messung (dateien; nach dem Auswerten geleert und in messdaten)
+  // (2) Aufnahmen vom Einmessen zum Nachmessen, deren Runde noch nicht auf der Box liegt (messdaten_box)
+  // (3) Nachmessung ohne Urteil oder noch nicht auf der Box (pruefung_box, pruefungHochladenJetzt)
+  // (4) ein weiterer Platz halb gemessen (nach.extraName: vorher da, nachher fehlt)
+  // (5) Upload zur Box läuft oder wartet (mdKette, mdOffen)
+  function ungesichert() {
+    /* global dateien, nach, runden, mdOffen */
+    if (typeof dateien === "undefined" || typeof nach === "undefined" || typeof runden === "undefined") return true;
+    if (dateien.length) return true;
+    const n = nach || {}, r = n.rundeId ? runden.find((x) => x && x.id === n.rundeId) : null;
+    if (n.rundeId && Object.keys(n.vorher || {}).length && (!r || r.messdaten_box !== n.rundeId)) return true;
+    if (Object.keys(n.nachher || {}).length && (!r || !r.urteil || r.pruefung_box !== r.id)) return true;
+    if (n.extraName) return true;
+    return typeof mdOffen !== "undefined" && mdOffen > 0;
+  }
+  // Zustandsmerker der Seite (Vorlage, lautstaerke.js, verbindungstest.js); fehlt einer oder geht etwas schief: nicht ruhig
+  function seiteRuhig() {
+    try {
+      /* global schrittJetzt, sheet, LAUT, zhFunkLaeuft */
+      if (typeof schrittJetzt === "undefined" || schrittJetzt !== 18) return false;  // nur auf Zuhause (Messen, Kanal-Check, Einrichten: andere Schritte)
+      if (typeof sheet === "undefined" || sheet.offen() || offen || document.querySelector(".bs-schleier")) return false;
+      if (document.body.classList.contains("vt-an")) return false;  // Verbindungstest
+      const sichtbar = (id) => { const e = document.getElementById(id); return !!e && !e.hidden && e.getClientRects().length > 0; };
+      if (sichtbar("messlage") || sichtbar("hp")) return false;  // Messansicht, Hörprobe
+      if (typeof LAUT !== "undefined" && LAUT._z && (LAUT._z.ziehen || LAUT._z.offen != null || LAUT._z.inFlug)) return false;
+      if (typeof zhFunkLaeuft !== "undefined" && zhFunkLaeuft) return false;
+      if (ungesichert()) return false;
+      const a = document.activeElement;
+      if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+      if ([...document.querySelectorAll("textarea")].some((x) => x.value.trim())) return false;
+      return true;
+    } catch (e) { return false; }
+  }
+  // Der Hinweis steht im Fluss direkt unter dem Kopf von Hören bzw. Einmessen (.zh-kopf), nie über Bedienelementen:
+  // nur auf Zuhause, wenn dieser Kopf sichtbar ist und kein Sheet, Dialog, keine Messansicht und kein Verbindungstest
+  // offen ist. Sonst wartet die Seite still. Antippen: ruhig neu laden, sonst Rückfrage; immer erst, wenn die Box antwortet.
+  function hinweisPlatz() {
+    try {
+      if (typeof schrittJetzt === "undefined" || schrittJetzt !== 18) return null;
+      if (typeof sheet === "undefined" || sheet.offen() || offen || document.querySelector(".bs-schleier")) return null;
+      if (document.body.classList.contains("vt-an")) return null;
+      const ml = document.getElementById("messlage"); if (ml && !ml.hidden) return null;
+      const k = document.querySelector('.schritt[data-s="18"] > .zh-kopf');
+      return k && k.getClientRects().length ? k : null;
+    } catch (e) { return null; }
+  }
+  function neuHinweis(an) {
+    let h = document.getElementById("bs-neu");
+    const k = an ? hinweisPlatz() : null;
+    if (!k) { if (h) h.hidden = true; return; }
+    if (!h) {
+      stil();
+      h = document.createElement("button");
+      h.type = "button"; h.id = "bs-neu"; h.className = "bs-neu";
+      h.textContent = "Neue Version da – Seite neu laden";
+      h.addEventListener("click", () => { if (versionNeu && !h.hidden) antippen(); });
+    }
+    if (h.previousElementSibling !== k) k.after(h);
+    h.hidden = false;
+  }
+  // Antippen: ruhig gleich (nach der Probe); sonst eine Rückfrage, nie wirkungslos
+  function antippen() {
+    if (seiteRuhig()) { neuLaden(true); return; }
+    dialog(`<h2 id="bs-titel">Eine ungesicherte Messung geht verloren – trotzdem neu laden?</h2>
+      <div class="knoepfe"><button type="button" id="bs-neu-ja">Ja, neu laden</button><button type="button" class="zweit" id="bs-neu-nein" data-bs-zu>Nein</button></div>`);
+    document.getElementById("bs-neu-ja").addEventListener("click", () => { zu(); neuLaden(true, true); });
+  }
+  async function neuLaden(getippt = false, trotzdem = false) {
+    const ruhig = () => trotzdem || seiteRuhig();
+    if (neuPrueft || !ruhig()) { neuHinweis(true); return; }  // in Arbeit: von selbst nie
+    neuPrueft = true;
+    const { code, d } = await anfrage("GET", "/api/status", null, NEU_PROBE_MS);
+    neuPrueft = false;
+    if (code !== 200 || !d || d.ok === false || document.hidden || !ruhig()) { neuHinweis(true); return; }  // später erneut
+    if (!getippt) try { sessionStorage.setItem(NEU_FUER, versionNeu); } catch (e) { /* egal */ }
+    location.reload();
+  }
+  async function versionPruefen(v) {
+    if (typeof v !== "string" || !v) return;
+    if (versionGeladen === null) { versionGeladen = v; return; }
+    versionNeu = v !== versionGeladen ? v : null;  // wieder die alte (zurückgerollt, bevor neu geladen wurde): nichts
+    if (!versionNeu) { neuHinweis(false); return; }
+    if (document.hidden || neuPrueft) return;
+    let schon = null; try { schon = sessionStorage.getItem(NEU_FUER); } catch (e) { /* privat: dann ohne Merken */ }
+    if (schon === versionNeu) { neuHinweis(true); return; }
+    neuLaden();
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && versionNeu) versionPruefen(versionNeu); });
+  N.versionGeladen = () => versionGeladen;  // für Tests
+
   function statusMerken(d) {
     status = d;
+    versionPruefen(d.version);
     if (d.id) boxen.haupt = d.id;
     if (d.layout) boxen.layout = d.layout;
     // Kanal-Check der Seite braucht Layout und Zuordnung der Box (sonst nur in der App eingerichtet)
     try { if (typeof ein !== "undefined" && ein && !ein.layout && d.layout && d.zuordnung) { ein.layout = d.layout; ein.zuordnung = d.zuordnung; } } catch (e) { /* Seite noch nicht bereit */ }
     if (Array.isArray(d.satelliten)) boxen.boxen = [{ id: d.id, name: d.name, rolle: d.rolle }, ...d.satelliten.map((s) => ({ id: s.id, name: s.name, rolle: "satellit" }))];
-    adresseZeigen(); obenZeigen();
+    obenZeigen();
   }
   // Lesende Aufrufe des Alltags (Jetzt läuft, Bibliothek …): ohne Daten per GET, die Abfrage steht im Namen
-  const LESEN = new Set(["status", "ausgangspegel", "jetzt", "jetzt/details", "jetzt/pegel", "signalweg", "diagnose", "bericht", "bibliothek", "warteschlange", "sicherung", "wlan", "regal", "regal/booklet", "regal/suche"]);
+  const LESEN = new Set(["status", "ausgangspegel", "jetzt", "jetzt/details", "jetzt/pegel", "signalweg", "diagnose", "bericht", "funk/protokoll", "bibliothek", "warteschlange", "sicherung", "wlan", "regal", "regal/booklet", "regal/suche", "regal/titel", "regal/import"]);
   const leer = (d) => !d || (typeof d === "object" && !Object.keys(d).length);
   async function aufruf(name, daten, boxId) {
     const sat = boxId && boxId !== "box" && status && boxId !== status.id;
@@ -155,13 +270,28 @@
       return { ok: false, grund: "netz", fehler: "Die Klång-Box ist gerade nicht erreichbar." };
     }
   }
-  const NUR_APP = new Set(["suchen", "einrichtung"]);
+  // Boxen einrichten ohne App (Rear-Box): Die App sucht per Bonjour und koppelt jede Box selbst. Hier tut das die
+  // Hauptbox (POST /api/satelliten): Sie sucht im Heimnetz, koppelt den Satelliten Box zu Box und behält sein Token;
+  // der Browser bekommt es nie. Danach gehen Rollen, Funk (partner {id}) und Kanäle wie in der App.
+  async function suchen() {
+    const s = status && status.id ? status : await aufruf("status");
+    if (!s || !s.id) return { ok: false, grund: "netz", fehler: "Die Klång-Box ist gerade nicht erreichbar." };
+    const r = await aufruf("satelliten", { aktion: "suchen" });
+    if (!r.ok) return r;
+    return { ok: true, boxen: [{ id: s.id, name: s.name, rolle: s.rolle, gekoppelt: true },
+      ...(r.boxen || []).filter((b) => b.rolle !== "haupt").map((b) => ({ id: b.id, name: b.name, rolle: b.rolle, gekoppelt: !!b.gekoppelt, ...(b.erreichbar_ueber ? { erreichbar_ueber: b.erreichbar_ueber } : {}) }))] };
+  }
+  const satKoppeln = (daten, boxId) => aufruf("satelliten", daten && daten.adresse ? { aktion: "koppeln", adresse: daten.adresse } : { aktion: "koppeln", id: boxId });
+  const hierSelbst = (boxId) => !boxId || boxId === "box" || (status && boxId === status.id);
   const antworten = (fn, ...a) => setTimeout(() => { try { if (typeof N[fn] === "function") N[fn](...a); } catch (e) { /* Seite noch nicht bereit */ } }, 0);
   const bruecke = { postMessage(m) {
     if (!m || typeof m !== "object") return;
     if (m.art === "box") {
-      if (NUR_APP.has(m.aufruf)) return antworten("boxAntwort", m.reqId, { ok: false, grund: "nur_app", fehler: "Das geht nur in der App." });
-      const p = m.aufruf === "koppeln" ? koppelnEinmal() : aufruf(m.aufruf, m.daten, m.box);
+      // einrichtung: Die App merkt sich die Einrichtung; hier steht sie in der Box (Status: layout, satelliten)
+      if (m.aufruf === "einrichtung") { if (m.daten && m.daten.layout) boxen.layout = m.daten.layout; return antworten("boxAntwort", m.reqId, { ok: true }); }
+      const p = m.aufruf === "suchen" ? suchen()
+        : m.aufruf === "koppeln" ? ((m.daten && m.daten.adresse) || !hierSelbst(m.box) ? satKoppeln(m.daten, m.box) : koppelnEinmal())
+        : aufruf(m.aufruf, m.daten, m.box);
       p.then((d) => antworten("boxAntwort", m.reqId, d));
     } else if (m.art === "aufnahmeStart") antworten("aufnahmeFehler", m.id, "Messen geht auf der Mess-Seite im Internet.");
     else if (typeof m.art === "string" && m.art.startsWith("kef")) antworten("kefAntwort", m.reqId, { ok: false, grund: "nur_app", fehler: "Das geht nur in der App." });
@@ -191,10 +321,9 @@
   color: var(--kb-text); font: 400 15px/20px var(--kb-schrift); padding: 12px; resize: vertical; }
 .bs-dialog .knoepfe { display: grid; gap: 12px; }
 .bs-dialog a.knopf { display: grid; place-items: center; text-decoration: none; }
-.bs-box { display: grid; gap: 8px; }
-.bs-box .reihe { display: flex; gap: 8px; flex-wrap: wrap; }
-.bs-box .reihe button { flex: 1 1 140px; }
-.bs-adresse { overflow-wrap: anywhere; }
+.bs-neu { display: block; width: 100%; margin: 0 0 12px; text-align: left; background: var(--kb-flaeche); color: var(--kb-text);
+  border: 1px solid var(--kb-linie); border-radius: var(--kb-r-gruppe); padding: 10px 16px; font: var(--kb-t-bedien); cursor: pointer; }
+.bs-neu[hidden] { display: none; }
 `;
   function stil() {
     if (document.getElementById("bs-stil")) return;
@@ -214,18 +343,10 @@
   }
   const messLink = (text, klasse = "knopf") => `<a class="${klasse}" href="${MESS_SEITE}" target="_blank" rel="noopener">${esc(text)}</a>`;
 
-  function dialogEinmessen(n) {
-    const anlage = n === 2;
-    if (!DIREKT) return dialogDirekt(anlage);
-    // https: Einrichten von Boxen (Suchen, Rollen, Funk) geht nur in der App; alles andere läuft hier
-    dialog(`<span class="eyebrow">Meine Anlage</span><h2 id="bs-titel">Boxen einrichten geht in der App</h2>
-      <p class="klein">Einmessen, Nachmessen und Hören gehen hier. Boxen suchen, Rollen und Funk richtet die App ein.</p>
-      <div class="knoepfe"><button type="button" class="leise" data-bs-zu>Zurück</button></div>`);
-  }
-
-  // http: einmalig das Zertifikat der Box vertrauen, dann https://klangbox.local und dort direkt einmessen
-  function dialogDirekt(anlage) {
-    dialog(`<span class="eyebrow">${anlage ? "Meine Anlage" : "Einmessen"}</span><h2 id="bs-titel">Direkt hier einmessen</h2>
+  // http (nur dann leitet die Seite um, für Schritte mit Mikrofon): einmalig das Zertifikat der Box vertrauen, dann
+  // https://klangbox.local und dort direkt einmessen. Boxen einrichten geht auf beiden Seiten hier (Hauptbox koppelt).
+  function dialogDirekt() {
+    dialog(`<span class="eyebrow">Einmessen</span><h2 id="bs-titel">Direkt hier einmessen</h2>
       <p class="klein">Das Mikrofon gibt Safari nur auf einer sicheren Seite frei. Die Box hat dafür ein eigenes Zertifikat. Einmalig, etwa 2 Minuten:</p>
       <ol class="klein"><li><a href="/klangbox-zertifikat.crt">Zertifikat der Box laden</a> und „Zulassen“ tippen.</li>
       <li>Einstellungen öffnen, oben „Profil geladen“ tippen und installieren.</li>
@@ -234,7 +355,7 @@
       <div class="knoepfe"><a class="knopf" id="bs-https" href="${esc(HTTPS_ADRESSE)}">Sichere Seite öffnen</a>
       <button type="button" class="leise" id="bs-mess-seite">Lieber über die Mess-Seite im Internet</button>
       <button type="button" class="leise" data-bs-zu>Zurück</button></div>`);
-    offen.querySelector("#bs-mess-seite").addEventListener("click", () => dialogMessSeite(anlage));
+    offen.querySelector("#bs-mess-seite").addEventListener("click", dialogMessSeite);
     // mit Einmal-Code: die sichere Seite ist gleich gekoppelt (kein Ausstecken)
     offen.querySelector("#bs-https").addEventListener("click", async (ev) => {
       const code = einladungCode || await einladen(); if (!code) return;
@@ -242,9 +363,8 @@
     });
   }
 
-  function dialogMessSeite(n) {
-    const anlage = n === true || n === 2;
-    dialog(`<span class="eyebrow">${anlage ? "Meine Anlage" : "Einmessen"}</span><h2 id="bs-titel">${anlage ? "Das geht auf der Mess-Seite" : "Einmessen auf der Mess-Seite"}</h2>
+  function dialogMessSeite() {
+    dialog(`<span class="eyebrow">Einmessen</span><h2 id="bs-titel">Einmessen auf der Mess-Seite</h2>
       <p class="klein">Einmessen braucht das Mikrofon. Das gibt der Browser nur auf einer sicheren Seite frei, darum geht es über die Mess-Seite im Internet. Diese Seite hier ist zum Bedienen.</p>
       <ol class="klein"><li>Mess-Seite öffnen und dort einmessen.</li><li>Am Ende dort „Kopieren“ tippen.</li><li>Zurück hierher, „Ergebnis übernehmen“, einfügen.</li><li>Auf der Mess-Seite nachmessen, das Ergebnis genauso hierher.</li></ol>
       <div class="knoepfe">${messLink("Mess-Seite öffnen")}<button type="button" class="zweit" id="bs-zu-uebernehmen">Ergebnis übernehmen</button><button type="button" class="leise" data-bs-zu>Zurück</button></div>`);
@@ -302,25 +422,20 @@
     melden();
   }
 
-  // --- Unter Zuhause: Einmessen, Ergebnis übernehmen, Adresse ---------------------------------------------------------
-  function adresseZeigen() {
-    const el = document.getElementById("bs-adresse"); if (!el || !status) return;
-    // Rückfall, falls klangbox.local im Netz nicht geht: die IP (dieselbe Seite, auch als eigene Home-Bildschirm-App)
-    const n = status.netz || {}, ueberIp = n.ip && location.hostname === n.ip;
-    const name = n.alias || (/\.local$/.test(location.hostname) ? location.hostname : null);
-    const pr = location.protocol === "https:" ? "https" : "http";
-    el.innerHTML = name && n.ip ? `Adresse: <b>${pr}://${esc(name)}</b> · falls das nicht geht: <b>${pr}://${esc(n.ip)}/</b>`
-      : n.ip && !ueberIp ? `Adresse der Box: <b>${pr}://${esc(n.ip)}/</b>`
-      : `Adresse der Box: <b>${pr}://${esc(location.host)}/</b>`;
-    const sat = document.getElementById("bs-satellit");
-    if (sat) sat.hidden = status.rolle !== "satellit";
-  }
+  // --- Unter dem Kopf von Einmessen: Ergebnis übernehmen ---------------------------------------------------------------
   // Solange nichts eingemessen ist oder eine Nachmessung offen ist, ist „Ergebnis übernehmen“ der Hauptknopf oben
   // (Ablaufprüfung P1-9: der Laden-Weg ohne App führt hierher, der Knopf darf nicht unter elf Kacheln liegen)
+  // Geprüft wird das Profil, das Einmessen zeigt: In 2.0/2.1 kommt Kino (stereo_kino) aus Stereo, solange Kino Stereo
+  // folgt oder kein eigenes Kino eingemessen ist; dann zählt Stereo (ein Film allein öffnet den Kasten nicht).
   function uebernahmeOffen() {
     if (!status) return true;
-    const p = status.profile && status.profil_aktiv ? status.profile[status.profil_aktiv] : status.modi ? status.modi[status.modus] : null;
-    return !p || !p.eingemessen || p.status === "vorhergesagt";
+    let id = status.profil_aktiv;
+    const pr = status.profile, kf = status.kino_aus_stereo && status.kino_aus_stereo.folgt;
+    if (pr && id === "stereo_kino" && ((kf && kf.folgt) || !(pr.stereo_kino && pr.stereo_kino.eingemessen))) id = "stereo";
+    const p = pr && id ? pr[id] : status.modi ? status.modi[status.modus] : null;
+    // Erstweg (Entwurf 01b): nicht auf dem ersten Bildschirm, nur wenn eine Nachmessung von der Mess-Seite offen ist;
+    // sonst unter Einmessen › Mehr › „Ergebnis übernehmen“
+    return !!p && !!p.eingemessen && p.status === "vorhergesagt";
   }
   function obenZeigen() {
     if (DIREKT) return;  // https: Ergebnisse kommen direkt in die Box, nichts zu übernehmen
@@ -328,28 +443,29 @@
     let k = document.getElementById("bs-oben");
     if (!k) {
       stil();
-      k = document.createElement("div"); k.id = "bs-oben"; k.className = "kasten bs-box";
+      k = document.createElement("div"); k.id = "bs-oben"; k.className = "kasten bs-oben";
       k.innerHTML = `<span class="eyebrow">Von der Mess-Seite</span><p class="klein">Auf der Mess-Seite „Kopieren“ getippt? Dann hier übernehmen.</p>
         <button type="button" class="zweit" id="bs-oben-los">Ergebnis übernehmen</button>`;
       held.insertAdjacentElement("beforebegin", k);
       k.querySelector("#bs-oben-los").addEventListener("click", dialogUebernehmen);
     }
     k.hidden = !uebernahmeOffen();
-    const u = document.getElementById("bs-uebernehmen"); if (u) u.hidden = uebernahmeOffen();
   }
-  function zuhauseErgaenzen() {
-    const nach = document.getElementById("zh-aktionen"); if (!nach || document.getElementById("bs-box")) return;
-    stil();
-    const k = document.createElement("div");
-    k.className = "kasten bs-box"; k.id = "bs-box";
-    k.innerHTML = `<div class="reihe"${DIREKT ? " hidden" : ""}><button type="button" class="zweit klein" id="bs-uebernehmen">Ergebnis von der Mess-Seite übernehmen</button></div>
-      <p class="klein warn" id="bs-satellit" hidden>Das ist ein Satellit. Bedienen geht über die Hauptbox.</p>
-      <p class="klein bs-adresse" id="bs-adresse"></p>`;
-    nach.insertAdjacentElement("afterend", k);
-    k.querySelector("#bs-uebernehmen").addEventListener("click", dialogUebernehmen);
-    adresseZeigen(); obenZeigen();
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", zuhauseErgaenzen); else zuhauseErgaenzen();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", obenZeigen); else obenZeigen();
 
-  window.klangboxBedienseite = { einmessen: dialogEinmessen, uebernehmen: dialogUebernehmen, messSeite: MESS_SEITE, direkt: DIREKT };
+  // Mikrofon erlauben (Entwurf 02a): Vertraut Safari dem Zertifikat der Box, klappt ein Abruf über https (sonst ein Fehler
+  // im Netz). Mehr kann die Seite nicht sehen; die einzelnen iOS-Schritte zeigt sie darum ohne Haken.
+  async function zertVertraut() {
+    const ab = typeof AbortController === "function" ? new AbortController() : null, uhr = ab ? setTimeout(() => ab.abort(), 3000) : 0;
+    try { await fetch(`${HTTPS_ADRESSE}api/status`, { mode: "no-cors", cache: "no-store", ...(ab ? { signal: ab.signal } : {}) }); return true; }
+    catch (e) { return false; } finally { if (uhr) clearTimeout(uhr); }
+  }
+  // Zur sicheren Seite, gleich gekoppelt (Einmal-Code), und dort beim Schritt „weiter“ fortfahren
+  async function zurSicherenSeite(weiter, mit = {}) {
+    const code = einladungCode || await einladen();
+    const q = new URLSearchParams(); q.set("zuhause", ""); if (code) q.set("koppeln", code); if (weiter) q.set("weiter", weiter);
+    for (const [k, v] of Object.entries(mit || {})) q.set(k, String(v));
+    location.href = `${HTTPS_ADRESSE}?${q.toString().replace(/^zuhause=/, "zuhause")}`;
+  }
+  window.klangboxBedienseite = { einmessen: dialogDirekt, uebernehmen: dialogUebernehmen, messSeite: dialogMessSeite, messSeiteAdresse: MESS_SEITE, direkt: DIREKT, zertVertraut, zurSicherenSeite };
 })();

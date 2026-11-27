@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="klangbox-stand" content="1abad1b12cb0">
+<meta name="klangbox-stand" content="9b9d2b99af7d">
 <meta name="theme-color" content="#E9E7E2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#17181A" media="(prefers-color-scheme: dark)">
 <script id="kb-darstellung">
 // Darstellung (Box › App): „auto“ folgt dem Gerät, „hell“ und „dunkel“ überstimmen es über data-thema an <html> (docs/ci/tokens.css).
@@ -946,6 +946,11 @@ body[data-schritt="18"] .schritt[data-s="18"] { padding-top: max(16px, var(--kb-
 .kl-kachel[aria-checked="true"] .d { color: var(--kb-flaeche); }
 .kl-kachel[aria-checked="true"]::after { content: ""; position: absolute; right: 12px; bottom: 12px; width: 18px; height: 18px; background: var(--kb-grund);
   -webkit-mask: var(--kb-sym-haken) center / contain no-repeat; mask: var(--kb-sym-haken) center / contain no-repeat; }
+/* Klang-Standard (Welle 3): Marke „Standard“ in der Kachel (nur Text, kein Signal), darunter „… als Standard“ */
+.kl-std { font: var(--kb-t-label); letter-spacing: var(--kb-ls-label); text-transform: uppercase; color: var(--kb-text-leise); margin-top: 4px; }
+.kl-kachel[aria-checked="true"] .kl-std { color: var(--kb-flaeche); }
+.kl-std-knopf { width: 100%; }
+.kl-std-knopf[hidden] { display: none; }
 .kl-kachel:disabled { opacity: .5; background: var(--kb-flaeche); color: var(--kb-text); border: 0; box-shadow: none; }
 .kl-fuss { align-items: center; }
 @media (max-width: 340px) { .kl-reihe { grid-template-columns: minmax(0, 1fr); } }
@@ -1036,6 +1041,42 @@ body.rg-offen .sheet-lage { z-index: 80; }
 .schritt[data-s="18"][data-tab="hoeren"] #zh-blind-zeile:not([hidden]) ~ #zh-klang-zeile { margin-top: 0; }   /* Blind ›, Klang › untereinander */
 @media (max-width: 380px) { .zh-hz { display: none; } }   /* „Vorher | 90 | 150 | Voll“: auf dem kleinsten iPhone ohne „Hz“ */
 .zh-jetzt-quelle { color: var(--kb-text-leise) !important; }
+/* Ruhe auf Hören (Welle 3, Entwurf A 23.11.2026, jetzt.js ruheHtml): wenn nichts läuft, eine ruhige Ansicht ohne Startknöpfe.
+   Status (Bereit, Satz, zuletzt), die Karte der letzten 7 Tage (Tinte, Tinte leise, Tinte blass; kein Signal), Zeilen wie Box.
+   Bereich, Vorher und Blind ruhen (es läuft nichts zum Vergleichen); Lippen-Sync steht in der Liste der Ruhe. */
+.zh-jetzt-karte.zh-ruhe { gap: 16px; }
+.zh-ruhe-status { display: grid; gap: 4px; margin-top: 8px; }
+.zh-ruhe-kopf { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; }
+.zh-ruhe-kopf h2 { font: var(--kb-t-titel2); margin: 0; color: var(--kb-text); }
+.zh-ruhe-kopf button.klein { flex: none; }
+.zh-ruhe-status p { margin: 0; }
+.zh-ruhe-satz { font: var(--kb-t-text); color: var(--kb-text-leise); }
+.zh-ruhe-karte { display: grid; gap: 12px; padding: 16px; background: var(--kb-flaeche); border-radius: var(--kb-r); color: var(--kb-text); }
+.zh-ruhe-karte .kb-label { margin: 0; }
+.zh-ruhe-wert { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 0; }
+.zh-ruhe-zahl { font: 600 24px/28px var(--kb-schrift); color: var(--kb-text); }
+.zh-ruhe-zusatz { font: var(--kb-t-klein); color: var(--kb-text-leise); }
+.zh-ruhe-rechts { margin-left: auto; }
+.zh-ruhe-stapel { display: flex; gap: 2px; height: 8px; }
+.zh-ruhe-stapel > i { display: block; height: 100%; min-width: 4px; }
+.zh-ruhe-stereo { background: var(--kb-text); }
+.zh-ruhe-kino { background: var(--kb-text-leise); }
+.zh-ruhe-hg { background: color-mix(in srgb, var(--kb-text-leise) 45%, var(--kb-flaeche)); }
+.zh-ruhe-legende { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; list-style: none; font: var(--kb-t-klein); color: var(--kb-text-leise); }
+.zh-ruhe-legende li { display: inline-flex; align-items: center; gap: 6px; }
+.zh-ruhe-legende i { width: 8px; height: 8px; display: inline-block; }
+.zh-ruhe-karte .zh-ruhe-kino-zeile { padding-top: 8px; border-top: 1px solid var(--kb-linie); margin: 0; }
+.zh-ruhe-zeilen { display: grid; }
+.zh-ruhe-zeilen > .kb-zeile:first-child { border-top: 1px solid var(--kb-linie); }
+.zh-ruhe-klang { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 64px; padding: 8px 0; border-bottom: 1px solid var(--kb-linie); }
+.zh-ruhe-klang > .zh-ruhe-klang-text { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; min-width: 0; flex: 1; min-height: 44px; padding: 0; background: none; border: 0;
+  border-radius: 0; box-shadow: none; text-align: left; color: var(--kb-text); font: 500 17px/24px var(--kb-schrift); }
+.zh-ruhe-klang .wert { font-weight: 400; color: var(--kb-text-leise); }
+.zh-ruhe-klang .klein { font-weight: 400; }
+.zh-ruhe-klang button.klein { flex: none; }
+.zh-ruhe-meldung { margin: 0; } .zh-ruhe-meldung:empty { display: none; }
+.schritt[data-s="18"].zh-ruhe-an :is(#zh-bereich, #zh-ziel, #zh-vn, #zh-bereich-status, #zh-blind-zeile, #zh-lippen-h, #zh-klang-zeile) { display: none; }
+.schritt[data-s="18"][data-tab="hoeren"].zh-ruhe-an > #zh-held { margin-top: 0; }
 .lp { width: 100%; aspect-ratio: 1; justify-self: center; perspective: none; cursor: pointer; border-radius: var(--kb-r); -webkit-tap-highlight-color: transparent; }
 .lp.gross { width: min(100%, 56dvh, 560px); }
 .lp-innen { position: relative; width: 100%; height: 100%; transform-style: flat; transition: none; }
@@ -2664,6 +2705,11 @@ body[data-schritt="18"] .schritt[data-s="18"][data-tab="einmessen"].em-ergebnis 
       <div class="kl-abschnitt" id="zh-jetzt-abschnitt"><span class="kb-label">Für jetzt</span><div id="zh-inhalt-gruppen"></div><div id="zh-echt-platz"></div></div>
       <div class="kl-abschnitt" id="zh-profil-abschnitt"><span class="kb-label" id="zh-profil-label">Klangprofil</span>
         <div class="kl-kacheln" id="zh-profil-kacheln" role="radiogroup" aria-labelledby="zh-profil-label"></div>
+        <!-- Klang-Standard je Modus (Welle 3, POST /api/klang_standard): die Wahl als Standard dieses Modus, gilt bei jedem Start -->
+        <button type="button" class="zweit kl-std-knopf" id="zh-profil-std" hidden></button>
+        <p class="klein" id="zh-profil-std-text" hidden></p>
+        <!-- die drei Standards auf einen Blick (Prüfer 27.11.2026): keiner ist unsichtbar, auch die der anderen Modi -->
+        <p class="klein" id="zh-profil-standards" hidden></p>
         <p class="klein" id="zh-profil-text" hidden></p></div>
       <div class="kl-abschnitt" id="zh-fein-abschnitt"><span class="kb-label">Einmessung</span>
         <button type="button" class="kb-zeile" id="zh-feinheiten-zeile" data-sheet-block="zh-feinheiten" data-sheet-titel="Feinheiten"><span>Feinheiten <span class="wert" id="zh-feinheiten-wert"></span></span></button>
@@ -14817,9 +14863,23 @@ function profilKachelnZeigen() {
   const kp = klangStand(), kino = !!(zh.st && zh.st.modus === "kino"), da = !!kp && !!PROFILE;
   $("zh-profil-abschnitt").hidden = !da; if (!da) return;
   const nur = (q) => !!q.zusatz;  // Vinyl, Bühne: Übersprechen bzw. Mitte/Seite, nur Stereo (klangprofile.nur_stereo)
+  // Klang-Standard (Welle 3): den orangen Ring trägt der Standard ab Werk (Neutral, im Hintergrund Vinyl), die Marke
+  // „Standard“ der Standard, der beim nächsten Start gilt (eigener oder ab Werk). Ältere Box ohne ab_werk: wie bisher.
+  const vorId = (kp.voreinstellung && kp.voreinstellung.id) || "neutral", werkId = kp.ab_werk ? kp.ab_werk.id : vorId;
+  const art = kp.standard_modus, artName = { stereo: "Stereo", kino: "Kino", hintergrund: "Hintergrund" }[art] || "";
+  $("zh-profil-label").textContent = kp.ab_werk && artName ? `Klangprofil · ${artName}` : "Klangprofil";
   listeMitFokus($("zh-profil-kacheln"), PROFILE.profile.map((q) => { const an = q.id === kp.id, aus = kino && nur(q);
-    return `<button type="button" class="kl-kachel${q.id === ((kp.voreinstellung && kp.voreinstellung.id) || "neutral") ? " empfohlen" : ""}" role="radio" aria-checked="${an}" data-zh-klangprofil="${esc(q.id)}"${aus ? " disabled" : ""}>
-      <span class="n">${esc(q.name)}</span><span class="d">${q.id === "neutral" ? "Eingemessen" : aus ? KL_NUR_STEREO : esc(q.kurz)}</span></button>`; }).join(""));
+    return `<button type="button" class="kl-kachel${q.id === werkId ? " empfohlen" : ""}" role="radio" aria-checked="${an}" data-zh-klangprofil="${esc(q.id)}"${aus ? " disabled" : ""}>
+      <span class="n">${esc(q.name)}</span><span class="d">${q.id === "neutral" ? "Eingemessen" : aus ? KL_NUR_STEREO : esc(q.kurz)}</span>${kp.ab_werk && q.id === vorId ? `<span class="kl-std">Standard</span>` : ""}</button>`; }).join(""));
+  // Übersicht: „Standard: Stereo Neutral · Kino Röhre · Hintergrund Vinyl“ (status.klang_standard), nur Tinte
+  const ks = zh.st && zh.st.klang_standard, pName = (id) => ((PROFILE.profile.find((q) => q.id === id) || {}).name || id);
+  $("zh-profil-standards").hidden = !ks;
+  if (ks) $("zh-profil-standards").textContent = `Standard: ${["stereo", "kino", "hintergrund"].map((m) => `${{ stereo: "Stereo", kino: "Kino", hintergrund: "Hintergrund" }[m]} ${pName(ks[m])}`).join(" · ")}`;
+  // „Röhre als Standard“: nur, wenn gerade ein anderes Profil als der Standard gilt (und es in diesem Modus wirken darf)
+  const stdKnopf = $("zh-profil-std"), stdAn = !!kp.ab_werk && !!art && kp.id !== vorId && !(kino && kp.nur_stereo);
+  stdKnopf.hidden = !stdAn; $("zh-profil-std-text").hidden = !stdAn;
+  if (stdAn) { stdKnopf.textContent = `${kp.name} als Standard`; stdKnopf.dataset.id = kp.id; stdKnopf.dataset.modus = art;
+    $("zh-profil-std-text").textContent = `Gilt nur für ${artName} (${art === "stereo" ? "Kino und Hintergrund" : art === "kino" ? "Stereo und Hintergrund" : "Stereo und Kino"} getrennt).`; }
   // eingepasst (0.3.42: schwächer, Anhebungen der Raumanpassung gesenkt, leiser als pegelgleich): ehrlich sagen, nie still
   const ein = kp.eingepasst ? kp.eingepasst.replace(/^Wächter: /, "") : "";
   const text = kp.entfernt ? `„${kp.entfernt}“ gibt es nicht mehr. Die Box spielt Neutral.` : kp.id !== "neutral" && !kp.wirkt && kp.grund ? kp.grund
@@ -14874,6 +14934,17 @@ async function klangprofilSetzen(id) {
   profilKachelnZeigen(); klangZeileZeigen(); bitgenauZeigen();
   return true;
 }
+// Klang-Standard je Modus (POST /api/klang_standard {modus, id}): aus dem Fenster Klang und aus Hören › Ruhe (jetzt.js)
+async function klangStandardSetzen(art, id, statusEl) {
+  const st = (t) => { if (statusEl) statusEl.innerHTML = t; };
+  if (!nativ || !boxBereit()) { st(`<span class="warn">Die Klång-Box ist nicht verbunden.</span>`); return false; }
+  const a = await nativ.box("klang_standard", { modus: art, id }, { zeitMs: 8000 });
+  if (!a.ok) { st(`<span class="warn">${esc(a.fehler || a.grund)}</span>`); return false; }
+  zh.st = { ...(zh.st || {}), klang_standard: a.klang_standard, klangprofil: a.klangprofil || (zh.st || {}).klangprofil }; st("");
+  profilKachelnZeigen(); klangZeileZeigen(); if (typeof JETZT !== "undefined") JETZT.zeigen();
+  return true;
+}
+$("zh-profil-std").addEventListener("click", (ev) => { const b = ev.currentTarget; klangStandardSetzen(b.dataset.modus, b.dataset.id, $("zh-schalter-status")); });
 $("zh-profil-kacheln").addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-zh-klangprofil]"); if (!b || b.disabled || b.getAttribute("aria-checked") === "true") return;
   klangprofilSetzen(b.dataset.zhKlangprofil);
@@ -15380,12 +15451,17 @@ function boxRearZeile(st) {
     ` data-sheet-block="zh-rear" data-sheet-titel="Rear-Box" data-rear-id="${esc(s.id)}"`)).join("");
 }
 // Box › Einmessung: Tag der letzten Einmessung und ob sie nachgemessen ist; antippen führt zu Einmessen
+// Tag und Stand der letzten Einmessung (Runde auf diesem Handy, sonst nur, ob die Box eingemessen ist); auch Hören › Ruhe
+function einmessungKurz(st) {
+  const r = letzteRunde(modus), boxEin = !!(st && st.profile && Object.values(st.profile).some((p) => p && p.eingemessen));
+  const tag = r && r.zeit ? String(r.zeit).split(",")[0].replace(/\d{4}$/, "") : "";
+  const stand = r ? (r.status === "bestaetigt" ? (WIRKT[pruefUrteil(r)] ? WIRKT[pruefUrteil(r)].kurz : "alles in Ordnung") : r.status === "zurueckgenommen" ? "zurückgenommen" : "Nachmessen offen") : "";
+  return { tag, stand, eingemessen: !!r || boxEin };
+}
 function boxEinmessungZeile(st) {
   if (st.rolle === "satellit") return "";
-  const r = letzteRunde(modus), boxEin = !!(st.profile && Object.values(st.profile).some((p) => p && p.eingemessen));
-  const tag = r && r.zeit ? String(r.zeit).split(",")[0].replace(/\d{4}$/, "") : "";
-  const wort = r ? `${tag ? `${esc(tag)}&nbsp;· ` : ""}${r.status === "bestaetigt" ? (WIRKT[pruefUrteil(r)] ? WIRKT[pruefUrteil(r)].kurz : "alles in Ordnung") : r.status === "zurueckgenommen" ? "zurückgenommen" : "Nachmessen offen"}`
-    : boxEin ? "eingemessen" : "noch nicht eingemessen";
+  const e = einmessungKurz(st);
+  const wort = e.stand ? `${e.tag ? `${esc(e.tag)}&nbsp;· ` : ""}${e.stand}` : e.eingemessen ? "eingemessen" : "noch nicht eingemessen";
   return zhAktion("zh-einmessung-k", "", `Einmessung<small>${wort}</small>`, true, ` data-zh-tab="einmessen"`);
 }
 function boxSheetsZeigen(st) {
@@ -21075,13 +21151,116 @@ const JETZT = (() => {
     return `${info}${zeilen ? `<div class="zh-album-technik">${zeilen}</div>` : ""}`;
   }
 
+  // --- Ruhe (Welle 3, Entwurf A, Besitzer 23.11.2026) -------------------------------------------------------------------
+  // Wenn nichts läuft, genau eine ruhige Ansicht: kein Startknopf für Film oder AirPlay (gespielt wird am Fernseher, Player
+  // oder Handy). Jede Aussage kommt aus dem Status der Box (status.gehoert, klang_standard, klangprofil, pegel, satelliten);
+  // was sie nicht weiß, steht nicht da oder heißt „noch nicht“. „Radio spielen“ nur, wenn die Box einen Sender kennt und
+  // Internetradio an ist (POST /api/radio {zuletzt: true}); „… als Standard“ nur, wenn ein Profil in diesem Modus meist lief.
+  const ruheDa = () => !!(zh && zh.st && zh.st.gehoert);  // ältere Box ohne status.gehoert: wie bisher
+  const ruheAn = () => !!j && ruheDa() && j.zustand !== "spielt" && !(j.zustand === "pause" && j.titel);
+  const MODUS_NAME = { stereo: "Stereo", kino: "Kino", hintergrund: "Hintergrund" };
+  const DIENST_KURZ = { airplay: "AirPlay", spotify: "Spotify", bluetooth: "Bluetooth", upnp: "UPnP", roon: "Roon" };
+  const stunden = (s) => (s >= 3600 ? `${zk(s / 3600, s >= 36000 ? 0 : 1)}&nbsp;h` : `${Math.max(1, Math.round(s / 60))}&nbsp;min`);
+  function wann(iso) {  // „JJJJ-MM-TTTHH:MM“ der Box (ihre Ortszeit): heute, gestern, sonst Datum
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(iso || "")); if (!m) return "";
+    const d = new Date(+m[1], +m[2] - 1, +m[3]), h = new Date(); h.setHours(0, 0, 0, 0);
+    const tage = Math.round((h - d) / 86400000), uhrz = `${m[4]}:${m[5]}`;
+    return tage === 0 ? `heute, ${uhrz}` : tage === 1 ? `gestern, ${uhrz}` : `${+m[3]}.${+m[2]}., ${uhrz}`;
+  }
+  const tagKurz = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || "")); return m ? `${+m[3]}.${+m[2]}.` : ""; };
+  const quelleName = (q) => (q.quelle === "optisch" && (!q.name || q.name === "Digital") ? "optischer Eingang" : q.quelle === "analog" && (!q.name || q.name === "Analog") ? "Analog-Eingang" : q.name || q.quelle);
+  // „Röhre als Standard“: der Modus, dessen Standard beim nächsten Start gilt, und das Profil, das dort meist lief
+  function ruheVorschlag(st) {
+    const kp = st.klangprofil, ks = st.klang_standard, g = st.gehoert;
+    if (!kp || !ks || !g || !g.meist || !kp.standard_modus || !zh.einmessungDa) return null;
+    const art = kp.standard_modus, m = (g.meist || {})[art];
+    return m && m.id !== ks[art] ? { art, id: m.id, name: m.name } : null;
+  }
+  function ruheHtml(st) {
+    const g = st.gehoert || {}, s = st.streamer || {}, dn = s.dienste || {};
+    // Ohne Kopplung liefert die Box nur, seit wann sie zählt (gesamt_s null, Prüfer 27.11.2026): dann keine Zeilen
+    // dazu, statt „noch nichts“ zu behaupten
+    const gekoppelt = g.gesamt_s !== null && g.gesamt_s !== undefined;
+    // Titel wie die Box-Seite (boxStatusHtml): „Bereit“ nur, wenn die Box wirklich bereit ist (spielt mit Einmessung,
+    // kein Problem); sonst ihr Satz für diesen Zustand. Der Satz darunter nennt nur, was die Box wirklich hat.
+    const probleme = typeof boxProbleme === "function" ? boxProbleme(st) : st.zustand === "fehler" ? ["Die Klangkette läuft nicht."] : [];
+    const neu = !probleme.length && typeof nochNichtEingemessen === "function" && nochNichtEingemessen(st);
+    // Vorher (zustand „aus“) bei Stille: bereit, die Zeile darunter sagt, dass Vorher an ist (Nachprüfung 27.11.2026)
+    const vorher = !probleme.length && !neu && (st.zustand === "aus" || st.aus === true);
+    const titel = probleme.length ? "Etwas stimmt nicht." : neu ? "Noch nicht eingemessen." : vorher ? "Bereit"
+      : st.zustand === "neutral" ? "Spielt ohne Einmessung." : st.zustand === "fehler" ? "Die Klangkette läuft nicht." : "Bereit";
+    // eine Zeile (Entwurf): der Eingang und ein Dienst, der an ist (AirPlay zuerst)
+    const wege = [st.eingang ? "am Eingang" : "", ...Object.keys(DIENST_KURZ).filter((d) => dn[d] && dn[d].an).slice(0, 1).map((d) => `über ${DIENST_KURZ[d]}`)].filter(Boolean);
+    const satz = probleme.length ? `${probleme[0].replace(/<[^>]*>/g, "").trim()} Mehr unter Box.` : neu ? "Spielt neutral." : vorher ? "Vorher ist an (ohne Korrektur)."
+      : wege.length ? `Startet bei Ton ${wege.join(" oder ")}.` : "Startet, sobald Ton kommt.";
+    const q = g.quelle, r = g.radio;
+    const zuletzt = !gekoppelt ? "" : q ? `Zuletzt ${h(quelleName(q))}${q.quelle === "radio" && r && r.name ? `&nbsp;· ${h(r.name)}` : ""}${wann(q.zeit) ? `&nbsp;· ${wann(q.zeit)}` : ""}` : "Zuletzt: seit dem Update noch nichts.";
+    const sender = gekoppelt && r && r.name && !(q && q.quelle === "radio") ? `<p class="klein" id="zh-ruhe-sender">Letzter Sender: ${h(r.name)}</p>` : "";
+    const radio = gekoppelt && r && dn.radio && dn.radio.an && !probleme.length ? `<button type="button" class="klein" id="zh-ruhe-radio" data-ruhe-radio="1"${r.name ? ` aria-label="Radio spielen: ${h(r.name)}"` : ""}>Radio spielen</button>` : "";
+    const status = `<div class="zh-ruhe-status"><div class="zh-ruhe-kopf"><h2 id="zh-ruhe-titel">${titel}</h2>${radio}</div>
+      <p class="zh-ruhe-satz">${h(satz)}</p>${zuletzt ? `<p class="klein" id="zh-ruhe-zuletzt">${zuletzt}</p>` : ""}${sender}<p class="klein zh-ruhe-meldung" id="zh-ruhe-meldung" aria-live="polite"></p></div>`;
+    // Karte: Stunden je Modus der letzten 7 Tage (oder seit dem ersten Zählen), meist gehörtes Profil, Kino zuletzt
+    // „Letzte 7 Tage“ nur, wenn die Box seit dem ersten Tag des Fensters zählt (g.ab, Kalendertage der Box), sonst „Seit …“
+    const sek = g.sekunden || {}, ges = +g.gesamt_s || 0, voll = !!g.seit && !!g.ab && g.seit <= g.ab;
+    const kopf = `<span class="kb-label">${voll ? `Letzte ${g.tage || 7} Tage` : g.seit ? `Seit ${tagKurz(g.seit)}` : `Letzte ${g.tage || 7} Tage`}</span>`;
+    const modi = ["stereo", "kino", "hintergrund"].filter((m) => (+sek[m] || 0) >= 60);
+    const meist = g.meist_gesamt ? `<span class="zh-ruhe-zusatz zh-ruhe-rechts">meist ${h(g.meist_gesamt.name)}</span>` : "";
+    const kino = g.kino ? [g.kino.couch_name ? `Couch ${g.kino.couch_name}` : "", g.kino.format || ""].filter(Boolean).map(h).join("&nbsp;· ") : "";
+    const karte = `<section class="zh-ruhe-karte" id="zh-ruhe-woche" aria-label="Gehört">${kopf}${ges >= 60
+      ? `<p class="zh-ruhe-wert"><span class="zh-ruhe-zahl">${stunden(ges)}</span><span class="zh-ruhe-zusatz">gehört</span>${meist}</p>
+      <div class="zh-ruhe-stapel" aria-hidden="true">${modi.map((m) => `<i class="zh-ruhe-${m === "hintergrund" ? "hg" : m}" style="flex:${(+sek[m] / ges).toFixed(3)}"></i>`).join("")}</div>
+      <ul class="zh-ruhe-legende">${modi.map((m) => `<li><i class="zh-ruhe-${m === "hintergrund" ? "hg" : m}"></i>${MODUS_NAME[m]} ${stunden(+sek[m])}</li>`).join("")}</ul>`
+      : `<p class="zh-ruhe-wert"><span class="zh-ruhe-zusatz">${g.seit ? "In den letzten 7 Tagen nichts gezählt." : "Seit dem Update noch nichts gezählt."}</span></p>`}
+      ${kino ? `<p class="klein zh-ruhe-kino-zeile" id="zh-ruhe-kino">Zuletzt im Kino: ${kino}</p>` : ""}</section>`;
+    const karteZeigen = gekoppelt ? karte : "";
+    // Zeilen wie unter Box: Rear-Box, Lippen-Sync (im Kino), Ohren (Hördosis), Einmessung
+    const sats = st.rolle === "satellit" ? [] : st.satelliten || [];
+    const rear = typeof rearWort === "function" ? sats.map((x, i) => `<button type="button" class="kb-zeile" id="zh-ruhe-rear${i ? `-${i}` : ""}" data-sheet-block="zh-rear" data-sheet-titel="Rear-Box" data-rear-id="${h(x.id)}"><span>Rear-Box${sats.length > 1 ? ` ${i + 1}` : ""} <span class="wert">· ${rearWort(st, x)}</span></span></button>`).join("") : "";
+    const lippen = st.modus === "kino" && typeof lippenMs === "function" ? `<button type="button" class="kb-zeile" id="zh-ruhe-lippen" data-sheet-block="zh-lippen" data-sheet-titel="Lippen-Sync"><span>Lippen-Sync <span class="wert">· ${zk(lippenMs(st), 0)}&nbsp;ms</span></span></button>` : "";
+    const p = st.pegel, dosis = p && typeof dosisKurz === "function" ? `${p.mittelpegel_db != null ? `Ø ${zk(p.mittelpegel_db, 0)}&nbsp;dB&nbsp;· ` : ""}${h(dosisKurz(st))}` : "";
+    const ohren = p ? `<button type="button" class="kb-zeile" id="zh-ruhe-ohren" data-sheet-block="zh-dosis" data-sheet-titel="Pegel und Hördosis"><span>Ohren <span class="wert">· ${dosis}</span></span></button>` : "";
+    const e = typeof einmessungKurz === "function" ? einmessungKurz(st) : null;
+    const ein = e ? `<button type="button" class="kb-zeile" id="zh-ruhe-einmessung" data-zh-tab="einmessen"><span>${e.tag ? `Eingemessen am ${h(e.tag)}` : e.eingemessen ? "Eingemessen" : "Noch nicht eingemessen"}${e.stand ? ` <span class="wert">· ${h(e.stand)}</span>` : ""}</span></button>` : "";
+    // Klang als letzte Zeile (die gewohnte „Klang ›“ ruht): mit Vorschlag „Du hörst meist Röhre.“ und „Röhre als Standard“
+    const v = ruheVorschlag(st), kw = $("zh-klang-wert") ? $("zh-klang-wert").textContent : "", kz = $("zh-klang-zeile");
+    const klang = !kz || kz.hidden ? "" : !v ? `<button type="button" class="kb-zeile" id="zh-ruhe-klang" data-sheet-block="zh-schalter" data-sheet-titel="Klang"><span>Klang <span class="wert">${h(kw)}</span></span></button>` : `<div class="zh-ruhe-klang" id="zh-ruhe-klang"><button type="button" class="zh-ruhe-klang-text" data-sheet-block="zh-schalter" data-sheet-titel="Klang"><span>Klang <span class="wert">${h(kw)}</span></span><span class="klein">${v.art === "stereo" ? "Du hörst meist" : `${MODUS_NAME[v.art]}: meist`} ${h(v.name)}.</span></button>
+      <button type="button" class="klein" data-ruhe-std="${h(v.id)}" data-ruhe-modus="${h(v.art)}">${h(v.name)} als Standard</button></div>`;
+    const zeilen = rear + lippen + ohren + ein + klang;
+    return `${status}${karteZeigen}${zeilen ? `<div class="zh-ruhe-zeilen" id="zh-ruhe-zeilen">${zeilen}</div>` : ""}`;
+  }
+  function ruheSchalten(an) {
+    const s = document.querySelector('.schritt[data-s="18"]'); if (s) s.classList.toggle("zh-ruhe-an", !!an);
+  }
+  document.addEventListener("click", async (ev) => {
+    const b = ev.target.closest("[data-ruhe-radio], [data-ruhe-std]"); if (!b || !$("zh-jetzt") || !$("zh-jetzt").contains(b)) return;
+    const meld = $("zh-ruhe-meldung"), warn = (a) => { if (meld) meld.innerHTML = `<span class="warn">${h(a.fehler || a.grund || "Die Box antwortet nicht.")}</span>`; };
+    b.disabled = true;
+    if (b.dataset.ruheRadio) {
+      const a = await nativ.box("radio", { zuletzt: true }, { zeitMs: 8000 });
+      if (a && a.ok) { if (meld) meld.textContent = "Radio startet …"; setTimeout(laden, 1500); } else { warn(a || {}); b.disabled = false; }
+      return;
+    }
+    if (typeof klangStandardSetzen === "function" && !(await klangStandardSetzen(b.dataset.ruheModus, b.dataset.ruheStd, meld))) b.disabled = false;
+  });
+
   // --- Karte „Jetzt läuft“ ---------------------------------------------------------------------------------------------
   function zeigen() {
     const ziel = $("zh-jetzt"); if (!ziel) return;
     const an = da() && !!j && !window.__ohneJetzt;
     ziel.hidden = !an;
-    if (!an) { clearInterval(uhr); uhr = 0; raumPruefen(); return; }
+    if (!an) { clearInterval(uhr); uhr = 0; ruheSchalten(false); raumPruefen(); return; }
     if (typeof LAUT !== "undefined" && LAUT.beschaeftigt()) return;  // während der Lautstärke-Anzeige nicht neu zeichnen
+    if (ruheAn()) {
+      const html = `<section class="zh-jetzt-karte zh-ruhe" id="zh-jetzt-karte" aria-labelledby="zh-ruhe-titel">${ruheHtml(zh.st)}</section>`;
+      if (ziel.dataset.ruhe !== html) {  // nur neu bauen, wenn sich etwas ändert (Fokus und Meldung bleiben)
+        ziel.dataset.ruhe = html; ziel.innerHTML = html;
+        if (typeof LAUT !== "undefined") LAUT.einhaengen();
+      }
+      ruheSchalten(true);
+      clearInterval(uhr); uhr = 0; raumPruefen();
+      return;
+    }
+    ziel.dataset.ruhe = ""; ruheSchalten(false);
     const still = j.zustand === "still" && !j.titel;
     // Bedienleiste der Lautstärke unter Cover und Titelzeile (nur wenn die Klång-Box regelt; lautstaerke.js füllt sie)
     const leiste = `<div class="zh-vol-leiste" id="zh-vol-leiste" role="group" aria-label="Lautstärke" hidden></div>`;

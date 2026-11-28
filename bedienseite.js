@@ -433,9 +433,7 @@
     const pr = status.profile, kf = status.kino_aus_stereo && status.kino_aus_stereo.folgt;
     if (pr && id === "stereo_kino" && ((kf && kf.folgt) || !(pr.stereo_kino && pr.stereo_kino.eingemessen))) id = "stereo";
     const p = pr && id ? pr[id] : status.modi ? status.modi[status.modus] : null;
-    // Erstweg (Entwurf 01b): nicht auf dem ersten Bildschirm, nur wenn eine Nachmessung von der Mess-Seite offen ist;
-    // sonst unter Einmessen › Mehr › „Ergebnis übernehmen“
-    return !!p && !!p.eingemessen && p.status === "vorhergesagt";
+    return !p || !p.eingemessen || p.status === "vorhergesagt";
   }
   function obenZeigen() {
     if (DIREKT) return;  // https: Ergebnisse kommen direkt in die Box, nichts zu übernehmen
@@ -453,19 +451,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", obenZeigen); else obenZeigen();
 
-  // Mikrofon erlauben (Entwurf 02a): Vertraut Safari dem Zertifikat der Box, klappt ein Abruf über https (sonst ein Fehler
-  // im Netz). Mehr kann die Seite nicht sehen; die einzelnen iOS-Schritte zeigt sie darum ohne Haken.
-  async function zertVertraut() {
-    const ab = typeof AbortController === "function" ? new AbortController() : null, uhr = ab ? setTimeout(() => ab.abort(), 3000) : 0;
-    try { await fetch(`${HTTPS_ADRESSE}api/status`, { mode: "no-cors", cache: "no-store", ...(ab ? { signal: ab.signal } : {}) }); return true; }
-    catch (e) { return false; } finally { if (uhr) clearTimeout(uhr); }
-  }
-  // Zur sicheren Seite, gleich gekoppelt (Einmal-Code), und dort beim Schritt „weiter“ fortfahren
-  async function zurSicherenSeite(weiter, mit = {}) {
-    const code = einladungCode || await einladen();
-    const q = new URLSearchParams(); q.set("zuhause", ""); if (code) q.set("koppeln", code); if (weiter) q.set("weiter", weiter);
-    for (const [k, v] of Object.entries(mit || {})) q.set(k, String(v));
-    location.href = `${HTTPS_ADRESSE}?${q.toString().replace(/^zuhause=/, "zuhause")}`;
-  }
-  window.klangboxBedienseite = { einmessen: dialogDirekt, uebernehmen: dialogUebernehmen, messSeite: dialogMessSeite, messSeiteAdresse: MESS_SEITE, direkt: DIREKT, zertVertraut, zurSicherenSeite };
+  window.klangboxBedienseite = { einmessen: dialogDirekt, uebernehmen: dialogUebernehmen, messSeite: MESS_SEITE, direkt: DIREKT };
 })();
